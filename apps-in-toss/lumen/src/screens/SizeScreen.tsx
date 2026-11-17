@@ -22,7 +22,7 @@ export function SizeScreen() {
   async function watchAd() {
     playTap();
     setNote("광고를 준비하고 있어요.");
-    const earned = await showRewardedAd();
+    const earned = await showRewardedAd("size-proxima");
     if (earned) {
       unlockBonusComparison();
       awardStamp("bonus");

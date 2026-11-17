@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Screen } from "../components/Screen";
-import { QUIZZES, allStamps, type QuizSet } from "../data/quizzes";
+import { QUIZZES, allStamps, reviewQuestions, type QuizSet } from "../data/quizzes";
 import { playTap } from "../lib/audio";
-import { interstitialDue, preloadInterstitial, showPreparedInterstitial } from "../lib/ads";
-import { awardStamp, getProgress, subscribeProgress } from "../lib/storage";
+import { interstitialDue, preloadInterstitial, rewardedSupported, showPreparedInterstitial, showRewardedAd } from "../lib/ads";
+import { awardStamp, bumpWeekly, getProgress, markAnswer, subscribeProgress } from "../lib/storage";
 
 type Phase = "list" | "ask" | "result";
 type QuizHistory = { lumen?: string; quiz?: string };
@@ -22,6 +22,9 @@ export function QuizScreen() {
   const [phase, setPhase] = useState<Phase>("list");
   const [adAhead, setAdAhead] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [keys, setKeys] = useState<string[]>([]);
+  const [hintAt, setHintAt] = useState<number | null>(null);
+  const [hintNote, setHintNote] = useState("");
   const alive = useRef(true);
 
   useEffect(() => {
@@ -37,8 +40,17 @@ export function QuizScreen() {
     };
   }, []);
 
-  function start(next: QuizSet, pushHistory: boolean) {
+  function startReview(pushHistory: boolean) {
+    const picked = reviewQuestions(getProgress().wrong);
+    if (picked.length === 0) return;
+    start({ id: "review", name: "틀린 문제", badge: "", questions: picked }, pushHistory, picked.map((question) => question.key));
+  }
+
+  function start(next: QuizSet, pushHistory: boolean, questionKeys?: string[]) {
     playTap();
+    setKeys(questionKeys ?? next.questions.map((_, i) => `${next.id}:${i}`));
+    setHintAt(null);
+    setHintNote("");
     if (pushHistory) history.pushState({ lumen: "quiz", quiz: next.id } satisfies QuizHistory, "");
     setQuiz(next);
     setIndex(0);
@@ -50,7 +62,10 @@ export function QuizScreen() {
   }
 
   async function finish(score: number) {
-    if (quiz && score === quiz.questions.length) awardStamp(`quiz-${quiz.id}`);
+    if (quiz && quiz.id !== "review") {
+      if (score === quiz.questions.length) awardStamp(`quiz-${quiz.id}`);
+      bumpWeekly("quiz");
+    }
     setPhase("result");
     const ready = interstitialDue() && (await preloadInterstitial());
     if (alive.current) setAdAhead(ready);
@@ -62,7 +77,7 @@ export function QuizScreen() {
     if (busy) return;
     if (adAhead) {
       setBusy(true);
-      await showPreparedInterstitial();
+      await showPreparedInterstitial("quiz-result");
       if (!alive.current) return;
       setBusy(false);
       setAdAhead(false);
@@ -70,16 +85,35 @@ export function QuizScreen() {
     then();
   }
 
+  async function askHint() {
+    playTap();
+    setHintNote("광고를 준비하고 있어요.");
+    const earned = await showRewardedAd("quiz-hint");
+    if (!alive.current) return;
+    if (earned) {
+      setHintAt(index);
+      setHintNote("틀린 답 하나를 지웠어요.");
+    } else {
+      setHintNote("광고를 끝까지 보지 않아서 힌트는 그대로예요.");
+    }
+  }
+
   const question = quiz?.questions[index];
   const stamps = allStamps();
 
   return (
-    <Screen banner={phase === "list"}>
+    <Screen banner={phase === "list" ? "quiz-list" : false}>
       <h1>퀴즈와 도장</h1>
       {phase === "list" ? (
         <>
           <p className="lede">문제를 모두 맞히면 도장을 받아요. 도장은 이 기기에 남아요.</p>
           <div className="stack">
+            {progress.wrong.length > 0 ? (
+              <button type="button" className="menu-item" onClick={() => startReview(true)}>
+                <strong>틀린 문제 다시 풀기</strong>
+                <span>{Math.min(5, progress.wrong.length)}문제 · 다시 맞히면 목록에서 빠져요</span>
+              </button>
+            ) : null}
             {QUIZZES.map((item) => {
               const got = progress.stamps.includes(`quiz-${item.id}`);
               return (
@@ -93,19 +127,8 @@ export function QuizScreen() {
             })}
           </div>
           <p className="muted">
-            내 도장 {progress.stamps.length} / {stamps.length}
+            내 도장 {progress.stamps.length} / {stamps.length} · 첫 화면의 도장판에서 모두 볼 수 있어요.
           </p>
-          <ul className="list plain">
-            {stamps.map((stamp) => {
-              const got = progress.stamps.includes(stamp.id);
-              return (
-                <li key={stamp.id}>
-                  <strong className={got ? "good" : undefined}>{stamp.name}</strong>
-                  <p className="muted">{got ? "받았어요" : stamp.how}</p>
-                </li>
-              );
-            })}
-          </ul>
         </>
       ) : null}
       {phase === "ask" && quiz && question ? (
@@ -115,7 +138,8 @@ export function QuizScreen() {
           </p>
           <h2>{question.q}</h2>
           <div className="stack">
-            {question.options.map((option, optionIndex) => (
+            {question.options.map((option, optionIndex) =>
+              hintAt === index && optionIndex === question.options.findIndex((_, i) => i !== question.answer) ? null : (
               <button
                 key={option}
                 type="button"
@@ -125,13 +149,24 @@ export function QuizScreen() {
                 onClick={() => {
                   playTap();
                   setPicked(optionIndex);
-                  if (optionIndex === question.answer) setCorrect((value) => value + 1);
+                  const right = optionIndex === question.answer;
+                  if (right) setCorrect((value) => value + 1);
+                  const key = keys[index];
+                  if (key) markAnswer(key, right);
+                  if (right && quiz.id === "review") bumpWeekly("review");
                 }}
               >
                 {option}
               </button>
-            ))}
+              ),
+            )}
           </div>
+          {picked === null && hintAt === null && rewardedSupported() ? (
+            <button type="button" className="btn btn-quiet" onClick={() => void askHint()}>
+              광고 보고 힌트 받기 (한 퀴즈에 한 번)
+            </button>
+          ) : null}
+          {hintNote ? <p className="muted">{hintNote}</p> : null}
           {picked !== null ? (
             <>
               <p className={picked === question.answer ? "good" : "muted"}>
@@ -146,6 +181,7 @@ export function QuizScreen() {
                   else {
                     setIndex((value) => value + 1);
                     setPicked(null);
+                    setHintNote("");
                   }
                 }}
               >
@@ -161,7 +197,9 @@ export function QuizScreen() {
           <p>
             {quiz.questions.length}문제 중 {correct}개 맞혔어요.
           </p>
-          {correct === quiz.questions.length ? (
+          {quiz.id === "review" ? (
+            <p className="muted">맞힌 문제는 틀린 문제 목록에서 빠졌어요.</p>
+          ) : correct === quiz.questions.length ? (
             <p className="good">모두 정답! {quiz.badge} 도장을 받았어요.</p>
           ) : (
             <p className="muted">모두 맞히면 도장을 받아요. 다시 해 볼까요?</p>
@@ -171,7 +209,7 @@ export function QuizScreen() {
             <button type="button" className="btn btn-primary" disabled={busy} onClick={() => void leaveResult(() => history.back())}>
               다른 퀴즈 보기
             </button>
-            <button type="button" className="btn" disabled={busy} onClick={() => void leaveResult(() => start(quiz, false))}>
+            <button type="button" className="btn" disabled={busy} onClick={() => void leaveResult(() => (quiz.id === "review" ? startReview(false) : start(quiz, false)))}>
               다시 풀기
             </button>
           </div>

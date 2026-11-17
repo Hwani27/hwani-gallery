@@ -1,4 +1,4 @@
-import * as THREE from "three";
+import { CanvasTexture, SRGBColorSpace } from "three";
 
 type LonLat = readonly [number, number];
 
@@ -51,7 +51,7 @@ function canvas(width: number, height: number): HTMLCanvasElement {
   return element;
 }
 
-export function makeEarthTextures(): { day: THREE.CanvasTexture; night: THREE.CanvasTexture } {
+export function makeEarthTextures(): { day: CanvasTexture; night: CanvasTexture } {
   const width = 1024;
   const height = 512;
   const day = canvas(width, height);
@@ -102,17 +102,17 @@ export function makeEarthTextures(): { day: THREE.CanvasTexture; night: THREE.Ca
     nightCtx.fill();
   }
 
-  const dayTex = new THREE.CanvasTexture(day);
-  const nightTex = new THREE.CanvasTexture(night);
+  const dayTex = new CanvasTexture(day);
+  const nightTex = new CanvasTexture(night);
   for (const tex of [dayTex, nightTex]) {
-    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.colorSpace = SRGBColorSpace;
     tex.anisotropy = 4;
     tex.needsUpdate = true;
   }
   return { day: dayTex, night: nightTex };
 }
 
-export function makeSunTexture(): THREE.CanvasTexture {
+export function makeSunTexture(): CanvasTexture {
   const size = 256;
   const element = canvas(size, size);
   const ctx = element.getContext("2d");
@@ -128,8 +128,8 @@ export function makeSunTexture(): THREE.CanvasTexture {
     ctx.arc(x, y, radius, 0, Math.PI * 2);
     ctx.fill();
   }
-  const tex = new THREE.CanvasTexture(element);
-  tex.colorSpace = THREE.SRGBColorSpace;
+  const tex = new CanvasTexture(element);
+  tex.colorSpace = SRGBColorSpace;
   tex.needsUpdate = true;
   return tex;
 }

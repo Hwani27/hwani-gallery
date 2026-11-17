@@ -7,6 +7,7 @@ import { QUIZZES, allQuestions, allStamps, dailyQuestion } from "../src/data/qui
 import { CONSTELLATION_META } from "../src/data/constellations.ts";
 import { CONSTELLATION_LINES } from "../src/data/sky.ts";
 import { streakOf } from "../src/lib/storage.ts";
+import { moonPhasesBetween, planetEventsBetween } from "../src/lib/ephem.ts";
 
 const polaris = altAz(37.954, 89.264, SEOUL.lat, localSiderealDegrees(new Date("2026-11-17T12:00:00+09:00"), SEOUL.lon));
 if (Math.abs(polaris.alt - SEOUL.lat) > 1.2) {
@@ -71,6 +72,26 @@ if (streakOf(["2026-11-15", "2026-11-17", "2026-11-18"], "2026-11-18") !== 2) th
 if (streakOf(["2026-11-17"], "2026-11-18") !== 0) throw new Error("streak today");
 if (addDays("2026-12-31", 1) !== "2027-01-01" || addDays("2027-03-01", -1) !== "2027-02-28") throw new Error("addDays");
 if (josa("오리온자리", "을를") !== "오리온자리를" || josa("큰곰자리 · 북두칠성", "은는") !== "큰곰자리 · 북두칠성은") throw new Error("josa");
+
+// 행성·삭망 계산을 발표된 시각(UTC)과 맞춰 봅니다.
+const near = (at: number, iso: string, hours: number, label: string) => {
+  if (Math.abs(at - Date.parse(iso)) > hours * 3_600_000) throw new Error(`${label}: ${new Date(at).toISOString()} vs ${iso}`);
+};
+const phases = moonPhasesBetween(new Date("2027-01-01T00:00:00Z"), new Date("2027-04-30T00:00:00Z"));
+const fulls = phases.filter((phase) => phase.kind === "full").map((phase) => phase.at);
+["2027-01-22T12:17:00Z", "2027-02-20T23:23:00Z", "2027-03-22T10:44:00Z", "2027-04-20T22:27:00Z"].forEach((iso, i) => near(fulls[i], iso, 0.25, "full moon"));
+const planetEvents = planetEventsBetween(new Date("2026-09-01T00:00:00Z"), new Date("2027-11-01T00:00:00Z"));
+const find = (kind: string, id: string, iso: string) => {
+  const hit = planetEvents.find((event) => event.kind === kind && event.id === id && Math.abs(event.at - Date.parse(iso)) < 2 * 86_400_000);
+  if (!hit) throw new Error(`${kind} ${id} near ${iso} not found`);
+  near(hit.at, iso, 30, `${kind} ${id}`);
+};
+find("opposition", "saturn", "2026-10-04T12:00:00Z");
+find("opposition", "jupiter", "2027-02-11T00:00:00Z");
+find("opposition", "mars", "2027-02-19T12:00:00Z");
+find("opposition", "saturn", "2027-10-18T00:00:00Z");
+find("west", "venus", "2027-01-03T18:00:00Z");
+find("east", "mercury", "2027-02-03T06:00:00Z");
 
 console.log(JSON.stringify({
   polarisAlt: Number(polaris.alt.toFixed(2)),

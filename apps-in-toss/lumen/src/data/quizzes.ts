@@ -160,22 +160,34 @@ export const STAMP_EXTRAS = [
   { id: "streak-7", name: "일주일 연속", how: "7일 연속 들어와요" },
   { id: "streak-30", name: "한 달 연속", how: "30일 연속 들어와요" },
   { id: "daily-10", name: "오늘의 문제 열 번", how: "오늘의 문제를 10번 맞혀요" },
+  { id: "weekly-1", name: "첫 주간 미션", how: "한 주의 미션 세 가지를 모두 해요" },
+  { id: "weekly-4", name: "주간 미션 네 번", how: "주간 미션을 네 주 모두 해요" },
 ] as const;
 
-export const BONUS_STAMP = { id: "bonus", name: "보너스 측량", how: "광고를 보고 별까지 비교해요" };
+export const BONUS_STAMP = { id: "bonus", name: "보너스 측량", how: "크기 장난감에서 광고를 보고 별까지 비교해요" };
+export const BONUS_STAR_STAMP = { id: "bonus-5", name: "보너스 별 다섯 개", how: "도장판에서 광고를 보고 보너스 별을 다섯 번 받아요" };
 
 export function allStamps(): { id: string; name: string; how: string }[] {
   return [
     ...QUIZZES.map((quiz) => ({ id: `quiz-${quiz.id}`, name: quiz.badge, how: `${quiz.name} 퀴즈를 모두 맞혀요` })),
     ...STAMP_EXTRAS,
     BONUS_STAMP,
+    BONUS_STAR_STAMP,
   ];
 }
 
-export type FlatQuestion = QuizQuestion & { quizId: string; quizName: string };
+export type FlatQuestion = QuizQuestion & { quizId: string; quizName: string; key: string };
 
 export function allQuestions(): FlatQuestion[] {
-  return QUIZZES.flatMap((quiz) => quiz.questions.map((question) => ({ ...question, quizId: quiz.id, quizName: quiz.name })));
+  return QUIZZES.flatMap((quiz) =>
+    quiz.questions.map((question, index) => ({ ...question, quizId: quiz.id, quizName: quiz.name, key: `${quiz.id}:${index}` })),
+  );
+}
+
+/** 틀린 문제 중 최근 것부터 최대 count 개. */
+export function reviewQuestions(keys: readonly string[], count = 5): FlatQuestion[] {
+  const pool = new Map(allQuestions().map((question) => [question.key, question]));
+  return [...keys].reverse().map((key) => pool.get(key)).filter((item): item is FlatQuestion => Boolean(item)).slice(0, count);
 }
 
 /** 날마다 다른 문제. 연속된 날에 같은 행성 문제가 이어지지 않게 17칸씩 건너뜁니다. */

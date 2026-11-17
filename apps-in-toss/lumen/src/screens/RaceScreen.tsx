@@ -4,7 +4,7 @@ import { RACE_SPEEDS, RACE_TARGETS, defaultRaceSpeed } from "../data/planets";
 import { playTap, setHumWanted } from "../lib/audio";
 import { interstitialDue, preloadInterstitial, showPreparedInterstitial } from "../lib/ads";
 import { formatDuration, formatSpeed } from "../lib/format";
-import { awardStamp } from "../lib/storage";
+import { awardStamp, bumpWeekly } from "../lib/storage";
 
 type Phase = "run" | "result";
 
@@ -48,6 +48,7 @@ export function RaceScreen() {
       if (secondsRef.current >= target.seconds) {
         setRunning(false);
         awardStamp("light");
+        bumpWeekly("race");
         void finish();
         return;
       }
@@ -71,7 +72,7 @@ export function RaceScreen() {
     if (busy) return;
     if (adAhead) {
       setBusy(true);
-      await showPreparedInterstitial();
+      await showPreparedInterstitial("race-result");
       if (!alive.current) return;
       setBusy(false);
       setAdAhead(false);

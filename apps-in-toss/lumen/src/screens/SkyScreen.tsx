@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Screen } from "../components/Screen";
 import { CONSTELLATION_LINES, FIELD_STARS, NAMED_STARS } from "../data/sky";
 import { CONSTELLATION_META as CONSTELLATIONS, type ConstellationMeta } from "../data/constellations";
 import { josa } from "../lib/format";
+import { planetPlaces } from "../lib/ephem";
 import { altAz, localSiderealDegrees } from "../lib/astro";
 import { playTap } from "../lib/audio";
 import { SEOUL } from "../lib/iss";
@@ -92,6 +93,30 @@ export function SkyScreen({ focusId }: { focusId: string | null }) {
   viewRef.current = view;
   lstRef.current = lst;
   const selectedBody = CONSTELLATIONS.find((item) => item.id === selected) ?? null;
+  const [pixels, setPixels] = useState({ width: 720, height: 520, ratio: 2 });
+  const planets = useMemo(() => planetPlaces(when).planets, [lst]);
+
+  // 화면 밀도에 맞춰 캔버스 해상도를 정해서, 고해상도 폰에서도 별이 또렷하게 보이게 합니다.
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const fit = () => {
+      const ratio = Math.min(3, Math.max(1, window.devicePixelRatio || 1));
+      const cssWidth = canvas.clientWidth || 360;
+      const width = Math.round(cssWidth * ratio);
+      const height = Math.round(((cssWidth * 520) / 720) * ratio);
+      if (canvas.width !== width || canvas.height !== height) {
+        canvas.width = width;
+        canvas.height = height;
+      }
+      setPixels((current) => (current.width === width && current.height === height ? current : { width, height, ratio }));
+    };
+    fit();
+    const observer = new ResizeObserver(fit);
+    observer.observe(canvas);
+    return () => observer.disconnect();
+  }, []);
+  const k = pixels.ratio;
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -127,20 +152,20 @@ export function SkyScreen({ focusId }: { focusId: string | null }) {
       } else ctx.lineTo(x, y);
     }
     ctx.strokeStyle = "#8b95a1";
-    ctx.lineWidth = 1;
+    ctx.lineWidth = k;
     ctx.stroke();
 
     for (const star of FIELD_STARS) {
       const point = project(star[0], star[1], lst, view.az, view.alt, width, height);
       if (!point || point.alt < 0) continue;
-      const size = Math.max(1, 3.2 - star[2]);
+      const size = Math.max(1, 3.2 - star[2]) * k * 0.6;
       ctx.fillStyle = "#f4f7fb";
       ctx.fillRect(point.x, point.y, size, size);
     }
 
     if (selectedBody) {
       ctx.strokeStyle = "#3182f6";
-      ctx.lineWidth = 1.5;
+      ctx.lineWidth = 1.5 * k;
       for (const line of CONSTELLATION_LINES[selectedBody.id] ?? []) {
         ctx.beginPath();
         let open = false;
@@ -160,14 +185,27 @@ export function SkyScreen({ focusId }: { focusId: string | null }) {
     }
 
     ctx.fillStyle = "#8fb7e6";
-    ctx.font = "12px sans-serif";
+    ctx.font = `${12 * k}px "Lumen Sans", sans-serif`;
     for (const star of NAMED_STARS) {
       if (selected && star.c !== selected) continue;
       const point = project(star.ra, star.dec, lst, view.az, view.alt, width, height);
       if (!point || point.alt < 0) continue;
-      ctx.fillText(star.name, point.x + 6, point.y);
+      ctx.fillText(star.name, point.x + 6 * k, point.y);
     }
-  }, [hour, lst, selected, selectedBody, view]);
+
+    // 행성: 별보다 조금 크게, 이름과 함께
+    for (const planet of planets) {
+      const point = project(planet.ra, planet.dec, lst, view.az, view.alt, width, height);
+      if (!point || point.alt < 0) continue;
+      ctx.fillStyle = "#ffffff";
+      ctx.beginPath();
+      ctx.arc(point.x, point.y, 3 * k, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#3182f6";
+      ctx.font = `500 ${13 * k}px "Lumen Sans", sans-serif`;
+      ctx.fillText(planet.name, point.x + 7 * k, point.y - 5 * k);
+    }
+  }, [hour, lst, selected, selectedBody, view, pixels, k, planets]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -203,7 +241,7 @@ export function SkyScreen({ focusId }: { focusId: string | null }) {
           }
         }
       }
-      if (!best || best.dist > 36) return;
+      if (!best || best.dist > 22 * (canvas.width / Math.max(1, canvas.clientWidth))) return;
       choose(best.id, best.alt > 0);
     };
     canvas.addEventListener("pointerdown", down);
@@ -238,6 +276,7 @@ export function SkyScreen({ focusId }: { focusId: string | null }) {
       <h1>서울 밤하늘</h1>
       <p className="lede">서울시청에서 올려다본 밤하늘이에요. 화면을 끌어서 둘러보고, 별자리를 눌러 보세요.</p>
       <canvas ref={canvasRef} className="sky" width={720} height={520} aria-label="서울 밤하늘" />
+      <p className="label">파란 이름은 행성이에요. 행성은 별자리 사이를 천천히 옮겨 다녀요.</p>
       <label className="field">
         <span>밤 시각 {clock}</span>
         <input

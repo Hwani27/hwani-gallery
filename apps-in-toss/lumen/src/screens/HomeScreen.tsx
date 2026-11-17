@@ -3,7 +3,9 @@ import { CONSTELLATION_META as CONSTELLATIONS } from "../data/constellations";
 import { allStamps, dailyQuestion } from "../data/quizzes";
 import { altAz, localSiderealDegrees } from "../lib/astro";
 import { SEOUL } from "../lib/iss";
-import { getProgress, openDailyHint, recordVisit, setDailyPick, setSoundOn, streakOf, subscribeProgress } from "../lib/storage";
+import { getProgress, markAnswer, openDailyHint, recordVisit, setDailyPick, setSoundOn, streakOf, subscribeProgress } from "../lib/storage";
+import { Missions } from "../components/Missions";
+import { dDay, dayLabel, tonightPlanets, upcomingSkyEvents } from "../lib/tonight";
 import { rewardedSupported, showRewardedAd } from "../lib/ads";
 import { addDays, josa, localDateKey } from "../lib/format";
 import { moonPhase } from "../lib/moon";
@@ -43,6 +45,8 @@ export function HomeScreen({ open }: { open: (screen: ScreenId, focus?: string) 
   const today = localDateKey();
   const sky = tonight();
   const moon = moonPhase(new Date(new Date().setHours(21, 0, 0, 0)));
+  const planets = tonightPlanets(new Date());
+  const nextEvent = upcomingSkyEvents(new Date(), 45)[0];
   const question = dailyQuestion(new Date());
   const stamps = allStamps();
   const picked = progress.dailyPick;
@@ -55,7 +59,7 @@ export function HomeScreen({ open }: { open: (screen: ScreenId, focus?: string) 
   async function askHint() {
     playTap();
     setHintNote("광고를 준비하고 있어요.");
-    const earned = await showRewardedAd();
+    const earned = await showRewardedAd("daily-hint");
     if (earned) {
       openDailyHint();
       setHintNote("틀린 답 하나를 지웠어요.");
@@ -91,6 +95,11 @@ export function HomeScreen({ open }: { open: (screen: ScreenId, focus?: string) 
         </section>
 
         <section className="card">
+          <h2>이번 주 미션</h2>
+          <Missions />
+        </section>
+
+        <section className="card">
           <h2>오늘의 하늘</h2>
           <p>
             오늘 밤 9시 서울에서 가장 높이 뜨는 별자리는 <strong>{sky.constellation.name}</strong>
@@ -101,9 +110,30 @@ export function HomeScreen({ open }: { open: (screen: ScreenId, focus?: string) 
             오늘 밤 달은 <strong>{moon.name}</strong>, 밝은 부분이 약 {Math.round(moon.lit * 100)}%예요.
           </p>
           <p className="muted">{moon.line}</p>
-          <button type="button" className="btn btn-primary" onClick={() => open("sky", sky.constellation.id)}>
-            오늘 하늘 보기
-          </button>
+          {planets.length > 0 ? (
+            <p>
+              오늘 밤 행성{" "}
+              {planets.map((planet, index) => (
+                <span key={planet.id}>
+                  {index > 0 ? ", " : ""}
+                  <strong>{planet.name}</strong>({planet.when} {planet.dir})
+                </span>
+              ))}
+            </p>
+          ) : null}
+          {nextEvent ? (
+            <p className="muted">
+              다가오는 하늘: {dayLabel(nextEvent.day)} {nextEvent.title} · {dDay(nextEvent.day, today)}
+            </p>
+          ) : null}
+          <div className="actions">
+            <button type="button" className="btn btn-primary" onClick={() => open("sky", sky.constellation.id)}>
+              오늘 하늘 보기
+            </button>
+            <button type="button" className="btn" onClick={() => open("events")}>
+              하늘 달력
+            </button>
+          </div>
         </section>
 
         <section className="card">
@@ -120,6 +150,7 @@ export function HomeScreen({ open }: { open: (screen: ScreenId, focus?: string) 
                     onClick={() => {
                       playTap();
                       setDailyPick(index, index === question.answer);
+                      markAnswer(question.key, index === question.answer);
                     }}
                   >
                     {option}
@@ -151,6 +182,8 @@ export function HomeScreen({ open }: { open: (screen: ScreenId, focus?: string) 
               ["sky", "서울 밤하늘", "별자리를 찾아요"],
               ["quiz", "퀴즈와 도장", "다녀온 곳 퀴즈"],
               ["size", "크기 장난감", "지구가 축구공이라면"],
+              ["events", "하늘 달력", "유성우와 보름달은 언제?"],
+              ["stamps", "도장판", `모은 도장 ${progress.stamps.length} / ${stamps.length}`],
             ] as const
           ).map(([id, title, line]) => (
             <li key={id}>
@@ -180,11 +213,9 @@ export function HomeScreen({ open }: { open: (screen: ScreenId, focus?: string) 
           </button>
         </section>
 
-        <p className="muted">
-          도장 {progress.stamps.length} / {stamps.length}
-        </p>
+
       </div>
-      <BannerSlot />
+      <BannerSlot placement="home" />
     </div>
   );
 }

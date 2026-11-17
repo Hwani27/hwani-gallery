@@ -1,6 +1,7 @@
 import { TossAds, loadFullScreenAd, showFullScreenAd } from "@apps-in-toss/web-framework";
 import { BANNER_AD_GROUP_ID } from "../bannerAds";
 import { INTERSTITIAL_AD_GROUP_ID, REWARDED_AD_GROUP_ID } from "../fullscreenAds";
+import { trackAd } from "./track";
 
 export function isConfiguredAdId(id: string): boolean {
   return id.trim().length > 0 && !id.startsWith("REPLACE_WITH_");
@@ -18,7 +19,7 @@ export function bannerSupported(): boolean {
   return isConfiguredAdId(BANNER_AD_GROUP_ID) && supported(TossAds.attachBanner);
 }
 
-export function attachMenuBanner(target: HTMLElement, onRendered: () => void): () => void {
+export function attachMenuBanner(target: HTMLElement, onRendered: () => void, placement = "menu"): () => void {
   if (!bannerSupported()) return () => {};
   let destroyed = false;
   let slot: { destroy: () => void } | null = null;
@@ -33,9 +34,12 @@ export function attachMenuBanner(target: HTMLElement, onRendered: () => void): (
               tone: "grey",
               variant: "card",
               callbacks: {
-                onAdRendered: () => onRendered(),
-                onAdFailedToRender: () => {},
-                onNoFill: () => {},
+                onAdRendered: () => {
+                  trackAd("banner_rendered", placement);
+                  onRendered();
+                },
+                onAdFailedToRender: () => trackAd("ad_failed", `banner-${placement}`),
+                onNoFill: () => trackAd("banner_no_fill", placement),
               },
             });
           } catch {
@@ -139,19 +143,29 @@ export function preloadInterstitial(): Promise<boolean> {
   return interstitialReady;
 }
 
-export async function showPreparedInterstitial(): Promise<boolean> {
-  if (!interstitialDue()) return false;
+export async function showPreparedInterstitial(placement: string): Promise<boolean> {
+  if (!interstitialDue()) {
+    trackAd("interstitial_skipped", placement);
+    return false;
+  }
   const ready = await (interstitialReady ?? preloadInterstitial());
   interstitialReady = null;
   if (!ready) return false;
   const result = await showAd(INTERSTITIAL_AD_GROUP_ID);
   if (result !== "failed") lastInterstitialAt = Date.now();
+  trackAd(result === "failed" ? "ad_failed" : "interstitial_shown", placement);
   return result !== "failed";
 }
 
-export async function showRewardedAd(): Promise<boolean> {
+export async function showRewardedAd(placement: string): Promise<boolean> {
   if (!rewardedSupported()) return false;
+  trackAd("rewarded_offer_tap", placement);
   const ready = await loadAd(REWARDED_AD_GROUP_ID);
-  if (!ready) return false;
-  return (await showAd(REWARDED_AD_GROUP_ID)) === "reward";
+  if (!ready) {
+    trackAd("ad_failed", `rewarded-${placement}`);
+    return false;
+  }
+  const result = await showAd(REWARDED_AD_GROUP_ID);
+  trackAd(result === "reward" ? "rewarded_earned" : result === "closed" ? "rewarded_closed" : "ad_failed", placement);
+  return result === "reward";
 }

@@ -4,6 +4,7 @@ import { HomeScreen } from "./screens/HomeScreen";
 import type { ScreenId } from "./screenIds";
 import { playTap } from "./lib/audio";
 import { getProgress } from "./lib/storage";
+import { trackScreen } from "./lib/track";
 
 const JourneyScreen = lazy(() => import("./screens/JourneyScreen").then((mod) => ({ default: mod.JourneyScreen })));
 const WeightScreen = lazy(() => import("./screens/WeightScreen").then((mod) => ({ default: mod.WeightScreen })));
@@ -11,6 +12,8 @@ const RaceScreen = lazy(() => import("./screens/RaceScreen").then((mod) => ({ de
 const IssScreen = lazy(() => import("./screens/IssScreen").then((mod) => ({ default: mod.IssScreen })));
 const SkyScreen = lazy(() => import("./screens/SkyScreen").then((mod) => ({ default: mod.SkyScreen })));
 const QuizScreen = lazy(() => import("./screens/QuizScreen").then((mod) => ({ default: mod.QuizScreen })));
+const StampsScreen = lazy(() => import("./screens/StampsScreen").then((mod) => ({ default: mod.StampsScreen })));
+const EventsScreen = lazy(() => import("./screens/EventsScreen").then((mod) => ({ default: mod.EventsScreen })));
 const SizeScreen = lazy(() => import("./screens/SizeScreen").then((mod) => ({ default: mod.SizeScreen })));
 
 type HistoryState = { lumen?: ScreenId };
@@ -20,6 +23,10 @@ export function App() {
   const [focus, setFocus] = useState<string | null>(null);
   const screenRef = useRef(screen);
   screenRef.current = screen;
+
+  useEffect(() => {
+    trackScreen(screen);
+  }, [screen]);
 
   useEffect(() => {
     const onPop = () => {
@@ -57,7 +64,7 @@ export function App() {
   }
 
   return (
-    <Suspense fallback={<p className="boot-fallback">불러오는 중이에요</p>}>
+    <Suspense fallback={<p className="boot-fallback" role="status">화면을 불러오고 있어요</p>}>
       {screen === "home" ? <HomeScreen open={open} /> : null}
       {screen === "journey" ? <JourneyScreen /> : null}
       {screen === "weight" ? <WeightScreen initial={getProgress().weightKg} /> : null}
@@ -66,6 +73,8 @@ export function App() {
       {screen === "sky" ? <SkyScreen focusId={focus} /> : null}
       {screen === "quiz" ? <QuizScreen /> : null}
       {screen === "size" ? <SizeScreen /> : null}
+      {screen === "stamps" ? <StampsScreen /> : null}
+      {screen === "events" ? <EventsScreen /> : null}
     </Suspense>
   );
 }
