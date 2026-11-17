@@ -4,6 +4,8 @@ import { allStamps } from "../data/quizzes";
 import { rewardedSupported, showRewardedAd } from "../lib/ads";
 import { playTap } from "../lib/audio";
 import { Missions } from "../components/Missions";
+import { Expedition } from "../components/Expedition";
+import { leaderboardReady, openLeaderboard } from "../lib/leaderboard";
 import { canTakeBonusStar, getProgress, subscribeProgress, takeBonusStar } from "../lib/storage";
 
 export function StampsScreen() {
@@ -31,6 +33,15 @@ export function StampsScreen() {
       <p className="lede">
         모은 도장 {stamps.filter((stamp) => got.has(stamp.id)).length} / {stamps.length}. 도장은 이 기기에 남아요.
       </p>
+      <section className="card">
+        <h2>태양계 원정</h2>
+        <Expedition stamps={progress.stamps.length} />
+        {leaderboardReady() ? (
+          <button type="button" className="btn" onClick={() => openLeaderboard()}>
+            토스 순위 보기
+          </button>
+        ) : null}
+      </section>
       {next ? (
         <section className="card">
           <p className="label">다음 도장</p>

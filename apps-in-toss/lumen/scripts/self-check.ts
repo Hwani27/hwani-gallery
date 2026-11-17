@@ -8,6 +8,8 @@ import { CONSTELLATION_META } from "../src/data/constellations.ts";
 import { CONSTELLATION_LINES } from "../src/data/sky.ts";
 import { streakOf } from "../src/lib/storage.ts";
 import { moonPhasesBetween, planetEventsBetween } from "../src/lib/ephem.ts";
+import { SPACE_HISTORY, spaceHistoryFor } from "../src/data/history.ts";
+import { PLANET_CARDS } from "../src/data/planetCards.ts";
 
 const polaris = altAz(37.954, 89.264, SEOUL.lat, localSiderealDegrees(new Date("2026-11-17T12:00:00+09:00"), SEOUL.lon));
 if (Math.abs(polaris.alt - SEOUL.lat) > 1.2) {
@@ -61,6 +63,16 @@ const seen = new Set<string>();
 for (let day = 0; day < pool; day += 1) seen.add(dailyQuestion(new Date(2026, 10, 18 + day)).q);
 if (seen.size !== pool) throw new Error(`daily cycle repeats early: ${seen.size}/${pool}`);
 
+// 우주 역사: 60개 이상, 날짜가 실제 있는 날, 오늘 고르기
+if (SPACE_HISTORY.length < 60) throw new Error(`history ${SPACE_HISTORY.length}`);
+for (const item of SPACE_HISTORY) {
+  const date = new Date(item.y, item.m - 1, item.d);
+  if (date.getMonth() !== item.m - 1 || date.getDate() !== item.d) throw new Error(`bad date ${item.y}-${item.m}-${item.d}`);
+}
+if (spaceHistoryFor(new Date(2026, 10, 18)).daysAgo !== 0) throw new Error("history today");
+// 행성 카드는 같은 이름의 퀴즈가 있어야 열립니다.
+for (const card of PLANET_CARDS) if (!QUIZZES.some((quiz) => quiz.id === card.id)) throw new Error(`no quiz for card ${card.id}`);
+
 // 별자리 설명과 선
 for (const meta of CONSTELLATION_META) {
   if (!CONSTELLATION_LINES[meta.id]?.length) throw new Error(`no lines for ${meta.id}`);
@@ -104,4 +116,6 @@ console.log(JSON.stringify({
   quizzes: QUIZZES.length,
   questions: pool,
   stamps: stampIds.length,
+  constellations: CONSTELLATION_META.length,
+  history: SPACE_HISTORY.length,
 }, null, 2));

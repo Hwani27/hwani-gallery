@@ -1,1 +1,15 @@
-export type ScreenId = "home" | "journey" | "weight" | "race" | "iss" | "sky" | "quiz" | "size" | "stamps" | "events";
+export type ScreenId =
+  | "home"
+  | "journey"
+  | "weight"
+  | "race"
+  | "iss"
+  | "sky"
+  | "quiz"
+  | "size"
+  | "stamps"
+  | "events"
+  | "connect"
+  | "order"
+  | "korea"
+  | "cards";

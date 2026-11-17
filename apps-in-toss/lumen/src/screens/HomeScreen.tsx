@@ -9,6 +9,9 @@ import { dDay, dayLabel, tonightPlanets, upcomingSkyEvents } from "../lib/tonigh
 import { rewardedSupported, showRewardedAd } from "../lib/ads";
 import { addDays, josa, localDateKey } from "../lib/format";
 import { moonPhase } from "../lib/moon";
+import { MoonIcon } from "../components/MoonIcon";
+import { spaceHistoryFor } from "../data/history";
+import { expeditionLine } from "../components/Expedition";
 import { playTap } from "../lib/audio";
 import { BannerSlot } from "../components/BannerSlot";
 import type { ScreenId } from "../screenIds";
@@ -47,6 +50,7 @@ export function HomeScreen({ open }: { open: (screen: ScreenId, focus?: string) 
   const moon = moonPhase(new Date(new Date().setHours(21, 0, 0, 0)));
   const planets = tonightPlanets(new Date());
   const nextEvent = upcomingSkyEvents(new Date(), 45)[0];
+  const history = spaceHistoryFor(new Date());
   const question = dailyQuestion(new Date());
   const stamps = allStamps();
   const picked = progress.dailyPick;
@@ -106,10 +110,15 @@ export function HomeScreen({ open }: { open: (screen: ScreenId, focus?: string) 
             {sky.alt > 10 ? (josa(sky.constellation.name, "이가").endsWith("이") ? "이에요." : "예요.") : "인데, 낮게 걸려 있어요."}
           </p>
           <p className="muted">{sky.constellation.find}</p>
-          <p>
-            오늘 밤 달은 <strong>{moon.name}</strong>, 밝은 부분이 약 {Math.round(moon.lit * 100)}%예요.
-          </p>
-          <p className="muted">{moon.line}</p>
+          <div className="moon-row">
+            <MoonIcon age={moon.age} size={52} label={`오늘 밤 달, ${moon.name}`} />
+            <div>
+              <p>
+                오늘 밤 달은 <strong>{moon.name}</strong>, 밝은 부분이 약 {Math.round(moon.lit * 100)}%예요.
+              </p>
+              <p className="muted">{moon.line}</p>
+            </div>
+          </div>
           {planets.length > 0 ? (
             <p>
               오늘 밤 행성{" "}
@@ -134,6 +143,16 @@ export function HomeScreen({ open }: { open: (screen: ScreenId, focus?: string) 
               하늘 달력
             </button>
           </div>
+        </section>
+
+        <section className="card">
+          <div className="line">
+            <h2>{history.daysAgo === 0 ? "오늘의 우주 역사" : "이 무렵 우주 역사"}</h2>
+            <span className="tag">
+              {history.item.y}년 {history.item.m}월 {history.item.d}일
+            </span>
+          </div>
+          <p>{history.item.text}</p>
         </section>
 
         <section className="card">
@@ -172,28 +191,52 @@ export function HomeScreen({ open }: { open: (screen: ScreenId, focus?: string) 
           <p className="label">오늘의 문제를 맞힌 날 {progress.dailyCorrect}일 · 10일이면 도장</p>
         </section>
 
-        <ul className="menu">
-          {(
+        {(
+          [
             [
-              ["journey", "지구에서 우주로", "행성을 돌려 봐요"],
-              ["weight", "행성 체중계", "다른 별에서 내 몸무게는?"],
-              ["race", "빛이랑 경주", "빛은 얼마나 빠를까?"],
-              ["iss", "우주정거장", "지금 어디 있을까?"],
-              ["sky", "서울 밤하늘", "별자리를 찾아요"],
-              ["quiz", "퀴즈와 도장", "다녀온 곳 퀴즈"],
-              ["size", "크기 장난감", "지구가 축구공이라면"],
-              ["events", "하늘 달력", "유성우와 보름달은 언제?"],
-              ["stamps", "도장판", `모은 도장 ${progress.stamps.length} / ${stamps.length}`],
-            ] as const
-          ).map(([id, title, line]) => (
-            <li key={id}>
-              <button type="button" className="menu-item" onClick={() => open(id)}>
-                <strong>{title}</strong>
-                <span>{line}</span>
-              </button>
-            </li>
-          ))}
-        </ul>
+              "놀이",
+              [
+                ["connect", "별자리 잇기", "별을 이어 별자리를 완성해요"],
+                ["order", "행성 줄 세우기", "거리 순, 크기 순으로 놓아요"],
+                ["quiz", "퀴즈와 도장", "쉬움부터 심화까지"],
+                ["race", "빛이랑 경주", "빛은 얼마나 빠를까?"],
+                ["weight", "행성 체중계", "다른 별에서 내 몸무게는?"],
+              ],
+            ],
+            [
+              "하늘 보기",
+              [
+                ["sky", "서울 밤하늘", "별자리 25개를 찾아요"],
+                ["events", "하늘 달력", "유성우와 보름달은 언제?"],
+                ["journey", "지구에서 우주로", "행성을 돌려 봐요"],
+                ["iss", "우주정거장", "90분에 지구 한 바퀴"],
+              ],
+            ],
+            [
+              "알아보기",
+              [
+                ["korea", "우리 별 이야기", "천상열차분야지도와 견우직녀"],
+                ["cards", "행성 카드", "퀴즈로 카드를 모아요"],
+                ["size", "크기 장난감", "지구가 축구공이라면"],
+                ["stamps", "도장판과 원정 지도", `도장 ${progress.stamps.length} / ${stamps.length} · ${expeditionLine(progress.stamps.length)}`],
+              ],
+            ],
+          ] as const
+        ).map(([group, items]) => (
+          <section key={group} className="stack">
+            <p className="label">{group}</p>
+            <ul className="menu">
+              {items.map(([id, title, line]) => (
+                <li key={id}>
+                  <button type="button" className="menu-item" onClick={() => open(id)}>
+                    <strong>{title}</strong>
+                    <span>{line}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))}
 
         <section className="card row-card">
           <div>

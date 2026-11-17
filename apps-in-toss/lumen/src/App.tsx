@@ -3,8 +3,10 @@ import { closeView, graniteEvent } from "@apps-in-toss/web-framework";
 import { HomeScreen } from "./screens/HomeScreen";
 import type { ScreenId } from "./screenIds";
 import { playTap } from "./lib/audio";
-import { getProgress } from "./lib/storage";
+import { getProgress, onStampAwarded } from "./lib/storage";
+import { submitStampScore } from "./lib/leaderboard";
 import { trackScreen } from "./lib/track";
+import { StampToast } from "./components/StampToast";
 
 const JourneyScreen = lazy(() => import("./screens/JourneyScreen").then((mod) => ({ default: mod.JourneyScreen })));
 const WeightScreen = lazy(() => import("./screens/WeightScreen").then((mod) => ({ default: mod.WeightScreen })));
@@ -14,6 +16,10 @@ const SkyScreen = lazy(() => import("./screens/SkyScreen").then((mod) => ({ defa
 const QuizScreen = lazy(() => import("./screens/QuizScreen").then((mod) => ({ default: mod.QuizScreen })));
 const StampsScreen = lazy(() => import("./screens/StampsScreen").then((mod) => ({ default: mod.StampsScreen })));
 const EventsScreen = lazy(() => import("./screens/EventsScreen").then((mod) => ({ default: mod.EventsScreen })));
+const ConnectScreen = lazy(() => import("./screens/ConnectScreen").then((mod) => ({ default: mod.ConnectScreen })));
+const OrderScreen = lazy(() => import("./screens/OrderScreen").then((mod) => ({ default: mod.OrderScreen })));
+const KoreaScreen = lazy(() => import("./screens/KoreaScreen").then((mod) => ({ default: mod.KoreaScreen })));
+const CardsScreen = lazy(() => import("./screens/CardsScreen").then((mod) => ({ default: mod.CardsScreen })));
 const SizeScreen = lazy(() => import("./screens/SizeScreen").then((mod) => ({ default: mod.SizeScreen })));
 
 type HistoryState = { lumen?: ScreenId };
@@ -27,6 +33,8 @@ export function App() {
   useEffect(() => {
     trackScreen(screen);
   }, [screen]);
+
+  useEffect(() => onStampAwarded(() => submitStampScore(getProgress().stamps.length)), []);
 
   useEffect(() => {
     const onPop = () => {
@@ -64,6 +72,7 @@ export function App() {
   }
 
   return (
+    <>
     <Suspense fallback={<p className="boot-fallback" role="status">화면을 불러오고 있어요</p>}>
       {screen === "home" ? <HomeScreen open={open} /> : null}
       {screen === "journey" ? <JourneyScreen /> : null}
@@ -75,6 +84,12 @@ export function App() {
       {screen === "size" ? <SizeScreen /> : null}
       {screen === "stamps" ? <StampsScreen /> : null}
       {screen === "events" ? <EventsScreen /> : null}
+      {screen === "connect" ? <ConnectScreen open={open} /> : null}
+      {screen === "order" ? <OrderScreen /> : null}
+      {screen === "korea" ? <KoreaScreen open={open} /> : null}
+      {screen === "cards" ? <CardsScreen open={open} /> : null}
     </Suspense>
+    <StampToast />
+    </>
   );
 }

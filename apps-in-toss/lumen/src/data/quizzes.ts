@@ -7,16 +7,20 @@ export type QuizQuestion = {
   why: string;
 };
 
+export type QuizLevel = "쉬움" | "보통" | "심화";
+
 export type QuizSet = {
   id: string;
   name: string;
   badge: string;
+  level?: QuizLevel;
   questions: readonly QuizQuestion[];
 };
 
 export const QUIZZES: readonly QuizSet[] = [
   {
     id: "sun",
+    level: "쉬움",
     name: "태양",
     badge: "태양 탐험가",
     questions: [
@@ -27,6 +31,7 @@ export const QUIZZES: readonly QuizSet[] = [
   },
   {
     id: "mercury",
+    level: "쉬움",
     name: "수성",
     badge: "수성 탐험가",
     questions: [
@@ -37,6 +42,7 @@ export const QUIZZES: readonly QuizSet[] = [
   },
   {
     id: "venus",
+    level: "쉬움",
     name: "금성",
     badge: "금성 탐험가",
     questions: [
@@ -47,6 +53,7 @@ export const QUIZZES: readonly QuizSet[] = [
   },
   {
     id: "earth",
+    level: "쉬움",
     name: "지구",
     badge: "지구 탐험가",
     questions: [
@@ -57,6 +64,7 @@ export const QUIZZES: readonly QuizSet[] = [
   },
   {
     id: "moon",
+    level: "쉬움",
     name: "달",
     badge: "달 탐험가",
     questions: [
@@ -67,6 +75,7 @@ export const QUIZZES: readonly QuizSet[] = [
   },
   {
     id: "mars",
+    level: "쉬움",
     name: "화성",
     badge: "화성 탐험가",
     questions: [
@@ -77,6 +86,7 @@ export const QUIZZES: readonly QuizSet[] = [
   },
   {
     id: "jupiter",
+    level: "쉬움",
     name: "목성",
     badge: "목성 탐험가",
     questions: [
@@ -87,6 +97,7 @@ export const QUIZZES: readonly QuizSet[] = [
   },
   {
     id: "saturn",
+    level: "쉬움",
     name: "토성",
     badge: "토성 탐험가",
     questions: [
@@ -97,6 +108,7 @@ export const QUIZZES: readonly QuizSet[] = [
   },
   {
     id: "uranus",
+    level: "쉬움",
     name: "천왕성",
     badge: "천왕성 탐험가",
     questions: [
@@ -107,6 +119,7 @@ export const QUIZZES: readonly QuizSet[] = [
   },
   {
     id: "neptune",
+    level: "쉬움",
     name: "해왕성",
     badge: "해왕성 탐험가",
     questions: [
@@ -117,6 +130,7 @@ export const QUIZZES: readonly QuizSet[] = [
   },
   {
     id: "pluto",
+    level: "쉬움",
     name: "명왕성",
     badge: "명왕성 탐험가",
     questions: [
@@ -127,6 +141,7 @@ export const QUIZZES: readonly QuizSet[] = [
   },
   {
     id: "stars",
+    level: "보통",
     name: "별자리",
     badge: "별자리 탐험가",
     questions: [
@@ -139,6 +154,7 @@ export const QUIZZES: readonly QuizSet[] = [
   },
   {
     id: "light",
+    level: "보통",
     name: "빛과 거리",
     badge: "빛의 탐험가",
     questions: [
@@ -149,7 +165,47 @@ export const QUIZZES: readonly QuizSet[] = [
       { q: "국제우주정거장은 지구를 한 바퀴 도는 데 얼마나 걸릴까요?", options: ["약 90분", "약 하루", "약 한 달"], answer: 0, why: "하루에 지구를 약 16바퀴 돌아요." },
     ],
   },
+  {
+    id: "korea",
+    level: "보통",
+    name: "우리 하늘",
+    badge: "우리 하늘 지킴이",
+    questions: [
+      { q: "1395년 조선에서 돌에 새긴 별 지도의 이름은?", options: ["대동여지도", "천상열차분야지도", "혼일강리도"], answer: 1, why: "별 1,467개를 새긴 천문도로, 국보예요." },
+      { q: "신라 선덕여왕 때 세운 것으로 알려진 천문대는?", options: ["첨성대", "석굴암", "다보탑"], answer: 0, why: "경주에 있는 첨성대예요." },
+      { q: "옛사람들이 좀생이별이라 부른 별 무리는?", options: ["북두칠성", "오리온자리 허리띠", "플레이아데스 성단"], answer: 2, why: "황소자리 어깨의 작은 별 무리예요." },
+      { q: "보는 사람이 오래 산다고 여긴 남극노인성을 우리나라에서 보기 좋은 곳은?", options: ["제주도", "강원도 산골", "서울 남산"], answer: 0, why: "하늘 아주 남쪽에 있어서 제주도 남쪽 수평선 가까이에서 보여요." },
+      { q: "궁수자리 주전자 모양 쪽 여섯 별을 우리 옛사람들은 무엇이라 불렀을까요?", options: ["남두육성", "북두칠성", "삼태성"], answer: 0, why: "북두칠성과 짝을 이루는 남두육성이에요." },
+    ],
+  },
+  {
+    id: "blackhole",
+    level: "심화",
+    name: "블랙홀",
+    badge: "블랙홀 연구원",
+    questions: [
+      { q: "블랙홀에서 빛조차 빠져나올 수 없게 되는 경계를 무엇이라 할까요?", options: ["사건의 지평선", "오존층", "태양권 계면"], answer: 0, why: "이 경계 안으로 들어가면 빛도 나올 수 없어요." },
+      { q: "2019년 처음 그림자 사진이 공개된 블랙홀은 어느 은하에 있을까요?", options: ["안드로메다은하", "M87 은하", "마젤란은하"], answer: 1, why: "M87 은하 한가운데 있는 아주 무거운 블랙홀이에요." },
+      { q: "우리은하 한가운데 있는 블랙홀의 이름은?", options: ["궁수자리 A*", "오리온 A", "베텔게우스"], answer: 0, why: "궁수자리 방향에 있어서 궁수자리 A*라고 불러요." },
+      { q: "우리은하 중심 블랙홀의 질량은 태양의 약 몇 배일까요?", options: ["약 10배", "약 400만 배", "약 100억 배"], answer: 1, why: "태양 약 400만 개를 합친 만큼 무거워요." },
+      { q: "블랙홀 두 개가 합쳐질 때 생긴 시공간의 물결을 처음 검출한 것은?", options: ["중력파", "감마선", "자외선"], answer: 0, why: "2015년에 처음 검출하고 2016년에 발표했어요." },
+    ],
+  },
+  {
+    id: "stellar",
+    level: "심화",
+    name: "별의 일생",
+    badge: "별의 일생 박사",
+    questions: [
+      { q: "별은 어디에서 태어날까요?", options: ["가스와 먼지 구름(성운)", "블랙홀 속", "행성의 고리"], answer: 0, why: "성운의 가스와 먼지가 뭉쳐 별이 돼요." },
+      { q: "태양 같은 별은 일생을 마치면 무엇이 될까요?", options: ["블랙홀", "중성자별", "백색왜성"], answer: 2, why: "바깥층을 날려 보내고 작고 뜨거운 백색왜성이 남아요." },
+      { q: "별의 색이 파랄수록 겉면 온도는 어떨까요?", options: ["더 뜨거워요", "더 차가워요", "색과 상관없어요"], answer: 0, why: "파란 별이 붉은 별보다 훨씬 뜨거워요." },
+      { q: "태양의 나이는 약 몇 살일까요?", options: ["약 4,600년", "약 46억 년", "약 4,600억 년"], answer: 1, why: "약 46억 년 전에 태어났어요." },
+      { q: "아주 무거운 별이 마지막에 크게 폭발하는 현상은?", options: ["초신성", "유성우", "일식"], answer: 0, why: "초신성 폭발 뒤에는 중성자별이나 블랙홀이 남기도 해요." },
+    ],
+  },
 ];
+
 export const STAMP_EXTRAS = [
   { id: "light", name: "빛의 친구", how: "빛이랑 경주를 끝까지 해요" },
   { id: "iss", name: "우주정거장 관측자", how: "우주정거장을 찾아요" },
@@ -160,6 +216,9 @@ export const STAMP_EXTRAS = [
   { id: "streak-7", name: "일주일 연속", how: "7일 연속 들어와요" },
   { id: "streak-30", name: "한 달 연속", how: "30일 연속 들어와요" },
   { id: "daily-10", name: "오늘의 문제 열 번", how: "오늘의 문제를 10번 맞혀요" },
+  { id: "connect-1", name: "첫 별자리 잇기", how: "별자리 잇기를 하나 완성해요" },
+  { id: "connect-10", name: "별자리 열 개 잇기", how: "서로 다른 별자리 10개를 이어요" },
+  { id: "order-2", name: "행성 줄 세우기", how: "거리 순, 크기 순을 모두 맞혀요" },
   { id: "weekly-1", name: "첫 주간 미션", how: "한 주의 미션 세 가지를 모두 해요" },
   { id: "weekly-4", name: "주간 미션 네 번", how: "주간 미션을 네 주 모두 해요" },
 ] as const;

@@ -35,7 +35,7 @@ export function hourLabel(hour: number): string {
 
 /* ---------- 하늘 달력 ---------- */
 
-export type SkyEvent = { key: string; day: string; title: string; line: string };
+export type SkyEvent = { key: string; day: string; title: string; line: string; moon?: number };
 
 /** 매년 같은 무렵 오는 유성우. 극대일은 해마다 하루쯤 달라질 수 있어 "무렵"으로 씁니다. 날짜는 한국 밤 기준. */
 const SHOWERS: readonly { month: number; day: number; name: string; line: string }[] = [
@@ -61,8 +61,8 @@ export function upcomingSkyEvents(from = new Date(), days = 60): SkyEvent[] {
     const day = kstKey(phase.at);
     events.push(
       phase.kind === "full"
-        ? { key: `full-${day}`, day, sort: phase.at, title: "보름달", line: "해 질 무렵 동쪽에서 떠서 밤새 하늘에 있어요." }
-        : { key: `new-${day}`, day, sort: phase.at, title: "삭, 별 보기 좋은 밤", line: "달빛이 없어서 희미한 별까지 잘 보여요." },
+        ? { key: `full-${day}`, day, sort: phase.at, moon: 14.77, title: "보름달", line: "해 질 무렵 동쪽에서 떠서 밤새 하늘에 있어요." }
+        : { key: `new-${day}`, day, sort: phase.at, moon: 0, title: "삭, 별 보기 좋은 밤", line: "달빛이 없어서 희미한 별까지 잘 보여요." },
     );
   }
 
@@ -97,7 +97,7 @@ export function upcomingSkyEvents(from = new Date(), days = 60): SkyEvent[] {
     }
   }
 
-  return events.sort((a, b) => a.sort - b.sort).map(({ key, day, title, line }) => ({ key, day, title, line }));
+  return events.sort((a, b) => a.sort - b.sort).map(({ key, day, title, line, moon }) => ({ key, day, title, line, moon }));
 }
 
 export function dDay(day: string, today = localDateKey()): string {

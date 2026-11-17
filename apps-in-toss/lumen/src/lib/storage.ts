@@ -24,6 +24,10 @@ export type Progress = {
   /** 광고 보고 받은 보너스 별. 한 주에 하나. */
   bonusStars: number;
   bonusWeek: string;
+  /** 별자리 잇기 최고 기록(초). */
+  connectBest: Record<string, number>;
+  /** 행성 줄 세우기 최고 기록(초). */
+  orderBest: Record<string, number>;
 };
 
 export type WeekLog = { id: string; counts: Record<string, number>; done: boolean };
@@ -47,10 +51,20 @@ const EMPTY: Progress = {
   weeksDone: 0,
   bonusStars: 0,
   bonusWeek: "",
+  connectBest: {},
+  orderBest: {},
 };
 
 let state: Progress = read();
 const listeners = new Set<() => void>();
+
+function numbers(value: unknown): Record<string, number> {
+  const out: Record<string, number> = {};
+  if (value && typeof value === "object") {
+    for (const [key, item] of Object.entries(value)) if (typeof item === "number" && Number.isFinite(item)) out[key] = item;
+  }
+  return out;
+}
 
 function strings(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
@@ -75,6 +89,8 @@ function read(): Progress {
       weeksDone: typeof parsed.weeksDone === "number" ? parsed.weeksDone : 0,
       bonusStars: typeof parsed.bonusStars === "number" ? parsed.bonusStars : 0,
       bonusWeek: typeof parsed.bonusWeek === "string" ? parsed.bonusWeek : "",
+      connectBest: numbers(parsed.connectBest),
+      orderBest: numbers(parsed.orderBest),
       dailyHintDate: typeof parsed.dailyHintDate === "string" ? parsed.dailyHintDate : "",
       dailyDate: today,
       dailyPick: sameDay && typeof parsed.dailyPick === "number" ? parsed.dailyPick : null,
@@ -85,7 +101,7 @@ function read(): Progress {
 }
 
 function fresh(): Progress {
-  return { ...EMPTY, stamps: [], foundConstellations: [], visits: [], wrong: [], week: newWeek(), dailyDate: localDateKey() };
+  return { ...EMPTY, stamps: [], foundConstellations: [], visits: [], wrong: [], connectBest: {}, orderBest: {}, week: newWeek(), dailyDate: localDateKey() };
 }
 
 /** 그 주 월요일 날짜. */
@@ -133,10 +149,19 @@ export function subscribeProgress(listener: () => void): () => void {
   return () => listeners.delete(listener);
 }
 
+const stampListeners = new Set<(id: string) => void>();
+
+/** 새 도장을 받을 때 알림을 받습니다(도장 찍는 연출용). */
+export function onStampAwarded(listener: (id: string) => void): () => void {
+  stampListeners.add(listener);
+  return () => stampListeners.delete(listener);
+}
+
 export function awardStamp(id: string): boolean {
   const current = getProgress();
   if (current.stamps.includes(id)) return false;
   write({ ...current, stamps: [...current.stamps, id] });
+  stampListeners.forEach((listener) => listener(id));
   return true;
 }
 
@@ -257,4 +282,31 @@ export function takeBonusStar() {
   const bonusStars = current.bonusStars + 1;
   write({ ...current, bonusStars, bonusWeek: current.week.id });
   if (bonusStars >= 5) awardStamp("bonus-5");
+}
+
+/* ---------- 놀이 기록 ---------- */
+
+/** 별자리 잇기를 끝냈을 때. 새 최고 기록이면 true. */
+export function recordConnect(id: string, seconds: number): boolean {
+  const current = getProgress();
+  const best = current.connectBest[id];
+  const better = best === undefined || seconds < best;
+  const connectBest = better ? { ...current.connectBest, [id]: seconds } : current.connectBest;
+  write({ ...current, connectBest });
+  awardStamp("connect-1");
+  if (Object.keys(connectBest).length >= 10) awardStamp("connect-10");
+  bumpWeekly("connect", id);
+  return better;
+}
+
+/** 행성 줄 세우기를 맞혔을 때. 새 최고 기록이면 true. */
+export function recordOrder(mode: string, seconds: number): boolean {
+  const current = getProgress();
+  const best = current.orderBest[mode];
+  const better = best === undefined || seconds < best;
+  const orderBest = better ? { ...current.orderBest, [mode]: seconds } : current.orderBest;
+  write({ ...current, orderBest });
+  if (orderBest.distance !== undefined && orderBest.size !== undefined) awardStamp("order-2");
+  bumpWeekly("order");
+  return better;
 }

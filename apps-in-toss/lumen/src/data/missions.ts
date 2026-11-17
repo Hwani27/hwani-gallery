@@ -1,5 +1,5 @@
 /** 주간 미션. 월요일에 바뀌고, 한 주에 세 가지가 나옵니다. */
-export type MissionKind = "visit" | "daily" | "quiz" | "sky" | "race" | "review";
+export type MissionKind = "visit" | "daily" | "quiz" | "sky" | "race" | "review" | "connect" | "order";
 export type Mission = { kind: MissionKind; title: string; target: number };
 
 export const MISSION_POOL: readonly Mission[] = [
@@ -9,6 +9,8 @@ export const MISSION_POOL: readonly Mission[] = [
   { kind: "sky", title: "서울 밤하늘에서 별자리 3개 찾기", target: 3 },
   { kind: "race", title: "빛이랑 경주 한 번 끝내기", target: 1 },
   { kind: "review", title: "틀린 문제 3개 다시 맞히기", target: 3 },
+  { kind: "connect", title: "별자리 잇기 2개 완성하기", target: 2 },
+  { kind: "order", title: "행성 줄 세우기 한 판 맞히기", target: 1 },
 ];
 
 /** weekId 는 그 주 월요일의 "YYYY-MM-DD". */

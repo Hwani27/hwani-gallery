@@ -114,17 +114,24 @@ export function QuizScreen() {
                 <span>{Math.min(5, progress.wrong.length)}문제 · 다시 맞히면 목록에서 빠져요</span>
               </button>
             ) : null}
-            {QUIZZES.map((item) => {
-              const got = progress.stamps.includes(`quiz-${item.id}`);
-              return (
-                <button key={item.id} type="button" className="menu-item" onClick={() => start(item, true)}>
-                  <strong>{item.name}</strong>
-                  <span>
-                    {item.questions.length}문제 · {got ? "도장 받음" : "퀴즈 풀기"}
-                  </span>
-                </button>
-              );
-            })}
+            {(["쉬움", "보통", "심화"] as const).map((level) => (
+              <div key={level} className="stack">
+                <p className="label">
+                  {level === "쉬움" ? "쉬움 · 행성과 달" : level === "보통" ? "보통 · 별자리와 빛, 우리 하늘" : "심화 · 블랙홀과 별의 일생"}
+                </p>
+              {QUIZZES.filter((item) => (item.level ?? "쉬움") === level).map((item) => {
+                const got = progress.stamps.includes(`quiz-${item.id}`);
+                return (
+                  <button key={item.id} type="button" className="menu-item" onClick={() => start(item, true)}>
+                    <strong>{item.name}</strong>
+                    <span>
+                      {item.questions.length}문제 · {got ? "도장 받음" : "퀴즈 풀기"}
+                    </span>
+                  </button>
+                );
+              })}
+              </div>
+            ))}
           </div>
           <p className="muted">
             내 도장 {progress.stamps.length} / {stamps.length} · 첫 화면의 도장판에서 모두 볼 수 있어요.

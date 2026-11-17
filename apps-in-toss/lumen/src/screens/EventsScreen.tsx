@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { Screen } from "../components/Screen";
+import { MoonIcon } from "../components/MoonIcon";
 import { localDateKey } from "../lib/format";
 import { dDay, dayLabel, tonightPlanets, upcomingSkyEvents } from "../lib/tonight";
 
@@ -36,6 +37,7 @@ export function EventsScreen() {
       <ul className="list">
         {events.map((event) => (
           <li key={event.key}>
+            {event.moon !== undefined ? <MoonIcon age={event.moon} size={36} label={event.title} /> : null}
             <div>
               <div className="line">
                 <strong>{event.title}</strong>

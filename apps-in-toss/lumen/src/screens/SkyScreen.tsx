@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Screen } from "../components/Screen";
-import { CONSTELLATION_LINES, FIELD_STARS, NAMED_STARS } from "../data/sky";
+import { COLOR_STARS, CONSTELLATION_LINES, NAMED_STARS } from "../data/sky";
 import { CONSTELLATION_META as CONSTELLATIONS, type ConstellationMeta } from "../data/constellations";
 import { josa } from "../lib/format";
 import { planetPlaces } from "../lib/ephem";
+import { starColor } from "../lib/starColor";
 import { altAz, localSiderealDegrees } from "../lib/astro";
 import { playTap } from "../lib/audio";
 import { SEOUL } from "../lib/iss";
@@ -60,12 +61,33 @@ function hour0(): number {
   return 21;
 }
 
-function lstAt(hour: number): number {
-  const when = new Date();
-  when.setHours(0, 0, 0, 0);
-  when.setHours(hour);
-  return localSiderealDegrees(when, SEOUL.lon);
+/** 오늘 0시에서 hour 시간 뒤(소수 가능, 30 = 다음 날 새벽 6시). */
+function atHour(hour: number): Date {
+  const base = new Date();
+  base.setHours(0, 0, 0, 0);
+  return new Date(base.getTime() + hour * 3_600_000);
 }
+
+function lstAt(hour: number): number {
+  return localSiderealDegrees(atHour(hour), SEOUL.lon);
+}
+
+/** 은하 좌표(l, b) → J2000 적경·적위(도). */
+function galacticToEquatorial(l: number, b: number): [number, number] {
+  const d = Math.PI / 180;
+  const raNgp = 192.85948 * d;
+  const decNgp = 27.12825 * d;
+  const lNcp = 122.93192 * d;
+  const lr = l * d;
+  const br = b * d;
+  const sinDec = Math.sin(decNgp) * Math.sin(br) + Math.cos(decNgp) * Math.cos(br) * Math.cos(lNcp - lr);
+  const dec = Math.asin(sinDec);
+  const y = Math.cos(br) * Math.sin(lNcp - lr);
+  const x = Math.cos(decNgp) * Math.sin(br) - Math.sin(decNgp) * Math.cos(br) * Math.cos(lNcp - lr);
+  return [(((raNgp + Math.atan2(y, x)) / d) % 360 + 360) % 360, dec / d];
+}
+
+const MILKY_WAY: [number, number][] = Array.from({ length: 121 }, (_, i) => galacticToEquatorial(i * 3, 0));
 
 /** 고른 별자리 쪽으로 시선을 돌립니다. 땅 아래면 남쪽 하늘을 봅니다. */
 function viewToward(id: string | null, hour: number): { az: number; alt: number } {
@@ -74,6 +96,14 @@ function viewToward(id: string | null, hour: number): { az: number; alt: number 
   const sky = altAz(body.center[0], body.center[1], SEOUL.lat, lstAt(hour));
   if (sky.alt <= 0) return { az: 180, alt: 48 };
   return { az: sky.az, alt: Math.min(80, Math.max(8, sky.alt)) };
+}
+
+function hourLabelShort(at: Date): string {
+  const h = at.getHours();
+  const m = at.getMinutes();
+  const part = h < 6 ? "새벽" : h < 18 ? "아침" : h < 21 ? "저녁" : "밤";
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${part} ${h12}시${m >= 30 ? " 반" : ""}`;
 }
 
 export function SkyScreen({ focusId }: { focusId: string | null }) {
@@ -85,10 +115,9 @@ export function SkyScreen({ focusId }: { focusId: string | null }) {
   const [selected, setSelected] = useState<string | null>(focusId);
   const [found, setFound] = useState<string[]>(() => getProgress().foundConstellations);
   const [message, setMessage] = useState("");
+  const [playing, setPlaying] = useState(false);
 
-  const when = new Date();
-  when.setHours(0, 0, 0, 0);
-  when.setHours(hour);
+  const when = atHour(hour);
   const lst = localSiderealDegrees(when, SEOUL.lon);
   viewRef.current = view;
   lstRef.current = lst;
@@ -155,12 +184,47 @@ export function SkyScreen({ focusId }: { focusId: string | null }) {
     ctx.lineWidth = k;
     ctx.stroke();
 
-    for (const star of FIELD_STARS) {
-      const point = project(star[0], star[1], lst, view.az, view.alt, width, height);
+    // 은하수: 은하 적도를 따라 넓고 옅은 띠를 세 겹으로 그립니다.
+    const bandScale = Math.min(width, height) * 0.46;
+    for (const [band, alpha] of [[0.34, 0.016], [0.27, 0.018], [0.2, 0.02], [0.14, 0.022], [0.09, 0.024], [0.05, 0.026]] as const) {
+      ctx.strokeStyle = `rgba(200, 214, 255, ${alpha})`;
+      ctx.lineWidth = band * bandScale;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.beginPath();
+      let open = false;
+      for (const [ra, dec] of MILKY_WAY) {
+        const point = project(ra, dec, lst, view.az, view.alt, width, height);
+        if (!point || point.alt < -5) {
+          open = false;
+          continue;
+        }
+        if (!open) {
+          ctx.moveTo(point.x, point.y);
+          open = true;
+        } else ctx.lineTo(point.x, point.y);
+      }
+      ctx.stroke();
+    }
+
+    // 별: 밝을수록 크게, 색지수에 따라 색을 입힙니다. 아주 밝은 별에는 옅은 빛무리를 둡니다.
+    for (const [ra, dec, mag, bv] of COLOR_STARS) {
+      const point = project(ra, dec, lst, view.az, view.alt, width, height);
       if (!point || point.alt < 0) continue;
-      const size = Math.max(1, 3.2 - star[2]) * k * 0.6;
-      ctx.fillStyle = "#f4f7fb";
-      ctx.fillRect(point.x, point.y, size, size);
+      const radius = Math.max(0.55, 2.4 - 0.42 * mag) * k;
+      const color = starColor(bv);
+      if (mag < 1.2) {
+        ctx.globalAlpha = 0.18;
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(point.x, point.y, radius * 2.6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(point.x, point.y, radius, 0, Math.PI * 2);
+      ctx.fill();
     }
 
     if (selectedBody) {
@@ -187,7 +251,8 @@ export function SkyScreen({ focusId }: { focusId: string | null }) {
     ctx.fillStyle = "#8fb7e6";
     ctx.font = `${12 * k}px "Lumen Sans", sans-serif`;
     for (const star of NAMED_STARS) {
-      if (selected && star.c !== selected) continue;
+      // 별자리를 고르지 않았으면 아주 밝은 별 이름만 써서 글자가 겹치지 않게 합니다.
+      if (selected ? star.c !== selected : star.mag > 1) continue;
       const point = project(star.ra, star.dec, lst, view.az, view.alt, width, height);
       if (!point || point.alt < 0) continue;
       ctx.fillText(star.name, point.x + 6 * k, point.y);
@@ -269,26 +334,78 @@ export function SkyScreen({ focusId }: { focusId: string | null }) {
     if (next.length >= 3) awardStamp("sky");
   }
 
-  const clock = `${when.getHours()}시`;
+  // 저녁 6시부터 새벽 6시까지 10초 동안 돌려 봅니다. 움직임을 줄이는 설정이면 한 시간씩 넘깁니다.
+  useEffect(() => {
+    if (!playing) return;
+    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    let frame = 0;
+    let timer = 0;
+    const startHour = hour >= 29.9 ? 18 : hour;
+    const started = performance.now();
+    const step = (now: number) => {
+      const next = Math.min(30, startHour + ((now - started) / 10_000) * 12);
+      setHour(next);
+      if (next >= 30) {
+        setPlaying(false);
+        return;
+      }
+      frame = requestAnimationFrame(step);
+    };
+    if (reduce) {
+      timer = window.setInterval(() => {
+        setHour((value) => {
+          const next = Math.floor(value) + 1;
+          if (next >= 30) setPlaying(false);
+          return Math.min(30, next);
+        });
+      }, 700);
+    } else {
+      frame = requestAnimationFrame(step);
+    }
+    return () => {
+      cancelAnimationFrame(frame);
+      window.clearInterval(timer);
+    };
+    // 재생을 시작할 때의 시각에서 출발합니다.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [playing]);
+
+  const clock = `${hourLabelShort(when)}`;
 
   return (
     <Screen>
       <h1>서울 밤하늘</h1>
       <p className="lede">서울시청에서 올려다본 밤하늘이에요. 화면을 끌어서 둘러보고, 별자리를 눌러 보세요.</p>
       <canvas ref={canvasRef} className="sky" width={720} height={520} aria-label="서울 밤하늘" />
-      <p className="label">파란 이름은 행성이에요. 행성은 별자리 사이를 천천히 옮겨 다녀요.</p>
+      <p className="label">별 색은 실제 별의 색, 점 크기는 밝기예요. 옅은 띠는 은하수, 파란 이름은 행성이에요.</p>
       <label className="field">
-        <span>밤 시각 {clock}</span>
+        <span>시각 {clock}</span>
         <input
           type="range"
           min={18}
           max={30}
+          step={0.25}
           value={hour}
           aria-label="밤 시각, 저녁 6시부터 아침 6시까지"
-          onChange={(event) => setHour(Number(event.target.value))}
+          onChange={(event) => {
+            setPlaying(false);
+            setHour(Number(event.target.value));
+          }}
         />
       </label>
-      {hour >= 24 && hour < 30 ? <p className="muted">자정을 넘긴 시각이에요.</p> : null}
+      <div className="actions">
+        <button
+          type="button"
+          className="btn"
+          aria-pressed={playing}
+          onClick={() => {
+            playTap();
+            setPlaying((value) => !value);
+          }}
+        >
+          {playing ? "멈추기" : "저녁부터 새벽까지 돌려 보기"}
+        </button>
+      </div>
       {when.getHours() >= 6 && when.getHours() < 18 ? (
         <p className="muted">지금은 낮이라 해 때문에 별이 안 보여요. 그래도 별은 그 자리에 있어요.</p>
       ) : null}
