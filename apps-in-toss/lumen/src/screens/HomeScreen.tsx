@@ -71,7 +71,7 @@ export function HomeScreen({ open }: { open: (screen: ScreenId, focus?: string) 
   return (
     <div className="screen">
       <div className="screen-body">
-        <p className="kicker">루멘</p>
+        <p className="kicker">별자국</p>
         <h1>빛이 머무는 곳을 스쳐 갑니다</h1>
         <p className="lede">지구에서 우주까지, 짧게 둘러보는 놀이예요. 도장과 퀴즈는 이 기기에 저장돼요.</p>
 
