@@ -1,25 +1,14 @@
 import type { ReactNode } from "react";
 import { BannerSlot } from "./BannerSlot";
 
-export function Screen({
-  children,
-  banner = false,
-  onMenu,
-}: {
-  children: ReactNode;
-  banner?: boolean;
-  onMenu?: () => void;
-}) {
+/**
+ * 화면 틀. 헤더와 뒤로가기는 만들지 않고 토스 내비게이션 바만 씁니다.
+ * 배너는 메뉴·목록 화면 아래에만 붙입니다.
+ */
+export function Screen({ children, banner = false }: { children: ReactNode; banner?: boolean }) {
   return (
     <div className="screen">
       <div className="screen-body">{children}</div>
-      {onMenu ? (
-        <div className="screen-foot">
-          <button type="button" className="btn" onClick={onMenu}>
-            메뉴
-          </button>
-        </div>
-      ) : null}
       {banner ? <BannerSlot /> : null}
     </div>
   );

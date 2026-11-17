@@ -5,13 +5,13 @@ import { playTap } from "../lib/audio";
 import { formatKg } from "../lib/format";
 import { awardStamp, setWeightKg } from "../lib/storage";
 
-export function WeightScreen({ onMenu, initial }: { onMenu: () => void; initial: string }) {
+export function WeightScreen({ initial }: { initial: string }) {
   const [raw, setRaw] = useState(initial);
   const [weighed, setWeighed] = useState(false);
   const kg = Math.max(0, Math.min(500, Number(raw.replace(",", ".")) || 0));
 
   return (
-    <Screen onMenu={onMenu}>
+    <Screen>
       <h1>행성 체중계</h1>
       <p className="lede">저울 숫자예요. 몸은 그대로인데 끌어당기는 힘이 달라서 숫자가 바뀌어요. 자료는 NASA 행성 자료표예요.</p>
       <label className="field">

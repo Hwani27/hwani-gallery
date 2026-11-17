@@ -8,7 +8,7 @@ const MODES: { id: JourneyMode; label: string }[] = [
   { id: "system", label: "태양계" },
 ];
 
-export function JourneyScreen({ onMenu }: { onMenu: () => void }) {
+export function JourneyScreen() {
   const [mode, setMode] = useState<JourneyMode>("earth");
   const [night, setNight] = useState(false);
   const [webgl] = useState(() => {
@@ -21,7 +21,7 @@ export function JourneyScreen({ onMenu }: { onMenu: () => void }) {
   });
 
   return (
-    <Screen onMenu={onMenu}>
+    <Screen>
       <h1>지구에서 우주로</h1>
       <p className="lede">화면을 끌어서 둘러보세요. 지구 그림은 이 앱이 직접 그린 간단한 지도예요.</p>
       <div className="chips">

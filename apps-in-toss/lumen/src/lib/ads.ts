@@ -114,21 +114,43 @@ function showAd(adGroupId: string): Promise<"reward" | "closed" | "failed"> {
 }
 
 let interstitialReady: Promise<boolean> | null = null;
+/** 전면 광고는 한 번 보여 준 뒤 3분 동안 다시 띄우지 않습니다. */
+const INTERSTITIAL_GAP_MS = 3 * 60_000;
+let lastInterstitialAt = 0;
+
+export function interstitialDue(): boolean {
+  return Date.now() - lastInterstitialAt >= INTERSTITIAL_GAP_MS;
+}
+
+export function rewardedSupported(): boolean {
+  return isConfiguredAdId(REWARDED_AD_GROUP_ID) && supported(loadFullScreenAd) && supported(showFullScreenAd);
+}
 
 export function preloadInterstitial(): Promise<boolean> {
-  interstitialReady ??= loadAd(INTERSTITIAL_AD_GROUP_ID);
+  if (!interstitialDue()) return Promise.resolve(false);
+  if (!interstitialReady) {
+    const pending = loadAd(INTERSTITIAL_AD_GROUP_ID).then((ok) => {
+      // 불러오기에 실패하면 다음에 다시 시도할 수 있게 비웁니다.
+      if (!ok && interstitialReady === pending) interstitialReady = null;
+      return ok;
+    });
+    interstitialReady = pending;
+  }
   return interstitialReady;
 }
 
 export async function showPreparedInterstitial(): Promise<boolean> {
+  if (!interstitialDue()) return false;
   const ready = await (interstitialReady ?? preloadInterstitial());
   interstitialReady = null;
   if (!ready) return false;
   const result = await showAd(INTERSTITIAL_AD_GROUP_ID);
+  if (result !== "failed") lastInterstitialAt = Date.now();
   return result !== "failed";
 }
 
 export async function showRewardedAd(): Promise<boolean> {
+  if (!rewardedSupported()) return false;
   const ready = await loadAd(REWARDED_AD_GROUP_ID);
   if (!ready) return false;
   return (await showAd(REWARDED_AD_GROUP_ID)) === "reward";

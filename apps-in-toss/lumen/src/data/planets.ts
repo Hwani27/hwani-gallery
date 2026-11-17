@@ -18,7 +18,7 @@ export const WEIGHT_BODIES: readonly WeightBody[] = [
   { id: "uranus", name: "천왕성", ratio: 0.889, line: "옆으로 누운 행성에서 살짝 가벼워요.", cloudTop: true, color: "#8fd0cb" },
   { id: "neptune", name: "해왕성", ratio: 1.12, line: "조금 무거워요. 바람은 엄청 세요!", cloudTop: true, color: "#3d6ea5" },
   { id: "pluto", name: "명왕성", ratio: 0.071, line: "깃털처럼 가벼워요. 둥실둥실!", color: "#d9c7b8" },
-  { id: "sun", name: "태양", ratio: 27.9, line: "코끼리를 업은 것보다 무거워요. 너무 뜨거워 갈 수는 없어요.", cloudTop: true, color: "#f0c14a" },
+  { id: "sun", name: "태양", ratio: 27.9, line: "저울 숫자가 약 28배가 돼요. 너무 뜨거워서 갈 수는 없어요.", cloudTop: true, color: "#f0c14a" },
 ];
 
 export type RaceTarget = {
@@ -38,7 +38,7 @@ export const RACE_TARGETS: readonly RaceTarget[] = [
   { id: "saturn", name: "토성", seconds: 4800, mean: "평균 1시간 20분" },
   { id: "uranus", name: "천왕성", seconds: 9600, mean: "평균 2시간 40분" },
   { id: "neptune", name: "해왕성", seconds: 15000, mean: "평균 4시간 10분" },
-  { id: "voyager1", name: "보이저 1호", seconds: 86400, mean: "2026년 11월쯤 빛으로 약 하루" },
+  { id: "voyager1", name: "보이저 1호", seconds: 86400, mean: "지구에서 빛으로 약 하루" },
 ];
 
 export const RACE_SPEEDS = [1, 10, 100, 1000, 10000] as const;

@@ -3,12 +3,11 @@ import { Screen } from "../components/Screen";
 import { CITY_HALL, nearestPlace } from "../data/places";
 import { BALLS, EARTH_DIAMETER_KM, PROXIMA_KM, SOCCER_BALL_M, SUN_DIAMETER_KM, TOY_BODIES, ballName, modelMeters } from "../data/planets";
 import { playTap } from "../lib/audio";
-import { isConfiguredAdId, showRewardedAd } from "../lib/ads";
-import { REWARDED_AD_GROUP_ID } from "../fullscreenAds";
+import { rewardedSupported, showRewardedAd } from "../lib/ads";
 import { formatLength } from "../lib/format";
 import { awardStamp, getProgress, unlockBonusComparison } from "../lib/storage";
 
-export function SizeScreen({ onMenu }: { onMenu: () => void }) {
+export function SizeScreen() {
   const [bonus, setBonus] = useState(() => getProgress().bonusComparison);
   const [note, setNote] = useState("");
   useEffect(() => {
@@ -22,10 +21,6 @@ export function SizeScreen({ onMenu }: { onMenu: () => void }) {
 
   async function watchAd() {
     playTap();
-    if (!isConfiguredAdId(REWARDED_AD_GROUP_ID)) {
-      setNote("광고 번호를 넣으면, 광고를 보고 별까지 비교를 열 수 있어요.");
-      return;
-    }
     setNote("광고를 준비하고 있어요.");
     const earned = await showRewardedAd();
     if (earned) {
@@ -39,7 +34,7 @@ export function SizeScreen({ onMenu }: { onMenu: () => void }) {
   }
 
   return (
-    <Screen onMenu={onMenu}>
+    <Screen>
       <h1>크기 장난감</h1>
       <p className="lede">
         지구를 축구공({earthCm.toFixed(0)}cm)으로 줄여 볼까요? 태양은 서울시청 앞에 둬요. 태양 공은 지름이 {formatLength(sunM)}나 돼요.
@@ -83,11 +78,11 @@ export function SizeScreen({ onMenu }: { onMenu: () => void }) {
             {Math.floor(proximaKm / 40075)}바퀴 넘게 도는 거리예요.
           </p>
         </section>
-      ) : (
+      ) : rewardedSupported() ? (
         <button type="button" className="btn btn-primary" onClick={() => void watchAd()}>
-          광고를 보고 별까지 비교하기
+          광고 보고 가장 가까운 별까지 비교하기
         </button>
-      )}
+      ) : null}
       {note ? <p className="muted">{note}</p> : null}
       <p className="muted">기준점: {CITY_HALL.name}. 지구 지름 {EARTH_DIAMETER_KM.toLocaleString("ko-KR")}km.</p>
     </Screen>

@@ -79,6 +79,10 @@ h2 { font-size: 17px; font-weight: 500; }
   border-radius: 16px;
 }
 
+.menu-item { width: 100%; }
+
+.row-card .btn { flex: none; white-space: nowrap; }
+
 .card, .menu-item {
   padding: 16px;
   display: flex;
@@ -227,4 +231,36 @@ button:focus-visible, input:focus-visible {
 
 @media (prefers-reduced-motion: reduce) {
   * { scroll-behavior: auto; }
+}
+
+.week {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+
+.week li {
+  aspect-ratio: 1;
+  border-radius: 999px;
+  border: 1px solid #e5e8eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #8b95a1;
+  font-size: 13px;
+}
+
+.week li.is-on {
+  background: #3182f6;
+  border-color: #3182f6;
+  color: #fff;
+}
+
+.btn-quiet {
+  border-color: transparent;
+  background: #f2f4f6;
+  color: #4e5968;
 }

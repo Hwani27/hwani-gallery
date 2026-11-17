@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Screen } from "../components/Screen";
-import { CONSTELLATIONS, FIELD_STARS, NAMED_STARS, type Constellation } from "../data/sky";
+import { CONSTELLATION_LINES, FIELD_STARS, NAMED_STARS } from "../data/sky";
+import { CONSTELLATION_META as CONSTELLATIONS, type ConstellationMeta } from "../data/constellations";
+import { josa } from "../lib/format";
 import { altAz, localSiderealDegrees } from "../lib/astro";
 import { playTap } from "../lib/audio";
 import { SEOUL } from "../lib/iss";
@@ -53,12 +55,32 @@ function project(
   };
 }
 
-export function SkyScreen({ onMenu, focusId }: { onMenu: () => void; focusId: string | null }) {
+function hour0(): number {
+  return 21;
+}
+
+function lstAt(hour: number): number {
+  const when = new Date();
+  when.setHours(0, 0, 0, 0);
+  when.setHours(hour);
+  return localSiderealDegrees(when, SEOUL.lon);
+}
+
+/** 고른 별자리 쪽으로 시선을 돌립니다. 땅 아래면 남쪽 하늘을 봅니다. */
+function viewToward(id: string | null, hour: number): { az: number; alt: number } {
+  const body = CONSTELLATIONS.find((item) => item.id === id);
+  if (!body) return { az: 180, alt: 48 };
+  const sky = altAz(body.center[0], body.center[1], SEOUL.lat, lstAt(hour));
+  if (sky.alt <= 0) return { az: 180, alt: 48 };
+  return { az: sky.az, alt: Math.min(80, Math.max(8, sky.alt)) };
+}
+
+export function SkyScreen({ focusId }: { focusId: string | null }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const viewRef = useRef({ az: 180, alt: 48 });
   const lstRef = useRef(0);
-  const [hour, setHour] = useState(21);
-  const [view, setView] = useState({ az: 180, alt: 48 });
+  const [hour, setHour] = useState(hour0);
+  const [view, setView] = useState(() => viewToward(focusId, hour0()));
   const [selected, setSelected] = useState<string | null>(focusId);
   const [found, setFound] = useState<string[]>(() => getProgress().foundConstellations);
   const [message, setMessage] = useState("");
@@ -119,7 +141,7 @@ export function SkyScreen({ onMenu, focusId }: { onMenu: () => void; focusId: st
     if (selectedBody) {
       ctx.strokeStyle = "#3182f6";
       ctx.lineWidth = 1.5;
-      for (const line of selectedBody.lines) {
+      for (const line of CONSTELLATION_LINES[selectedBody.id] ?? []) {
         ctx.beginPath();
         let open = false;
         for (const [ra, dec] of line) {
@@ -172,7 +194,7 @@ export function SkyScreen({ onMenu, focusId }: { onMenu: () => void; focusId: st
       const y = ((event.clientY - rect.top) / rect.height) * canvas.height;
       let best: { id: string; dist: number; alt: number } | null = null;
       for (const constellation of CONSTELLATIONS) {
-        for (const line of constellation.lines) {
+        for (const line of CONSTELLATION_LINES[constellation.id] ?? []) {
           for (const [ra, dec] of line) {
             const point = project(ra, dec, lstRef.current, viewRef.current.az, viewRef.current.alt, canvas.width, canvas.height);
             if (!point) continue;
@@ -200,19 +222,19 @@ export function SkyScreen({ onMenu, focusId }: { onMenu: () => void; focusId: st
     const body = CONSTELLATIONS.find((item) => item.id === id);
     if (!body) return;
     if (!above) {
-      setMessage(`${body.name}은 지금은 땅 아래에 숨었어요. 시간을 바꿔 보세요.`);
+      setMessage(`${josa(body.name, "은는")} 이 시각에 땅 아래에 있어요. 시각을 바꿔 보세요.`);
       return;
     }
     const next = findConstellation(id);
     setFound(next);
-    setMessage(`${body.name}을 찾았어요. ${body.story}`);
+    setMessage(`${josa(body.name, "을를")} 찾았어요.`);
     if (next.length >= 3) awardStamp("sky");
   }
 
   const clock = `${when.getHours()}시`;
 
   return (
-    <Screen onMenu={onMenu}>
+    <Screen>
       <h1>서울 밤하늘</h1>
       <p className="lede">서울시청에서 올려다본 밤하늘이에요. 화면을 끌어서 둘러보고, 별자리를 눌러 보세요.</p>
       <canvas ref={canvasRef} className="sky" width={720} height={520} aria-label="서울 밤하늘" />
@@ -241,6 +263,7 @@ export function SkyScreen({ onMenu, focusId }: { onMenu: () => void; focusId: st
             aria-pressed={item.id === selected}
             onClick={() => {
               const center = altAz(item.center[0], item.center[1], SEOUL.lat, lst);
+              if (center.alt > 0) setView(viewToward(item.id, hour));
               choose(item.id, center.alt > 0);
             }}
           >
@@ -256,13 +279,15 @@ export function SkyScreen({ onMenu, focusId }: { onMenu: () => void; focusId: st
   );
 }
 
-function Story({ body }: { body: Constellation }) {
+function Story({ body }: { body: ConstellationMeta }) {
   return (
     <section className="card">
       <h2>{body.name}</h2>
       <p className="muted">{body.season}</p>
       <p>{body.look}</p>
       <p>{body.story}</p>
+      <p className="label">찾는 법</p>
+      <p>{body.find}</p>
     </section>
   );
 }

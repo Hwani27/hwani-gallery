@@ -39,3 +39,23 @@ export function compass(azimuth: number): string {
   const names = ["북쪽", "북동쪽", "동쪽", "남동쪽", "남쪽", "남서쪽", "서쪽", "북서쪽"];
   return names[Math.round(azimuth / 45) % 8];
 }
+
+/** "YYYY-MM-DD" 날짜에 하루 단위로 더하거나 뺍니다. */
+export function addDays(key: string, delta: number): string {
+  const [y, m, d] = key.split("-").map(Number);
+  return localDateKey(new Date(y, m - 1, d + delta, 12));
+}
+
+/** 1970-01-01 부터 센 날 수(기기 시간대 기준). 오늘의 문제 순서에 씁니다. */
+export function dayNumber(date = new Date()): number {
+  return Math.floor(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / 86_400_000);
+}
+
+/** 받침에 따라 조사를 고릅니다. pair 는 "은는", "을를", "이가", "과와" 처럼 받침 있을 때를 앞에 씁니다. */
+export function josa(word: string, pair: "은는" | "을를" | "이가" | "과와"): string {
+  const text = word.trim();
+  const last = text.charCodeAt(text.length - 1);
+  const isHangul = last >= 0xac00 && last <= 0xd7a3;
+  const hasFinal = isHangul ? (last - 0xac00) % 28 > 0 : /[0-9]$/.test(text) ? !/[2459]$/.test(text) : false;
+  return text + (hasFinal ? pair[0] : pair[1]);
+}

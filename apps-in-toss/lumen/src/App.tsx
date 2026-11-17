@@ -56,23 +56,16 @@ export function App() {
     setScreen(next);
   }
 
-  function home() {
-    playTap();
-    const state = history.state as HistoryState | null;
-    if (state?.lumen) history.back();
-    else setScreen("home");
-  }
-
   return (
     <Suspense fallback={<p className="boot-fallback">불러오는 중이에요</p>}>
       {screen === "home" ? <HomeScreen open={open} /> : null}
-      {screen === "journey" ? <JourneyScreen onMenu={home} /> : null}
-      {screen === "weight" ? <WeightScreen onMenu={home} initial={getProgress().weightKg} /> : null}
-      {screen === "race" ? <RaceScreen onMenu={home} /> : null}
-      {screen === "iss" ? <IssScreen onMenu={home} /> : null}
-      {screen === "sky" ? <SkyScreen onMenu={home} focusId={focus} /> : null}
-      {screen === "quiz" ? <QuizScreen onMenu={home} /> : null}
-      {screen === "size" ? <SizeScreen onMenu={home} /> : null}
+      {screen === "journey" ? <JourneyScreen /> : null}
+      {screen === "weight" ? <WeightScreen initial={getProgress().weightKg} /> : null}
+      {screen === "race" ? <RaceScreen /> : null}
+      {screen === "iss" ? <IssScreen /> : null}
+      {screen === "sky" ? <SkyScreen focusId={focus} /> : null}
+      {screen === "quiz" ? <QuizScreen /> : null}
+      {screen === "size" ? <SizeScreen /> : null}
     </Suspense>
   );
 }
