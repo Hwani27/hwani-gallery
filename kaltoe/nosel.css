@@ -1,6 +1,0 @@
-/* v5.7.1: iOS long-press never selects text or shows the callout on game screens */
-.screen,.screen *,#baPad,#baPad *,#baHud,#baHud *{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;}
-.screen{touch-action:manipulation;}
-#blockaction,#blockaction canvas,#baPad,#baPad *,#baHud,#baHud *,.mount3d,.mount3d canvas{touch-action:none;}
-.screen canvas{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
-input,textarea,select,[contenteditable="true"],#sv57 textarea,#sv57 input{-webkit-user-select:text!important;user-select:text!important;-webkit-touch-callout:default!important;touch-action:manipulation!important;}
