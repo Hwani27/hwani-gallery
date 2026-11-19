@@ -1,0 +1,38 @@
+:root{--gold:#f0cf7a;--ink:#f6eedb;--mute:#b9ab8d;--st:env(safe-area-inset-top,0px);--sb:env(safe-area-inset-bottom,0px);--ux-nav:0px}
+body.toss-app{--ux-nav:72px}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;min-height:100%;background:radial-gradient(120% 70% at 50% 0%,#3a2a18 0%,#17110b 55%,#0d0a07 100%) fixed;color:var(--ink);font-family:"Pretendard Variable",Pretendard,"Apple SD Gothic Neo","Noto Sans KR",system-ui,sans-serif;-webkit-user-select:none;user-select:none}
+body{padding:calc(22px + var(--st) + var(--ux-nav)) 18px calc(26px + var(--sb));max-width:520px;margin:0 auto;transition:opacity .12s}
+body.leaving{opacity:.4}
+.hh{text-align:center;margin:6px 0 18px}
+.hh small{display:block;font-size:12px;letter-spacing:.28em;color:var(--gold);opacity:.8;font-weight:800}
+.hh h1{margin:6px 0 4px;font-size:34px;font-weight:900;background:linear-gradient(180deg,#fff6da,#f0cf7a 55%,#c08a2c);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hh p{margin:0;font-size:13px;color:var(--mute);font-weight:700}
+.hs{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px}
+.hs>div,.hs>button{display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px 6px;border-radius:16px;background:rgba(255,255,255,.05);border:1px solid rgba(255,226,170,.14);color:inherit;font-family:inherit;font-size:11.5px;font-weight:700}
+.hs b{font-size:17px;font-weight:900;color:var(--gold)}
+.hs .todo b{color:#ff8f7a}
+.hs button{cursor:pointer}
+.hc{display:flex;align-items:center;gap:12px;width:100%;padding:14px 16px;border-radius:20px;border:0;cursor:pointer;margin-bottom:16px;font-family:inherit;text-align:left;color:#2a1d08;background:linear-gradient(180deg,#ffe39a,#d6a440);box-shadow:0 10px 26px rgba(214,164,64,.3)}
+.hc:active{transform:scale(.98)}
+.hc .ci{font-size:30px;width:48px;height:48px;border-radius:14px;display:grid;place-items:center;background:rgba(255,255,255,.35)}
+.hc .ct{display:flex;flex-direction:column;min-width:0}
+.hc small{font-size:11.5px;font-weight:800;opacity:.75}.hc b{font-size:19px;font-weight:900}.hc em{font-style:normal;font-size:12px;font-weight:700;opacity:.8}
+.hc .cg{margin-left:auto;font-size:20px}
+.hl{margin:0 4px 10px;font-size:12px;letter-spacing:.12em;color:#7f735d;font-weight:800}
+.hgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.hg{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:3px;padding:14px;border-radius:20px;cursor:pointer;font-family:inherit;color:var(--ink);text-align:left;border:1px solid rgba(255,226,170,.16);background:radial-gradient(120% 90% at 0% 0%,color-mix(in srgb,var(--ac) 32%,transparent),transparent 70%),rgba(34,27,19,.85);box-shadow:0 10px 24px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.06);min-height:112px}
+.hg:active{transform:scale(.97)}
+.hg .gi{font-size:30px;line-height:1;margin-bottom:6px}
+.hg b{font-size:18px;font-weight:900}
+.hg small{font-size:12px;color:var(--mute);font-weight:700}
+.hg:last-child:nth-child(odd){grid-column:1/-1;flex-direction:row;align-items:center;min-height:0;gap:12px}
+.hg:last-child:nth-child(odd) .gi{margin:0}
+.hg:last-child:nth-child(odd) small{margin-left:auto}
+.hg .nw{position:absolute;top:-7px;right:12px;font-style:normal;font-size:10px;font-weight:900;padding:2px 8px;border-radius:99px;background:#ff5a4e;color:#fff}
+.hf{margin-top:18px;text-align:center;font-size:11.5px;color:#7f735d;font-weight:700}
+.hkal{margin-bottom:10px;padding:10px 12px;border-radius:14px;text-align:center;font-size:13px;font-weight:700;background:linear-gradient(90deg,#ff7a59,#ffb347);color:#2a1206}
+.hid{display:flex;align-items:center;gap:12px;padding:12px 14px;margin-bottom:10px;border-radius:18px;background:linear-gradient(135deg,rgba(52,81,156,.45),rgba(255,255,255,.04));border:1px solid rgba(255,226,170,.18)}
+.hid .ph{width:44px;height:52px;border-radius:9px;display:grid;place-items:center;font-size:27px;background:#f7f1e3}
+.hid .t{display:flex;flex-direction:column;min-width:0}.hid small{font-size:10.5px;font-weight:800;opacity:.65;letter-spacing:.04em}.hid b{font-size:17px;font-weight:900}.hid em{font-style:normal;font-size:11.5px;color:var(--mute);font-weight:700}
+.hid .cd{margin-left:auto;font-size:12.5px;font-weight:800;color:var(--gold)}
