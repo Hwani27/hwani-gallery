@@ -1,5 +1,30 @@
 /* ============ Shared 3D board engine — ONE renderer shared by all instances ============ */
 // Single WebGL context for every 3D board (omok, janggi). Only the active instance renders.
+// three.min.js is deferred (shared/three-loader.js): it is fetched only when a board is opened.
+// Safety net: if that loader is missing (stale bundle / changed script order), inject the same file
+// next to this script so the board still comes up instead of failing silently.
+window.loadThree = window.loadThree || (function () {
+  var P = null;
+  return function () {
+    if (window.THREE) return Promise.resolve(window.THREE);
+    if (P) return P;
+    var s = document.currentScript || [].slice.call(document.getElementsByTagName('script')).pop();
+    var d = ((s && s.src) || '').replace(/[^/]*$/, '') || 'js/';
+    P = new Promise(function (res, rej) {
+      var el = document.createElement('script');
+      el.src = d + 'three.min.js';
+      el.async = true;
+      el.onload = function () {
+        if (!window.THREE) { P = null; rej(new Error('three.min.js loaded but THREE is missing')); return; }
+        try { window.dispatchEvent(new Event('three-ready')); } catch (e) {}
+        res(window.THREE);
+      };
+      el.onerror = function () { P = null; rej(new Error('three.min.js load failed')); };
+      document.head.appendChild(el);
+    });
+    return P;
+  };
+})();
 let _R=null;            // shared renderer
 let _activeInst=null;   // currently visible instance
 // Soft "photo studio" lighting baked into an environment map: gives metal and lacquer real
