@@ -1,0 +1,1 @@
+const e="byeoljaguk.birthday.v1";function r(){try{const t=localStorage.getItem(e)??"";return/^\d{4}-\d{2}-\d{2}$/.test(t)?t:""}catch{return""}}function a(t){try{t?localStorage.setItem(e,t):localStorage.removeItem(e)}catch{}}export{r,a as w};
