@@ -1,1 +1,0 @@
-import{j as s,S as a,aJ as c}from"./index-CyHZSl6b.js";function l({children:r,banner:e,lumi:n}){return s.jsxs("div",{className:"screen",children:[n?s.jsx(a,{topic:n}):null,s.jsx("div",{className:"screen-body",children:r}),e?s.jsx(c,{placement:e}):null]})}export{l as S};
