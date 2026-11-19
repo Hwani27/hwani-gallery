@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="ko"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#14100c">
+<script>window.OTHER_BASE="../kaltoe/";</script><link rel="icon" type="image/png" href="./icon-256.png">
+<link rel="apple-touch-icon" href="./apple-touch-icon.png">
+<meta name="description" content="보드게임 주식회사 사람들과 카드 한 판. 부서 색과 숫자를 맞춰 먼저 다 털면 승리!">
+<title>원카드 · 보드게임 주식회사</title>
+<link rel="stylesheet" href="main.css">
+<link rel="stylesheet" href="uix.css">
+<link rel="stylesheet" href="nosel.css">
+<link rel="stylesheet" href="meta.css">
+<link rel="stylesheet" href="onecard.css">
+</head>
+<body class="toss-app game-uno">
+<div id="uno" class="screen active">
+  <div class="backbar"><button class="backbtn" onclick="backToLauncher()">← 메뉴</button></div>
+  <div class="g2d">
+    <div class="mount3d" id="unoMount"></div>
+    <div class="hudtop">
+      <h1>원카드</h1>
+      <div class="status"><span id="unoStatus">카드를 골라보세요</span></div>
+      <div class="status" id="unoSeats" style="font-size:12px;font-weight:600;padding:3px 12px;gap:4px"></div>
+      <div class="status" id="unoTop" style="font-size:12px;font-weight:600;padding:3px 12px"></div>
+      <div class="toolbar">
+        <button id="unoSndBtn" onclick="unoToggleSnd()">🔊</button>
+        <button onclick="UnoTutorial.open()">❓ 규칙</button>
+        <button onclick="Uno.hint()">💡 힌트</button>
+        <button id="unoDrawBtn" onclick="Uno.drawCard()">카드 뽑기</button>
+        <button id="unoCallBtn" onclick="Uno.callUno()">원카드!</button>
+        <button id="uno2dBtn" onclick="Uno.toggle2DBtn()">2D 보기</button>
+        <button onclick="Uno.undo()">무르기</button>
+        <button onclick="Uno.restart()">다시</button>
+        <button onclick="Uno.openSetup()">모드</button>
+      </div>
+    </div>
+    <div id="unoHand" aria-label="내 카드"></div>
+    <div class="zoom3d">
+      <button onclick="Uno.zoom(-1)">+</button>
+      <button onclick="Uno.zoom(1)">−</button>
+      <button onclick="Uno.resetView()">⟲</button>
+    </div>
+  </div>
+  <div class="winbanner" id="unoWin"></div>
+  <div class="setupmodal" id="unoSetup">
+    <h2>원카드</h2>
+    <div id="unoQuick" style="display:flex;flex-direction:column;align-items:center;gap:12px">
+      <div data-unlock="card:pvp" style="display:flex;flex-direction:column;align-items:center;gap:12px">
+      <p style="font-size:13px;color:#c39a3e;margin:-4px 0 0">인원 수</p>
+      <div class="diffrow" id="unoPlayerRow">
+        <button class="btn ghost unosize" data-n="2" onclick="Uno.setPlayers(2)">2인</button>
+        <button class="btn ghost unosize" data-n="3" onclick="Uno.setPlayers(3)">3인</button>
+        <button class="btn ghost unosize" data-n="4" onclick="Uno.setPlayers(4)">4인</button>
+      </div>
+      <p style="font-size:13px;color:#c39a3e;margin:2px 0 0">CPU 난이도</p>
+      <div class="diffrow">
+        <button class="btn ghost unolv" data-lv="1" onclick="Uno.setLevel(1)">쉬움</button>
+        <button class="btn ghost unolv" data-lv="2" onclick="Uno.setLevel(2)">보통</button>
+        <button class="btn ghost unolv" data-lv="3" onclick="Uno.setLevel(3)">어려움</button>
+      </div>
+      <p style="font-size:13px;color:#c39a3e;margin:2px 0 0">하우스룰</p>
+      <div class="unorules">
+        <button type="button" class="unorule" data-r="stack" onclick="unoRule(this)"><b>🔥 받아치기</b><small>+2·+4를 맞으면 같은 카드로 넘기기</small><i>ON</i></button>
+        <button type="button" class="unorule" data-r="seven" onclick="unoRule(this)"><b>🔁 7 교환</b><small>7을 내면 가장 적게 든 사람과 손패 교환</small><i>OFF</i></button>
+        <button type="button" class="unorule" data-r="zero" onclick="unoRule(this)"><b>🔄 0 돌리기</b><small>0을 내면 모두 손패를 옆으로</small><i>OFF</i></button>
+      </div>
+      <p style="font-size:11px;color:#9a8c70;max-width:300px;margin:0 0 4px">인원은 나를 포함한 수예요. 어려움 CPU는 부서 이동 카드를 아껴 두고, 상대에게 없는 부서를 기억해 노려요.</p>
+      </div>
+      <div class="modes">
+        <div class="mcard" onclick="Uno.start()"><div class="ic">🃏</div><h3>사람 vs CPU</h3><small>카드 7장으로 한 판</small></div>
+        <div class="mcard" onclick="Uno.openStages()"><div class="ic">🏆</div><h3>아케이드</h3><small>스테이지 1~10</small></div>
+        <div class="mcard" onclick="UnoTutorial.open()"><div class="ic">📖</div><h3>규칙 배우기</h3><small>처음이라면 여기부터</small></div>
+      </div>
+    </div>
+    <div id="unoStages" class="hidden" style="display:flex;flex-direction:column;align-items:center;gap:10px">
+      <p style="margin:0">스테이지 선택 <span id="unoProgress" style="color:#c39a3e"></span></p>
+      <div class="stage-grid2" id="unoStageGrid"></div>
+      <p style="font-size:11px;color:#9a8c70;max-width:300px;margin:0">스테이지가 오를수록 인원과 상대 실력이 늘어나요. 9·10단계는 손패를 더 들고 시작해요.</p>
+      <button class="btn ghost" onclick="Uno.openSetup()">← 뒤로</button>
+    </div>
+  </div>
+  <div class="stage-end2" id="unoStageEnd"></div>
+  <div class="unotut" id="unoTutorial">
+    <div class="unotut-box">
+      <div class="unotut-progress" id="unoTutProgress"></div>
+      <h2 id="unoTutTitle"></h2>
+      <div class="unotut-visual" id="unoTutVisual"></div>
+      <p id="unoTutBody"></p>
+      <div class="unotut-nav">
+        <button class="btn ghost" id="unoTutSkip" onclick="UnoTutorial.close()">건너뛰기</button>
+        <div style="flex:1"></div>
+        <button class="btn ghost" id="unoTutPrev" onclick="UnoTutorial.prev()">← 이전</button>
+        <button class="btn" id="unoTutNext" onclick="UnoTutorial.next()">다음 →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+<script>window.GAME_ID="uno";window.AD_GROUP_ID="";window.APP_NAME="uno";window.REWARD_AD_GROUP_ID="";window.NOADS_SKU="";window.TURN_API="";window.TURN_AGREEMENT="";window.PROMO={"attend":{"code":"","amount":1},"firstGame":{"code":"","amount":1},"invite":{"code":"","amount":1}};window.VIRAL_MODULE="";</script>
+<script src="js/toss-bridge.js"></script>
+<script src="js/launcher.js"></script>
+<script src="js/core.js"></script>
+<script src="js/sfx-pack.js"></script>
+<script src="js/board3d.js"></script>
+<script src="js/game-uno.js"></script>
+<script src="js/three.min.js"></script>
+<script src="js/quality.js"></script>
+<script src="js/uix.js"></script>
+<script src="js/touch-guard.js"></script>
+<script src="js/meta.js"></script>
+<script src="js/app-shell.js"></script>
+<script src="js/monetize.js"></script>
+<script src="js/progress.js"></script>
+<script src="js/characters.js"></script>
+<script src="js/chest.js"></script>
+<script src="js/growth.js"></script>
+<script src="js/story.js"></script>
+<script src="js/fun.js"></script>
+</body></html>
