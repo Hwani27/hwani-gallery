@@ -29,19 +29,26 @@
       const sz=Math.max(256,Math.round(ud.gqBase*f));
       if(o.shadow.mapSize.x!==sz){o.shadow.mapSize.set(sz,sz);if(o.shadow.map){o.shadow.map.dispose();o.shadow.map=null;}}});
   }
-  // wrap the renderer constructor (app-side; library untouched) so every renderer follows the quality level
-  const Orig=THREE.WebGLRenderer;
-  function GQRenderer(p){
-    const r=new Orig(p);
-    const spr=r.setPixelRatio.bind(r);
-    r.setPixelRatio=function(v){r.__gqReq=v;const L=LEVELS[GQ.level],d=window.devicePixelRatio||1;spr(L.ss?Math.min(L.pr,Math.max(v,d*L.ss)):Math.min(v,L.pr,d));};
-    const rnd=r.render.bind(r);let cnt=0;
-    r.render=function(sc,cam){if(sc&&(sc.__gqv!==GQ.ver||(++cnt%90)===0))applyShadows(sc);return rnd(sc,cam);};
-    GQ.renderers.push(r);
-    return r;
+  // wrap the renderer constructor (app-side; library untouched) so every renderer follows the quality level.
+  // three.min.js는 지연 로딩되므로, 이미 있으면 지금 걸고 없으면 'three-ready' 신호에 맞춰 건다.
+  let hooked=false;
+  function hookRenderer(){
+    if(hooked||!window.THREE)return;hooked=true;
+    const Orig=THREE.WebGLRenderer;
+    function GQRenderer(p){
+      const r=new Orig(p);
+      const spr=r.setPixelRatio.bind(r);
+      r.setPixelRatio=function(v){r.__gqReq=v;const L=LEVELS[GQ.level],d=window.devicePixelRatio||1;spr(L.ss?Math.min(L.pr,Math.max(v,d*L.ss)):Math.min(v,L.pr,d));};
+      const rnd=r.render.bind(r);let cnt=0;
+      r.render=function(sc,cam){if(sc&&(sc.__gqv!==GQ.ver||(++cnt%90)===0))applyShadows(sc);return rnd(sc,cam);};
+      GQ.renderers.push(r);
+      return r;
+    }
+    GQRenderer.prototype=Orig.prototype;
+    try{THREE.WebGLRenderer=GQRenderer;}catch(e){console.warn('GQ: renderer hook unavailable');}
   }
-  GQRenderer.prototype=Orig.prototype;
-  try{THREE.WebGLRenderer=GQRenderer;}catch(e){console.warn('GQ: renderer hook unavailable');}
+  hookRenderer();
+  window.addEventListener('three-ready',hookRenderer);
   // ---- auto mode: watch real frame rate while a game is on screen; step down when below target (desktop: 60fps at 높음, phone: 30fps at 중간)
   let last=0,frames=0,t0=0,warm=0,curScreen=null;
   function activeGame(){const a=document.querySelector('.screen.active');return a&&a.id!=='launcher'?a.id:null;}

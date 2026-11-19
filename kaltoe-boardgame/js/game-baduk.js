@@ -247,8 +247,15 @@ const Baduk=(function(){
     return {black:Math.round(black),white:Math.round(white)+komi};
   }
 
-  function ensure(){if(ready)return;setupCanvas();loadProgress();openSetup();ready=true;}
+  function ensure(){if(ready)return;loadProgress();openSetup();ready=true;}
+  let canvasP=null;   // three.min.js 지연 로딩 중인 약속
   function setupCanvas(){
+    // 3D 엔진(589KB)은 보드를 처음 열 때만 받아 온다. 도착하면 여기로 다시 들어와 그린다.
+    if(!window.THREE){
+      if(!canvasP) canvasP=window.loadThree().then(()=>{canvasP=null;if(!g3d)setupCanvas();},
+        ()=>{canvasP=null;banner('3D 엔진을 불러오지 못했어요. 잠시 뒤 다시 시작해 주세요.');setTimeout(()=>{if(!over)hideBanner();},2400);});
+      return;
+    }
     if(g3d&&g3d.dispose)g3d.dispose();   // free old GPU resources before rebuilding
     curSize=N;
     g3d=makeBoard3D({

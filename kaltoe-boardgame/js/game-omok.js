@@ -73,13 +73,20 @@ const Omok=(function(){
   // 친구 대국 (moves travel in a link): which colour this device plays and whether it already moved
   let mail=null;            // {color, locked, hook}
   let review=null;          // saved real position while the review shows an earlier one
-  function ensure(){ if(ready)return; setupCanvas(); loadProgress(); openSetup(); ready=true; }
+  function ensure(){ if(ready)return; loadProgress(); openSetup(); ready=true; }
   async function loadProgress(){
     const p=await Store.get('omok_progress');
     if(p){stageCleared=p.cleared||1;stageBest=p.best||{};}
   }
   function saveProgress(){ Store.set('omok_progress',{cleared:stageCleared,best:stageBest}); }
+  let canvasP=null;   // three.min.js 지연 로딩 중인 약속
   function setupCanvas(){
+    // 3D 엔진(589KB)은 보드를 처음 열 때만 받아 온다. 도착하면 여기로 다시 들어와 그린다.
+    if(!window.THREE){
+      if(!canvasP) canvasP=window.loadThree().then(()=>{canvasP=null;if(!g3d)setupCanvas();},
+        ()=>{canvasP=null;banner('3D 엔진을 불러오지 못했어요. 잠시 뒤 다시 시작해 주세요.');setTimeout(()=>{if(!over)hideBanner();},2400);});
+      return;
+    }
     g3d=makeBoard3D({
       mountId:'omokMount', cols:SIZE, rows:SIZE, squareStyle:'grid', wood:{base:'#b98540',dark:'rgba(118,68,22,1)',light:'rgba(222,172,96,1)'},inkColor:'#1a120a', boardColor:0x2b2b2e, lineColor:0xc7ccd4,
       frameColor:0x17171a, frameRimColor:0x23262c,
@@ -91,7 +98,7 @@ const Omok=(function(){
       },
       onPick:(r,c)=>pick(r,c)
     });
-    g3d.init();
+    g3d.init();g3d.setActive(true);   // 캔버스는 activate()에서 mount에 붙는다 (지연 생성이라 화면 진입 때는 g3d가 없었다)
     draw();
   }
   function pick(r,c){ if(over||!board||review)return; if(isCPU()&&turn===2)return;

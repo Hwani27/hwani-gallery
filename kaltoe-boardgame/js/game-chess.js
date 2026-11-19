@@ -1060,11 +1060,12 @@ function saveTrainingProgress(){ Store.set("chess_training_progress",trainCleare
 function startTrainingPuzzle(id){
   const puzzle=CHESS_PUZZLES.find(p=>p.id===id);
   if(!puzzle)return;
+  whenScene(function(){
   document.getElementById("setup").style.display="none";
   document.getElementById("stageEnd").style.display="none";
   mode="training";
   Sound.resume();
-  newTrainingGame(puzzle);
+  newTrainingGame(puzzle);});
 }
 function openTrainingSelect(){
   document.getElementById("setup").style.display="flex";
@@ -1322,8 +1323,8 @@ async function showHint(){
 // ---------- orbit controls ----------
 const DEFAULT_CAM={theta:0,phi:0.95,rad:12};
 let camState;
-function zoomBy(delta){camState.rad=Math.max(6,Math.min(22,camState.rad+delta));}
-function resetView(){camState.theta=DEFAULT_CAM.theta;camState.phi=DEFAULT_CAM.phi;camState.rad=DEFAULT_CAM.rad;}
+function zoomBy(delta){if(!camState)return;camState.rad=Math.max(6,Math.min(22,camState.rad+delta));}
+function resetView(){if(!camState)return;camState.theta=DEFAULT_CAM.theta;camState.phi=DEFAULT_CAM.phi;camState.rad=DEFAULT_CAM.rad;}
 
 function setupOrbit(){
   const el=renderer.domElement;
@@ -1428,14 +1429,14 @@ function animate(){
 document.querySelectorAll(".card").forEach(card=>{
   card.onclick=()=>{
     const m=card.dataset.mode;
-    if(m==="pvp"){mode="pvp";startGame();}
+    if(m==="pvp"){whenScene(()=>{mode="pvp";startGame();});}
     else if(m==="arcade"){openArcadeSelect();}
     else if(m==="training"){openTrainingSelect();}
     else{document.getElementById("modeCards").style.display="none";document.getElementById("diffBox").classList.add("show");}
   };
 });
 document.querySelectorAll("[data-diff]").forEach(b=>{
-  b.onclick=()=>{mode="cpu";difficulty=parseInt(b.dataset.diff);startGame();};
+  b.onclick=()=>whenScene(()=>{mode="cpu";difficulty=parseInt(b.dataset.diff);startGame();});
 });
 document.getElementById("backBtn").onclick=()=>{
   document.getElementById("diffBox").classList.remove("show");
@@ -1471,7 +1472,7 @@ function openArcadeSelect(){
   }
   hideMsg();
 }
-function startStage(s){if(window.StoryGate&&!window.StoryGate(s,()=>startStage(s)))return;
+function startStage(s){whenScene(function(){if(window.StoryGate&&!window.StoryGate(s,()=>startStage(s)))return;
   mode="arcade";currentStage=s;
   document.getElementById("setup").style.display="none";
   document.getElementById("stageEnd").style.display="none";
@@ -1480,7 +1481,7 @@ function startStage(s){if(window.StoryGate&&!window.StoryGate(s,()=>startStage(s
   showMsg("스테이지 "+s+" 시작!");
   setTimeout(()=>{if(!gameOver)hideMsg();},1200);
   try{window.Characters&&Characters.onPlay&&Characters.onPlay();}catch(e){}
-}
+});}
 
 document.getElementById("menuBtn").onclick=()=>{
   document.getElementById("setup").style.display="flex";
@@ -1524,27 +1525,42 @@ window.addEventListener("pointerdown",()=>Sound.resume(),{once:true});
 
 
 let _booted=false;
-function boot(){ if(_booted)return; _booted=true; loadChessProgress(); loadTrainingProgress(); initThree();
+// ---------- 3D 장상 지연 생성 ----------
+// three.min.js(589KB)는 모드 화면에서 받지 않는다. 대극을 시작해 보드가 필요해지는 순간 받아 온다.
+let _sceneP=null;
+function buildScene(){
+  if(scene)return;
+  initThree();
   // The screen's display:none→visible toggle can leave clientWidth/clientHeight
   // stale for this synchronous tick; re-measure once layout has settled so the
   // renderer isn't locked to a smaller-than-actual resolution (causes blur/aliasing).
   requestAnimationFrame(onResize);
   setTimeout(onResize,120);
 }
+function whenScene(fn){
+  if(scene){fn();return;}
+  if(!_sceneP)_sceneP=window.loadThree().then(()=>{_sceneP=null;buildScene();},
+    ()=>{_sceneP=null;showMsg("3D 엔진을 불러오지 못했어요. 잠시 뒤 다시 시도해 주세요");});
+  _sceneP.then(()=>{try{fn();}catch(e){console.error("[chess]",e);}},()=>{});
+}
+function boot(){ if(_booted)return; _booted=true; loadChessProgress(); loadTrainingProgress(); }
 function hideSetup(){document.getElementById("setup").style.display="none";document.getElementById("stageEnd").style.display="none";}
 function openSetup(){document.getElementById("menuBtn").click();}
-function start(m,lv){mode=m;if(lv)difficulty=lv;if(m!=="mail")mail=null;if(m!=="puzzle")puzzle=null;startGame();
-  if(m==="cpu"||m==="arcade")try{window.Characters&&Characters.onPlay&&Characters.onPlay();}catch(e){}}
-function restart(){if(mode==="mail")return;if(mode==="puzzle"){startPuzzle(puzzle.code,puzzle.limit,puzzle.onEnd);return;}if(mode==="arcade"){startStage(currentStage);return;}if(mode==="training"){if(trainPuzzle)newTrainingGame(trainPuzzle);return;}start(mode||"cpu",difficulty||2);}
+function start(m,lv){whenScene(function(){mode=m;if(lv)difficulty=lv;if(m!=="mail")mail=null;if(m!=="puzzle")puzzle=null;startGame();
+  if(m==="cpu"||m==="arcade")try{window.Characters&&Characters.onPlay&&Characters.onPlay();}catch(e){}});}
+function restart(){whenScene(function(){if(mode==="mail")return;if(mode==="puzzle"){startPuzzle(puzzle.code,puzzle.limit,puzzle.onEnd);return;}if(mode==="arcade"){startStage(currentStage);return;}if(mode==="training"){if(trainPuzzle)newTrainingGame(trainPuzzle);return;}start(mode||"cpu",difficulty||2);});}
 const TYPES={1:"p",2:"n",3:"b",4:"r",5:"q",6:"k"};
 function startPuzzle(code,limit,onEnd){ // code: 64 hex digits in engine format, white to move, no castling
+  whenScene(function(){
   puzzle={code,limit,onEnd};mode="puzzle";mail=null;hideSetup();Sound.resume();newGame();
   const b=Array.from({length:8},()=>Array(8).fill(null));b.ep=null;
   for(let i=0;i<64;i++){const v=parseInt(code[i],16);if(v)b[i>>3][i&7]={t:TYPES[v&7],c:v&8?"b":"w",moved:true};}
   board=b;turn="w";buildPieces();refreshHighlights();updateHUD();renderSidePanels();
   showMsg(josa(sideName("w"),"으로","로")+" "+limit+"수 안에 체크메이트하세요");setTimeout(()=>{if(!gameOver&&!mlog.length)hideMsg();},2600);
+  });
 }
 function startMail(moves,myColor,hook){
+  whenScene(function(){
   mail={color:myColor,locked:false,hook};mode="mail";puzzle=null;hideSetup();Sound.resume();newGame();
   replaying=true;
   try{for(const m of moves){if(gameOver)break;const d=decodeMove(m);const p=board[d[0]]&&board[d[0]][d[1]];
@@ -1553,6 +1569,7 @@ function startMail(moves,myColor,hook){
   finally{replaying=false;}
   mail.locked=!gameOver&&turn!==myColor;
   syncPieces();refreshHighlights();updateHUD();renderSidePanels();
+  });
 }
 function reviewData(){
   const me=mode==="mail"?mail.color:"w";
@@ -1573,6 +1590,7 @@ function resumeState(){
 }
 function resume(s){
   if(!s||s.g!=="chess"||!Array.isArray(s.moves))return false;
+  if(!scene){whenScene(()=>resume(s));return true;}   // 3D 장상이 아직 없으면 불러온 뒤 이어한다
   start(s.mode,s.level);currentStage=s.stage||0;
   replaying=true;
   try{for(const m of s.moves){if(gameOver)break;const d=decodeMove(m);const p=board[d[0]]&&board[d[0]][d[1]];

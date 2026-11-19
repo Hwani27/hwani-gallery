@@ -100,13 +100,20 @@ const Janggi=(function(){
   }
 
   let g3d=null;
-  function ensure(){if(ready)return;setupCanvas();loadProgress();openSetup();ready=true;}
+  function ensure(){if(ready)return;loadProgress();openSetup();ready=true;}
   async function loadProgress(){
     const p=await Store.get('janggi_progress');
     if(p){stageCleared=p.cleared||1;stageBest=p.best||{};}
   }
   function saveProgress(){ Store.set('janggi_progress',{cleared:stageCleared,best:stageBest}); }
+  let canvasP=null;   // three.min.js 지연 로딩 중인 약속
   function setupCanvas(){
+    // 3D 엔진(589KB)은 보드를 처음 열 때만 받아 온다. 도착하면 여기로 다시 들어와 그린다.
+    if(!window.THREE){
+      if(!canvasP) canvasP=window.loadThree().then(()=>{canvasP=null;if(!g3d)setupCanvas();},
+        ()=>{canvasP=null;banner('3D 엔진을 불러오지 못했어요. 잠시 뒤 다시 시작해 주세요.');setTimeout(()=>{if(!over)hideBanner();},2400);});
+      return;
+    }
     g3d=makeBoard3D({
       mountId:'janggiMount', cols:COLS, rows:ROWS, squareStyle:'grid', wood:{base:'#b37a3a',dark:'rgba(112,60,20,1)',light:'rgba(214,160,92,1)'},inkColor:'#2e1d0e', boardColor:0xd9b877,
       onRestore:()=>draw(),
@@ -123,7 +130,7 @@ const Janggi=(function(){
         if(mode==='mail'&&(turn!==mail.color||mail.locked)){banner(mail.locked?'친구에게 수를 보내 주세요':'친구 차례예요');setTimeout(()=>{if(!over)hideBanner();},1400);return;}
         click(r,c); }
     });
-    g3d.init();
+    g3d.init();g3d.setActive(true);   // 캔버스는 activate()에서 mount에 붙는다 (지연 생성이라 화면 진입 때는 g3d가 없었다)
     draw();
   }
   // cache character textures
