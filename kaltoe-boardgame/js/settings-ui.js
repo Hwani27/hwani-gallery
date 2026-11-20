@@ -9,7 +9,7 @@
   'use strict';
   if (window.SettingsUI) return;
 
-  var CONTACT = 'hwanihaun@gmail.com';
+  var CONTACT = 'papalog27@gmail.com';
   var VERSION = '1.1.0';
   // 홈 화면에는 core.js 가 없을 수 있으니 빌드가 심은 APP_PLATFORM 을 먼저 본다
   var PLATFORM = window.APP_PLATFORM || window.PLATFORM || (window.Toss && window.Toss.inToss ? 'toss' : 'web');
