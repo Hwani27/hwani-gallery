@@ -113,7 +113,7 @@ body.toss-app .setupmodal,body.toss-app #chess #setup{padding-top:calc(16px + va
 .tg-rush-pop.ok{color:#8ff0a4;text-shadow:0 4px 18px rgba(0,0,0,.6)}.tg-rush-pop.bad{font-size:60px}
 @keyframes tgPop{0%{opacity:0;transform:translate(-50%,-30%) scale(.6)}25%{opacity:1;transform:translate(-50%,-50%) scale(1.15)}100%{opacity:0;transform:translate(-50%,-90%) scale(1)}}
 /* CPU 말풍선 */
-.tg-bubble{position:fixed;right:10px;top:calc(124px + var(--ux-st, env(safe-area-inset-top,0px)));transform:translateY(-8px);z-index:8450;display:flex;gap:9px;align-items:center;max-width:min(78vw,340px);
+.tg-bubble{position:fixed;right:10px;top:calc(150px + var(--ux-st, env(safe-area-inset-top,0px)));transform:translateY(-8px);z-index:8450;display:flex;gap:9px;align-items:center;max-width:min(78vw,340px);
   padding:9px 14px 9px 9px;border-radius:18px 6px 18px 18px;background:rgba(255,250,240,.96);color:#2a1d08;box-shadow:0 10px 26px rgba(0,0,0,.4);opacity:0;pointer-events:none;transition:opacity .2s,transform .25s;font-family:var(--ux-font,system-ui)}
 .tg-bubble.show{opacity:1;transform:none}
 .tg-bubble .ic{font-size:26px;line-height:1}.tg-bubble .tx{display:flex;flex-direction:column;font-size:14px;font-weight:700;line-height:1.35}.tg-bubble b{font-size:11px;color:#8a6a2c}
