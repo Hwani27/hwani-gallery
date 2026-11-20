@@ -364,6 +364,7 @@ function initThree(){
   scene.fog=new THREE.Fog(0x0b0908,24,46);
   camera=new THREE.PerspectiveCamera(45,app.clientWidth/app.clientHeight,0.1,100);
   renderer=new THREE.WebGLRenderer({antialias:true});
+  _chDead=false;
   renderer.setPixelRatio(Math.min(devicePixelRatio,2));
   renderer.setSize(app.clientWidth,app.clientHeight);
   renderer.shadowMap.enabled=true;
@@ -381,7 +382,7 @@ function initThree(){
   // most light now comes from the studio environment; a warm key casts the shadows
   scene.add(new THREE.HemisphereLight(0xdfe8ff,0x3a2e24,.35));
   const key=new THREE.DirectionalLight(0xfff1de,1.9);key.position.set(6,15,7);key.castShadow=true;
-  key.shadow.mapSize.set(2048,2048);key.shadow.camera.left=-7.5;key.shadow.camera.right=7.5;key.shadow.camera.top=7.5;key.shadow.camera.bottom=-7.5;
+  key.shadow.mapSize.set(_SHADOW_SIZE,_SHADOW_SIZE);key.shadow.camera.left=-7.5;key.shadow.camera.right=7.5;key.shadow.camera.top=7.5;key.shadow.camera.bottom=-7.5;
   key.shadow.bias=-0.0004;key.shadow.normalBias=0.02;key.shadow.radius=4;
   scene.add(key);
   const fill=new THREE.DirectionalLight(0xbcd4ff,.45);fill.position.set(-7,6,-5);scene.add(fill);
@@ -406,6 +407,8 @@ function initThree(){
   // camera orbit
   camState={theta:DEFAULT_CAM.theta,phi:DEFAULT_CAM.phi,rad:DEFAULT_CAM.rad,target:new THREE.Vector3(0,0,0)};
   setupOrbit();
+  chessActive=true;      // 정리(dispose) 뒤 다시 들어와도 루프가 돌도록
+  _chNeed=2;_chLastSig=-1;_chIdle=0;_chGQ=-1;
   animate();
 }
 function toXZ(r,c){return {x:(c-OFF)*SQ, z:(r-OFF)*SQ};}
@@ -425,7 +428,7 @@ function makeMarbleTexture(base,cloud,vein,size){
     cx.strokeStyle=vein;cx.lineWidth=0.6+Math.random()*1.8;cx.globalAlpha=0.25+Math.random()*0.35;
     cx.shadowColor=vein;cx.shadowBlur=4;cx.stroke();}
   cx.globalAlpha=1;cx.shadowBlur=0;
-  const tex=new THREE.CanvasTexture(cv);tex.encoding=THREE.sRGBEncoding;tex.anisotropy=8;
+  const tex=new THREE.CanvasTexture(cv);tex.encoding=THREE.sRGBEncoding;tex.anisotropy=_ANISO;
   tex.wrapS=tex.wrapT=THREE.RepeatWrapping;
   return tex;
 }
@@ -443,7 +446,7 @@ function makeWoodTexture(w,h,base,dark,light){
 function buildBoard(){
   // walnut base slab
   const woodCv=makeWoodTexture(1024,256,'#4a2d1b','#22140b','#7a4c2e');
-  const woodTex=new THREE.CanvasTexture(woodCv);woodTex.encoding=THREE.sRGBEncoding;woodTex.anisotropy=8;
+  const woodTex=new THREE.CanvasTexture(woodCv);woodTex.encoding=THREE.sRGBEncoding;woodTex.anisotropy=_ANISO;
   const woodMat=new THREE.MeshStandardMaterial({map:woodTex,roughness:.45,metalness:0,envMapIntensity:.45});
   const base=new THREE.Mesh(new THREE.BoxGeometry(N+1.3,0.5,N+1.3),woodMat);
   base.position.y=-0.35;base.receiveShadow=true;base.castShadow=true;boardGroup.add(base);
@@ -457,7 +460,7 @@ function buildBoard(){
   cx.fillStyle=gold;cx.font='700 34px Georgia,"Times New Roman",serif';cx.textAlign='center';cx.textBaseline='middle';
   for(let c=0;c<8;c++){const x=px(c-OFF);cx.fillText('abcdefgh'[c],x,px(N/2+0.33));cx.save();cx.translate(x,px(-N/2-0.33));cx.rotate(Math.PI);cx.fillText('abcdefgh'[c],0,0);cx.restore();}
   for(let r=0;r<8;r++){const y=px(r-OFF);cx.fillText(String(8-r),px(-N/2-0.33),y);cx.save();cx.translate(px(N/2+0.33),y);cx.rotate(Math.PI);cx.fillText(String(8-r),0,0);cx.restore();}
-  const topTex=new THREE.CanvasTexture(cv);topTex.encoding=THREE.sRGBEncoding;topTex.anisotropy=8;
+  const topTex=new THREE.CanvasTexture(cv);topTex.encoding=THREE.sRGBEncoding;topTex.anisotropy=_ANISO;
   const top=new THREE.Mesh(new THREE.PlaneGeometry(F,F),new THREE.MeshStandardMaterial({map:topTex,roughness:.4,metalness:.05,envMapIntensity:.5}));
   top.rotation.x=-Math.PI/2;top.position.y=-0.099;top.receiveShadow=true;boardGroup.add(top);
   // table underneath, catching the board's soft shadow
@@ -535,6 +538,7 @@ function pieceMaterial(col){
 function accentColor(col){return new THREE.Color(pieceTheme[col].color).convertSRGBToLinear().multiplyScalar(0.42);}
 function applyPieceTheme(save){
   if(pieceGroup&&board)buildPieces();
+  _chInvalidate(2);
   const caps=document.querySelectorAll('#chessMount .cap-label');
   if(caps[0])caps[0].textContent=josa(sideName('w'),'이','가')+' 잡음';
   if(caps[1])caps[1].textContent=josa(sideName('b'),'이','가')+' 잡음';
@@ -571,7 +575,7 @@ function boardTextures(){
     if(t.pattern==='wood')cv=makeWoodTexture(512,512,hex,tone(hex,-0.3),tone(hex,0.18));
     else{cv=document.createElement('canvas');cv.width=cv.height=256;const x=cv.getContext('2d');x.fillStyle=hex;x.fillRect(0,0,256,256);
       for(let i=0;i<1500;i++){x.fillStyle=Math.random()>0.5?'rgba(0,0,0,0.04)':'rgba(255,255,255,0.05)';x.fillRect(Math.random()*256,Math.random()*256,2,2);}}
-    const tex=new THREE.CanvasTexture(cv);tex.encoding=THREE.sRGBEncoding;tex.anisotropy=8;tex.wrapS=tex.wrapT=THREE.RepeatWrapping;return tex;
+    const tex=new THREE.CanvasTexture(cv);tex.encoding=THREE.sRGBEncoding;tex.anisotropy=_ANISO;tex.wrapS=tex.wrapT=THREE.RepeatWrapping;return tex;
   };
   return [make(t.light),make(t.dark)];
 }
@@ -582,6 +586,7 @@ function boardEnv(){return boardTheme.pattern==='solid'?.22:boardTheme.pattern==
 // each square shows its own patch of the shared texture
 function squareTex(src){const t=src.clone();t.needsUpdate=true;t.repeat.set(0.45,0.45);t.offset.set(Math.random()*0.55,Math.random()*0.55);return t;}
 function applyBoardTheme(save){
+  _chInvalidate(2);
   if(boardGroup){
     const [lt,dt]=boardTextures();
     boardGroup.children.forEach(m=>{if(!m.userData||m.userData.r===undefined)return;
@@ -661,6 +666,7 @@ function makePieceMesh(type,col){
 }
 
 function buildPieces(){
+  if(!pieceGroup||!board)return;                 // 3D 정리 후(메뉴 화면)에는 만들 것이 없다
   // clear
   while(pieceGroup.children.length){const c0=pieceGroup.children[0];pieceGroup.remove(c0);disposeObj3D(c0);}
   for(const k in pieceMeshes)delete pieceMeshes[k];
@@ -806,6 +812,8 @@ function makeGlow(r,c,color){
 }
 
 function refreshHighlights(){
+  if(!highlightGroup||!boardGroup)return;        // 3D 정리 후(메뉴 화면)에는 그릴 보드가 없다
+  _chInvalidate(2);
   while(highlightGroup.children.length){const c0=highlightGroup.children[0];highlightGroup.remove(c0);disposeObj3D(c0);}
   // reset square colors
   boardGroup.children.forEach(m=>{if(m.userData&&m.userData.base!==undefined)m.material.color.setHex(m.userData.base);});
@@ -1323,8 +1331,8 @@ async function showHint(){
 // ---------- orbit controls ----------
 const DEFAULT_CAM={theta:0,phi:0.95,rad:12};
 let camState;
-function zoomBy(delta){if(!camState)return;camState.rad=Math.max(6,Math.min(22,camState.rad+delta));}
-function resetView(){if(!camState)return;camState.theta=DEFAULT_CAM.theta;camState.phi=DEFAULT_CAM.phi;camState.rad=DEFAULT_CAM.rad;}
+function zoomBy(delta){if(!camState)return;camState.rad=Math.max(6,Math.min(22,camState.rad+delta));_chInvalidate(2);}
+function resetView(){if(!camState)return;camState.theta=DEFAULT_CAM.theta;camState.phi=DEFAULT_CAM.phi;camState.rad=DEFAULT_CAM.rad;_chInvalidate(2);}
 
 function setupOrbit(){
   const el=renderer.domElement;
@@ -1404,17 +1412,76 @@ function updateCam(){
 function toggleView(){
   view2D=!view2D;
   document.getElementById("viewToggle").textContent = view2D ? "3D 보기" : "2D 보기";
+  _chInvalidate(3);
 }
-function onResize(){camera.aspect=app.clientWidth/app.clientHeight;camera.updateProjectionMatrix();renderer.setSize(app.clientWidth,app.clientHeight);}
+// ---------- on-demand rendering state ----------
+let _chRaf=0,_chDead=false,_chNeed=0,_chLastSig=-1,_chIdle=0,_chGQ=-1;
+function _chInvalidate(n){_chNeed=Math.max(_chNeed,n||2);}
+function chessFrameState(){
+  const now=performance.now();
+  if(activeAnims.length||punchT>0||_chShake>0.0005)return {live:true};
+  if(!scene||!camera)return {live:true};
+  if(now-_chIntroT0<1800||now-_chCelebT0<6000)return {live:true};
+  if(_v1Sel&&_v1Sel.parent)return {live:true};        // 선택한 말이 떠 있는 동안
+  let h=2166136261,pulse=false;
+  const add=v=>{h^=(Math.round(v*1000)|0);h=Math.imul(h,16777619);};
+  const cp=camera.position;add(cp.x);add(cp.y);add(cp.z);
+  const groups=[boardGroup,pieceGroup,highlightGroup,effectGroup];
+  for(let gi=0;gi<groups.length;gi++){const g=groups[gi];if(!g)continue;add(g.children.length);
+    for(let i=0;i<g.children.length;i++){const o=g.children[i];const pl=!!(o.userData&&o.userData.pulse);if(pl)pulse=true;
+      add(o.position.x);add(o.position.y);add(o.position.z);add(o.scale.x);add(o.scale.y);add(o.visible?1:0);
+      const m=o.material;if(m&&!Array.isArray(m)&&!pl)add(m.opacity===undefined?1:m.opacity);}}
+  return {live:false,pulse,sig:h>>>0};
+}
+function onResize(){if(!camera||!renderer)return;camera.aspect=app.clientWidth/app.clientHeight;camera.updateProjectionMatrix();renderer.setSize(app.clientWidth,app.clientHeight);_chInvalidate(2);}
+// ---------- 화면 밖으로 나갈 때: WebGL 컨텍스트·리소스 정리 ----------
+// 세로·기울기·로그 등은 JS에 남아 있으니, 3D만 버리고 다시 들어올 때 새로 만들면 된다.
+function _isCachedGeo(g){if(!g)return false;for(const k in _pieceGeoCache){if(_pieceGeoCache[k]===g)return true;}return false;}
+function _disposeNode(o){
+  try{if(o.geometry&&!_isCachedGeo(o.geometry)&&o.geometry.dispose)o.geometry.dispose();}catch(e){}
+  if(o.material){const ms=Array.isArray(o.material)?o.material:[o.material];
+    ms.forEach(m=>{if(!m)return;
+      ['map','bumpMap','normalMap','roughnessMap','metalnessMap','emissiveMap','alphaMap','aoMap'].forEach(k=>{const t=m[k];if(t&&t.dispose){try{t.dispose();}catch(e){}}});
+      try{m.dispose();}catch(e){}});}
+  if(o.children&&o.children.length)o.children.slice().forEach(_disposeNode);
+}
+function disposeThree(){
+  if(!scene&&!renderer)return;
+  _chDead=true;_sleepChess();
+  try{window.removeEventListener("resize",onResize);}catch(e){}
+  try{if(scene)scene.children.slice().forEach(_disposeNode);}catch(e){console.warn("[chess] dispose scene",e);}
+  try{if(scene&&scene.environment&&scene.environment.dispose)scene.environment.dispose();}catch(e){}
+  try{if(scene&&scene.background&&scene.background.dispose)scene.background.dispose();}catch(e){}
+  try{
+    if(renderer){
+      if(window.GQ&&GQ.renderers)GQ.renderers=GQ.renderers.filter(r=>r!==renderer);
+      renderer.dispose();
+      if(renderer.forceContextLoss)renderer.forceContextLoss();
+      const el=renderer.domElement;
+      if(el&&el.parentNode)el.parentNode.removeChild(el);
+    }
+  }catch(e){console.warn("[chess] dispose renderer",e);}
+  scene=null;camera=null;renderer=null;raycaster=null;mouse=null;
+  boardGroup=null;pieceGroup=null;highlightGroup=null;effectGroup=null;
+  for(const k in pieceMeshes)delete pieceMeshes[k];
+  activeAnims.length=0;
+  _v1Sel=null;_v1LastMove=null;punchT=0;_chShake=0;_chIntroT0=-1e9;_chCelebT0=-1e9;
+  _chNeed=0;_chLastSig=-1;_chIdle=0;_chGQ=-1;animate._last=0;
+  _sceneP=null;                 // 다음 진입에서 buildScene()이 새로 만든다
+}
+function _wakeChess(){if(_chRaf||_chDead||!renderer||!scene||!chessActive)return;_chRaf=requestAnimationFrame(animate);}
+function _sleepChess(){if(_chRaf){cancelAnimationFrame(_chRaf);_chRaf=0;}}
 function animate(){
-  requestAnimationFrame(animate);
-  if(!chessActive||!renderer)return;
+  _chRaf=0;
+  if(_chDead||!chessActive||!renderer||!scene)return;   // 화면을 떠났거나 정리됐으면 루프도 끝낸다
+  _chRaf=requestAnimationFrame(animate);
+  const S=(window.BOARD_GFX_STATS=window.BOARD_GFX_STATS||{ticks:0,renders:0,rests:0});S.ticks++;
   const now=performance.now();
   const dt=Math.min(0.05,(now-(animate._last||now))/1000);animate._last=now;
   updateEffects(dt);
   updateCam();
   // pulse hint/last-move markers
-  const t=performance.now()*0.004;
+  const t=now*0.004;
   const pulse=0.55+0.35*(0.5+0.5*Math.sin(t));
   if(highlightGroup)highlightGroup.children.forEach(o=>{
     if(o.userData&&o.userData.pulse){
@@ -1422,6 +1489,14 @@ function animate(){
       else if(o.children){o.children.forEach(ch=>{if(ch.material)ch.material.opacity=(o.userData.baseOpacity||0.8)*pulse;});}
     }
   });
+  // ---- on demand: 움직이는 것이 있을 때만 그린다 ----
+  if(window.GQ&&GQ.ver!==_chGQ){_chGQ=GQ.ver;_chInvalidate(2);}      // 화질 변경은 반드시 한 번 더
+  const st=chessFrameState();
+  let draw=!!st.live||_chNeed>0;
+  if(!draw&&st.sig!==_chLastSig)draw=true;                            // 놓친 변화 → 1프레임
+  if(!draw&&st.pulse&&(++_chIdle>=8))draw=true;                       // 느린 펄스 표시는 ~8fps로 충분
+  if(!draw){S.rests++;return;}
+  _chLastSig=st.sig;if(_chNeed>0)_chNeed--;_chIdle=0;S.renders++;
   renderer.render(scene,camera);
 }
 
@@ -1491,6 +1566,7 @@ document.getElementById("menuBtn").onclick=()=>{
   document.getElementById("stageEnd").style.display="none";
   document.querySelector(".hud h1").textContent="3D 체스";
   hideMsg();
+  disposeThree();          // 메뉴로 나가면 WebGL 컨텍스트·보드 리소스를 바로 버린다 (다시 시작하면 새로 만든다)
 };
 document.getElementById("undoBtn").onclick=()=>{
   document.getElementById("stageEnd").style.display="none";
@@ -1544,6 +1620,8 @@ function whenScene(fn){
   _sceneP.then(()=>{try{fn();}catch(e){console.error("[chess]",e);}},()=>{});
 }
 function boot(){ if(_booted)return; _booted=true; loadChessProgress(); loadTrainingProgress(); }
+// 페이지를 떠날 때(뒤로가기·홈으로)도 컨텍스트를 반납한다
+window.addEventListener("pagehide",function(){try{disposeThree();}catch(e){}});
 function hideSetup(){document.getElementById("setup").style.display="none";document.getElementById("stageEnd").style.display="none";}
 function openSetup(){document.getElementById("menuBtn").click();}
 function start(m,lv){whenScene(function(){mode=m;if(lv)difficulty=lv;if(m!=="mail")mail=null;if(m!=="puzzle")puzzle=null;startGame();
@@ -1623,7 +1701,8 @@ function doResign(){
   try{window.Resume&&Resume.clear();}catch(e){}
 }
 function markHint(m){if(m<0)return;hintSquares=decodeMove(m).slice(0,4);refreshHighlights();}
-return { markHint, hint:showHint, boot, setActive:(v)=>{chessActive=v;}, openSetup, start, restart, startPuzzle, startMail, reviewData, showReview, endReview, resumeState, resume, resign,
+return { markHint, hint:showHint, boot, setActive:(v)=>{chessActive=!!v;if(v)_wakeChess();else{_sleepChess();disposeThree();}}, dispose:disposeThree, isScene:()=>!!scene,
+  openSetup, start, restart, startPuzzle, startMail, reviewData, showReview, endReview, resumeState, resume, resign,
   exportMoves:()=>mlog.slice(), onEnd:(f)=>{endHook=f;},
   state:()=>({mode,level:difficulty,stage:currentStage,over:gameOver,turn,plies:moveNumber,mail:mail&&{color:mail.color,locked:mail.locked},setupOpen:document.getElementById("setup").style.display!=="none"}),
   pick:(r,c)=>{if(gameOver||promoPending||review)return;if(vsCPU()&&turn==="b")return;if(mode==="mail"&&(turn!==mail.color||mail.locked))return;handleSquare(r,c);},

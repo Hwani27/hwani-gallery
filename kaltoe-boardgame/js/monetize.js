@@ -83,7 +83,8 @@ const Monetize = (function () {
   function openOther(id) {
     log('cross_promo', { to: id });
     const t = T(); if (t && t.open && window.PLATFORM === 'toss') { t.open('intoss://' + id); return; }
-    location.href = '../' + id + '/index.html';          // 웹 빌드·테스트 사이트: 형제 폴더
+    // 웹 빌드·테스트 사이트: 형제 폴더. 합본 앱 폴더를 가리키려면 OTHER_BASE를 세팅한다.
+    location.href = (window.OTHER_BASE || '../') + id + '/index.html';
   }
 
   function wrapHint() {

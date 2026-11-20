@@ -14,7 +14,7 @@
   .gcard h2{margin:12px 0 4px;font-size:22px;}
   .gcard small{color:#b3a789;font-size:12px;line-height:1.4;display:block;}
   .backbar{position:absolute;left:0;top:0;z-index:30;padding:12px 16px;}
-  .backbtn{background:rgba(0,0,0,.55);border:1px solid var(--line);color:#f0e8d6;border-radius:8px;padding:7px 14px;font-size:14px;font-weight:700;cursor:pointer;}
+  .backbtn{background:rgba(0,0,0,.74);border:1px solid var(--line);color:#f0e8d6;border-radius:8px;padding:7px 14px;font-size:14px;font-weight:700;cursor:pointer;}
   .backbtn:hover{border-color:var(--gold);}
   /* ---------- shared 3D game UI (omok/janggi) — full-screen canvas, floating HUD like chess ---------- */
   .g2d{position:absolute;inset:0;}
@@ -141,9 +141,8 @@
   #launcher p.tag{color:#c9b791;letter-spacing:.04em;animation:v1rise .8s .08s cubic-bezier(.2,.8,.2,1) both;}
   .game-cards{gap:22px;max-width:680px;}
   .gcard{position:relative;width:188px;border-radius:20px;padding:24px 16px 20px;overflow:hidden;
-    background:linear-gradient(160deg,rgba(255,240,210,.10),rgba(255,240,210,.02) 40%,rgba(0,0,0,.25)),rgba(34,27,19,.72);
+    background:linear-gradient(160deg,rgba(255,240,210,.10),rgba(255,240,210,.02) 40%,rgba(0,0,0,.25)),rgba(34,27,19,.86);
     border:1px solid rgba(240,205,140,.22);box-shadow:0 14px 34px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.08);
-    backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
     transform-style:preserve-3d;transition:transform .18s ease-out,box-shadow .25s,border-color .25s;
     animation:v1card .7s cubic-bezier(.2,.9,.25,1.15) both;will-change:transform;}
   .gcard:nth-child(1){--ac:#d9c6a0;animation-delay:.10s}.gcard:nth-child(2){--ac:#e8d2a6;animation-delay:.16s}
@@ -168,7 +167,7 @@
   @keyframes v1rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
   @keyframes v1fade{from{opacity:0;filter:brightness(.4)}to{opacity:1;filter:none}}
   .screen.active{animation:v1fade .38s ease-out;}
-  .backbtn{backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);transition:border-color .2s,transform .15s;}
+  .backbtn{transition:border-color .2s,transform .15s;}
   .backbtn:hover{transform:translateX(-2px);}
   #v1confetti{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:9999;}
   .winbanner{animation:v1pop .5s cubic-bezier(.2,1.4,.4,1) both;}
@@ -181,8 +180,8 @@
   /* v2: quality pill — in the mode-screen flow, never over the Toss nav (••• / × sit at safe-area top + ~8px) */
   .gq-row{width:min(560px,100%);display:flex;justify-content:flex-end;flex:0 0 auto;margin:0 0 8px;z-index:5;pointer-events:auto}
   #gqBtn{position:relative;z-index:5;display:inline-flex;align-items:center;gap:2px;
-    padding:7px 12px;border-radius:999px;border:1px solid rgba(240,207,122,.45);background:rgba(20,16,12,.62);color:#f4e6c0;font:600 13px/1 inherit;font-family:inherit;
-    cursor:pointer;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);box-shadow:0 6px 18px rgba(0,0,0,.35);touch-action:manipulation;transition:background .2s,transform .15s;}
+    padding:7px 12px;border-radius:999px;border:1px solid rgba(240,207,122,.45);background:rgba(20,16,12,.84);color:#f4e6c0;font:600 13px/1 inherit;font-family:inherit;
+    cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.35);touch-action:manipulation;transition:background .2s,transform .15s;}
   #gqBtn b{font-weight:800;color:#ffe9a8;}
   #gqBtn:hover{background:rgba(60,46,24,.8);transform:translateY(-1px);}
   #gqToast{position:fixed;left:50%;bottom:calc(120px + env(safe-area-inset-bottom,0px));transform:translate(-50%,10px);z-index:9001;opacity:0;pointer-events:none;
@@ -222,7 +221,7 @@
 
 /* ---------- 3D 엔진 지연 로딩 안내 (three-loader.js) ---------- */
 #threeVeil{position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;
-  background:rgba(12,10,7,.55);color:#e8dcc2;font:700 13px/1.4 "Pretendard Variable",Pretendard,"Apple SD Gothic Neo","Noto Sans KR",system-ui,sans-serif;
-  pointer-events:none;backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px);}
+  background:rgba(12,10,7,.8);color:#e8dcc2;font:700 13px/1.4 "Pretendard Variable",Pretendard,"Apple SD Gothic Neo","Noto Sans KR",system-ui,sans-serif;
+  pointer-events:none;}
 #threeVeil .tv-spin{width:20px;height:20px;border-radius:50%;border:2px solid rgba(240,207,122,.28);border-top-color:#f0cf7a;animation:tvSpin .8s linear infinite;}
 @keyframes tvSpin{to{transform:rotate(360deg);}}

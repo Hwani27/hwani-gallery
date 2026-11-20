@@ -27,6 +27,20 @@ window.loadThree = window.loadThree || (function () {
 })();
 let _R=null;            // shared renderer
 let _activeInst=null;   // currently visible instance
+// ---- mobile light defaults -------------------------------------------------
+// A phone GPU pays for every texel: the key light's shadow map starts at 1024 (desktop 2048) and
+// canvas textures ask for 4x anisotropy (desktop 8x). quality.js still scales these down further.
+const _MOBILE_ENV=(function(){try{
+  if(window.matchMedia&&matchMedia('(pointer:coarse)').matches)return true;
+  const touch=(navigator.maxTouchPoints>0)||('ontouchstart' in window);
+  return touch&&Math.min(screen.width||0,screen.height||0)<900;
+}catch(e){return false;}})();
+const _ANISO=_MOBILE_ENV?4:8;
+const _SHADOW_SIZE=_MOBILE_ENV?1024:2048;
+// ---- on-demand rendering: the shared loop draws only while the board actually changes ----
+let _needRender=0;                                  // frames we still owe after a state change
+function _invalidate(n){_needRender=Math.max(_needRender,n||2);}
+function _wakeRender(){if(_R&&_R.__wake)_R.__wake();}
 // Soft "photo studio" lighting baked into an environment map: gives metal and lacquer real
 // reflections (a gradient dome plus a few bright softbox panels, prefiltered with PMREM).
 function makeStudioEnv(renderer,o){
@@ -71,16 +85,33 @@ function _sharedRenderer(){
   el.addEventListener('touchstart',e=>{if(!_activeInst)return;if(e.touches.length===2){pinch=tdist(e);down=false;}},{passive:true});
   el.addEventListener('touchmove',e=>{if(!_activeInst)return;if(e.touches.length===2&&pinch){const d=tdist(e);_activeInst._zoom((pinch-d)*0.03);pinch=d;}},{passive:true});
   el.addEventListener('touchend',()=>pinch=null);
-  // shared render loop
-  const loop=()=>{requestAnimationFrame(loop);
-    const inst=_activeInst;if(!inst)return;
+  // ---- shared render loop (on demand) --------------------------------------
+  // The loop itself stays light: it updates the active instance, asks it whether anything is still
+  // moving, and skips renderer.render() while the board is at rest. A visible change the instance
+  // did not predict shows up in its state signature and still gets one frame.
+  let _rafOn=false,_rafId=0,_lastSig=-1,_idleTick=0,_gqVer=-1;
+  function _wake(){if(_rafOn)return;_rafOn=true;_lastSig=-1;_rafId=requestAnimationFrame(loop);}
+  _R.__wake=_wake;
+  function loop(){
+    _rafId=0;
+    const inst=_activeInst;
+    if(!inst){_rafOn=false;return;}                       // 화면을 떠나면 rAF도 쉰다 (activate가 깨운다)
+    _rafOn=true;_rafId=requestAnimationFrame(loop);
+    const S=(window.BOARD_GFX_STATS=window.BOARD_GFX_STATS||{ticks:0,renders:0,rests:0});S.ticks++;
     inst._tick();
     const pbr=!!inst._pbr;
     if(_R.__pbr!==pbr){_R.__pbr=pbr;_R.outputEncoding=pbr?THREE.sRGBEncoding:THREE.LinearEncoding;
       _R.toneMapping=pbr?THREE.ACESFilmicToneMapping:THREE.NoToneMapping;_R.toneMappingExposure=pbr?(inst._exposure||1):1;}
+    if(window.GQ&&GQ.ver!==_gqVer){_gqVer=GQ.ver;_invalidate(2);}     // 화질이 바뀌면 한 번은 반드시 다시 그린다
+    const st=inst._frameState?inst._frameState():{live:true};
+    let draw=!!st.live||_needRender>0;
+    if(!draw&&st.sig!==_lastSig)draw=true;                          // 놓친 변화 → 안전하게 1프레임
+    if(!draw&&st.pulse&&(++_idleTick>=6))draw=true;                 // 천천히 깜박이는 표시는 ~10fps로 충분
+    if(!draw){S.rests++;return;}
+    _lastSig=st.sig;if(_needRender>0)_needRender--;_idleTick=0;S.renders++;
     _R.render(inst.scene,inst.camera);
-  };
-  requestAnimationFrame(loop);
+  }
+  _wake();
   return _R;
 }
 
@@ -101,7 +132,7 @@ function animatePlace(mesh){
 const _keep=new WeakSet();                       // shared geometries/materials that clearPieces must not dispose
 function _lin(h){return new THREE.Color(h).convertSRGBToLinear();}
 function _cvTex(w,h,draw,srgb){const c=document.createElement('canvas');c.width=w;c.height=h;draw(c.getContext('2d'),w,h);
-  const t=new THREE.CanvasTexture(c);if(srgb!==false)t.encoding=THREE.sRGBEncoding;t.anisotropy=8;return t;}
+  const t=new THREE.CanvasTexture(c);if(srgb!==false)t.encoding=THREE.sRGBEncoding;t.anisotropy=_ANISO;return t;}
 function _rnd(a,b){return a+Math.random()*(b-a);}
 // fine straight-grain (masame) wood: colour map + matching bump map
 function _woodMaps(size,base,dark,light,o){
@@ -176,7 +207,7 @@ function makeBoard3D(opts){
     // lighting: warm key (shadows), cool fill, cool rim from behind, soft sky/ground bounce
     scene.add(new THREE.HemisphereLight(0xfff0dc,0x2a1d14,0.25));
     const key=new THREE.DirectionalLight(0xffe0bc,1.45);key.position.set(5.5,15,7);key.castShadow=true;
-    key.shadow.mapSize.set(2048,2048);
+    key.shadow.mapSize.set(_SHADOW_SIZE,_SHADOW_SIZE);     // 모바일: 1024로 시작 (quality.js가 더 낮춘다)
     const sh=span*0.5+1.2;key.shadow.camera.left=-sh;key.shadow.camera.right=sh;key.shadow.camera.top=sh;key.shadow.camera.bottom=-sh;
     key.shadow.camera.near=2;key.shadow.camera.far=40;key.shadow.bias=-0.0004;key.shadow.normalBias=0.015;key.shadow.radius=4;
     scene.add(key);
@@ -252,9 +283,9 @@ function makeBoard3D(opts){
     }
     if(opts.decorate)opts.decorate(boardGroup, toXZ, THREE);
   }
-  function onResize(){if(_activeInst!==api||!_R)return;const w=mount.clientWidth,h=mount.clientHeight;if(!w||!h)return;camera.aspect=w/h;camera.updateProjectionMatrix();_R.setSize(w,h);}
+  function onResize(){if(_activeInst!==api||!_R)return;const w=mount.clientWidth,h=mount.clientHeight;if(!w||!h)return;camera.aspect=w/h;camera.updateProjectionMatrix();_R.setSize(w,h);_invalidate(2);}
 
-  function _dragRotate(dxp,dyp){ if(view2D)return; cam.theta-=dxp*0.008; cam.phi=Math.max(0.25,Math.min(1.4,cam.phi-dyp*0.006)); }
+  function _dragRotate(dxp,dyp){ if(view2D)return; cam.theta-=dxp*0.008; cam.phi=Math.max(0.25,Math.min(1.4,cam.phi-dyp*0.006)); _invalidate(2); }
   function _pickAt(clientX,clientY){ pick(clientX,clientY); }
   function cellAt(clientX,clientY){
     const rect=_R.domElement.getBoundingClientRect();
@@ -268,7 +299,7 @@ function makeBoard3D(opts){
   }
   function pick(clientX,clientY){const rc=cellAt(clientX,clientY);if(rc)opts.onPick(rc[0],rc[1]);}
   function _hover(clientX,clientY){ if(!hoverMesh)return;const rc=cellAt(clientX,clientY);
-    if(!rc){hoverMesh.userData.on=0;return;}const {x,z}=toXZ(rc[0],rc[1]);hoverMesh.position.x=x;hoverMesh.position.z=z;hoverMesh.userData.on=1;}
+    if(!rc){hoverMesh.userData.on=0;_invalidate(2);return;}const {x,z}=toXZ(rc[0],rc[1]);hoverMesh.position.x=x;hoverMesh.position.z=z;hoverMesh.userData.on=1;_invalidate(2);}
   function zoom(d){cam.rad=Math.max(CAMRAD*0.55,Math.min(CAMRAD*2.0,cam.rad+d));}
   function resetView(){cam.theta=DEF.theta;cam.phi=DEF.phi;cam.rad=DEF.rad;view2D=false;}
   let view2D=false, smPhi, smTheta;
@@ -362,11 +393,11 @@ function makeBoard3D(opts){
     }
     shake(soft?0.03:0.16);
   }
-  function shake(a){shakeAmp=Math.max(shakeAmp,a);}
+  function shake(a){shakeAmp=Math.max(shakeAmp,a);_invalidate(2);}
   // ---------- piece bookkeeping: animate only what actually changed between draws ----------
   function beginPieces(){curPieces=new Map();}
   function addPiece(key,obj,o){
-    o=o||{};pieceGroup.add(obj);
+    o=o||{};pieceGroup.add(obj);_invalidate(2);
     const rec={x:obj.position.x,y:obj.position.y,z:obj.position.z,color:o.color,mk:o.ghost};
     curPieces.set(key,rec);
     const live=anims.find(a=>a.key===key);
@@ -381,7 +412,7 @@ function makeBoard3D(opts){
     obj.visible=false;
   }
   function endPieces(o){
-    o=o||{};
+    o=o||{};_invalidate(2);
     if(drawCount>0){
       const occupied=new Set();curPieces.forEach(v=>occupied.add(Math.round(v.x)+','+Math.round(v.z)));
       prevPieces.forEach((v,k)=>{if(curPieces.has(k))return;const cell=Math.round(v.x)+','+Math.round(v.z);
@@ -390,7 +421,7 @@ function makeBoard3D(opts){
     }
     prevPieces=curPieces;curPieces=null;drawCount++;
   }
-  function glowRing(x,z,color,o){o=o||{};
+  function glowRing(x,z,color,o){o=o||{};_invalidate(2);
     const m=new THREE.Mesh(new THREE.PlaneGeometry(1,1),new THREE.MeshBasicMaterial({map:o.disc?_discTex():_ringTex(),color:_lin(color).multiplyScalar(o.k||1.0),transparent:true,opacity:o.a||.75,depthWrite:false,blending:THREE.AdditiveBlending,toneMapped:false}));
     m.material.userData._lin=1;m.rotation.x=-Math.PI/2;const s=o.size||1.25;m.scale.set(s,s,s);m.position.set(x,o.y!==undefined?o.y:TOPY+0.02,z);
     m.renderOrder=2;m.userData.pulse=o.pulse!==false;m.userData.base=o.a||.9;markGroup.add(m);return m;}
@@ -404,6 +435,35 @@ function makeBoard3D(opts){
     tickAnims(now);
     linearize(boardGroup);linearize(pieceGroup);linearize(markGroup);
   }
+  // ---------- on-demand rendering support ----------
+  // live : 착수 애니메이션·파티클·인트로·흔들림처럼 매 프레임 바뀌는 것이 있다
+  // pulse: 천천히 깜박이는 하이라이트만 남았다 → 낮은 주기로만 그린다
+  // sig  : 픽셀이 바뀔 수 있는 상태(위치·크기·보임·투명도)를 요약한 해시
+  function _hasPulse(){
+    for(let i=0;i<markGroup.children.length;i++){const o=markGroup.children[i];if(o.userData&&o.userData.pulse)return true;}
+    return false;
+  }
+  function _stateSig(){
+    let h=2166136261;
+    const add=v=>{h^=(Math.round(v*1000)|0);h=Math.imul(h,16777619);};
+    if(camera){const cp=camera.position;add(cp.x);add(cp.y);add(cp.z);}
+    const groups=[boardGroup,pieceGroup,markGroup,fxGroup];
+    for(let gi=0;gi<groups.length;gi++){const g=groups[gi];if(!g)continue;add(g.children.length);
+      for(let i=0;i<g.children.length;i++){const o=g.children[i];
+        add(o.position.x);add(o.position.y);add(o.position.z);add(o.scale.x);add(o.scale.y);add(o.visible?1:0);
+        const m=o.material;
+        if(m&&!Array.isArray(m)&&!(o.userData&&o.userData.pulse))add(m.opacity===undefined?1:m.opacity);}}
+    if(hoverMesh&&hoverMesh.material)add(hoverMesh.material.opacity);
+    return h>>>0;
+  }
+  function _frameState(){
+    const now=performance.now();
+    if(anims.length||parts.length)return{live:true};
+    if(shakeAmp>0.0005)return{live:true};
+    if(now-introT0<1750)return{live:true};
+    if(now-celebT0<6100)return{live:true};
+    return{live:false,pulse:_hasPulse(),sig:_stateSig()};
+  }
   function activate(){
     init();
     if(_activeInst!==api)introT0=performance.now();
@@ -412,28 +472,30 @@ function makeBoard3D(opts){
     onResize();
     requestAnimationFrame(onResize);
     setTimeout(onResize,120);
+    _invalidate(2);_wakeRender();
   }
   function deactivate(){ if(_activeInst===api)_activeInst=null; }
 
   const api={
     init, activate, deactivate, toXZ, _pbr:true, _exposure:0.9,
-    _tick, _dragRotate, _pickAt, _hover, _zoom:zoom, _onRestore: ()=>{if(opts.onRestore)opts.onRestore();},
+    _tick, _frameState, _dragRotate, _pickAt, _hover, _zoom:zoom, _onRestore:()=>{_invalidate(2);if(opts.onRestore)opts.onRestore();},
     get scene(){return scene;},
     get camera(){return camera;},
     get pieceGroup(){return pieceGroup;},
     get markGroup(){return markGroup;},
     get THREE(){return THREE;},
-    zoom, resetView, toggle2D,
+    zoom:(d)=>{zoom(d);_invalidate(2);}, resetView:()=>{resetView();_invalidate(2);}, toggle2D:()=>{toggle2D();_invalidate(2);},
     is2D(){return view2D;},
     canRotate(){return !view2D;},
     setActive(v){ v?activate():deactivate(); },
-    clearPieces(){disposeChildren(pieceGroup);},
-    clearMarks(){disposeChildren(markGroup);},
-    dispose(){ if(_activeInst===api)_activeInst=null; if(scene){disposeChildren(pieceGroup);disposeChildren(markGroup);disposeChildren(boardGroup);} },
+    invalidate(n){_invalidate(n);},
+    clearPieces(){disposeChildren(pieceGroup);_invalidate(2);},
+    clearMarks(){disposeChildren(markGroup);_invalidate(2);},
+    dispose(){ if(_activeInst===api)_activeInst=null; if(scene){disposeChildren(pieceGroup);disposeChildren(markGroup);disposeChildren(boardGroup);} _invalidate(2);},
     ready(){return inited;},
     // v1 visual helpers
     TOPY, beginPieces, addPiece, endPieces, glowRing, dust, shatter, shake,
-    intro(){introT0=performance.now();}, celebrate(){celebT0=performance.now();}
+    intro(){introT0=performance.now();_invalidate(2);}, celebrate(){celebT0=performance.now();_invalidate(2);}
   };
   return api;
 }
