@@ -39,7 +39,7 @@
       '.su-layer{position:fixed;inset:0;z-index:9600;display:flex;align-items:flex-end;justify-content:center;background:rgba(0,0,0,.55);opacity:0;pointer-events:none;transition:opacity .22s;font-family:"Pretendard Variable",Pretendard,"Apple SD Gothic Neo","Noto Sans KR",system-ui,sans-serif}',
       '.su-layer.show{opacity:1;pointer-events:auto}',
       '.su-layer.mid{align-items:center;padding:20px}',
-      '.su-box{width:min(460px,100%);max-height:86vh;overflow:auto;border-radius:24px 24px 0 0;background:linear-gradient(180deg,#241d14,#17120c);border:1px solid rgba(255,226,170,.16);color:#f6eedb;padding:10px 16px calc(16px + env(safe-area-inset-bottom,0px));box-shadow:0 -12px 40px rgba(0,0,0,.55);transform:translateY(20px);transition:transform .22s}',
+      '.su-box{width:min(460px,100%);max-height:86vh;overflow:auto;border-radius:24px 24px 0 0;background:linear-gradient(180deg,#241d14,#17120c);border:1px solid rgba(255,226,170,.16);color:#f6eedb;padding:10px 16px calc(16px + var(--sab,env(safe-area-inset-bottom,0px)));box-shadow:0 -12px 40px rgba(0,0,0,.55);transform:translateY(20px);transition:transform .22s}',
       '.su-layer.show .su-box{transform:none}',
       '.su-layer.mid .su-box{border-radius:24px;transform:scale(.96)}',
       '.su-layer.mid.show .su-box{transform:none}',
@@ -70,7 +70,7 @@
       '.su-body p{margin:0 0 6px}',
       '.su-body ol{margin:4px 0 8px;padding-left:18px}',
       '.su-body li{margin-bottom:4px}',
-      '.su-toast{position:fixed;left:50%;bottom:calc(26px + env(safe-area-inset-bottom,0px));transform:translate(-50%,10px);z-index:9700;max-width:86vw;padding:10px 16px;border-radius:14px;background:rgba(20,16,12,.95);border:1px solid rgba(255,226,170,.25);color:#f6eedb;font-size:13px;font-weight:700;opacity:0;pointer-events:none;transition:.2s;font-family:"Pretendard Variable",Pretendard,"Apple SD Gothic Neo",system-ui,sans-serif}',
+      '.su-toast{position:fixed;left:50%;bottom:calc(26px + var(--sab,env(safe-area-inset-bottom,0px)));transform:translate(-50%,10px);z-index:9700;max-width:86vw;padding:10px 16px;border-radius:14px;background:rgba(20,16,12,.95);border:1px solid rgba(255,226,170,.25);color:#f6eedb;font-size:13px;font-weight:700;opacity:0;pointer-events:none;transition:.2s;font-family:"Pretendard Variable",Pretendard,"Apple SD Gothic Neo",system-ui,sans-serif}',
       '.su-toast.show{opacity:1;transform:translate(-50%,0)}',
       '.su-gear{position:absolute;top:calc(12px + env(safe-area-inset-top,0px));right:12px;z-index:21;width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-size:19px;border:1px solid rgba(255,226,170,.22);background:rgba(20,16,12,.72);color:#f0cf7a;cursor:pointer;font-family:inherit}',
       '.hh .su-gear{position:absolute;top:0;right:0;background:rgba(255,255,255,.06)}',
@@ -178,6 +178,7 @@
     box.innerHTML = '<div class="su-grab"></div><div class="su-h"><span>⚙️</span><span>설정</span></div>';
     box.appendChild(switchRow('🔊', '효과음', '착수·승리·버튼 소리', soundOn, setSound));
     box.appendChild(switchRow('📳', '진동', vibSupported() ? '착수·체크·승리 시 햅틱' : '이 기기는 진동을 지원하지 않아요', vibOn, setVib, !vibSupported()));
+    if (window.I18N) box.appendChild(linkRow('🌐', '언어 · Language', langLabel(), function () { langModal(); }));
     box.appendChild(linkRow('🎁', '행운 상자 확률', '어떤 보상이 몇 %로 나오는지', function () { oddsModal(); }));
     var sec = el('div', 'su-sec', '안내 · 문의'); box.appendChild(sec);
     box.appendChild(linkRow('✉️', '고객문의', CONTACT, function () { contactModal(); }));
@@ -195,6 +196,24 @@
   function isOpen() {
     var s = $('#suSheet'); if (s && s.classList.contains('show')) return true;
     return modalOpen();
+  }
+
+  /* ---------------- language (i18n.js) ---------------- */
+  function langLabel() {
+    var I = window.I18N, name = I.lang === 'en' ? 'English' : '한국어';
+    return I.mode === 'auto' ? '기기 언어 따르기 · ' + name : name;
+  }
+  function langModal() {
+    var I = window.I18N;
+    var mark = function (m) { return I.mode === m ? ' ✓' : ''; };
+    modal({
+      icon: '🌐', title: '언어 · Language',
+      actions: [
+        { label: '한국어' + mark('ko'), pri: I.mode === 'ko', fn: function () { I.set('ko'); } },
+        { label: 'English' + mark('en'), pri: I.mode === 'en', fn: function () { I.set('en'); } },
+        { label: '기기 언어 따르기' + mark('auto'), pri: I.mode === 'auto', fn: function () { I.set('auto'); } }
+      ]
+    });
   }
 
   /* ---------------- odds ---------------- */

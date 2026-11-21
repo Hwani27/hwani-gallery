@@ -1583,7 +1583,7 @@ document.getElementById("undoBtn").onclick=()=>{
   syncPieces();refreshHighlights();updateHUD();renderSidePanels();hideMsg();
   try{window.Resume&&Resume.touch();}catch(e){}
 };
-document.getElementById("hintBtn").onclick=()=>window.ChessApp.hint();
+document.getElementById("hintBtn").onclick=()=>ChessApp.hint();
 
 function startGame(){
   _chIntroT0=performance.now();

@@ -136,15 +136,40 @@ const JanggiTutorial=(function(){
       visual: '<div style="font-size:40px">🏆</div>',
       body:'상대 궁을 외통으로 잡으면 승리! 오른쪽 위 💡 힌트 버튼으로 추천 수도 볼 수 있어요. 이제 대국을 시작해 볼까요?' },
   ];
+  // English version (i18n.js 영어 모드) — 외국인이 바로 이해하도록 기물 이름·규칙을 풀어서 설명
+  const stepsEn=[
+    { title:'What is Janggi?', visual: steps[0].visual,
+      body:'Janggi is <b>Korean Chess</b>. Each side protects its <b>General</b> (the king) and wins by trapping the enemy General. You play <b>Cho (楚, blue)</b> at the bottom; the CPU plays <b>Han (漢, red)</b>. Cho moves first.' },
+    { title:'Reading the pieces', visual: steps[1].visual,
+      body:'Pieces show Chinese characters. Each side has: <b>車 Chariot</b> ×2, <b>馬 Horse</b> ×2, <b>象 Elephant</b> ×2, <b>士 Guard</b> ×2, <b>包 Cannon</b> ×2, <b>卒/兵 Soldier</b> ×5 and one <b>General</b> (楚 or 漢). Tap any piece in a game to see where it can go.' },
+    { title:'The Palace (key to checkmate)',
+      visual: steps[2].visual.replace('>궁<','>宮<'),
+      body:'The 3×3 box at each end is the <b>Palace</b>. The General and Guards can never leave it. Inside the Palace they may also move diagonally — but only along the drawn diagonal lines.' },
+    { title:'車 Chariot — the strongest', visual: steps[3].visual,
+      body:'Moves <b>any distance</b> straight across or up and down, just like a rook in chess. It can\'t jump over pieces.' },
+    { title:'包 Cannon — must jump', visual: steps[4].visual,
+      body:'Moves in straight lines, but <b>must jump over exactly one piece</b> to move or capture. A Cannon can\'t jump over or capture another Cannon, and with nothing to jump it can\'t move at all.' },
+    { title:'馬 Horse · 象 Elephant', visual: steps[5].visual,
+      body:'The <b>Horse</b> moves one step straight, then one step diagonally (like a chess knight) — but it\'s <b>blocked</b> if a piece sits on that first straight step.<br>The <b>Elephant</b> goes one step straight, then two steps diagonally, so it can be blocked at two points.' },
+    { title:'士 Guard · 卒 Soldier', visual: steps[6].visual,
+      body:'<b>Guards</b> move one point at a time inside the Palace (straight or along its diagonals) to protect the General.<br><b>Soldiers</b> (兵 for Han, 卒 for Cho) move one step forward or sideways — never backward.' },
+    { title:'Check (Janggun) · Checkmate', visual: '<div style="font-size:24px;font-weight:800;color:#e0c020">Janggun! (Check!)</div>',
+      body:'When a General is under attack it\'s <b>check</b> — Koreans call out "Janggun!". If there is no way to escape, it\'s <b>checkmate</b> and the game is over.' },
+    { title:'Bikjang (Generals face off)', visual: steps[8].visual,
+      body:'If the two Generals face each other on the same column with nothing in between, it\'s <b>Bikjang</b>. You can\'t make a move that creates it, and if neither side can break it, the game is a draw.' },
+    { title:'How to win', visual: steps[9].visual,
+      body:'Checkmate the enemy General to win! Stuck? Tap the 💡 Hint button at the top right for a suggested move. Ready to play?' },
+  ];
+  const ST=(window.I18N&&window.I18N.lang==='en')?stepsEn:steps;
   let idx=0, openedFromSetup=false;
   function render(){
-    const s=steps[idx];
-    document.getElementById('janggiTutProgress').textContent=(idx+1)+' / '+steps.length;
+    const s=ST[idx];
+    document.getElementById('janggiTutProgress').textContent=(idx+1)+' / '+ST.length;
     document.getElementById('janggiTutTitle').textContent=s.title;
     document.getElementById('janggiTutVisual').innerHTML=s.visual;
     document.getElementById('janggiTutBody').innerHTML=s.body;
     document.getElementById('janggiTutPrev').style.visibility = idx===0 ? 'hidden' : 'visible';
-    document.getElementById('janggiTutNext').textContent = idx===steps.length-1 ? '완료' : '다음 →';
+    document.getElementById('janggiTutNext').textContent = idx===ST.length-1 ? '완료' : '다음 →';
   }
   function open(){
     idx=0;
@@ -158,7 +183,7 @@ const JanggiTutorial=(function(){
     document.getElementById('janggiTutorial').classList.remove('show');
     if(openedFromSetup) document.getElementById('janggiSetup').classList.remove('hidden');
   }
-  function next(){ if(idx>=steps.length-1){ close(); return; } idx++; render(); }
+  function next(){ if(idx>=ST.length-1){ close(); return; } idx++; render(); }
   function prev(){ if(idx>0){ idx--; render(); } }
   return { open, close, next, prev };
 })();

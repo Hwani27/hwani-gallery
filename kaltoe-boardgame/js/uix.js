@@ -310,7 +310,7 @@ function sideNames(g,s,t){if(window.UIX_SIDE_NAMES){try{var _r=window.UIX_SIDE_N
   if(g==='chess'&&s.mode==='pvp')cpu=false;else if(g==='chess')cpu=s.mode!=='pvp'&&!!s.mode;
   if(cpu){var sub=stage?'스테이지 '+stage:(s.lv?LVK[s.lv]:'');return [['나',cn[0]],['CPU',[cn[1],sub].filter(Boolean).join(' · ')]];}
   return [[cn[0],'플레이어 1'],[cn[1],'플레이어 2']];}
-function chessSide(w){var rows=$$('#sidepanel .cap-label');var i=w==='w'?0:1;var t=rows[i]?rows[i].textContent:'';t=t.replace(/(이|가)?\s*잡음.*/,'').trim();return t||(w==='w'?'은색':'검은색');}
+function chessSide(w){var rows=$$('#sidepanel .cap-label');var i=w==='w'?0:1;var t=rows[i]?rows[i].textContent:'';t=t.replace(/\s*(이|가)?\s*잡음.*/,'').replace(/^\s*captured by\s+/i,'').replace(/\s*captured\b.*/i,'').trim();return t||(w==='w'?'은색':'검은색');}
 var lastPinfo='',pinfoT=0,lastSeat='';
 var tick=safe(function(){
   var g=activeScreen();if(BOARD.indexOf(g)<0)return;var H=HUD[g];if(!H)return;var scr=document.getElementById(g),s=ST[g];

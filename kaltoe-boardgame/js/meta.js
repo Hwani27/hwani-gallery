@@ -121,6 +121,7 @@ const Meta = (function () {
   }
 
   async function share(msg) {
+    if (window.I18N) msg = I18N.t(msg);   // 영어 모드: 공유 문구도 번역
     const t = T();
     const path = window.PLATFORM === 'toss' ? 'intoss://' + (window.APP_NAME || ID) : location.href;
     const how = t ? await t.share(msg, path) : false;

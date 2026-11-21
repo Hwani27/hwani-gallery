@@ -120,7 +120,7 @@ const Characters = (function () {
     const c = ofStrength(n); cell.dataset.tgCh = '1'; cell.classList.add('tg-ch');
     const sm = cell.querySelector('small'); const rec = sm ? sm.outerHTML : '';
     const star = /⭐/.test(cell.textContent) && !cell.classList.contains('scell') ? '<em>⭐</em>' : '';
-    cell.innerHTML = `${star}<i>${c.ic}</i><b>${c.name}</b>${rec}`; cell.title = n + '단계 · ' + c.tag;
+    cell.innerHTML = `${star}<i>${c.ic}</i><b>${c.name}</b>${rec}`; cell.title = c.tag;
   }
   const scan = root => (root.querySelectorAll ? root.querySelectorAll('.scell,.stage-cell,.stagebtn') : []).forEach(decorate);
   new MutationObserver(ms => ms.forEach(m => m.addedNodes.forEach(n => { if (n.nodeType !== 1) return; if (n.matches && n.matches('.scell,.stage-cell,.stagebtn')) decorate(n); else scan(n); })))

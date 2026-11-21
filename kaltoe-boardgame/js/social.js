@@ -28,7 +28,8 @@ const Social = (function () {
   const codeOf = s => ID + ':' + s;
   async function send(message, code) {
     const t = window.Toss;
-    const text = message + '\n\n토스에서 링크가 안 열리면 ' + NAME + ' 앱의 "코드 입력"에 아래를 붙여넣어 주세요\n' + code;
+    let text = message + '\n\n토스에서 링크가 안 열리면 ' + NAME + ' 앱의 "코드 입력"에 아래를 붙여넣어 주세요\n' + code;
+    if (window.I18N) text = I18N.t(text);   // 영어 모드: 공유 문구도 번역 (한국어 모드에서는 그대로)
     // the share link must be an intoss:// deep link to this mini-app; the query reaches the page as ?g=…
     // 웹/PWA 빌드에서는 같은 페이지의 쿼리 링크를 쓴다 (intoss:// 는 토스 밖에서 열리지 않는다)
     const path = window.PLATFORM === 'toss'

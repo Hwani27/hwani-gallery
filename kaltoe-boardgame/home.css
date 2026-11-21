@@ -1,4 +1,7 @@
-:root{--gold:#f0cf7a;--ink:#f6eedb;--mute:#b9ab8d;--st:env(safe-area-inset-top,0px);--sb:env(safe-area-inset-bottom,0px);--ux-nav:0px}
+@font-face{font-family:'Pretendard';src:url(./fonts/Pretendard-Medium.subset.woff2) format('woff2');font-weight:100 600;font-display:swap}@font-face{font-family:'Pretendard';src:url(./fonts/Pretendard-Bold.subset.woff2) format('woff2');font-weight:700 900;font-display:swap}
+/* 홈 화면은 uix.css 를 링크하지 않으므로 위 @font-face 를 여기에도 둔다(dist/fonts/*.woff2, 경로는 uix.css 와 동일). */
+:root{--sab:max(env(safe-area-inset-bottom,0px),var(--sab-js,0px))}
+:root{--gold:#f0cf7a;--ink:#f6eedb;--mute:#b9ab8d;--st:env(safe-area-inset-top,0px);--sb:var(--sab);--ux-nav:0px}
 body.toss-app{--ux-nav:72px}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;min-height:100%;background:radial-gradient(120% 70% at 50% 0%,#3a2a18 0%,#17110b 55%,#0d0a07 100%) fixed;color:var(--ink);font-family:"Pretendard Variable",Pretendard,"Apple SD Gothic Neo","Noto Sans KR",system-ui,sans-serif;-webkit-user-select:none;user-select:none}
@@ -36,3 +39,4 @@ body.leaving{opacity:.4}
 .hid .ph{width:44px;height:52px;border-radius:9px;display:grid;place-items:center;font-size:27px;background:#f7f1e3}
 .hid .t{display:flex;flex-direction:column;min-width:0}.hid small{font-size:10.5px;font-weight:800;opacity:.65;letter-spacing:.04em}.hid b{font-size:17px;font-weight:900}.hid em{font-style:normal;font-size:11.5px;color:var(--mute);font-weight:700}
 .hid .cd{margin-left:auto;font-size:12.5px;font-weight:800;color:var(--gold)}
+/* 영어 모드: 긴 제목(Clock-Out Board Games)이 우측 상단 톱니 버튼과 겹치지 않게 두 줄로 나눠 그린다 */html[lang="en"] .hh h1{font-size:30px;line-height:1.1;max-width:230px;margin:8px auto 6px;word-break:keep-all;overflow-wrap:normal}
