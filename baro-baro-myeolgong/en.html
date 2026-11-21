@@ -15,6 +15,8 @@
   html = html.replaceAll('src="icons/', 'src="../baro-baro-jump/icons/');
   html = html.replaceAll('href="icons/', 'href="../baro-baro-jump/icons/');
   html = html.replaceAll("Jump Right Now", "Destroy Now");
+  html = html.replaceAll("Block-world jump action plus a first-person side story — pick a mode", "A block-world military rail shooter — Baro picks up a gun");
+  html = html.replaceAll("Side-scrolling jump action in a block world · Story mode<br>Worlds 1–5 · Side story: Nightmare Land · 25 stages · boss fights", "Virtua-Cop-style rail shooter in a block world · first-person gun<br>Stage 1-1 rail firefight · 4 waves · red-star barrels · boss fight");
   const step = "function stepPlayer(inp){const p=pl;";
   const cam = 'placeCamera(false);bossCam53();space54(dt);crayon58(dt);fx59(dt);bk59(dt);bossBar59();updLights();updateHUD();hud53();updBossBar();speedFx5(state==="play"&&RUN5.sprinting());postRender52(scene,camera)';
   const rail = 'try{window.__railCtx={scene:scene,camera:camera,renderer:renderer,enemies:enemies,pl:pl,player:player,L:L,W3:W3,G:G,LT:LT,M:M,BOSSK:BOSSK,snd:snd,makeHero:makeHero,makeFoe:makeFoe,makePillager:makePillager,makeBoss:makeBoss,makeCoin:makeCoin,makeMushroom:makeMushroom,makeArrow:makeArrow,killFlip:killFlip,hitFlash:hitFlash,hitBoss:hitBoss,addScore:addScore,commitStars66:commitStars66,saveSave:saveSave,setState:function(v){state=v}};}catch(e){}try{window.RAIL&&RAIL.frame(window.__railCtx)}catch(e){}postRender52(scene,camera)';
