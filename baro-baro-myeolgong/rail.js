@@ -11,7 +11,12 @@
   let t0 = 0;
   let pistol = null;
   let flash = null;
+  let flashHalo = null;
+  let recoil = 0;
+  let pistolBase = null;
+  let smokes = [];
   let sparks = [];
+  let reloading = false;
   let puff = null;
   let hud = null;
   let clock = 32;
@@ -210,12 +215,14 @@
     add(0.05, 0.16, 0.07, 0, -0.08, -0.02, dark);
     add(0.09, 0.05, 0.1, 0, -0.02, 0.02, skin);
     add(0.035, 0.04, 0.08, 0.05, -0.01, -0.02, skin);
-    const f = add(0.06, 0.06, 0.06, 0, 0.06, -0.46, new T.MeshBasicMaterial({ color: 0xffe14a }));
+    const f = add(0.08, 0.08, 0.1, 0, 0.07, -0.5, new T.MeshBasicMaterial({ color: 0xfff2a0 }));
     f.visible = false;
-    g.position.set(0.02, -0.36, -0.48);
-    g.scale.setScalar(1.45);
+    const halo = add(0.22, 0.22, 0.04, 0, 0.07, -0.46, new T.MeshBasicMaterial({ color: 0xffc14a, transparent: true, opacity: 0.85, depthWrite: false }));
+    halo.visible = false;
+    g.position.set(0.02, -0.34, -0.42);
+    g.scale.setScalar(1.35);
     camera.add(g);
-    return { g, flash: f };
+    return { g, flash: f, halo };
   }
 
   function boot(ctx) {
@@ -307,7 +314,19 @@
     } catch (err) { /* truck is optional */ }
     const rig = makePistol(ctx.camera);
     pistol = rig.g;
+    pistolBase = { z: rig.g.position.z, y: rig.g.position.y };
     flash = rig.flash;
+    flashHalo = rig.halo;
+    if (ctx.renderer) {
+      if (T.ACESFilmicToneMapping) ctx.renderer.toneMapping = T.ACESFilmicToneMapping;
+      if ("toneMappingExposure" in ctx.renderer) ctx.renderer.toneMappingExposure = 1.12;
+    }
+    if (!window.__railKeys) {
+      window.__railKeys = 1;
+      addEventListener("keydown", (e) => {
+        if (e.code === "KeyR") window.RAIL.reload();
+      });
+    }
     const mount = ctx.renderer && ctx.renderer.domElement;
     if (mount && !mount._rail) {
       mount._rail = 1;
@@ -330,14 +349,37 @@
     }
   }
 
+  function gun(name) {
+    const g = window.GunSFX;
+    if (!g) return;
+    try { g.unlock(); g[name] && g[name](); } catch (e) {}
+  }
+
+  function spawnSmoke(camera) {
+    if (smokes.length > 8) return;
+    const m = new T.Mesh(
+      new T.SphereGeometry(0.04, 6, 5),
+      new T.MeshBasicMaterial({ color: 0xd8d2c4, transparent: true, opacity: 0.35, depthWrite: false })
+    );
+    m.position.set((Math.random() - 0.5) * 0.04, 0.02, -0.48);
+    m.userData.life = 0.45;
+    m.userData.v = new T.Vector3((Math.random() - 0.5) * 0.05, 0.08 + Math.random() * 0.05, -0.02);
+    camera.add(m);
+    smokes.push(m);
+  }
+
   function fire(ctx) {
-    if (!ctx || !booted || bullets <= 0) return;
+    if (!ctx || !booted || reloading) return;
     const now = performance.now();
-    if (now - lastShot < 160) return;
+    if (now - lastShot < 140) return;
+    if (bullets <= 0) { gun("dry"); lastShot = now; return; }
     lastShot = now;
     bullets--;
-    if (flash) flash.visible = true;
-    try { ctx.snd && ctx.snd("throw"); } catch (e) {}
+    recoil = 1;
+    if (flash) { flash.visible = true; flash.scale.setScalar(1); }
+    if (flashHalo) { flashHalo.visible = true; flashHalo.scale.setScalar(1); }
+    spawnSmoke(ctx.camera);
+    gun("shot");
     const ray = new T.Raycaster();
     ray.setFromCamera(new T.Vector2(0, 0), ctx.camera);
     ray.far = 24;
@@ -355,16 +397,14 @@
       burst(ctx.scene, hit.at.x, hit.at.y, hit.at.z);
       try { ctx.hitFlash && ctx.hitFlash(hit.e); } catch (e) {}
       const boss = ctx.BOSSK && ctx.BOSSK[hit.e.kind];
+      const dying = !boss && (hit.e.hp || 1) <= 1;
+      gun(dying ? "boom" : "hit");
       if (boss && ctx.hitBoss) ctx.hitBoss(hit.e, 1);
-      else if ((hit.e.hp || 1) > 1) {
-        hit.e.hp -= 1;
-        try { ctx.snd && ctx.snd("stomp"); } catch (e) {}
-      } else if (ctx.killFlip) {
+      else if (!dying) hit.e.hp -= 1;
+      else if (ctx.killFlip) {
         ctx.killFlip(hit.e, 200);
         if (ctx.addScore) ctx.addScore(200, hit.e.x, hit.e.y);
-      } else {
-        hit.e.alive = false;
-      }
+      } else hit.e.alive = false;
     }
     window.__railShot = 1;
   }
@@ -394,7 +434,35 @@
     });
     if (ctx.pl) ctx.pl.inv = 99999;
     ctx.setState && ctx.setState("play");
-    if (flash && performance.now() - lastShot > 90) flash.visible = false;
+    const since = performance.now() - lastShot;
+    const kick = Math.max(0, recoil);
+    recoil = Math.max(0, recoil - 0.08);
+    if (pistol && pistolBase) {
+      pistol.position.z = pistolBase.z + kick * 0.07;
+      pistol.position.y = pistolBase.y - kick * 0.02;
+      pistol.rotation.x = kick * 0.18;
+    }
+    if (flash) {
+      flash.visible = since < 70;
+      flash.scale.setScalar(1 + (1 - Math.min(1, since / 70)) * 1.4);
+    }
+    if (flashHalo) {
+      flashHalo.visible = since < 90;
+      const k = Math.min(1, since / 90);
+      flashHalo.scale.setScalar(1 + k * 2.2);
+      flashHalo.material.opacity = 0.8 * (1 - k);
+    }
+    for (let i = smokes.length - 1; i >= 0; i--) {
+      const s = smokes[i];
+      s.userData.life -= 0.016;
+      s.position.add(s.userData.v);
+      s.scale.multiplyScalar(1.03);
+      s.material.opacity = Math.max(0, s.userData.life);
+      if (s.userData.life <= 0) {
+        s.parent && s.parent.remove(s);
+        smokes.splice(i, 1);
+      }
+    }
     for (let i = sparks.length - 1; i >= 0; i--) {
       const s = sparks[i];
       s.userData.life -= 0.016;
@@ -421,6 +489,12 @@
     fire: () => {
       const ctx = window.__railCtx;
       if (ctx) fire(ctx);
+    },
+    reload: () => {
+      if (!booted || reloading || bullets >= 20) return;
+      reloading = true;
+      gun("reload");
+      setTimeout(() => { bullets = 20; reloading = false; }, 420);
     }
   };
 })();

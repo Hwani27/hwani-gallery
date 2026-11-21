@@ -23,7 +23,7 @@
   html = html.replace(cam, cam.replace("postRender52(scene,camera)", rail));
   const boot = '<script>(function(){var G="blockaction"';
   if (!html.includes(boot)) throw new Error("boot missing");
-  html = html.replace(boot, '<script src="rail.js"><\/script>' + boot);
+  html = html.replace(boot, '<script src="gun-sfx.js"><\/script><script src="rail.js"><\/script>' + boot);
   const doc = new DOMParser().parseFromString(html, "text/html");
   document.replaceChild(document.importNode(doc.documentElement, true), document.documentElement);
   const scripts = [...document.scripts];
