@@ -1,11 +1,14 @@
-/* Virtua Cop-style rail view inside the real 지금 바로 점프 world.
-   The stage, Baro mesh, mob builders, materials, lights, score and SFX
-   all come from BlockAction. This file only drives the camera, the
-   viewmodel pistol, and the arcade HUD. */
+/* 지금 바로 멸공 — standalone Virtua-Cop-style rail shooter.
+   Self-contained on purpose: three.min.js supplies the renderer, engine.js
+   supplies the scene, camera and frame loop, and everything else (plaza,
+   soldiers, props, the four waves and the commander) is built in this file.
+   No other game's HTML, globals, menus or save data are loaded. */
 (function () {
   const T = window.THREE;
   if (!T) return;
-  const armed = !/[?&]rail=0(?:&|$)/.test(location.search);
+  const armed = true;
+  let active = false;
+  let staged = false;
   if (!window.__railErrs) {
     window.__railErrs = [];
     addEventListener("error", (e) => {
@@ -76,22 +79,26 @@
     const st = document.createElement("style");
     st.id = "railCss";
     st.textContent = `
-      html.rail-on #baHud,html.rail-on #baPad,html.rail-on #baPadX,html.rail-on #baBoss,
-      html.rail-on #baMsg,html.rail-on #baDlg,html.rail-on #baCoach,html.rail-on #baSkip,
-      html.rail-on #baLB,html.rail-on #lang7,html.rail-on #gqBtn,html.rail-on #gqToast,
-      html.rail-on #view7Btn,html.rail-on #view7Pop,html.rail-on #baRotate,
-      html.rail-on #baOver{display:none!important}
       #railHud{position:fixed;inset:0;z-index:40;pointer-events:none;image-rendering:pixelated}
       #railHud canvas{width:100%;height:100%;image-rendering:pixelated}
       #railX{position:fixed;left:50%;top:46%;width:46px;height:46px;transform:translate(-50%,-50%);z-index:41;pointer-events:none}
       #railReload{position:fixed;right:max(12px,env(safe-area-inset-right));bottom:max(12px,env(safe-area-inset-bottom));z-index:42;min-width:72px;min-height:64px;border-radius:16px;border:3px solid #111;background:#1a2430;color:#fff;font:900 16px sans-serif;pointer-events:auto}
       #railResult{position:fixed;inset:0;z-index:50;display:none;align-items:center;justify-content:center;background:rgba(4,8,16,.72);color:#fff;font-family:Pretendard,system-ui,sans-serif;text-align:center;padding:24px}
       #railResult.show{display:flex}
-      #railResult .card{width:min(440px,100%);background:#121820;border:3px solid #f4e7b0;border-radius:18px;padding:22px}
-      #railResult h2{margin:0 0 8px;font-size:28px}
-      #railResult p{margin:6px 0;font-size:16px}
+      #railResult .card{width:min(460px,100%);background:#121a16;border:3px solid #d8c98a;border-radius:18px;padding:22px;box-shadow:0 18px 60px rgba(0,0,0,.55)}
+      #railResult h2{margin:0 0 8px;font-size:28px;letter-spacing:.02em}
+      #railResult p{margin:6px 0;font-size:16px;color:#dfe6d4}
       #railResult .stars{font-size:32px;letter-spacing:6px;color:#ffd54a}
-      .railAim{position:fixed;z-index:39;pointer-events:none;transform:translate(-50%,-120%);font:900 18px ui-monospace,monospace;color:#ffe14a;text-shadow:0 2px 0 #000}
+      #railResult .btns{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap}
+      #railResult .btns button{flex:1 1 130px;min-height:52px;border-radius:12px;border:2px solid #6d7a52;background:#222b1c;color:#eef1e6;font:900 16px/1 Pretendard,system-ui,sans-serif;letter-spacing:.02em;cursor:pointer;touch-action:manipulation}
+      #railResult .btns button.primary{background:#3d4a22;border-color:#d8c98a;color:#fff}
+      #railResult .btns button:active{transform:translateY(1px)}
+      .railThreat{position:fixed;z-index:39;pointer-events:none;transform:translate(-50%,-50%);width:20px;height:20px;border-radius:50%;border:2px solid #ff6a3c;background:rgba(92,12,4,.85);box-shadow:0 0 9px rgba(255,90,50,.55);color:#fff;font:900 13px/16px ui-monospace,monospace;text-align:center;opacity:.95}
+      .railThreat.urgent{border-color:#ff2a1a;background:rgba(150,10,0,.8);color:#fff;box-shadow:0 0 16px rgba(255,40,20,.95);animation:railPulse .42s steps(2,end) infinite}
+      @keyframes railPulse{0%{transform:translate(-50%,-50%) scale(1)}50%{transform:translate(-50%,-50%) scale(1.22)}100%{transform:translate(-50%,-50%) scale(1)}}
+      .mgPop{position:fixed;z-index:42;pointer-events:none;transform:translate(-50%,-50%);font:900 20px/1 ui-monospace,monospace;color:#ffe14a;text-shadow:0 2px 0 #201a00,0 0 8px rgba(255,225,74,.5);animation:mgPopUp .8s ease-out forwards}
+      .mgPop.bad{color:#ff7a66;text-shadow:0 2px 0 #2a0000,0 0 8px rgba(255,60,40,.5)}
+      @keyframes mgPopUp{0%{opacity:0;transform:translate(-50%,-50%) scale(.7)}18%{opacity:1;transform:translate(-50%,-58%) scale(1.06)}100%{opacity:0;transform:translate(-50%,-118%) scale(1)}}
       #railMark{position:fixed;z-index:43;width:18px;height:18px;margin:-9px 0 0 -9px;pointer-events:none;border:3px solid #ff3b3b;transform:rotate(45deg)}
       #railX i{position:absolute;background:#ff2a2a;box-shadow:0 0 0 2px #1a0505}
       #railX i:nth-child(1){left:20px;top:0;width:6px;height:12px}
@@ -200,7 +207,10 @@
     g.clearRect(0, 0, w, h);
     const m = Math.max(12, Math.round(w * 0.03));
     const sc = Math.max(1.15, Math.min(2.1, w / 545));
-    const score = String(hud._score || 0).padStart(7, "0");
+    let scv = Math.round(hud._score || 0);
+    const neg = scv < 0;
+    if (neg) scv = -scv;
+    const score = (neg ? "-" : "") + String(scv).padStart(neg ? 6 : 7, "0");
     blit(g, "SCORE", m, m, sc, "#3ec0ff", "#062033");
     blit(g, score, m, m + 8 * sc + 4, sc, "#f4fbff", "#062033");
     const time = String(Math.max(0, Math.ceil(clock))).padStart(2, "0");
@@ -1075,7 +1085,11 @@
   let dress = null;
   function dressBattlefield(ctx) {
     makeSol();
-    const S = ctx.scene;
+    // everything the plaza needs lives under one group so a restart can
+    // take the whole battlefield down in a single step
+    const S = new T.Group();
+    S.name = "battlefield";
+    ctx.scene.add(S);
     const L = ctx.L || {};
     const W = L.W || 200;
     const x0 = -18;
@@ -1089,9 +1103,9 @@
     sky.geometry.dispose();
     sky.geometry = new T.SphereGeometry(52, 24, 16);
     S.add(sky);
-    S.background = new T.Color(0x8ec7ee).convertSRGBToLinear();
-    S.fog = new T.Fog(0xbcd9ee, 95, 260);
-    if (S.fog.color && S.fog.color.convertSRGBToLinear) S.fog.color.convertSRGBToLinear();
+    ctx.scene.background = new T.Color(0x8ec7ee).convertSRGBToLinear();
+    ctx.scene.fog = new T.Fog(0xbcd9ee, 95, 260);
+    if (ctx.scene.fog.color && ctx.scene.fog.color.convertSRGBToLinear) ctx.scene.fog.color.convertSRGBToLinear();
     if (ctx.LT) {
       const LT = ctx.LT;
       if (LT.hemi) { LT.hemi.intensity = 0.52; LT.hemi.color.setHex(0xdcefff); LT.hemi.groundColor && LT.hemi.groundColor.setHex(0x7d7154); }
@@ -1101,12 +1115,6 @@
       if (LT.rim) { LT.rim.intensity = 0.34; LT.rim.color && LT.rim.color.setHex(0xffc79a); }
     }
     if (ctx.renderer) ctx.renderer.toneMappingExposure = 0.96;
-    // the jump engine ships a night sky sphere inside our daylight dome
-    const oldSky = [];
-    S.traverse((o) => {
-      if (o.isMesh && o.geometry && o.geometry.type === "SphereGeometry" && o.geometry.parameters && o.geometry.parameters.radius < 100) oldSky.push(o);
-    });
-    oldSky.forEach((o) => { o.visible = false; });
 
     // wide paved plaza the squad fights across
     const stex = MT.street.clone();
@@ -1361,18 +1369,24 @@
     ally.position.set(8, 0.3, 1.25);
     S.add(ally);
 
-    dress = { sky, flags, clouds, barrels, ally, street, wall, mid, len, x0, x1 };
+    dress = { root: S, sky, flags, clouds, barrels, ally, street, wall, mid, len, x0, x1 };
     return dress;
   }
 
-  function roleOf(kind) {
-    if (kind === "moosh" || kind === "snowgolem" || kind === "axolotl") return "hostage";
-    if (kind === "pillager" || kind === "skeleton" || kind === "creeper") return "throw";
-    if (kind === "guard" || kind === "irongolem" || kind === "charger" || kind === "boss") return "tough";
-    return "weak";
-  }
+  /* --- stage plan: four squads (3–4 soldiers, some with a civilian
+     hostage beside them) and then the commander ------------------------- */
+  const ROLE = { weak: 1, throw: 1, tough: 1, hostage: 1, boss: 1 };
+  function roleOf(kind) { return ROLE[kind] ? kind : "weak"; }
   function roleHp(role) { return role === "tough" ? 3 : role === "throw" ? 2 : role === "boss" ? 8 : 1; }
   function roleAim(role) { return role === "weak" ? 1.45 : role === "throw" ? 2.1 : role === "tough" ? 2.5 : role === "boss" ? 2.2 : 99; }
+
+  const WAVES = [
+    { x: 18, members: ["weak", "weak", "tough", "hostage"] },
+    { x: 34, members: ["weak", "throw", "weak", "hostage"] },
+    { x: 50, members: ["tough", "weak", "throw", "weak"] },
+    { x: 66, members: ["throw", "tough", "weak", "tough"] }
+  ];
+  const BOSS_X = 80;
 
   function makePistol(camera) {
     makeSol();
@@ -1474,22 +1488,118 @@
     return { g, flash: f, halo, light: flashLight };
   }
 
-  function roleTag(el, text) {
+  function roleTag(el) {
     const d = document.createElement("div");
-    d.className = "railAim";
-    d.textContent = text;
+    d.className = "railThreat";
+    d.textContent = "!";
     document.body.appendChild(d);
     el._tag = d;
     return d;
   }
 
+  /* ---- stage construction ------------------------------------------- */
+
+  function buildWaves() {
+    waves.length = 0;
+    WAVES.forEach((cfg) => {
+      const members = cfg.members.map((kind) => ({ kind, x: cfg.x, mesh: new T.Object3D(), alive: true, hp: 1 }));
+      waves.push({ x: cfg.x, members });
+    });
+  }
+
+  function buildBoss(ctx) {
+    let dummy = null;
+    try { dummy = ctx.makeBoss && ctx.makeBoss(); } catch (e) {}
+    if (!dummy) dummy = new T.Object3D();
+    dummy.visible = false;
+    ctx.scene.add(dummy);
+    const fb = makeSoldier("boss");
+    fb.visible = false;
+    ctx.scene.add(fb);
+    bossPost = {
+      e: { kind: "boss", mesh: dummy, alive: true, hp: roleHp("boss"), h: 2.4, hw: 0.8, active: false, _tag: null },
+      mesh: fb, x: BOSS_X, z: 2.2, y: 0.3, role: "boss", aim: 0, aimMax: roleAim("boss"), popped: false
+    };
+  }
+
+  function buildPickups(ctx) {
+    const lane = [];
+    waves.forEach((w, i) => {
+      lane.push({ x: w.x + 0.9, y: 1.28, z: 2.72, kind: "ammo" });
+      lane.push({ x: w.x + 5.3, y: 1.3, z: 2.46, kind: i === 1 ? "life" : i === 2 ? "ammo" : "supply" });
+    });
+    lane.forEach((spot) => {
+      let mesh = null;
+      try { mesh = makePickup(spot.kind); } catch (err) { window.__pickupErr = String(err && err.message || err); }
+      if (!mesh) mesh = new T.Mesh(new T.BoxGeometry(0.5, 0.4, 0.4), new T.MeshLambertMaterial({ color: 0x6b7a45 }));
+      mesh.position.set(spot.x, spot.y, spot.z);
+      ctx.scene.add(mesh);
+      pickups.push({ mesh, kind: spot.kind, taken: false });
+    });
+  }
+
+  function disposeGeo(obj) {
+    if (!obj) return;
+    obj.traverse((o) => {
+      if (o.geometry && o.geometry.dispose) { try { o.geometry.dispose(); } catch (e) {} }
+    });
+  }
+
+  function clearStage(ctx) {
+    posts.forEach((p) => {
+      if (p.mesh) { p.mesh.parent && p.mesh.parent.remove(p.mesh); disposeGeo(p.mesh); }
+      if (p.e && p.e._tag) { p.e._tag.remove(); p.e._tag = null; }
+    });
+    posts.length = 0;
+    shots3.forEach((s) => { if (s.mesh && s.mesh.parent) s.mesh.parent.remove(s.mesh); });
+    shots3 = [];
+    pickups.forEach((p) => { if (p.mesh) { p.mesh.parent && p.mesh.parent.remove(p.mesh); disposeGeo(p.mesh); } });
+    pickups = [];
+    if (bossPost) {
+      if (bossPost.mesh) { bossPost.mesh.parent && bossPost.mesh.parent.remove(bossPost.mesh); disposeGeo(bossPost.mesh); }
+      if (bossPost.e && bossPost.e.mesh && bossPost.e.mesh !== bossPost.mesh) {
+        bossPost.e.mesh.parent && bossPost.e.mesh.parent.remove(bossPost.e.mesh);
+        disposeGeo(bossPost.e.mesh);
+      }
+      if (bossPost.e && bossPost.e._tag) { bossPost.e._tag.remove(); bossPost.e._tag = null; }
+      bossPost = null;
+    }
+    sparks.forEach((s) => s.parent && s.parent.remove(s));
+    sparks = [];
+    smokes.forEach((s) => s.parent && s.parent.remove(s));
+    smokes = [];
+    if (dress && dress.root) {
+      dress.root.parent && dress.root.parent.remove(dress.root);
+      disposeGeo(dress.root);
+    }
+    dress = null;
+    wave = null;
+    waveT = 0;
+  }
+
+  function showHud(on) {
+    if (hud) hud.style.display = on ? "" : "none";
+    const xh = document.getElementById("railX");
+    if (xh) xh.style.display = on ? "" : "none";
+    const rb = document.getElementById("railReload");
+    if (rb) rb.style.display = on ? "" : "none";
+  }
+
+  function resetNumbers(ctx) {
+    clock = 90; bullets = 20; hp = 100; lives = 3;
+    combo = 0; bestCombo = 0; shotsFired = 0; shotsHit = 0; hostageHits = 0;
+    lastShot = 0; reloading = false; reloadK = 0; recoil = 0; hitStop = 0; shake = 0;
+    camX = 8; waveI = 0; wave = null; waveT = 0; waveClean = true; ended = false;
+    aimN = { x: 0, y: 0.1 };
+    if (ctx && ctx.G) ctx.G.score = 0;
+    if (hud) hud._score = 0;
+  }
+
   function boot(ctx) {
     booted = true;
-    t0 = performance.now();
-    document.documentElement.classList.add("rail-on");
     css();
-    SCENE = ctx.scene;
-    ctx.scene.add(ctx.camera);
+    document.documentElement.classList.add("rail-on");
+    if (ctx.scene && ctx.camera && !ctx.camera.parent) ctx.scene.add(ctx.camera);
     const rig = makePistol(ctx.camera);
     pistol = rig.g;
     pistolBase = { z: rig.g.position.z, y: rig.g.position.y };
@@ -1502,54 +1612,13 @@
     btn.textContent = "R";
     btn.addEventListener("pointerdown", (e) => { e.preventDefault(); e.stopPropagation(); window.RAIL.reload(); });
     document.body.appendChild(btn);
-    const hostiles = (ctx.enemies || []).filter((e) => e && e.mesh && e.alive !== false && roleOf(e.kind) !== "hostage");
-    const civs = (ctx.enemies || []).filter((e) => e && e.mesh && roleOf(e.kind) === "hostage");
-    hostiles.sort((a, b) => a.x - b.x);
-    const use = hostiles.slice(0, 12);
-    for (let i = 0; i < use.length; i += 3) {
-      const group = use.slice(i, i + 3);
-      const near = civs.filter((c) => Math.abs(c.x - group[0].x) < 8).slice(0, 1);
-      waves.push({ x: group[0].x, members: group.concat(near), t: 0 });
-    }
-    (ctx.enemies || []).forEach((e) => { if (e.mesh) e.mesh.visible = false; });
-    // the stage's floating ? blocks and gold coins do not belong on a battlefield
-    try {
-      (ctx.L.items || []).forEach((it) => { if (it && it.mesh) it.mesh.visible = false; });
-      (ctx.L.coins || []).forEach((c) => { if (c && c.mesh) c.mesh.visible = false; });
-      (ctx.L.firebars || []).forEach((f) => { if (f && f.mesh) f.mesh.visible = false; });
-    } catch (e) {}
-    try {
-      const mesh = ctx.makeBoss ? ctx.makeBoss() : new T.Group();
-      mesh.visible = false;
-      ctx.scene.add(mesh);
-      const fb = makeSoldier("boss");
-      fb.visible = false;
-      ctx.scene.add(fb);
-      bossPost = { e: { kind: "boss", mesh, alive: true, hp: 8, h: 2.4, hw: 0.8, active: false }, mesh: fb, x: (use.length ? use[use.length - 1].x : 20) + 14, z: 2.2, y: 0.3, role: "boss", aim: 0, aimMax: 2.2, popped: false };
-    } catch (err) { window.__bossErr = String(err && err.message || err); }
-    const lane = [];
-    waves.forEach((w, i) => {
-      lane.push({ x: w.x + 0.9, y: 1.28, z: 2.72, kind: "ammo" });
-      lane.push({ x: w.x + 5.3, y: 1.3, z: 2.46, kind: i === 1 ? "life" : i === 2 ? "ammo" : "supply" });
-    });
-    lane.forEach((spot) => {
-      let mesh = null;
-      try { mesh = makePickup(spot.kind); } catch (err) { window.__pickupErr = String(err && err.message || err); }
-      if (!mesh) mesh = new T.Mesh(new T.BoxGeometry(0.5, 0.4, 0.4), new T.MeshLambertMaterial({ color: 0x6b7a45 }));
-      mesh.position.set(spot.x, spot.y, spot.z);
-      if (!mesh.parent) ctx.scene.add(mesh);
-      pickups.push({ mesh, kind: spot.kind, taken: false });
-    });
     if (!window.__railKeys) {
       window.__railKeys = 1;
-      const aimAt = (e) => {
-        if (!e) return;
-        pointerFrom(e);
-      };
+      const aimAt = (e) => { if (e) pointerFrom(e); };
       addEventListener("pointermove", (e) => { if (e.pointerType === "mouse") aimAt(e); });
       const shootAt = (e) => {
-        if (ended) return;
-        if (e.target && e.target.id === "railReload") return;
+        if (!active || ended) return;
+        if (e.target && (e.target.id === "railReload" || e.target.closest && e.target.closest("#railResult,#mgTitle"))) return;
         if (e.button === 2) { window.RAIL.reload(); return; }
         if (e.button != null && e.button !== 0) return;
         aimAt(e);
@@ -1563,19 +1632,54 @@
         if (e.code === "KeyR" || e.key === "r" || e.key === "R") window.RAIL.reload();
       });
     }
-    ctx.camera.near = 0.06;
-    ctx.camera.fov = 58;
-    ctx.camera.far = 320;
-    ctx.camera.updateProjectionMatrix();
     if (ctx.pl) ctx.pl.inv = 99999;
+  }
+
+  /* Build the plaza, the squads, the pickups and the commander from
+     scratch and start the clock. Used for the very first mission and for
+     every 다시 하기 press. */
+  function begin(ctx) {
+    if (!ctx || !ctx.scene || !ctx.camera) return false;
+    if (!booted) boot(ctx);
+    SCENE = ctx.scene;
+    clearStage(ctx);
+    resetNumbers(ctx);
+    buildWaves();
+    buildBoss(ctx);
+    buildPickups(ctx);
     try { dressBattlefield(ctx); } catch (err) { window.__dressErr = String(err && err.stack || err); }
-    // the cheerful field theme is wrong for a firefight: hand the score to
-    // our own procedural combat track
-    try { if (typeof BGM !== "undefined" && BGM.stop) BGM.stop(0.25); } catch (e) {}
-    try { if (window.__BGM572 && window.__BGM572.current) window.__BGM572.update("pause", true); } catch (e) {}
+    const cam = ctx.camera;
+    cam.near = 0.06; cam.fov = 58; cam.far = 320;
+    cam.position.set(camX, 1.7, 4.1);
+    cam.lookAt(camX + 7, 1.35, 1.1);
+    cam.updateProjectionMatrix();
+    phase = "move";
+    active = true;
+    staged = true;
+    t0 = performance.now();
+    frame._t = 0;
+    if (pistol) pistol.visible = true;
+    const box = document.getElementById("railResult");
+    if (box) box.remove();
+    showHud(true);
+    ensureHud(0);
+    drawHud();
     try { window.GunSFX && window.GunSFX.bgm(true, false); } catch (e) {}
     window.__railPhase = phase;
+    return true;
   }
+
+  /* Stop driving the game (title screen) without tearing the stage down. */
+  function pause() {
+    active = false;
+    showHud(false);
+    if (pistol) pistol.visible = false;
+    const box = document.getElementById("railResult");
+    if (box) box.remove();
+    posts.forEach((p) => { if (p.e && p.e._tag) p.e._tag.remove(); });
+    try { window.GunSFX && window.GunSFX.bgm(false); } catch (e) {}
+  }
+
 
   function pointerFrom(e) {
     const x = e.clientX, y = e.clientY;
@@ -1589,9 +1693,9 @@
     p.popped = true;
     if (p.mesh) p.mesh.visible = true;
     p.z0 = 6.2;
-    p.z = p.role === "hostage" ? 1.55 : (p.i % 3 === 0 ? 1.55 : p.i % 3 === 1 ? 2.15 : 1.3);
+    p.z = p.role === "hostage" ? 1.02 : (p.i % 3 === 0 ? 1.55 : p.i % 3 === 1 ? 2.15 : 1.3);
     p.aim = p.aimMax;
-      if (!p.e._tag && p.role !== "hostage") roleTag(p.e, "");
+    if (!p.e._tag && p.role !== "hostage" && p.role !== "boss") roleTag(p.e);
   }
 
   function startWave(w) {
@@ -1602,7 +1706,10 @@
     camX = Math.max(camX, w.x - 6);
     w.members.forEach((e, i) => {
       const role = roleOf(e.kind);
-      const post = { e, x: camX + 5.2 + (i % 3) * 1.7, y: 0.3, z: 2.2, i, role, aimMax: roleAim(role), aim: roleAim(role), popped: false, nextThrow: 0.6, bob: Math.random() * 6 };
+      // civilians stay off to the side of the squad so nobody is standing
+      // in front of a soldier's muzzle by accident
+      const off = role === "hostage" ? 3.6 + (i % 2) * 1.5 : (i % 3) * 1.7;
+      const post = { e, x: camX + 5.2 + off, y: 0.3, z: 2.2, i, role, aimMax: roleAim(role), aim: roleAim(role), popped: false, nextThrow: 0.6, bob: Math.random() * 6 };
       e.hp = roleHp(role);
       e.alive = true;
       let sm = null;
@@ -1662,6 +1769,7 @@
   function finish(ctx, cleared) {
     if (ended) return;
     ended = true;
+    active = false;
     try { window.GunSFX && window.GunSFX.bgm(false); } catch (e) {}
     phase = "result";
     window.__railPhase = "result";
@@ -1671,16 +1779,28 @@
     const s1 = !!cleared;
     const s2 = tot === 0 || got / tot >= 0.6;
     const s3 = lives >= 3;
-    const mask = (s1 ? 1 : 0) | (s2 ? 2 : 0) | (s3 ? 4 : 0);
-    const id = (ctx.L && ctx.L.def && ctx.L.def.id) || "1-1";
-    try { if (cleared && ctx.commitStars66) ctx.commitStars66(id, mask); if (ctx.saveSave) ctx.saveSave(); } catch (e) {}
     const stars = "★".repeat([s1, s2, s3].filter(Boolean).length) + "☆".repeat(3 - [s1, s2, s3].filter(Boolean).length);
     const ko = (document.documentElement.lang || "").startsWith("ko");
     const box = document.createElement("div");
     box.id = "railResult";
     box.className = "show";
-    box.innerHTML = "<div class=card><h2>" + (cleared ? (ko ? "스테이지 클리어" : "STAGE CLEAR") : (ko ? "실패" : "FAILED")) + "</h2><div class=stars>" + stars + "</div><p>" + (ko ? "점수" : "SCORE") + " " + ((ctx.G && ctx.G.score) || 0) + "</p><p>" + (ko ? "명중률" : "ACCURACY") + " " + Math.round(acc * 100) + "%</p><p>" + (ko ? "보급" : "SUPPLY") + " " + got + "/" + tot + "</p><p>COMBO " + bestCombo + "</p></div>";
+    box.innerHTML = "<div class=card><h2>" + (cleared ? (ko ? "작전 성공" : "MISSION CLEAR") : (ko ? "작전 실패" : "MISSION FAILED")) +
+      "</h2><div class=stars>" + stars + "</div><p>" + (ko ? "점수" : "SCORE") + " " + (((ctx.G && ctx.G.score) || 0)) +
+      "</p><p>" + (ko ? "명중률" : "ACCURACY") + " " + Math.round(acc * 100) + "%</p><p>" + (ko ? "보급" : "SUPPLY") + " " + got + "/" + tot +
+      "</p><p>COMBO " + bestCombo + "</p><div class=btns><button class=primary data-act=again>" + (ko ? "다시 하기" : "PLAY AGAIN") +
+      "</button><button data-act=title>" + (ko ? "타이틀" : "TITLE") + "</button></div></div>";
+    box.addEventListener("click", (e) => {
+      const b = e.target && e.target.closest ? e.target.closest("button[data-act]") : null;
+      if (!b) return;
+      e.preventDefault();
+      e.stopPropagation();
+      if (b.getAttribute("data-act") === "again") { try { window.MG && window.MG.playAgain(); } catch (err) {} }
+      else { try { window.MG && window.MG.toTitle(); } catch (err) {} }
+    });
     document.body.appendChild(box);
+    posts.forEach((p) => { if (p.e && p.e._tag) { p.e._tag.remove(); p.e._tag = null; } });
+    if (bossPost && bossPost.e && bossPost.e._tag) { bossPost.e._tag.remove(); bossPost.e._tag = null; }
+    if (ctx.G) { ensureHud(ctx.G.score || 0); drawHud(); }
   }
 
   function burst(scene, x, y, z, big) {
@@ -1695,10 +1815,10 @@
     }
     // dust puff so the hit reads against the stone wall
     for (let i = 0; i < (big ? 4 : 2); i++) {
-      const p = new T.Mesh(new T.SphereGeometry(0.09 + Math.random() * 0.08, 5, 4), new T.MeshBasicMaterial({ color: 0xd8cfbc, transparent: true, opacity: 0.5, depthWrite: false }));
-      p.position.set(x + (Math.random() - 0.5) * 0.2, y + (Math.random() - 0.5) * 0.2, z + 0.1);
-      p.userData.v = new T.Vector3((Math.random() - 0.5) * 0.7, 0.4 + Math.random() * 0.5, 0.3);
-      p.userData.life = 0.45 + Math.random() * 0.3;
+      const p = new T.Mesh(new T.SphereGeometry(0.05 + Math.random() * 0.045, 6, 5), new T.MeshBasicMaterial({ color: 0xd8cfbc, transparent: true, opacity: 0.26, depthWrite: false }));
+      p.position.set(x + (Math.random() - 0.5) * 0.18, y + (Math.random() - 0.5) * 0.18, z + 0.08);
+      p.userData.v = new T.Vector3((Math.random() - 0.5) * 0.7, 0.35 + Math.random() * 0.45, 0.25);
+      p.userData.life = 0.36 + Math.random() * 0.24;
       p.userData.smoke = 1;
       scene.add(p);
       smokes.push(p);
@@ -1926,8 +2046,7 @@
   }
 
   function frame(ctx) {
-    if (!armed || !ctx || !ctx.scene || !ctx.camera || !ctx.L) return;
-    if (!booted) boot(ctx);
+    if (!armed || !active || !ctx || !ctx.scene || !ctx.camera || !ctx.L) return;
     const nowMs = performance.now();
     let dt = Math.min(0.05, (nowMs - (frame._t || nowMs)) / 1000) || 0.016;
     if (hitStop > 0) { hitStop = Math.max(0, hitStop - dt); dt *= 0.16; }
@@ -1954,7 +2073,7 @@
           bossPost.mesh.position.set(bossPost.x, bossPost.y, bossPost.z);
         }
         bossPost.aim = bossPost.aimMax;
-        if (!bossPost.e._tag) roleTag(bossPost.e, "");
+        if (!bossPost.e._tag) roleTag(bossPost.e);
         window.__railPhase = "boss";
       }
     }
@@ -1989,12 +2108,15 @@
         if (p.role === "hostage") return;
         p.aim -= dt;
         if (p.e._tag) {
-          const v = new T.Vector3(p.x, p.y + (p.e.h || 1.4), p.z);
+          const v = new T.Vector3(p.x, p.y + (p.e.h || 1.4) + 0.92, p.z);
           v.project(ctx.camera);
           p.e._tag.style.left = ((v.x * 0.5 + 0.5) * innerWidth) + "px";
           p.e._tag.style.top = ((-v.y * 0.5 + 0.5) * innerHeight) + "px";
-          p.e._tag.textContent = Math.max(0, p.aim).toFixed(1);
-          p.e._tag.style.color = p.aim < 0.6 ? "#ff5a4a" : "#ffe14a";
+          const urgent = p.aim < Math.min(0.8, (p.aimMax || 2) * 0.42);
+          if (urgent !== p.e._tagUrgent) {
+            p.e._tagUrgent = urgent;
+            p.e._tag.classList.toggle("urgent", urgent);
+          }
         }
         if (p.role === "throw") {
           p.nextThrow -= dt;
@@ -2081,7 +2203,8 @@
       const s = smokes[i];
       s.userData.life -= dt;
       s.position.add(s.userData.v);
-      s.material.opacity = Math.max(0, s.userData.life);
+      if (s.userData.smoke && s.scale) s.scale.multiplyScalar(1 + dt * 0.85);
+      s.material.opacity = Math.max(0, Math.min(0.6, s.userData.life * 0.7));
       if (s.userData.life <= 0) { s.parent && s.parent.remove(s); smokes.splice(i, 1); }
     }
     for (let i = sparks.length - 1; i >= 0; i--) {
@@ -2091,33 +2214,9 @@
       s.userData.v.y -= 6 * dt;
       if (s.userData.life <= 0) { ctx.scene.remove(s); sparks.splice(i, 1); }
     }
-    ["baHud","baPad","baPadX","baDlg","baBoss","baCoach","baMsg","baSkip","baLB"].forEach((id) => {
-      const el = document.getElementById(id);
-      if (el) el.style.setProperty("display", "none", "important");
-    });
-    if (nowMs - (frame._stripT || 0) > 900) {
-      frame._stripT = nowMs;
-      // the stage keeps respawning its floating coins and ? blocks; keep the
-      // battlefield clear of them (they are only props in this mode)
-      try {
-        (ctx.L.coins || []).forEach((c) => { if (c && c.mesh) c.mesh.visible = false; });
-        (ctx.L.items || []).forEach((it) => { if (it && it.mesh) it.mesh.visible = false; });
-        if (ctx.W3 && ctx.W3.group) {
-          ctx.W3.group.children.forEach((o) => {
-            if (!o.isMesh) return;
-            if (o.position.y > 4.6 && Math.abs(o.position.z) < 2.6) o.visible = false;
-          });
-        }
-      } catch (e) {}
-    }
     if (nowMs - (frame._bgmT || 0) > 1600) {
       frame._bgmT = nowMs;
-      try { if (typeof BGM !== "undefined" && BGM.on && BGM.stop) BGM.stop(0.2); } catch (e) {}
-      try {
-        const SB = window.__BGM572;
-        if (SB && SB.current) SB.update("pause", true);
-      } catch (e) {}
-      try { if (!ended && window.GunSFX && window.GunSFX.bgm) window.GunSFX.bgm(true, phase === "boss"); } catch (e) {}
+      try { if (active && !ended && window.GunSFX && window.GunSFX.bgm) window.GunSFX.bgm(true, phase === "boss"); } catch (e) {}
     }
     if (combo > 0 && performance.now() / 1000 - (window.__comboAt || 0) > 2.2) combo = 0;
     ensureHud((ctx.G && ctx.G.score) || 0);
@@ -2126,10 +2225,10 @@
     window.__railDbg = { phase, posts: posts.length, waveI, waves: waves.length, boss: !!bossPost, bullets, shotsFired, shotsHit, hp, lives, pickups: pickups.length, got: pickups.filter((p) => p.taken).length };
     ctx.camera.updateMatrixWorld(true);
     const spot = posts.find((p) => p.popped && p.e.alive !== false && p.role !== "hostage") || (bossPost && bossPost.popped && bossPost.e.alive !== false ? bossPost : null);
-    if (spot && spot.e.mesh) {
+    if (spot && spot.mesh) {
       const v = new T.Vector3();
-      spot.e.mesh.updateWorldMatrix(true, true);
-      spot.e.mesh.getWorldPosition(v);
+      spot.mesh.updateWorldMatrix(true, true);
+      spot.mesh.getWorldPosition(v);
       v.y += 0.9;
       v.project(ctx.camera);
       window.__aimSpot = { x: (v.x * 0.5 + 0.5) * innerWidth, y: (-v.y * 0.5 + 0.5) * innerHeight };
@@ -2152,7 +2251,10 @@
   }
 
   window.RAIL = {
-    hold: armed,
+    get active() { return active; },
+    get staged() { return staged; },
+    begin,
+    pause,
     frame,
     fire: () => {
       try {
@@ -2163,7 +2265,7 @@
       } catch (err) { window.__fireErr = String(err && err.stack || err); }
     },
     reload: () => {
-      if (!booted || reloading || bullets >= 20 || ended) return;
+      if (!booted || !active || reloading || bullets >= 20 || ended) return;
       reloading = true;
       reloadK = 1;
       gun("reload");

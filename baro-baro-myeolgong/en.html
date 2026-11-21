@@ -2,46 +2,79 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#10140e">
+<meta name="description" content="Destroy Now — a block-world military rail shooter. Stage 1-1 firefight, 4 waves, boss.">
 <title>Destroy Now</title>
+<style>
+  :root{--khaki:#c9b871;--olive:#2f3a22}
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:#0d1109;overflow:hidden;color:#eef1e6;
+    font-family:Inter,"Helvetica Neue",system-ui,-apple-system,"Segoe UI",sans-serif;
+    -webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent}
+  #mgCanvas{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none;background:#8ec7ee}
+  /* ---- title ---- */
+  #mgTitle{position:fixed;inset:0;z-index:60;display:none;align-items:center;justify-content:center;
+    padding:max(26px,env(safe-area-inset-top)) 22px max(26px,env(safe-area-inset-bottom));
+    overflow:auto;text-align:center;
+    background:
+      radial-gradient(120% 88% at 50% 0%,rgba(64,80,42,.62),rgba(8,11,6,.95) 62%),
+      repeating-linear-gradient(135deg,rgba(255,255,255,.03) 0 2px,transparent 2px 9px),
+      #0b0f08}
+  #mgTitle.show{display:flex}
+  #mgTitle:before{content:"";position:absolute;inset:0;pointer-events:none;
+    background:radial-gradient(70% 55% at 50% 46%,rgba(201,184,113,.13),transparent 70%)}
+  .tWrap{position:relative;width:min(520px,100%);margin:auto}
+  .tKicker{margin:0 0 16px;font:800 12px/1 ui-monospace,SFMono-Regular,Menlo,monospace;
+    letter-spacing:.34em;color:var(--khaki);text-transform:uppercase}
+  .tKicker:before,.tKicker:after{content:"";display:inline-block;width:26px;height:1px;
+    background:var(--khaki);vertical-align:middle;opacity:.75;margin:0 10px}
+  h1{margin:0;font-size:clamp(38px,10.5vw,64px);font-weight:900;letter-spacing:-.035em;line-height:1;
+    text-transform:uppercase;
+    text-shadow:0 4px 0 rgba(0,0,0,.5),0 0 44px rgba(201,184,113,.28)}
+  h1 em{font-style:normal;color:var(--khaki)}
+  .tSub{margin:16px 0 28px;font-size:clamp(13px,3.6vw,15px);color:#b9c2ab}
+  .tStart{display:block;width:100%;min-height:66px;border:2px solid var(--khaki);border-radius:14px;
+    background:linear-gradient(180deg,#4c5c2d,#2b3520);color:#fff;
+    font:900 clamp(17px,4.4vw,20px)/1.15 inherit;letter-spacing:.03em;cursor:pointer;
+    box-shadow:0 12px 28px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.16);
+    touch-action:manipulation}
+  .tStart span{display:block;margin-top:5px;font:700 11px/1 ui-monospace,monospace;letter-spacing:.22em;color:#d6cfa4}
+  .tStart:active{transform:translateY(1px);filter:brightness(1.07)}
+  .tHint{margin:18px 0 0;font-size:13px;color:#98a28c}
+  .tHint b{color:#e6e2cf;font-weight:800}
+  .tSound{display:inline-flex;align-items:center;gap:8px;margin-top:18px;border:1px solid rgba(201,184,113,.45);background:rgba(255,255,255,.05);
+    color:#d9ddcd;border-radius:999px;padding:10px 18px;font:700 13px/1 inherit;cursor:pointer;touch-action:manipulation}
+  .tSound svg{flex:none}
+  .tSound.off .w1,.tSound.off .w2{opacity:.12}
+  .tSound.off{color:#8d9583}
+  .tFoot{margin:26px 0 0;font:700 10px/1.5 ui-monospace,monospace;letter-spacing:.2em;color:#5d6752}
+  #mgErr{position:fixed;left:16px;right:16px;bottom:max(16px,env(safe-area-inset-bottom));z-index:70;
+    padding:14px 16px;border-radius:12px;background:#3a1b16;color:#ffd9cf;font-size:14px;line-height:1.5}
+  @media (max-height:560px){h1{font-size:clamp(28px,7.5vw,42px)}.tSub{margin:10px 0 18px}.tFoot{display:none}}
+</style>
 </head>
 <body>
-<p id="mgLoad" style="font:16px sans-serif;padding:24px">Loading the Jump Right Now engine…</p>
-<script>
-(async function () {
-  const v = Date.now();
-  const ORIG = "../baro-baro-jump/en.html?v=" + v;
-  let html = await (await fetch(ORIG, { cache: "no-store" })).text();
-  html = html.replaceAll("url(./fonts/", "url(../baro-baro-jump/fonts/");
-  html = html.replaceAll('src="icons/', 'src="../baro-baro-jump/icons/');
-  html = html.replaceAll('href="icons/', 'href="../baro-baro-jump/icons/');
-  html = html.replaceAll("Jump Right Now", "Destroy Now");
-  html = html.replaceAll("Block-world jump action plus a first-person side story — pick a mode", "A block-world military rail shooter — Baro picks up a gun");
-  html = html.replaceAll("Side-scrolling jump action in a block world · Story mode<br>Worlds 1–5 · Side story: Nightmare Land · 25 stages · boss fights", "Virtua-Cop-style rail shooter in a block world · first-person gun<br>Stage 1-1 rail firefight · 4 waves · red-star barrels · boss fight");
-  const step = "function stepPlayer(inp){const p=pl;";
-  const cam = 'placeCamera(false);bossCam53();space54(dt);crayon58(dt);fx59(dt);bk59(dt);bossBar59();updLights();updateHUD();hud53();updBossBar();speedFx5(state==="play"&&RUN5.sprinting());postRender52(scene,camera)';
-  const rail = 'try{window.__railCtx={scene:scene,camera:camera,renderer:renderer,enemies:enemies,pl:pl,player:player,L:L,W3:W3,G:G,LT:LT,M:M,BOSSK:BOSSK,snd:snd,makeHero:makeHero,makeFoe:makeFoe,makePillager:makePillager,makeBoss:makeBoss,makeCoin:makeCoin,makeMushroom:makeMushroom,makeArrow:makeArrow,killFlip:killFlip,hitFlash:hitFlash,hitBoss:hitBoss,addScore:addScore,commitStars66:commitStars66,saveSave:saveSave,setState:function(v){state=v}};}catch(e){}try{window.RAIL&&RAIL.frame(window.__railCtx)}catch(e){}postRender52(scene,camera)';
-  if (!html.includes(step) || !html.includes(cam)) throw new Error("engine hook missing");
-  html = html.replace(step, "function stepPlayer(inp){if(window.RAIL&&RAIL.hold)return;const p=pl;");
-  html = html.replace(cam, cam.replace("postRender52(scene,camera)", rail));
-  const boot = '<script>(function(){var G="blockaction"';
-  if (!html.includes(boot)) throw new Error("boot missing");
-  html = html.replace(boot, '<script src="gun-sfx.js?v=' + v + '"><\/script><script src="rail.js?v=' + v + '"><\/script>' + boot);
-  const doc = new DOMParser().parseFromString(html, "text/html");
-  document.replaceChild(document.importNode(doc.documentElement, true), document.documentElement);
-  const scripts = [...document.scripts];
-  for (const old of scripts) {
-    const s = document.createElement("script");
-    for (const attr of old.attributes) s.setAttribute(attr.name, attr.value);
-    if (!old.src) s.textContent = old.textContent;
-    s.async = false;
-    old.replaceWith(s);
-    if (s.src) await new Promise((done) => { s.onload = s.onerror = done; });
-  }
-})().catch((e) => {
-  const p = document.getElementById("mgLoad");
-  if (p) p.textContent = "Load failed: " + (e && e.message || e);
-});
-</script>
+<canvas id="mgCanvas"></canvas>
+
+<div id="mgTitle" class="show">
+  <div class="tWrap">
+    <p class="tKicker">STAGE 1-1</p>
+    <h1>Destroy <em>Now</em></h1>
+    <p class="tSub">A block-world military rail shooter — Baro picks up a gun</p>
+    <button id="mgStart" class="tStart" type="button">▶ Start Mission<span>STAGE 1-1</span></button>
+    <p class="tHint">Tap/click to aim &amp; fire · <b>R</b> to reload</p>
+    <button id="mgSound" class="tSound" type="button" aria-pressed="true"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M4 9h3l4-3.6v13.2L7 15H4z" fill="currentColor"/><path class="w1" d="M14.6 8.6a4.6 4.6 0 0 1 0 6.8" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round"/><path class="w2" d="M17.4 6a8.2 8.2 0 0 1 0 12" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round"/></svg><span class="tSoundTxt">Sound on</span></button>
+    <p class="tFoot">4 WAVES · RED-STAR BARRELS · COMMANDER</p>
+  </div>
+</div>
+
+<div id="mgErr" hidden></div>
+<noscript><p style="position:fixed;inset:0;display:grid;place-items:center;margin:0;background:#0b0f08;color:#eef1e6">Turn on JavaScript to start the mission.</p></noscript>
+
+<script src="three.min.js"></script>
+<script src="engine.js"></script>
+<script src="gun-sfx.js"></script>
+<script src="rail.js"></script>
 </body>
 </html>
