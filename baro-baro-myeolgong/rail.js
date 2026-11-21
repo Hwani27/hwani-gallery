@@ -56,6 +56,12 @@
   let SCENE = null;
   let hitStop = 0;
   let flashEl = null;
+  let lookSmooth = new T.Vector3();
+  let curHold = { x: 0, z: 0 };
+  let curLook = { x: 0, y: 1.4, z: 10 };
+  let bossSpawned = false;
+  let allyT = 0;
+  let tracers = [];
 
   /* impact feedback borrowed from the boxing game's feel: a short
      freeze-frame, a screen flash and a knockback flinch. */
@@ -856,7 +862,8 @@
     part(rifle, 0.12, 0.15, 0.08, -0.1, -0.12, 0, SOL.black);
     part(rifle, 0.28, 0.05, 0.05, 0.55, 0.02, 0, SOL.black);
     part(rifle, 0.22, 0.1, 0.07, -0.42, -0.03, 0, SOL.woodDark);
-    rifle.position.set(0.16, 0.72, 0.36);
+    rifle.position.set(0.1, 0.72, 0.46);
+    rifle.rotation.y = -Math.PI / 2;
     b.add(rifle);
     b.rotation.y = 0.22;
     g.userData.armL = armL;
@@ -1083,311 +1090,134 @@
   }
 
   let dress = null;
-  function dressBattlefield(ctx) {
-    makeSol();
-    // everything the plaza needs lives under one group so a restart can
-    // take the whole battlefield down in a single step
-    const S = new T.Group();
-    S.name = "battlefield";
-    ctx.scene.add(S);
-    const L = ctx.L || {};
-    const W = L.W || 200;
-    const x0 = -18;
-    const x1 = Math.min(W + 8, 172);
-    const len = x1 - x0;
-    const mid = (x0 + x1) / 2;
 
-    // bright day sky, haze and sun
-    const sky = makeSkyDome();
-    sky.position.set(mid, 0, 2);
-    sky.geometry.dispose();
-    sky.geometry = new T.SphereGeometry(52, 24, 16);
-    S.add(sky);
-    ctx.scene.background = new T.Color(0x8ec7ee).convertSRGBToLinear();
-    ctx.scene.fog = new T.Fog(0xbcd9ee, 95, 260);
-    if (ctx.scene.fog.color && ctx.scene.fog.color.convertSRGBToLinear) ctx.scene.fog.color.convertSRGBToLinear();
-    if (ctx.LT) {
-      const LT = ctx.LT;
-      if (LT.hemi) { LT.hemi.intensity = 0.52; LT.hemi.color.setHex(0xdcefff); LT.hemi.groundColor && LT.hemi.groundColor.setHex(0x7d7154); }
-      if (LT.amb) { LT.amb.intensity = 0.24; LT.amb.color && LT.amb.color.setHex(0xb9d2e8); }
-      if (LT.key) { LT.key.intensity = 1.05; LT.key.color.setHex(0xfff0c8); }
-      if (LT.moon) { LT.moon.intensity = 0.1; LT.moon.color && LT.moon.color.setHex(0xa8c4e6); }
-      if (LT.rim) { LT.rim.intensity = 0.34; LT.rim.color && LT.rim.color.setHex(0xffc79a); }
-    }
-    if (ctx.renderer) ctx.renderer.toneMappingExposure = 0.96;
 
-    // wide paved plaza the squad fights across
-    const stex = MT.street.clone();
-    stex.needsUpdate = true;
-    stex.repeat.set(len / 3.2, 12);
-    const street = new T.Mesh(new T.PlaneGeometry(len, 21.0), new T.MeshLambertMaterial({ map: stex }));
-    street.rotation.x = -Math.PI / 2;
-    street.position.set(mid, 0.3, 11.4);
-    street.receiveShadow = true;
-    S.add(street);
+  /* ============================================================
+     STAGE — a street plaza, a right turn into a narrow alley, a left
+     turn into the fortress courtyard and the gate beyond it. The camera
+     rides a spline, stops square in front of each combat zone, and the
+     whole course is rebuilt from scratch on 작전 개시 / 다시 하기.
+     ============================================================ */
 
-    // left city wall that the banners hang on
-    const wallH = 4.4;
-    const wtex = MT.stone.clone();
-    wtex.needsUpdate = true;
-    wtex.repeat.set(len / 2.6, 2.4);
-    const wall = new T.Mesh(new T.BoxGeometry(len, wallH, 1.4), new T.MeshLambertMaterial({ map: wtex }));
-    wall.position.set(mid, 0.3 + wallH / 2, 0.38);
-    wall.castShadow = true;
-    wall.receiveShadow = true;
-    S.add(wall);
-    const capMat = new T.MeshLambertMaterial({ map: MT.stone });
-    const capW = 1.0, capH = 0.55, capD = 1.3;
-    const capGeo = new T.BoxGeometry(capW, capH, capD);
-    const caps = new T.InstancedMesh(capGeo, capMat, Math.ceil(len / 1.45) + 2);
-    const mtx = new T.Matrix4();
-    let ci = 0;
-    for (let x = x0; x < x1 + capW; x += 1.45) {
-      mtx.makeTranslation(x, 0.3 + wallH + capH / 2, 0.38);
-      caps.setMatrixAt(ci++, mtx);
-    }
-    caps.count = ci;
-    caps.castShadow = true;
-    caps.receiveShadow = true;
-    S.add(caps);
-    for (let x = x0 + 6; x < x1; x += 11) {
-      const b = bmesh(1.4, wallH + 0.7, 1.6, capMat);
-      b.position.set(x, 0.3 + (wallH + 0.7) / 2, 0.6);
-      S.add(b);
-    }
-
-    // plinth, loopholes and gateways so the wall is not one flat slab
-    const plinth = new T.Mesh(new T.BoxGeometry(len, 0.7, 0.24), capMat);
-    plinth.position.set(mid, 0.65, 1.1);
-    S.add(plinth);
-    const darkHole = new T.MeshLambertMaterial({ color: 0x1a1a1c });
-    darkHole.color.convertSRGBToLinear();
-    for (let x = x0 + 3; x < x1; x += 5.5) {
-      const h = bmesh(0.28, 0.85, 0.16, darkHole);
-      h.position.set(x, 2.3, 1.09);
-      S.add(h);
-    }
-    for (let x = x0 + 18; x < x1; x += 44) {
-      const g1 = bmesh(2.4, 2.9, 0.2, darkHole);
-      g1.position.set(x, 1.85, 1.08);
-      S.add(g1);
-      const arch = bmesh(2.9, 0.3, 0.5, capMat);
-      arch.position.set(x, 3.35, 1.15);
-      S.add(arch);
-    }
-    for (let x = x0 + 10; x < x1; x += 33) {
-      const tw = bmesh(3.0, wallH + 2.2, 2.2, capMat);
-      tw.position.set(x, 0.3 + (wallH + 2.2) / 2, 0.5);
-      S.add(tw);
-      for (let i = -1; i <= 1; i++) {
-        const c = bmesh(0.8, 0.6, 2.3, capMat);
-        c.position.set(x + i * 1.05, 0.3 + wallH + 2.5, 0.5);
-        S.add(c);
-      }
-    }
-
-    // right side of the street: curb, sidewalk and a city row so the view
-    // never drops off into empty sky beside the camera
-    const sideMat = new T.MeshLambertMaterial({ map: MT.stone });
-    const sidewalk = new T.Mesh(new T.BoxGeometry(len, 0.14, 8.0), sideMat);
-    sidewalk.position.set(mid, 0.37, 17.1);
-    sidewalk.receiveShadow = true;
-    S.add(sidewalk);
-    const curb = new T.Mesh(new T.BoxGeometry(len, 0.22, 0.34), capMat);
-    curb.position.set(mid, 0.4, 13.2);
-    curb.receiveShadow = true;
-    S.add(curb);
-
-    // the opposite fortress wall, carrying the other flag
-    const rwall = new T.Mesh(new T.BoxGeometry(len, wallH, 1.4), new T.MeshLambertMaterial({ map: wtex }));
-    rwall.position.set(mid, 0.3 + wallH / 2, 14.0);
-    rwall.receiveShadow = true;
-    S.add(rwall);
-    const rcaps = new T.InstancedMesh(capGeo, capMat, Math.ceil(len / 1.45) + 2);
-    let ri = 0;
-    for (let x = x0; x < x1 + capW; x += 1.45) {
-      mtx.makeTranslation(x, 0.3 + wallH + capH / 2, 14.0);
-      rcaps.setMatrixAt(ri++, mtx);
-    }
-    rcaps.count = ri;
-    rcaps.receiveShadow = true;
-    S.add(rcaps);
-    const rflags = [];
-    let rk = 0;
-    for (let x = 8; x < x1; x += 12.5) {
-      const f = makeFlag(rk++ % 3 ? "kp" : "kr", x, 2.6, 13.28, 2.2, 1.45);
-      S.add(f);
-      rflags.push(f);
-    }
-
-    // city blocks behind the right wall
-    const rightRow = new T.Group();
-    S.add(rightRow);
-    for (let x = x0 + 3; x < x1; x += 12.5) {
-      const h = 5.4 + ((Math.abs(x) * 13) % 7) * 0.9;
-      const bm = ((x | 0) % 3 === 0) ? sideMat : capMat;
-      const b = bmesh(8.6, h, 6.0, bm);
-      b.position.set(x, 0.3 + h / 2, 18.6);
-      rightRow.add(b);
-      for (let i = -1; i <= 1; i++) {
-        const c = bmesh(1.3, 0.7, 6.1, bm);
-        c.position.set(x + i * 2.7, 0.3 + h + 0.35, 18.6);
-        rightRow.add(c);
-      }
-      for (let wy = 0; wy < 2; wy++) {
-        for (let wx = -1; wx <= 1; wx++) {
-          const wd = bmesh(0.52, 0.78, 0.16, darkHole);
-          wd.position.set(x + wx * 2.5, 5.6 + wy * 1.5, 15.57);
-          rightRow.add(wd);
-        }
-      }
-    }
-    for (let x = x0 + 9; x < x1; x += 16) {
-      const tree = new T.Group();
-      part(tree, 0.34, 1.9, 0.34, 0, 0.95, 0, SOL.woodDark);
-      const leaf = new T.Mesh(new T.BoxGeometry(1.7, 1.2, 1.7), SOL.grass);
-      leaf.position.y = 2.3;
-      leaf.castShadow = true;
-      tree.add(leaf);
-      const leaf2 = new T.Mesh(new T.BoxGeometry(1.1, 0.9, 1.1), SOL.grass);
-      leaf2.position.set(0.2, 3.05, -0.15);
-      tree.add(leaf2);
-      const leaf3 = new T.Mesh(new T.BoxGeometry(0.8, 0.5, 0.8), new T.MeshLambertMaterial({ color: 0x8fae56 }));
-      leaf3.position.set(0.1, 3.5, -0.1);
-      tree.add(leaf3);
-      tree.position.set(x, 0.4, 15.6);
-      S.add(tree);
-    }
-    for (let x = x0 + 20; x < x1; x += 38) S.add(makeTower(x, 12.2, 4.6));
-    for (let x = x0 + 7; x < x1; x += 21) {
-      S.add(makeCrate(x, 6.6, 0.72));
-      if (Math.abs(x) % 2 === 0) S.add(makeSandbags(x + 1.2, 7.4, 1.6, 2));
-    }
-    for (let x = 88; x < x1 + 10; x += 6.5) {
-      const h = 4.4 + ((x * 7) % 5) * 1.2;
-      const b2 = bmesh(5.4, h, 3.0, (x | 0) % 2 ? capMat : sideMat);
-      b2.position.set(x, 0.3 + h / 2, 16.4);
-      S.add(b2);
-      for (let wy = 0; wy < 2; wy++) {
-        const w1 = bmesh(0.5, 0.7, 0.12, darkHole);
-        w1.position.set(x - 1.4 + wy * 2.6, 5.2 + wy * 1.2, 14.88);
-        S.add(w1);
-      }
-    }
-
-    // banners on the wall, alternating colours
-    const flags = [];
-    let fk = 0;
-    for (let x = 2; x < x1; x += 12.5) {
-      const f = makeFlag(fk++ % 2 ? "kp" : "kr", x, 2.6, 1.1, 2.2, 1.45);
-      S.add(f);
-      flags.push(f);
-    }
-
-    // watchtowers and the far bridge behind the wall
-    for (let x = 12; x < x1; x += 27) S.add(makeTower(x, -3.4, 6.0));
-    S.add(makeBridge(34, -9.5));
-    S.add(makeBridge(96, -10.5));
-    // far end of the plaza: a city gate that closes the horizon
-    if (waves && waves.length) {
-      const gx = waves[waves.length - 1].x + 32;
-      const gw = bmesh(2.4, 6.0, 21.0, new T.MeshLambertMaterial({ map: wtex }));
-      gw.position.set(gx, 0.3 + 3.0, 11.4);
-      S.add(gw);
-      const arch = bmesh(2.7, 3.6, 3.6, darkHole);
-      arch.position.set(gx - 1.3, 2.1, 9.2);
-      S.add(arch);
-      [4.6, 16.2].forEach((gz) => {
-        const tw = bmesh(4.2, 8.6, 4.2, capMat);
-        tw.position.set(gx - 0.4, 0.3 + 4.3, gz);
-        S.add(tw);
-        for (let i = -1; i <= 1; i++) {
-          const c = bmesh(1.1, 0.7, 4.3, capMat);
-          c.position.set(gx - 0.4, 0.3 + 8.95, gz + i * 1.2);
-          S.add(c);
-        }
-      });
-      for (let i = 0; i < 5; i++) {
-        const c = bmesh(2.5, 0.7, 1.2, capMat);
-        c.position.set(gx, 6.65, 5.6 + i * 2.9);
-        S.add(c);
-      }
-      const gflag = makeFlag("kr", gx - 1.4, 5.2, 6.6, 2.2, 1.45);
-      S.add(gflag);
-      const gflag2 = makeFlag("kp", gx - 1.4, 5.2, 14.6, 2.2, 1.45);
-      S.add(gflag2);
-    }
-    if (waves && waves.length > 2) S.add(makeOverpass(waves[2].x + 2.5));
-    if (waves && waves.length > 3) S.add(makeOverpass(waves[3].x + 4));
-
-    // enemy-side cover, crates and the parked truck
-    const props = new T.Group();
-    S.add(props);
-    const barrels = [];
-    const bx = [];
-    (waves || []).forEach((w, i) => {
-      const px = w.x;
-      props.add(makeSandbags(px + 0.6, 2.72, 2.6, 2));
-      props.add(makeSandbags(px + 4.0, 2.86, 1.4, 2));
-      props.add(makeBarrier(px + 2.4, 2.4));
-      props.add(makeRubble(px - 0.8, 1.35, 5));
-      props.add(makeRubble(px + 6.9, 1.2, 4));
-      // open plaza to the right of the lane
-      props.add(makeSandbags(px + 4.4, 7.9, 3.0, 2));
-      props.add(makeCrate(px + 8.6, 6.4, 0.8));
-      props.add(makeCrate(px + 9.3, 6.6, 0.56, 1.1));
-      props.add(makeRubble(px + 7.4, 9.4, 6));
-      const pb = makeBarrel(px + 9.6, 8.8, 0.3);
-      S.add(pb);
-      barrels.push({ mesh: pb, x: px + 9.6, z: 8.8, y: 0.3, dead: false });
-      props.add(makeCrate(px + 5.2, 2.46, 0.78));
-      props.add(makeCrate(px + 5.75, 2.5, 0.56, 1.08));
-      if (i % 2 === 0) props.add(makeCrate(px + 3.0, 2.62, 0.66));
-      bx.push(px + 2.9, px + 6.5);
-    });
-    props.add(makeTruck(24, 6.1));
-    props.add(makeTruck(86, 5.4));
-    props.add(makeTruck(52, 8.6));
-    bx.push(12.5, 28.5, 46.5, 62.5, 88.5);
-    bx.forEach((x, i) => {
-      const z = i % 2 ? 2.02 : 2.18;
-      const b = makeBarrel(x, z, 0.3);
-      S.add(b);
-      barrels.push({ mesh: b, x, z, y: 0.3, dead: false });
-    });
-
-    // blocky clouds
-    const clouds = [];
-    for (let i = 0; i < 7; i++) {
-      const c = makeCloud(26 + i * 17 + Math.random() * 6, 8.5 + Math.random() * 4, 2.5 + (i % 3) * 3.2 + Math.random() * 2, 2.6 + Math.random() * 1.6);
-      S.add(c);
-      clouds.push(c);
-    }
-
-    // our kneeling rifleman on the near left cover
-    const ally = makeAlly();
-    ally.position.set(8, 0.3, 1.25);
-    S.add(ally);
-
-    dress = { root: S, sky, flags, clouds, barrels, ally, street, wall, mid, len, x0, x1 };
-    return dress;
-  }
-
-  /* --- stage plan: four squads (3–4 soldiers, some with a civilian
-     hostage beside them) and then the commander ------------------------- */
   const ROLE = { weak: 1, throw: 1, tough: 1, hostage: 1, boss: 1 };
   function roleOf(kind) { return ROLE[kind] ? kind : "weak"; }
   function roleHp(role) { return role === "tough" ? 3 : role === "throw" ? 2 : role === "boss" ? 8 : 1; }
-  function roleAim(role) { return role === "weak" ? 1.45 : role === "throw" ? 2.1 : role === "tough" ? 2.5 : role === "boss" ? 2.2 : 99; }
+  function roleAim(role) { return role === "weak" ? 1.95 : role === "throw" ? 2.25 : role === "tough" ? 2.65 : role === "boss" ? 1.85 : 99; }
+  function roleScale(role) { return role === "tough" || role === "boss" ? 1.5 : 1.28; }
 
-  const WAVES = [
-    { x: 18, members: ["weak", "weak", "tough", "hostage"] },
-    { x: 34, members: ["weak", "throw", "weak", "hostage"] },
-    { x: 50, members: ["tough", "weak", "throw", "weak"] },
-    { x: 66, members: ["throw", "tough", "weak", "tough"] }
+  const CLOCK0 = 200;
+  const CAM_Y = 1.68;
+  const GATE_Z = 57.6;
+  const YARD_MID = -39;
+
+  /* camera rail: platform -> corner -> alley -> corner -> courtyard -> gate */
+  const PATH_PTS = [
+    [0, -10], [0, -4], [0, 2], [0, 8], [0, 14], [0, 17.4],
+    [-1.4, 20.4], [-4.8, 23.0], [-10.2, 24.0], [-17, 24.0], [-24, 24.1],
+    [-29.2, 25.3], [-33.4, 27.4], [-37.2, 30.8], [-39, 35.0], [-39, 42], [-39, 47]
   ];
-  const BOSS_X = 80;
 
+  /* wave layout. lat = metres to the side, dep = metres down the zone's
+     own forward axis, elev = platform height for elevated posts. */
+  const WAVE_DEFS = [
+    {
+      id: 1, name: "plaza", hold: [0, 5.6], yaw: 0, look: [0, 1.45, 16.5], time: 26,
+      picks: [[-5.0, 7.2, "ammo"], [5.2, 8.0, "supply"]],
+      members: [
+        { role: "weak", lat: -9.4, dep: 9.8, cover: "sandbag" },
+        { role: "tough", lat: -5.2, dep: 12.2, cover: "barrier" },
+        { role: "weak", lat: -0.6, dep: 10.6, cover: "crate" },
+        { role: "throw", lat: 3.4, dep: 13.4, cover: "crate" },
+        { role: "weak", lat: 8.2, dep: 10.3, elev: 1.05, cover: "truckbed" },
+        { role: "hostage", lat: 5.4, dep: 15.2 }
+      ]
+    },
+    {
+      id: 2, name: "alley", hold: [-13.6, 24.0], yaw: -Math.PI / 2, look: [-22, 1.5, 24.0], time: 26,
+      picks: [[-2.1, 5.6, "ammo"], [2.1, 6.4, "life"]],
+      members: [
+        { role: "weak", lat: -2.55, dep: 5.6, cover: "door" },
+        { role: "weak", lat: 2.55, dep: 8.2, cover: "door" },
+        { role: "throw", lat: -0.6, dep: 11.0, cover: "crates" },
+        { role: "tough", lat: 2.5, dep: 13.0, cover: "door" },
+        { role: "weak", lat: -2.4, dep: 9.4, elev: 3.05, cover: "rail" },
+        { role: "hostage", lat: 1.4, dep: 15.0 }
+      ]
+    },
+    {
+      id: 3, name: "yard", hold: [-38.4, 31.2], yaw: 0, look: [YARD_MID, 1.5, 41.5], time: 28,
+      picks: [[-5.0, 8.0, "ammo"], [5.0, 8.8, "ammo"]],
+      members: [
+        { role: "tough", lat: -7.2, dep: 9.0, cover: "sandbag" },
+        { role: "weak", lat: -3.6, dep: 12.4, cover: "barrier" },
+        { role: "throw", lat: 0.4, dep: 8.4, cover: "bunker" },
+        { role: "weak", lat: 4.2, dep: 12.0, cover: "sandbag" },
+        { role: "tough", lat: 7.0, dep: 9.6, cover: "crate" },
+        { role: "weak", lat: -5.0, dep: 11.5, elev: 1.05, cover: "truckbed" },
+        { role: "hostage", lat: 2.4, dep: 15.0 }
+      ]
+    },
+    {
+      id: 4, name: "gate", hold: [YARD_MID, 45.5], yaw: 0, look: [YARD_MID, 1.6, 55.5], time: 30,
+      picks: [[-4.2, 5.4, "supply"], [4.4, 5.8, "life"]],
+      members: [
+        { role: "tough", lat: -7.4, dep: 4.6, cover: "barrier" },
+        { role: "throw", lat: -3.0, dep: 6.6, cover: "crate" },
+        { role: "weak", lat: 2.6, dep: 4.4, cover: "sandbag" },
+        { role: "tough", lat: 7.0, dep: 6.4, cover: "barrier" }
+      ]
+    }
+  ];
+
+  const BOSS_DEF = {
+    hold: [YARD_MID, 45.5], look: [YARD_MID, 1.7, 55.0],
+    spots: [[-4.2, 10.4], [0, 9.6], [4.2, 10.4]]
+  };
+
+  /* ---------------- rail helpers ---------------- */
+  let curve = null;
+  let pathLen = 1;
+  let pathU = 0;
+  let bossHold = { x: YARD_MID, z: BOSS_DEF.hold[1] };
+  let bossU = 0;
+
+  function buildRail() {
+    if (curve) return;
+    const pts = PATH_PTS.map(([x, z]) => new T.Vector3(x, CAM_Y, z));
+    curve = new T.CatmullRomCurve3(pts, false, "catmullrom", 0.35);
+    pathLen = Math.max(1, curve.getLength());
+  }
+
+  function uNear(x, z) {
+    let bu = 0, bd = 1e9;
+    for (let i = 0; i <= 260; i++) {
+      const u = i / 260;
+      const p = curve.getPointAt(u);
+      const d = (p.x - x) * (p.x - x) + (p.z - z) * (p.z - z);
+      if (d < bd) { bd = d; bu = u; }
+    }
+    return bu;
+  }
+
+  function pathAt(u) { return curve.getPointAt(Math.max(0, Math.min(1, u))); }
+
+  function viewFov() {
+    const asp = innerWidth / Math.max(1, innerHeight);
+    return asp < 0.8 ? 60 : 58;
+  }
+  function halfTan() {
+    const asp = innerWidth / Math.max(1, innerHeight);
+    return Math.tan((viewFov() * Math.PI) / 360) * asp;
+  }
+
+  function waveXY(w, lat, dep) {
+    const s = Math.sin(w.yaw), c = Math.cos(w.yaw);
+    const lim = dep * (w.halfTan || halfTan()) * 0.72;
+    const l = Math.max(-lim, Math.min(lim, lat));
+    return { x: w.hold.x + s * dep + c * l, z: w.hold.z + c * dep - s * l };
+  }
+
+  /* ---------------- first person pistol ---------------- */
   function makePistol(camera) {
     makeSol();
     const g = new T.Group();
@@ -1457,13 +1287,11 @@
     add(0.028, 0.028, 0.02, 0, 0.062, -0.386, bore);
 
     // ---- two hands on the grip ----
-    // right hand
     add(0.13, 0.12, 0.135, 0.012, -0.215, 0.055, skin);
     add(0.128, 0.032, 0.032, 0.008, -0.172, -0.028, skin);
     add(0.128, 0.032, 0.032, 0.008, -0.208, -0.028, skin);
     add(0.128, 0.032, 0.032, 0.008, -0.244, -0.028, skin);
     add(0.034, 0.085, 0.1, -0.062, -0.195, 0.03, skin);
-    // left hand supporting
     add(0.12, 0.1, 0.12, -0.085, -0.25, 0.03, skin);
     add(0.05, 0.05, 0.11, -0.03, -0.262, -0.015, skin);
     add(0.05, 0.05, 0.1, 0.01, -0.268, -0.01, skin);
@@ -1476,14 +1304,18 @@
 
     const f = add(0.085, 0.085, 0.12, 0, 0.062, -0.44, new T.MeshBasicMaterial({ color: 0xfff3b0 }));
     f.visible = false;
-    const halo = add(0.3, 0.3, 0.03, 0, 0.062, -0.41, new T.MeshBasicMaterial({ color: 0xffc14a, transparent: true, opacity: 0.85, depthWrite: false }));
+    const halo = add(0.1, 0.1, 0.02, 0, 0.062, -0.42, new T.MeshBasicMaterial({ color: 0xffc14a, transparent: true, opacity: 0.8, depthWrite: false }));
     halo.visible = false;
     const flashLight = new T.PointLight(0xffc878, 0, 6, 2);
     flashLight.position.set(0, 0.06, -0.42);
     g.add(flashLight);
-    g.position.set(-0.005, -0.2, -0.56);
-    g.rotation.set(-0.44, 0.46, 0.04);
-    g.scale.setScalar(0.56);
+
+    /* the barrel runs down -Z, so a zeroed rig points dead ahead at the
+       reticle. Sitting low-right with a touch of inward yaw/pitch makes
+       the muzzle converge on the centre of the screen. */
+    g.position.set(0.2, -0.235, -0.66);
+    g.rotation.set(0.05, 0.085, 0.012);
+    g.scale.setScalar(0.4);
     camera.add(g);
     return { g, flash: f, halo, light: flashLight };
   }
@@ -1497,44 +1329,481 @@
     return d;
   }
 
-  /* ---- stage construction ------------------------------------------- */
+  /* ---------------- course dressing ---------------- */
+
+  function darkMat(col) {
+    const m = new T.MeshLambertMaterial({ color: col === undefined ? 0x14161a : col });
+    m.color.convertSRGBToLinear();
+    return m;
+  }
+
+  function blockAt(S, x0, x1, z0, z1, h, mat, y0) {
+    const w = Math.abs(x1 - x0), d = Math.abs(z1 - z0);
+    const m = new T.Mesh(new T.BoxGeometry(w, h, d), mat);
+    m.position.set((x0 + x1) / 2, (y0 === undefined ? 0.3 : y0) + h / 2, (z0 + z1) / 2);
+    m.castShadow = true;
+    m.receiveShadow = true;
+    S.add(m);
+    return m;
+  }
+
+  function winRun(S, axis, fixed, a0, a1, y0, top, seed) {
+    const mat = darkMat(0x14161a);
+    const R = rng(seed || 5);
+    for (let a = a0 + 1.5; a <= a1 - 1.2; a += 2.9) {
+      for (let yy = y0; yy <= top; yy += 2.6) {
+        if (R() < 0.16) continue;
+        const wm = new T.Mesh(
+          new T.BoxGeometry(axis === "x" ? 0.18 : 1.2, 1.1, axis === "x" ? 1.2 : 0.18),
+          mat
+        );
+        if (axis === "x") wm.position.set(fixed, yy, a);
+        else wm.position.set(a, yy, fixed);
+        S.add(wm);
+      }
+    }
+  }
+
+  function roofCap(S, x0, x1, z0, z1, h) {
+    const w = Math.abs(x1 - x0) + 0.5, d = Math.abs(z1 - z0) + 0.5;
+    const m = new T.Mesh(new T.BoxGeometry(w, 0.42, d), SOL.stoneDark);
+    m.position.set((x0 + x1) / 2, 0.3 + h + 0.21, (z0 + z1) / 2);
+    m.castShadow = true;
+    S.add(m);
+    const r = rng((x0 * 13 + z0 * 7) | 0);
+    for (let i = 0; i < 3; i++) {
+      const b = new T.Mesh(new T.BoxGeometry(1.0 + r() * 1.4, 0.7 + r() * 0.8, 0.9 + r()), SOL.concrete);
+      b.position.set(x0 + 2 + r() * Math.max(1, w - 4), 0.3 + h + 0.7, z0 + 2 + r() * Math.max(1, d - 4));
+      b.castShadow = true;
+      S.add(b);
+    }
+  }
+
+  function doorway(S, x, z, rot, w, h) {
+    const g = new T.Group();
+    const rec = new T.Mesh(new T.BoxGeometry(w, h, 0.24), darkMat(0x0d1013));
+    rec.position.y = h / 2;
+    g.add(rec);
+    const frame = new T.Mesh(new T.BoxGeometry(w + 0.34, 0.2, 0.34), SOL.stoneDark);
+    frame.position.y = h + 0.06;
+    g.add(frame);
+    const step = new T.Mesh(new T.BoxGeometry(w + 0.5, 0.16, 0.55), SOL.concrete);
+    step.position.set(0, 0.06, 0.2);
+    g.add(step);
+    g.position.set(x, 0.3, z);
+    g.rotation.y = rot || 0;
+    S.add(g);
+    return g;
+  }
+
+  function balcony(S, x0, x1, zEdge, zWall, y) {
+    const g = new T.Group();
+    const d = Math.abs(zWall - zEdge);
+    const floor = new T.Mesh(new T.BoxGeometry(Math.abs(x1 - x0), 0.22, d), SOL.concrete);
+    floor.position.set((x0 + x1) / 2, y, (zEdge + zWall) / 2);
+    floor.castShadow = true;
+    floor.receiveShadow = true;
+    S.add(floor);
+    // parapet facing the alley
+    const par = new T.Mesh(new T.BoxGeometry(Math.abs(x1 - x0), 0.95, 0.26), SOL.stone);
+    par.position.set((x0 + x1) / 2, y + 0.475, zEdge);
+    par.castShadow = true;
+    S.add(par);
+    for (let x = x0 + 0.8; x < x1; x += 2.2) {
+      const b = new T.Mesh(new T.BoxGeometry(0.3, 0.4, 0.34), SOL.stoneDark);
+      b.position.set(x, y - 0.25, zEdge + 0.02);
+      S.add(b);
+    }
+    return g;
+  }
+
+  function makeGate(S) {
+    const g = new T.Group();
+    const stoneMat = new T.MeshLambertMaterial({ map: cloneMat(SOL.stone, 6, 3).map });
+    const OPEN = 5.2, HALF = OPEN / 2;
+    // two piers and a lintel, so the arch is a real opening you can see through
+    [[-8.8, -HALF], [HALF, 8.8]].forEach(([a, b]) => {
+      const w = b - a;
+      const pier = new T.Mesh(new T.BoxGeometry(w, 9.2, 1.8), stoneMat);
+      pier.position.set(YARD_MID + (a + b) / 2, 0.3 + 4.6, GATE_Z);
+      pier.castShadow = true;
+      pier.receiveShadow = true;
+      g.add(pier);
+    });
+    const top = new T.Mesh(new T.BoxGeometry(OPEN, 3.8, 1.8), stoneMat);
+    top.position.set(YARD_MID, 0.3 + 5.4 + 1.9, GATE_Z);
+    g.add(top);
+    // dark tunnel behind the opening
+    const tunnel = new T.Mesh(new T.BoxGeometry(OPEN - 0.3, 5.4, 4.0), darkMat(0x0e1012));
+    tunnel.position.set(YARD_MID, 0.3 + 2.7, GATE_Z + 2.1);
+    g.add(tunnel);
+    const lintel = new T.Mesh(new T.BoxGeometry(OPEN + 1.0, 0.5, 2.1), SOL.stoneDark);
+    lintel.position.set(YARD_MID, 0.3 + 5.65, GATE_Z - 0.1);
+    g.add(lintel);
+    // crenellations along the top
+    for (let i = -8; i <= 8; i++) {
+      const c = new T.Mesh(new T.BoxGeometry(0.8, 0.8, 2.0), SOL.stoneDark);
+      c.position.set(YARD_MID + i * 1.15, 0.3 + 9.6, GATE_Z);
+      g.add(c);
+    }
+    // corner towers
+    [-8.6, 8.6].forEach((dx) => {
+      const t = new T.Mesh(new T.BoxGeometry(3.2, 11.4, 3.4), stoneMat);
+      t.position.set(YARD_MID + dx, 0.3 + 5.7, GATE_Z - 0.2);
+      t.castShadow = true;
+      g.add(t);
+      for (let i = -1; i <= 1; i++) {
+        const c = new T.Mesh(new T.BoxGeometry(0.9, 0.7, 3.5), SOL.stoneDark);
+        c.position.set(YARD_MID + dx + i * 1.05, 0.3 + 11.6, GATE_Z - 0.2);
+        g.add(c);
+      }
+    });
+    const bigStar = new T.Mesh(new T.PlaneGeometry(3.0, 3.0), SOL.star);
+    bigStar.position.set(YARD_MID, 0.3 + 7.6, GATE_Z - 0.95);
+    g.add(bigStar);
+    S.add(g);
+    const f1 = makeFlag("kp", YARD_MID - 5.4, 6.6, GATE_Z - 1.2, 2.2, 1.5);
+    S.add(f1);
+    const f2 = makeFlag("kr", YARD_MID + 3.6, 8.7, GATE_Z - 1.2, 2.2, 1.5);
+    S.add(f2);
+    return [f1, f2];
+  }
+
+  function dressBattlefield(ctx) {
+    makeSol();
+    const S = new T.Group();
+    S.name = "battlefield";
+    ctx.scene.add(S);
+
+    // bright day sky, haze and sun
+    const sky = makeSkyDome();
+    sky.geometry.dispose();
+    sky.geometry = new T.SphereGeometry(150, 24, 16);
+    sky.position.set(0, 0, 10);
+    S.add(sky);
+    ctx.scene.background = new T.Color(0x8ec7ee).convertSRGBToLinear();
+    ctx.scene.fog = new T.Fog(0xbcd9ee, 95, 235);
+    if (ctx.scene.fog.color && ctx.scene.fog.color.convertSRGBToLinear) ctx.scene.fog.color.convertSRGBToLinear();
+    if (ctx.LT) {
+      const LT = ctx.LT;
+      if (LT.hemi) { LT.hemi.intensity = 0.52; LT.hemi.color.setHex(0xdcefff); LT.hemi.groundColor && LT.hemi.groundColor.setHex(0x7d7154); }
+      if (LT.amb) { LT.amb.intensity = 0.24; LT.amb.color && LT.amb.color.setHex(0xb9d2e8); }
+      if (LT.key) { LT.key.intensity = 1.05; LT.key.color.setHex(0xfff0c8); }
+      if (LT.moon) { LT.moon.intensity = 0.1; LT.moon.color && LT.moon.color.setHex(0xa8c4e6); }
+      if (LT.rim) { LT.rim.intensity = 0.34; LT.rim.color && LT.rim.color.setHex(0xffc79a); }
+    }
+    if (ctx.renderer) ctx.renderer.toneMappingExposure = 0.96;
+
+    // ---- ground: one big pad so no hole ever shows ----
+    const tex = ctex("dirt", 64, 64, (g, w, h) => {
+      g.fillStyle = "#7d7a5e";
+      g.fillRect(0, 0, w, h);
+      speck(g, w, h, ["#6a6748", "#8f8b6a", "#5c5a3f"], 13, 1400);
+    });
+    tex.needsUpdate = true;
+    tex.wrapS = tex.wrapT = T.RepeatWrapping;
+    tex.repeat.set(26, 26);
+    const ground = new T.Mesh(new T.PlaneGeometry(260, 260), new T.MeshLambertMaterial({ map: tex }));
+    ground.rotation.x = -Math.PI / 2;
+    ground.position.set(-18, 0.24, 22);
+    ground.receiveShadow = true;
+    S.add(ground);
+
+    const pave = (w, d, x, z, tint, rx, ry) => {
+      const m = new T.Mesh(new T.PlaneGeometry(w, d), new T.MeshLambertMaterial({ map: cloneMat(SOL.street, rx, ry).map, color: tint || 0xffffff }));
+      m.rotation.x = -Math.PI / 2;
+      m.position.set(x, 0.3, z);
+      m.receiveShadow = true;
+      S.add(m);
+      return m;
+    };
+    pave(26.4, 35, 0, 3.2, 0xffffff, 8, 11);
+    pave(15.6, 9.0, -5.4, 24.0, 0xf2eee4, 5, 3);
+    pave(17.4, 7.4, -21.6, 24, 0xd2d0cc, 5, 2.4);
+    pave(18.4, 40.4, YARD_MID, 38, 0xf0eadd, 6, 12);
+
+    // ---- street furniture shared by the zones ----
+    const darkHole = darkMat(0x111316);
+
+    // ================= PLAZA =================
+    // west block (runs the whole west side and south of the alley)
+    blockAt(S, -30, -13, -14, 20.4, 7.6, SOL.stone);
+    roofCap(S, -30, -13, -14, 20.4, 7.6);
+    winRun(S, "x", -12.94, -12, 18.4, 3.0, 6.6, 11);
+    // east block
+    blockAt(S, 13, 24, -14, 22, 9.0, SOL.stone);
+    roofCap(S, 13, 24, -14, 22, 9.0);
+    winRun(S, "x", 12.94, -12, 20.4, 3.0, 8.2, 17);
+    // north block: the wall the rail turns around
+    blockAt(S, 1.5, 14, 21.5, 33, 6.6, SOL.stoneDark);
+    roofCap(S, 1.5, 14, 21.5, 33, 6.6);
+    winRun(S, "z", 21.44, 2.4, 13.4, 2.8, 5.8, 23);
+    winRun(S, "x", 1.44, 22.2, 32.4, 2.8, 5.8, 29);
+    // north-west block closes the corner alcove so the sky never shows through
+    blockAt(S, -13, 1.5, 25.6, 40, 7.4, SOL.stone);
+    roofCap(S, -13, 1.5, 25.6, 40, 7.4);
+    winRun(S, "z", 25.54, -12, 0.4, 3.0, 6.4, 61);
+    const cornerBanner = makeFlag("kp", -4.2, 3.1, 25.5, 2.6, 1.7);
+    S.add(cornerBanner);
+    // south block closes the start
+    blockAt(S, -14, 24, -22, -14, 8.4, SOL.stone);
+    roofCap(S, -14, 24, -22, -14, 8.4);
+
+    // plaza kerbs and clutter
+    blockAt(S, -13, -12.4, -14, 20.4, 0.28, SOL.concrete, 0.3);
+    blockAt(S, 12.4, 13, -14, 20.4, 0.28, SOL.concrete, 0.3);
+    [15, -3, -9].forEach((z) => {
+      S.add(makeFlag(z % 2 ? "kr" : "kp", -12.55, 2.9, z, 2.2, 1.5));
+      S.add(makeFlag(z % 2 ? "kp" : "kr", 12.55, 2.9, z + 5, 2.2, 1.5));
+    });
+    S.add(makeTower(-11.4, 17.2, 5.2));
+    S.add(makeTower(11.2, 19.0, 6.0));
+    S.add(makeCrate(-11.6, 6.2, 0.8));
+    S.add(makeCrate(-10.9, 7.0, 0.62));
+    S.add(makeSandbags(-11.5, 12.2, 2.0, 3));
+    S.add(makeRubble(-10.4, 4.0, 6));
+    S.add(makeRubble(10.8, 9.5, 5));
+    S.add(makeCrate(10.8, 3.4, 0.9));
+    [[-6, 1], [4, -6], [8, 12]].forEach(([x, z]) => {
+      const tree = new T.Group();
+      part(tree, 0.34, 2.0, 0.34, 0, 1.0, 0, SOL.woodDark);
+      const leaf = new T.Mesh(new T.BoxGeometry(1.9, 1.3, 1.9), SOL.grass);
+      leaf.position.y = 2.5;
+      leaf.castShadow = true;
+      tree.add(leaf);
+      tree.position.set(x, 0.3, z);
+      S.add(tree);
+    });
+
+    // ================= ALLEY =================
+    // south side: shopfronts with doorways
+    blockAt(S, -30, -13, 8, 20.4, 6.4, SOL.stone);
+    roofCap(S, -30, -13, 8, 20.4, 6.4);
+    winRun(S, "z", 20.34, -29, -14, 3.4, 5.6, 31);
+    doorway(S, -17.2, 20.36, 0, 1.5, 2.3);
+    doorway(S, -22.2, 20.36, 0, 1.5, 2.3);
+    doorway(S, -27.0, 20.36, 0, 1.4, 2.2);
+    // north side
+    blockAt(S, -30, -13, 27.6, 40, 6.8, SOL.stoneDark);
+    roofCap(S, -30, -13, 27.6, 40, 6.8);
+    winRun(S, "z", 27.54, -29, -14, 3.2, 6.0, 37);
+    doorway(S, -18.6, 27.58, Math.PI, 1.4, 2.2);
+    doorway(S, -24.4, 27.58, Math.PI, 1.4, 2.2);
+    // upper walkway with a solid parapet on the south wall
+    balcony(S, -27.2, -19.4, 21.95, 20.4, 3.0);
+    // awnings and clutter so the alley reads as a street, not a tunnel
+    [[-16.4, "s"], [-20.6, "n"], [-25.2, "s"]].forEach(([x, side], i) => {
+      const aw = new T.Mesh(new T.BoxGeometry(2.4, 0.14, 1.1), i % 2 ? SOL.enemyCloth : SOL.stoneDark);
+      aw.position.set(x, 2.5, side === "s" ? 20.9 : 27.1);
+      aw.rotation.x = side === "s" ? -0.16 : 0.16;
+      aw.castShadow = true;
+      S.add(aw);
+    });
+    S.add(makeCrate(-15.2, 21.2, 0.75));
+    S.add(makeCrate(-14.6, 21.4, 0.55, 1.02));
+    S.add(makeCrate(-26.2, 26.6, 0.8));
+    S.add(makeSandbags(-19.0, 26.4, 1.8, 2));
+    S.add(makeRubble(-16.0, 22.6, 5));
+    S.add(makeRubble(-28.2, 25.4, 4));
+    S.add(makeBarrel(-28.6, 21.6, 0.3));
+    S.add(makeBarrel(-28.6, 22.7, 0.3));
+    // hanging banners over the alley
+    S.add(makeFlag("kp", -18.2, 4.3, 20.6, 1.8, 1.2));
+    S.add(makeFlag("kr", -23.6, 4.3, 27.4, 1.8, 1.2));
+
+    // ================= COURTYARD =================
+    blockAt(S, -30, -14, 40, 58, 7.2, SOL.stone);
+    roofCap(S, -30, -14, 40, 58, 7.2);
+    winRun(S, "x", -30.06, 41, 57, 3.2, 6.4, 43);
+    blockAt(S, -58, -48, 12, 58, 8.6, SOL.stoneDark);
+    roofCap(S, -58, -48, 12, 58, 8.6);
+    winRun(S, "x", -47.94, 14, 57, 3.0, 7.6, 47);
+    blockAt(S, -48, -30, 8, 18, 6.2, SOL.stone);
+    roofCap(S, -48, -30, 8, 18, 6.2);
+    winRun(S, "z", 18.06, -47, -31, 3.0, 5.4, 53);
+    // yard perimeter kerb + gate
+    const gateFlags = makeGate(S);
+
+    // sandbag bunkers, drums and armour in the yard
+    S.add(makeTruck(-45.2, 26.2));
+    S.add(makeTruck(-33.0, 53.4));
+    S.add(makeSandbags(-45.6, 24.0, 3.2, 3));
+    S.add(makeSandbags(-33.2, 21.2, 2.6, 3));
+    S.add(makeTower(-46.4, 21.6, 5.4));
+    S.add(makeTower(-31.6, 50.8, 6.2));
+    S.add(makeBarrier(-44.6, 44.0));
+    S.add(makeRubble(-42.0, 27.0, 7));
+    S.add(makeRubble(-33.4, 43.0, 6));
+    S.add(makeCrate(-46.0, 41.2, 0.9));
+    S.add(makeCrate(-45.2, 41.6, 0.62, 1.18));
+    const yardFlagA = makeFlag("kp", -30.4, 3.4, 33.4, 2.2, 1.5);
+    const yardFlagB = makeFlag("kr", -30.4, 3.4, 46.6, 2.2, 1.5);
+    S.add(yardFlagA, yardFlagB);
+
+    // exploding drums in every zone
+    const barrels = [];
+    const drum = (x, z) => {
+      const b = makeBarrel(x, z, 0.3);
+      S.add(b);
+      barrels.push({ mesh: b, x, z, y: 0.3, dead: false });
+    };
+    drum(6.9, 10.4); drum(-7.4, 13.9); drum(-25.8, 21.2);
+    drum(-22.4, 26.6); drum(-34.6, 39.4); drum(-43.4, 33.0);
+    drum(-32.6, 47.6);
+
+    // park the truck that wave 1 uses as elevated cover
+    if (waves && waves[0]) {
+      const w = waves[0];
+      const t = waveXY(w, 8.2, 10.2);
+      const truck = makeTruck(t.x, t.z);
+      truck.rotation.y = w.yaw + 0.04;
+      S.add(truck);
+    }
+    if (waves && waves[2]) {
+      const w = waves[2];
+      const t = waveXY(w, -5.0, 11.5);
+      const truck = makeTruck(t.x, t.z);
+      truck.rotation.y = w.yaw + 0.28;
+      S.add(truck);
+    }
+
+    // clouds follow the rail
+    const clouds = [];
+    for (let i = 0; i < 8; i++) {
+      const c = makeCloud(-40 + i * 14 + Math.random() * 6, 10.5 + Math.random() * 4, 8 + (i % 3) * 9 + Math.random() * 4, 2.8 + Math.random() * 1.6);
+      S.add(c);
+      clouds.push(c);
+    }
+
+    // our rifleman, kneeling on the near left of the rail
+    const ally = makeAlly();
+    ally.position.set(-2.0, 0.3, 5.0);
+    ally.rotation.y = 0.4;
+    S.add(ally);
+
+    const flags = [];
+    S.traverse((o) => { if (o.userData && o.userData.cloth) flags.push(o); });
+    gateFlags.forEach((f) => flags.push(f));
+
+    dress = {
+      root: S, sky, flags, clouds, barrels, ally,
+      truck1: waves && waves[0] ? waveXY(waves[0], 8.2, 10.2) : null
+    };
+    return dress;
+  }
+
+  /* ---------------- cover props ---------------- */
+
+  function coverHeight(kind) {
+    if (kind === "barrier") return 1.02;
+    if (kind === "crate") return 1.30;
+    if (kind === "crates") return 1.44;
+    if (kind === "bunker") return 1.42;
+    if (kind === "door") return 1.62;
+    if (kind === "heavy") return 1.46;
+    if (kind === "truckbed") return 1.10;
+    return 1.10;
+  }
+
+  function buildCover(p, w) {
+    const s = Math.sin(w.yaw), c = Math.cos(w.yaw);
+    const rx = c, rz = -s;
+    const fx = s, fz = c;
+    const side = p.coverSide || 0;
+    const cx = p.x - fx * 0.95 + rx * side * 0.18;
+    const cz = p.z - fz * 0.95 + rz * side * 0.18;
+    const baseY = p.elev || 0.3;
+    const wide = Math.min(1.5, (p.scale || 1.28) / 1.28);
+    let g = null;
+    switch (p.cover) {
+      case "sandbag": g = makeSandbags(cx, cz, 2.1 * wide, 4); break;
+      case "crate": g = makeCrate(cx, cz, 1.05 * wide); break;
+      case "crates": {
+        g = new T.Group();
+        g.add(makeCrate(0, 0, 1.02, 0.3));
+        g.add(makeCrate(0.62, -0.2, 0.78, 0.3));
+        const up = makeCrate(-0.1, 0.02, 0.72);
+        up.position.y = 1.32;
+        g.add(up);
+        g.position.set(cx, baseY, cz);
+        break;
+      }
+      case "barrier": g = makeBarrier(cx, cz); break;
+      case "bunker": {
+        g = new T.Group();
+        g.add(makeSandbags(0, 0, 3.2, 4));
+        g.add(makeCrate(1.9, 0.4, 0.8, 0.3));
+        g.position.set(cx, baseY, cz);
+        break;
+      }
+      case "door": {
+        g = new T.Group();
+        part(g, 1.05, 1.5, 0.5, 0, 0.75, 0, SOL.concrete);
+        part(g, 1.25, 0.18, 0.62, 0, 1.56, 0, SOL.stoneDark);
+        part(g, 0.16, 1.3, 0.54, -0.62, 0.65, 0, SOL.stone);
+        g.position.set(cx, baseY, cz);
+        break;
+      }
+      case "truckbed": g = makeSandbags(cx, cz, 1.9 * wide, 4); break;
+      case "heavy": {
+        g = new T.Group();
+        part(g, 2.6, 1.15, 0.6, 0, 0.575, 0, SOL.concrete);
+        part(g, 2.7, 0.2, 0.72, 0, 1.2, 0, SOL.stoneDark);
+        g.add(makeSandbags(0, 0.1, 2.6, 1));
+        g.position.set(cx, baseY, cz);
+        break;
+      }
+      case "rail": return null;
+      default: g = makeSandbags(cx, cz, 2.0, 3);
+    }
+    if (!g) return null;
+    g.position.y = baseY;
+    g.rotation.y = w.yaw;
+    g.userData.cover = 1;
+    coverRoot.add(g);
+    return g;
+  }
+
+  /* ---------------- waves ---------------- */
+
+  let coverRoot = null;
 
   function buildWaves() {
+    buildRail();
     waves.length = 0;
-    WAVES.forEach((cfg) => {
-      const members = cfg.members.map((kind) => ({ kind, x: cfg.x, mesh: new T.Object3D(), alive: true, hp: 1 }));
-      waves.push({ x: cfg.x, members });
+    WAVE_DEFS.forEach((def, i) => {
+      const u = uNear(def.hold[0], def.hold[1]);
+      const p = curve.getPointAt(u);
+      waves.push({
+        i, def, u, hold: { x: p.x, z: p.z }, yaw: def.yaw, halfTan: halfTan(),
+        look: { x: def.look[0], y: def.look[1], z: def.look[2] }
+      });
     });
+    const bu = uNear(BOSS_DEF.hold[0], BOSS_DEF.hold[1]);
+    const bp = curve.getPointAt(bu);
+    bossU = bu;
+    bossHold = { x: bp.x, z: bp.z };
   }
 
-  function buildBoss(ctx) {
-    let dummy = null;
-    try { dummy = ctx.makeBoss && ctx.makeBoss(); } catch (e) {}
-    if (!dummy) dummy = new T.Object3D();
-    dummy.visible = false;
-    ctx.scene.add(dummy);
-    const fb = makeSoldier("boss");
-    fb.visible = false;
-    ctx.scene.add(fb);
-    bossPost = {
-      e: { kind: "boss", mesh: dummy, alive: true, hp: roleHp("boss"), h: 2.4, hw: 0.8, active: false, _tag: null },
-      mesh: fb, x: BOSS_X, z: 2.2, y: 0.3, role: "boss", aim: 0, aimMax: roleAim("boss"), popped: false
-    };
-  }
+  function buildBoss(ctx) { /* the commander is spawned by startBoss() */ bossPost = null; }
 
   function buildPickups(ctx) {
     const lane = [];
     waves.forEach((w, i) => {
-      lane.push({ x: w.x + 0.9, y: 1.28, z: 2.72, kind: "ammo" });
-      lane.push({ x: w.x + 5.3, y: 1.3, z: 2.46, kind: i === 1 ? "life" : i === 2 ? "ammo" : "supply" });
+      const def = w.def;
+      (def.picks || []).forEach(([lat, dep, kind]) => {
+        const p = waveXY(w, lat, dep);
+        lane.push({ x: p.x, y: 1.3, z: p.z, kind });
+      });
     });
     lane.forEach((spot) => {
       let mesh = null;
       try { mesh = makePickup(spot.kind); } catch (err) { window.__pickupErr = String(err && err.message || err); }
       if (!mesh) mesh = new T.Mesh(new T.BoxGeometry(0.5, 0.4, 0.4), new T.MeshLambertMaterial({ color: 0x6b7a45 }));
       mesh.position.set(spot.x, spot.y, spot.z);
+      mesh.userData.bob = Math.random() * 6;
       ctx.scene.add(mesh);
-      pickups.push({ mesh, kind: spot.kind, taken: false });
+      pickups.push({ mesh, kind: spot.kind, taken: false, y: spot.y });
     });
   }
 
@@ -1545,25 +1814,24 @@
     });
   }
 
+  function tagOff(p) {
+    if (p.e && p.e._tag) { p.e._tag.remove(); p.e._tag = null; }
+  }
+
   function clearStage(ctx) {
     posts.forEach((p) => {
       if (p.mesh) { p.mesh.parent && p.mesh.parent.remove(p.mesh); disposeGeo(p.mesh); }
-      if (p.e && p.e._tag) { p.e._tag.remove(); p.e._tag = null; }
+      tagOff(p);
     });
     posts.length = 0;
     shots3.forEach((s) => { if (s.mesh && s.mesh.parent) s.mesh.parent.remove(s.mesh); });
     shots3 = [];
+    tracers.forEach((s) => { if (s.mesh && s.mesh.parent) s.mesh.parent.remove(s.mesh); });
+    tracers = [];
     pickups.forEach((p) => { if (p.mesh) { p.mesh.parent && p.mesh.parent.remove(p.mesh); disposeGeo(p.mesh); } });
     pickups = [];
-    if (bossPost) {
-      if (bossPost.mesh) { bossPost.mesh.parent && bossPost.mesh.parent.remove(bossPost.mesh); disposeGeo(bossPost.mesh); }
-      if (bossPost.e && bossPost.e.mesh && bossPost.e.mesh !== bossPost.mesh) {
-        bossPost.e.mesh.parent && bossPost.e.mesh.parent.remove(bossPost.e.mesh);
-        disposeGeo(bossPost.e.mesh);
-      }
-      if (bossPost.e && bossPost.e._tag) { bossPost.e._tag.remove(); bossPost.e._tag = null; }
-      bossPost = null;
-    }
+    if (coverRoot) { coverRoot.parent && coverRoot.parent.remove(coverRoot); disposeGeo(coverRoot); coverRoot = null; }
+    if (bossPost) { tagOff(bossPost); bossPost = null; }
     sparks.forEach((s) => s.parent && s.parent.remove(s));
     sparks = [];
     smokes.forEach((s) => s.parent && s.parent.remove(s));
@@ -1586,10 +1854,12 @@
   }
 
   function resetNumbers(ctx) {
-    clock = 90; bullets = 20; hp = 100; lives = 3;
+    clock = CLOCK0; bullets = 20; hp = 100; lives = 3;
     combo = 0; bestCombo = 0; shotsFired = 0; shotsHit = 0; hostageHits = 0;
     lastShot = 0; reloading = false; reloadK = 0; recoil = 0; hitStop = 0; shake = 0;
-    camX = 8; waveI = 0; wave = null; waveT = 0; waveClean = true; ended = false;
+    pathU = 0; camX = 0; waveI = 0; wave = null; waveT = 0; waveClean = true; ended = false;
+    bossSpawned = false;
+    window.__allyShots = 0;
     aimN = { x: 0, y: 0.1 };
     if (ctx && ctx.G) ctx.G.score = 0;
     if (hud) hud._score = 0;
@@ -1602,10 +1872,11 @@
     if (ctx.scene && ctx.camera && !ctx.camera.parent) ctx.scene.add(ctx.camera);
     const rig = makePistol(ctx.camera);
     pistol = rig.g;
-    pistolBase = { z: rig.g.position.z, y: rig.g.position.y };
+    pistolBase = { x: rig.g.position.x, y: rig.g.position.y, z: rig.g.position.z };
     flash = rig.flash;
     flashHalo = rig.halo;
     flashLight = rig.light;
+    window.__pistol = pistol;
     const btn = document.createElement("button");
     btn.id = "railReload";
     btn.type = "button";
@@ -1635,9 +1906,6 @@
     if (ctx.pl) ctx.pl.inv = 99999;
   }
 
-  /* Build the plaza, the squads, the pickups and the commander from
-     scratch and start the clock. Used for the very first mission and for
-     every 다시 하기 press. */
   function begin(ctx) {
     if (!ctx || !ctx.scene || !ctx.camera) return false;
     if (!booted) boot(ctx);
@@ -1645,14 +1913,19 @@
     clearStage(ctx);
     resetNumbers(ctx);
     buildWaves();
-    buildBoss(ctx);
+    coverRoot = new T.Group();
+    coverRoot.name = "covers";
+    ctx.scene.add(coverRoot);
     buildPickups(ctx);
     try { dressBattlefield(ctx); } catch (err) { window.__dressErr = String(err && err.stack || err); }
     const cam = ctx.camera;
-    cam.near = 0.06; cam.fov = 58; cam.far = 320;
-    cam.position.set(camX, 1.7, 4.1);
-    cam.lookAt(camX + 7, 1.35, 1.1);
+    cam.near = 0.06; cam.fov = viewFov(); cam.far = 320;
+    const p0 = pathAt(0);
+    cam.position.set(p0.x, CAM_Y, p0.z);
+    const a0 = pathAt(7 / pathLen);
+    cam.lookAt(a0.x, 1.45, a0.z);
     cam.updateProjectionMatrix();
+    lookSmooth.set(a0.x, 1.45, a0.z);
     phase = "move";
     active = true;
     staged = true;
@@ -1669,17 +1942,16 @@
     return true;
   }
 
-  /* Stop driving the game (title screen) without tearing the stage down. */
   function pause() {
     active = false;
     showHud(false);
     if (pistol) pistol.visible = false;
     const box = document.getElementById("railResult");
     if (box) box.remove();
-    posts.forEach((p) => { if (p.e && p.e._tag) p.e._tag.remove(); });
+    posts.forEach((p) => tagOff(p));
+    if (bossPost) tagOff(bossPost);
     try { window.GunSFX && window.GunSFX.bgm(false); } catch (e) {}
   }
-
 
   function pointerFrom(e) {
     const x = e.clientX, y = e.clientY;
@@ -1689,65 +1961,141 @@
     if (xh) { xh.style.left = x + "px"; xh.style.top = y + "px"; }
   }
 
-  function pop(p) {
-    p.popped = true;
-    if (p.mesh) p.mesh.visible = true;
-    p.z0 = 6.2;
-    p.z = p.role === "hostage" ? 1.02 : (p.i % 3 === 0 ? 1.55 : p.i % 3 === 1 ? 2.15 : 1.3);
-    p.aim = p.aimMax;
-    if (!p.e._tag && p.role !== "hostage" && p.role !== "boss") roleTag(p.e);
-  }
+  /* ---------------- enemy posts ---------------- */
 
   function startWave(w) {
     phase = "fight";
     wave = w;
-    waveT = 11;
+    waveT = w.def.time || 24;
     waveClean = true;
-    camX = Math.max(camX, w.x - 6);
-    w.members.forEach((e, i) => {
-      const role = roleOf(e.kind);
-      // civilians stay off to the side of the squad so nobody is standing
-      // in front of a soldier's muzzle by accident
-      const off = role === "hostage" ? 3.6 + (i % 2) * 1.5 : (i % 3) * 1.7;
-      const post = { e, x: camX + 5.2 + off, y: 0.3, z: 2.2, i, role, aimMax: roleAim(role), aim: roleAim(role), popped: false, nextThrow: 0.6, bob: Math.random() * 6 };
-      e.hp = roleHp(role);
-      e.alive = true;
+    curHold = { x: w.hold.x, z: w.hold.z };
+    curLook = { x: w.look.x, y: w.look.y, z: w.look.z };
+    pathU = w.u;
+    const scale0 = w.def.members.length;
+    w.def.members.forEach((m, i) => {
+      const role = roleOf(m.role);
+      const p = waveXY(w, m.lat || 0, m.dep || 8);
+      const sc = roleScale(role);
+      const post = {
+        e: { kind: role, mesh: new T.Object3D(), alive: true, hp: roleHp(role), h: 1.4 * sc, _tag: null },
+        role, i,
+        x: p.x, z: p.z, y: (m.elev || 0) + 0.3,
+        elev: m.elev || 0,
+        cover: m.cover || "sandbag",
+        coverSide: i % 2 ? 1 : -1,
+        peekDir: i % 2 ? 1 : -1,
+        scale: sc,
+        headTop: 1.67 * sc,
+        squashY: 1,
+        expose: 0,
+        state: role === "hostage" ? "civ" : "hidden",
+        stateT: 0.7 + i * 0.42 + Math.random() * 0.7,
+        aimMax: roleAim(role),
+        aim: roleAim(role),
+        fireMax: 1.5 + Math.random() * 0.7,
+        hideMin: 0.55 + Math.random() * 0.7,
+        nextThrow: 0.8,
+        popped: true,
+        bob: Math.random() * 6,
+        knock: 0
+      };
+      post.e.hp = roleHp(role);
+      post.e.alive = true;
       let sm = null;
       try { sm = makeSoldier(role); } catch (err) { window.__soldierErr = String(err && err.message || err); }
       if (sm && SCENE) {
         sm.position.set(post.x, post.y, post.z);
-        sm.visible = false;
+        sm.visible = true;
         SCENE.add(sm);
         post.mesh = sm;
+        post.body = sm.userData.body || sm;
       }
+      if (!post.mesh) post.mesh = null;
       posts.push(post);
-      pop(post);
+      if (role === "hostage") post.expose = 1;
+      if (role !== "hostage") {
+        const nh = coverHeight(post.cover);
+        post.squashY = Math.max(0.36, Math.min(0.92, (nh - 0.06) / post.headTop));
+        buildCover(post, w);
+        roleTag(post.e);
+        if (post.e._tag) post.e._tag.style.display = "none";
+      }
+      // civilians stay put, hands up, facing the player
+      if (role === "hostage") post.squashY = 1;
+      post.stateT += i * 0.12;
     });
     window.__railPhase = "fight";
   }
 
+  function startBoss(ctx) {
+    phase = "boss";
+    bossSpawned = true;
+    waveT = 40;
+    waveClean = true;
+    curHold = { x: bossHold.x, z: bossHold.z };
+    curLook = { x: BOSS_DEF.look[0], y: BOSS_DEF.look[1], z: BOSS_DEF.look[2] };
+    pathU = bossU;
+    const w = { yaw: 0, hold: bossHold };
+    const spot = BOSS_DEF.spots[1];
+    const p = waveXY(w, spot[0], spot[1]);
+    const post = {
+      e: { kind: "boss", mesh: new T.Object3D(), alive: true, hp: roleHp("boss"), h: 2.1, _tag: null },
+      role: "boss", i: 0, isBoss: true,
+      x: p.x, z: p.z, y: 0.3, elev: 0,
+      cover: "heavy", coverSide: -1, peekDir: 1,
+      scale: 1.5, headTop: 2.5, squashY: 0.5, expose: 0,
+      state: "hidden", stateT: 1.2,
+      aimMax: roleAim("boss"), aim: roleAim("boss"),
+      fireMax: 1.7, hideMin: 0.5, nextThrow: 0,
+      popped: true, bob: 0, knock: 0, spotI: 1
+    };
+    let sm = null;
+    try { sm = makeSoldier("boss"); } catch (e) {}
+    if (sm && SCENE) {
+      sm.position.set(post.x, post.y, post.z);
+      SCENE.add(sm);
+      post.mesh = sm;
+      post.body = sm.userData.body || sm;
+    }
+    posts.push(post);
+    bossPost = post;
+    buildCover(post, w);
+    roleTag(post.e);
+    if (post.e._tag) post.e._tag.style.display = "none";
+    window.__railPhase = "boss";
+  }
+
   function livingHostiles() {
-    return posts.filter((p) => p.e.alive !== false && p.role !== "hostage" && p.popped);
+    return posts.filter((p) => p.e.alive !== false && p.role !== "hostage");
+  }
+
+  function exposedHostiles() {
+    return posts.filter((p) => p.e.alive !== false && p.role !== "hostage" && p.expose > 0.45);
   }
 
   function endWave(ctx) {
     if (waveClean) addPts(ctx, 500);
     posts.forEach((p) => {
-      if (p.e.mesh) p.e.mesh.visible = false;
-      if (p.mesh) { p.mesh.visible = false; p.mesh.parent && p.mesh.parent.remove(p.mesh); }
-      if (p.e._tag) { p.e._tag.remove(); p.e._tag = null; }
+      if (p.mesh) { p.mesh.parent && p.mesh.parent.remove(p.mesh); }
+      tagOff(p);
     });
     posts.length = 0;
+    bossPost = null;
     shots3.forEach((s) => s.mesh && s.mesh.parent && s.mesh.parent.remove(s.mesh));
     shots3 = [];
+    tracers.forEach((s) => s.mesh && s.mesh.parent && s.mesh.parent.remove(s.mesh));
+    tracers = [];
+    if (coverRoot) { coverRoot.parent && coverRoot.parent.remove(coverRoot); disposeGeo(coverRoot); }
+    coverRoot = new T.Group();
+    if (SCENE) SCENE.add(coverRoot);
     wave = null;
-    waveI++;
+    if (phase === "fight") waveI++;
     phase = waveI < waves.length ? "move" : "toBoss";
     window.__railPhase = phase;
   }
 
   function addPts(ctx, n) {
-    if (ctx.addScore) ctx.addScore(n, camX, 2);
+    if (ctx.addScore) ctx.addScore(n, window.__lastHitPx || null);
     else if (ctx.G) ctx.G.score = (ctx.G.score || 0) + n;
   }
 
@@ -1798,10 +2146,12 @@
       else { try { window.MG && window.MG.toTitle(); } catch (err) {} }
     });
     document.body.appendChild(box);
-    posts.forEach((p) => { if (p.e && p.e._tag) { p.e._tag.remove(); p.e._tag = null; } });
-    if (bossPost && bossPost.e && bossPost.e._tag) { bossPost.e._tag.remove(); bossPost.e._tag = null; }
+    posts.forEach((p) => tagOff(p));
+    if (bossPost) tagOff(bossPost);
     if (ctx.G) { ensureHud(ctx.G.score || 0); drawHud(); }
   }
+
+  /* ---------------- effects ---------------- */
 
   function burst(scene, x, y, z, big) {
     const n = big ? 12 : 8;
@@ -1813,7 +2163,6 @@
       scene.add(m);
       sparks.push(m);
     }
-    // dust puff so the hit reads against the stone wall
     for (let i = 0; i < (big ? 4 : 2); i++) {
       const p = new T.Mesh(new T.SphereGeometry(0.05 + Math.random() * 0.045, 6, 5), new T.MeshBasicMaterial({ color: 0xd8cfbc, transparent: true, opacity: 0.26, depthWrite: false }));
       p.position.set(x + (Math.random() - 0.5) * 0.18, y + (Math.random() - 0.5) * 0.18, z + 0.08);
@@ -1841,22 +2190,48 @@
   }
 
   function spawnSmoke(camera) {
-    if (smokes.length > 8) return;
-    const m = new T.Mesh(new T.SphereGeometry(0.04, 6, 5), new T.MeshBasicMaterial({ color: 0xd8d2c4, transparent: true, opacity: 0.35, depthWrite: false }));
-    m.position.set((Math.random() - 0.5) * 0.04, 0.02, -0.48);
+    if (smokes.length > 8 || !pistol) return;
+    const m = new T.Mesh(new T.SphereGeometry(0.05, 6, 5), new T.MeshBasicMaterial({ color: 0xd8d2c4, transparent: true, opacity: 0.35, depthWrite: false }));
+    m.position.set(0, 0.07, -0.5);
     m.userData.life = 0.4;
-    m.userData.v = new T.Vector3((Math.random() - 0.5) * 0.05, 0.08, -0.02);
-    camera.add(m);
+    m.userData.v = new T.Vector3((Math.random() - 0.5) * 0.05, 0.08, -0.03);
+    pistol.add(m);
     smokes.push(m);
   }
 
   function throwShot(ctx, p) {
     let mesh = null;
     try { mesh = ctx.makeArrow && ctx.makeArrow(); } catch (e) {}
-    if (!mesh) mesh = new T.Mesh(new T.BoxGeometry(0.18, 0.18, 0.18), new T.MeshLambertMaterial({ color: 0xc4552a }));
+    if (!mesh) mesh = new T.Mesh(new T.BoxGeometry(0.2, 0.2, 0.2), new T.MeshLambertMaterial({ color: 0xc4552a }));
     mesh.position.set(p.x, p.y + 1, p.z);
     ctx.scene.add(mesh);
     shots3.push({ mesh, x: p.x, y: p.y + 1, z: p.z });
+  }
+
+  function allyTracer(ctx, target) {
+    const a = dress && dress.ally;
+    if (!a || !target) return;
+    window.__allyShots = (window.__allyShots || 0) + 1;
+    const from = new T.Vector3();
+    a.getWorldPosition(from);
+    from.y += 1.2;
+    const to = new T.Vector3(target.x, target.y + 1.05, target.z);
+    const dir = to.clone().sub(from);
+    const len = Math.max(0.4, dir.length());
+    const m = new T.Mesh(new T.BoxGeometry(0.045, 0.045, len), new T.MeshBasicMaterial({ color: 0xffe08a }));
+    m.position.copy(from).addScaledVector(dir, 0.5);
+    m.lookAt(to);
+    ctx.scene.add(m);
+    tracers.push({ mesh: m, life: 0.09 });
+    const fl = new T.Mesh(new T.SphereGeometry(0.09, 6, 5), new T.MeshBasicMaterial({ color: 0xffd070 }));
+    fl.position.copy(from);
+    ctx.scene.add(fl);
+    tracers.push({ mesh: fl, life: 0.06, grow: 1 });
+    burst(ctx.scene, to.x, to.y, to.z, false);
+    if (Math.random() < 0.3 && !target.isBoss) {
+      target.e.hp = (target.e.hp || 1) - 1;
+      if (target.e.hp <= 0) killPost(ctx, target, 80);
+    }
   }
 
   function killPost(ctx, p, pts) {
@@ -1868,13 +2243,14 @@
     bestCombo = Math.max(bestCombo, combo);
     window.__comboAt = performance.now() / 1000;
     p.e.alive = false;
+    p.state = "dead";
     p.dying = 1.05;
     p.e.x = p.x;
     p.e.y = p.y;
     let scored = false;
     try { if (ctx.killFlip) { ctx.killFlip(p.e, pts); scored = true; } } catch (e) {}
     if (!scored) addPts(ctx, pts);
-    if (p.e._tag) { p.e._tag.remove(); p.e._tag = null; }
+    tagOff(p);
   }
 
   function boomBarrel(ctx, b) {
@@ -1914,13 +2290,9 @@
     const hurt = (p) => {
       if (!p || p.e.alive === false || p.role === "hostage") return;
       p.e.hp = (p.e.hp || 1) - 3;
-      if (p.e.hp <= 0) {
-        const head = true;
-        killPost(ctx, p, 200 + (head ? 150 : 0));
-      }
+      if (p.e.hp <= 0) killPost(ctx, p, 200 + 150);
     };
-    posts.forEach((p) => { if (Math.abs(p.x - px) < 6.5 && Math.abs(p.z - pz) < 3.2) hurt(p); });
-    if (bossPost && bossPost.popped && Math.abs(bossPost.x - px) < 6.5) hurt(bossPost);
+    posts.forEach((p) => { if (Math.hypot(p.x - px, p.z - pz) < 6.5) hurt(p); });
     if (dress) {
       dress.barrels.forEach((o) => {
         if (!o.dead && o !== b && Math.hypot(o.x - px, o.z - pz) < 4.6) {
@@ -1929,6 +2301,8 @@
       });
     }
   }
+
+  /* ---------------- shooting ---------------- */
 
   function fire(ctx) {
     if (!ctx || !booted || reloading || ended) return;
@@ -1944,18 +2318,18 @@
     spawnSmoke(ctx.camera);
     gun("shot");
     ctx.camera.updateMatrixWorld(true);
+    ctx.scene.updateMatrixWorld(true);
     const ray = new T.Raycaster();
     ray.setFromCamera(new T.Vector2(aimN.x, aimN.y), ctx.camera);
-    ray.far = 28;
-    let hit = null;
+    ray.far = 34;
     const owned = [];
     const addOwned = (mesh, extra, sort) => { if (mesh) owned.push({ mesh, extra, sort }); };
-    posts.forEach((p) => { if (p.e.alive !== false && p.popped && p.mesh) addOwned(p.mesh, p, "foe"); });
-    if (bossPost && bossPost.popped && bossPost.e.alive !== false && bossPost.mesh) addOwned(bossPost.mesh, bossPost, "foe");
+    posts.forEach((p) => { if (p.e.alive !== false && p.expose > 0.42 && p.mesh) addOwned(p.mesh, p, "foe"); });
     shots3.forEach((s) => addOwned(s.mesh, s, "shot"));
     pickups.forEach((p) => { if (!p.taken) addOwned(p.mesh, p, p.kind); });
     if (dress) dress.barrels.forEach((b) => { if (!b.dead) addOwned(b.mesh, b, "barrel"); });
     const found = ray.intersectObjects(owned.map((o) => o.mesh), true);
+    let hit = null;
     if (found.length) {
       let node = found[0].object;
       let owner = null;
@@ -1964,8 +2338,8 @@
         node = node.parent;
       }
       if (owner) {
-        const box = new T.Box3().setFromObject(owner.mesh);
-        hit = { at: found[0].point, box, extra: owner.extra, sort: owner.sort };
+        const bb = new T.Box3().setFromObject(owner.mesh);
+        hit = { at: found[0].point, box: bb, extra: owner.extra, sort: owner.sort };
       }
     }
     const cx = (aimN.x * 0.5 + 0.5) * innerWidth;
@@ -1974,8 +2348,7 @@
     if (!hit) {
       let bestPx = 9999;
       const near = [];
-      posts.forEach((p) => { if (p.popped && p.e.alive !== false && p.mesh) near.push({ mesh: p.mesh, extra: p, sort: "foe", lift: 0.8 }); });
-      if (bossPost && bossPost.popped && bossPost.e.alive !== false && bossPost.mesh) near.push({ mesh: bossPost.mesh, extra: bossPost, sort: "foe", lift: 0.8 });
+      posts.forEach((p) => { if (p.e.alive !== false && p.expose > 0.42 && p.mesh) near.push({ mesh: p.mesh, extra: p, sort: "foe", lift: 0.8 }); });
       pickups.forEach((p) => { if (!p.taken && p.mesh) near.push({ mesh: p.mesh, extra: p, sort: p.kind, lift: 0.3 }); });
       if (dress) dress.barrels.forEach((b) => { if (!b.dead && b.mesh) near.push({ mesh: b.mesh, extra: b, sort: "barrel", lift: 0.55 }); });
       near.forEach((n) => {
@@ -1991,10 +2364,11 @@
         if (d < bestPx) bestPx = d, hit = { at, box: new T.Box3(new T.Vector3(at.x, at.y - 0.4, at.z), new T.Vector3(at.x, at.y + 0.4, at.z)), extra: n.extra, sort: n.sort };
       });
       window.__miss = bestPx;
-      if (bestPx > 110) hit = null;
+      if (bestPx > 105) hit = null;
     }
     if (!hit) { combo = 0; return; }
     shotsHit++;
+    window.__lastHitPx = { x: (hit.at.clone().project(ctx.camera).x * 0.5 + 0.5) * innerWidth, y: (-hit.at.clone().project(ctx.camera).y * 0.5 + 0.5) * innerHeight };
     if (hit.sort === "barrel") { boomBarrel(ctx, hit.extra); return; }
     if (hit.sort === "shot") {
       hit.extra.mesh.parent && hit.extra.mesh.parent.remove(hit.extra.mesh);
@@ -2018,7 +2392,7 @@
     }
     const p = hit.extra;
     const h = hit.box.max.y - hit.box.min.y;
-    const head = hit.at.y > hit.box.min.y + h * 0.72;
+    const head = hit.at.y > hit.box.min.y + h * 0.74;
     const quick = p.aim > p.aimMax * 0.45;
     if (p.role === "hostage") {
       hostageHits++;
@@ -2026,8 +2400,9 @@
       combo = 0;
       addPts(ctx, -300);
       p.e.alive = false;
+      p.state = "dead";
       p.dying = 0.7;
-      if (p.e._tag) { p.e._tag.remove(); p.e._tag = null; }
+      tagOff(p);
       gun("dry");
       return;
     }
@@ -2036,7 +2411,14 @@
     p.hitFlash = 0.09;
     p.knock = 0.16;
     p.e.hp = (p.e.hp || 1) - 1;
-    if (p.e.hp > 0) { gun("hit"); return; }
+    if (p.e.hp > 0) {
+      // suppressed: he drops back behind cover instead of standing there
+      p.state = "duck";
+      p.stateT = 0.34;
+      p.expose = Math.min(p.expose, 0.85);
+      gun("hit");
+      return;
+    }
     let pts = 100 + ((combo + 1) > 1 ? (combo + 1) * 40 : 0);
     if (head) pts += 150;
     if (quick) pts += 100;
@@ -2045,123 +2427,211 @@
     if (p.role === "boss") finish(ctx, true);
   }
 
+  /* ---------------- per frame ---------------- */
+
+  function stepPost(p, ctx, dt) {
+    const cam = ctx.camera.position;
+    if (!p.mesh) return;
+    if (p.e.alive === false) return;
+
+    if (p.role === "hostage") {
+      p.mesh.rotation.y = Math.atan2(cam.x - p.x, cam.z - p.z);
+      p.bob += dt * 1.6;
+      if (p.body) p.body.rotation.z = Math.sin(p.bob) * 0.05;
+      return;
+    }
+
+    // cover state machine: hidden -> peek -> fire -> duck -> hidden
+    p.stateT -= dt;
+    if (p.state === "hidden") {
+      if (p.stateT <= 0) {
+        p.state = "peek";
+        p.stateT = 0.3;
+        if (p.e._tag) p.e._tag.style.display = "";
+      }
+    } else if (p.state === "peek") {
+      p.expose = Math.min(1, p.expose + dt / 0.28);
+      if (p.stateT <= 0) { p.state = "fire"; p.stateT = p.fireMax; }
+    } else if (p.state === "fire") {
+      p.expose = Math.min(1, p.expose + dt / 0.2);
+      p.aim -= dt;
+      if (p.aim <= 0) {
+        hurtPlayer(ctx, p.role === "boss" ? 22 : 15);
+        p.aim = p.aimMax;
+        p.state = "duck";
+        p.stateT = 0.32;
+      } else if (p.stateT <= 0) {
+        p.state = "duck";
+        p.stateT = 0.32;
+      }
+    } else if (p.state === "duck") {
+      p.expose = Math.max(0, p.expose - dt / 0.3);
+      if (p.stateT <= 0) {
+        p.state = "hidden";
+        p.stateT = p.hideMin + Math.random() * 1.3;
+        if (p.e._tag) p.e._tag.style.display = "none";
+        p.peekDir = Math.random() < 0.5 ? -1 : 1;
+        // the commander bounds between heavy barriers between peeks
+        if (p.isBoss && p.spotI !== undefined) {
+          p.spotI = (p.spotI + 1 + ((Math.random() * 2) | 0)) % BOSS_DEF.spots.length;
+          const s = BOSS_DEF.spots[p.spotI];
+          const np = waveXY({ yaw: 0, hold: bossHold }, s[0], s[1]);
+          p.x = np.x; p.z = np.z;
+        }
+      }
+    }
+
+    p.bob += dt * 2.4;
+    const ex = p.expose;
+    // step sideways out of cover while peeking
+    const side = p.peekDir * 0.62 * ex;
+    p.mesh.position.set(p.x + side, p.y + (1 - ex) * -0.06, p.z + (1 - ex) * (p.isBoss ? 0.35 : 0.22));
+    p.mesh.rotation.y = Math.atan2(cam.x - p.mesh.position.x, cam.z - p.mesh.position.z);
+    const bob = Math.sin(p.bob) * 0.015 * ex;
+    if (p.body) {
+      const sy = 1 - (1 - p.squashY) * (1 - ex);
+      p.body.scale.y = sy;
+      p.body.position.y = bob;
+      p.body.rotation.z = (p.knock || 0) * 0.9 + Math.sin(p.bob * 0.63) * 0.02 * ex;
+      p.body.rotation.x = (1 - ex) * 0.16;
+    }
+    if (p.knock > 0) p.knock = Math.max(0, p.knock - dt * 1.6);
+    const u = p.mesh.userData;
+    if (u.rifle) u.rifle.rotation.x = -0.18 - ex * 0.5;
+    if (u.nade) u.nade.position.y = 0.62 + ex * 0.12;
+    if (p.state === "fire" && p.role === "throw") {
+      p.nextThrow -= dt;
+      if (p.nextThrow <= 0) { p.nextThrow = 1.4; throwShot(ctx, p); }
+    }
+    if (p.e._tag && p.e._tag.style.display !== "none") {
+      const v = new T.Vector3(p.mesh.position.x, p.y + p.headTop * (1 - (1 - p.squashY) * (1 - ex)) + 0.85, p.mesh.position.z);
+      v.project(ctx.camera);
+      p.e._tag.style.left = ((v.x * 0.5 + 0.5) * innerWidth) + "px";
+      p.e._tag.style.top = ((-v.y * 0.5 + 0.5) * innerHeight) + "px";
+      const urgent = p.state === "fire" && p.aim < Math.min(0.85, p.aimMax * 0.42);
+      if (urgent !== p.e._tagUrgent) {
+        p.e._tagUrgent = urgent;
+        p.e._tag.classList.toggle("urgent", urgent);
+      }
+    }
+  }
+
+  function stepAlly(ctx, dt) {
+    const a = dress && dress.ally;
+    if (!a) return;
+    const cam = ctx.camera;
+    const right = new T.Vector3().setFromMatrixColumn(cam.matrixWorld, 0);
+    const fwd = new T.Vector3().setFromMatrixColumn(cam.matrixWorld, 2).negate();
+    const tx = cam.position.x - right.x * 2.8 + fwd.x * 4.6;
+    const tz = cam.position.z - right.z * 2.8 + fwd.z * 4.6;
+    a.position.x += (tx - a.position.x) * Math.min(1, dt * 4);
+    a.position.z += (tz - a.position.z) * Math.min(1, dt * 4);
+    a.position.y = 0.3;
+    const foes = exposedHostiles();
+    let best = null, bd = 1e9;
+    foes.forEach((p) => {
+      const d = Math.hypot(p.x - a.position.x, p.z - a.position.z);
+      if (d < bd) { bd = d; best = p; }
+    });
+    if (best) {
+      a.rotation.y = Math.atan2(best.x - a.position.x, best.z - a.position.z);
+      if (a.userData.armL) a.userData.armL.rotation.x = -1.4;
+      allyT -= dt;
+      if (allyT <= 0) { allyT = 1.15 + Math.random() * 0.8; allyTracer(ctx, best); }
+    } else if (a.userData.armL) {
+      if (a.userData.armL) a.userData.armL.rotation.x = -1.25 + Math.sin(performance.now() / 800) * 0.05;
+    }
+  }
+
   function frame(ctx) {
-    if (!armed || !active || !ctx || !ctx.scene || !ctx.camera || !ctx.L) return;
+    if (!armed || !active || !ctx || !ctx.scene || !ctx.camera) return;
+    const cam = ctx.camera;
     const nowMs = performance.now();
     let dt = Math.min(0.05, (nowMs - (frame._t || nowMs)) / 1000) || 0.016;
     if (hitStop > 0) { hitStop = Math.max(0, hitStop - dt); dt *= 0.16; }
+    if (window.__railSpeed) dt *= window.__railSpeed;
     frame._t = nowMs;
     const t = (nowMs - t0) / 1000;
-    clock = Math.max(0, 90 - t);
-    if (!ended && phase === "move") {
-      camX += dt * 16;
-      const nxt = waves[waveI];
-      if (nxt && camX > nxt.x - 7) startWave(nxt);
-      else if (!nxt && bossPost) phase = "toBoss";
-    }
-    if (!ended && phase === "toBoss") {
-      camX += dt * 16;
-      if (bossPost && camX > bossPost.x - 8) {
-        phase = "boss";
-        bossPost.x = camX + 6.5;
-        bossPost.z = 2.0;
-        bossPost.y = 0.3;
-        bossPost.popped = true;
-        bossPost.e.mesh.position.set(bossPost.x, bossPost.y, bossPost.z);
-        if (bossPost.mesh) {
-          bossPost.mesh.visible = true;
-          bossPost.mesh.position.set(bossPost.x, bossPost.y, bossPost.z);
+    clock = Math.max(0, CLOCK0 - t);
+
+    // ---- camera rail ----
+    let lookGoal = null;
+    let arrived = false;
+    if (!ended) {
+      if (phase === "move" || phase === "toBoss") {
+        const goalU = phase === "toBoss" ? bossU : (waves[waveI] ? waves[waveI].u : bossU);
+        pathU = Math.min(goalU, pathU + (7.4 * dt) / pathLen);
+        const p = pathAt(pathU);
+        cam.position.set(p.x, CAM_Y, p.z);
+        const ahead = pathAt(pathU + 7 / pathLen);
+        const zone = phase === "toBoss" ? { x: BOSS_DEF.look[0], y: BOSS_DEF.look[1], z: BOSS_DEF.look[2] }
+                                        : (waves[waveI] ? waves[waveI].look : null);
+        const left = (goalU - pathU) * pathLen;
+        if (zone && left < 11) {
+          const k = Math.max(0, Math.min(1, 1 - left / 11));
+          lookGoal = {
+            x: ahead.x + (zone.x - ahead.x) * k,
+            y: 1.45 + (zone.y - 1.45) * k,
+            z: ahead.z + (zone.z - ahead.z) * k
+          };
+        } else {
+          lookGoal = { x: ahead.x, y: 1.45, z: ahead.z };
         }
-        bossPost.aim = bossPost.aimMax;
-        if (!bossPost.e._tag) roleTag(bossPost.e);
-        window.__railPhase = "boss";
+        arrived = goalU - pathU < 0.0005;
+        if (arrived) {
+          if (phase === "move") { startWave(waves[waveI]); }
+          else if (phase === "toBoss") { startBoss(ctx); }
+        }
+      } else {
+        cam.position.set(curHold.x, CAM_Y, curHold.z);
+        lookGoal = { x: curLook.x, y: curLook.y, z: curLook.z };
       }
+    } else {
+      lookGoal = { x: cam.position.x, y: 1.3, z: cam.position.z + 10 };
     }
-    if (!ended && (phase === "fight" || phase === "boss")) {
+
+    if (lookGoal) {
+      const k = 1 - Math.exp(-7 * dt);
+      lookSmooth.x += (lookGoal.x - lookSmooth.x) * k;
+      lookSmooth.y += (lookGoal.y - lookSmooth.y) * k;
+      lookSmooth.z += (lookGoal.z - lookSmooth.z) * k;
+    }
+    let sx = 0, sy = 0;
+    if (shake > 0) {
+      sx = (Math.random() - 0.5) * shake * 0.12;
+      sy = (Math.random() - 0.5) * shake * 0.08;
+      shake *= 0.86;
+    }
+    const sway = Math.sin(nowMs / 2400) * 0.0016;
+    cam.position.x += sx;
+    cam.position.y = CAM_Y + sy + Math.sin(nowMs / 1700) * 0.006;
+    cam.lookAt(lookSmooth.x, lookSmooth.y + sway, lookSmooth.z);
+    cam.near = 0.06;
+    cam.fov = viewFov();
+    cam.updateProjectionMatrix();
+    cam.updateMatrixWorld(true);
+    if (ctx.player) ctx.player.visible = false;
+
+    // ---- enemies ----
+    if (phase === "fight" || phase === "boss") {
       waveT -= dt;
-      const list = phase === "boss" ? [bossPost] : posts;
-      list.forEach((p) => {
-        if (!p || p.e.alive === false) return;
-        p.e.mesh.position.set(p.x, p.y, p.z);
-        p.e.mesh.rotation.y = -Math.PI / 2;
-        p.e.active = false;
-        const m = p.mesh;
-        if (m) {
-          m.position.set(p.x, p.y, p.z);
-          m.rotation.y = Math.atan2(camX + 1.4 - p.x, 4.2 - p.z) * 0.6;
-          const u = m.userData;
-          if (p.knock > 0) p.knock = Math.max(0, p.knock - dt * 1.6);
-          m.rotation.z = (p.knock || 0) * 0.9;
-          p.bob = (p.bob || 0) + dt * 2.4;
-          if (u.body) {
-            u.body.position.y = Math.sin(p.bob) * 0.02;
-            u.body.rotation.z = Math.sin(p.bob * 0.63) * 0.022;
-          }
-          const aimK = Math.max(0, Math.min(1, 1 - p.aim / (p.aimMax || 2)));
-          if (u.rifle) u.rifle.rotation.x = -0.18 - aimK * 0.5;
-          if (u.nade) u.nade.position.y = 0.62 + aimK * 0.12;
-          if (p.role === "hostage") {
-            const wv = Math.sin(p.bob * 1.7) * 0.12;
-            if (u.body) u.body.rotation.z = wv;
-          }
-        }
-        if (p.role === "hostage") return;
-        p.aim -= dt;
-        if (p.e._tag) {
-          const v = new T.Vector3(p.x, p.y + (p.e.h || 1.4) + 0.92, p.z);
-          v.project(ctx.camera);
-          p.e._tag.style.left = ((v.x * 0.5 + 0.5) * innerWidth) + "px";
-          p.e._tag.style.top = ((-v.y * 0.5 + 0.5) * innerHeight) + "px";
-          const urgent = p.aim < Math.min(0.8, (p.aimMax || 2) * 0.42);
-          if (urgent !== p.e._tagUrgent) {
-            p.e._tagUrgent = urgent;
-            p.e._tag.classList.toggle("urgent", urgent);
-          }
-        }
-        if (p.role === "throw") {
-          p.nextThrow -= dt;
-          if (p.nextThrow <= 0) { p.nextThrow = 1.3; throwShot(ctx, p); }
-        }
-        if (p.aim <= 0) { hurtPlayer(ctx, p.role === "boss" ? 25 : 18); p.aim = p.aimMax; }
-      });
+      posts.forEach((p) => stepPost(p, ctx, dt));
+      stepAlly(ctx, dt);
       shots3.forEach((s) => {
         s.x -= dt * 6;
         s.mesh.position.set(s.x, s.y, s.z);
       });
       shots3 = shots3.filter((s) => {
-        if (s.x < camX + 0.8) { hurtPlayer(ctx, 12); s.mesh.parent && s.mesh.parent.remove(s.mesh); return false; }
+        if (s.x < cam.position.x + 0.8) { hurtPlayer(ctx, 10); s.mesh.parent && s.mesh.parent.remove(s.mesh); return false; }
         return true;
       });
-      const left = phase === "boss" ? (bossPost.e.alive !== false) : livingHostiles().length;
-      if (phase === "fight" && (left === 0 || waveT <= 0)) endWave(ctx);
+      const left = livingHostiles().length;
+      if (left === 0 || (waveT <= 0 && phase !== "boss")) endWave(ctx);
+    } else if (phase === "move" || phase === "toBoss") {
+      stepAlly(ctx, dt);
     }
-    let sx = 0, sy = 0;
-    if (shake > 0) { sx = (Math.random() - 0.5) * shake; sy = (Math.random() - 0.5) * shake * 0.6; shake *= 0.86; }
-    ctx.camera.position.set(camX + sx, 1.7 + sy, 4.1);
-    ctx.camera.lookAt(camX + 7, 1.35, 1.1);
-    ctx.camera.near = 0.06;
-    ctx.camera.fov = 58;
-    ctx.camera.updateProjectionMatrix();
-    if (ctx.player) ctx.player.visible = false;
-    if (dress) {
-      if (dress.sky) { dress.sky.position.x = camX + 4; dress.sky.position.z = 2; }
-      if (dress.ally) {
-        dress.ally.position.set(camX + 2.4, 0.3, 1.25);
-        dress.ally.rotation.y = -0.16 + Math.sin(nowMs / 1100) * 0.02;
-        const u = dress.ally.userData;
-        if (u.armL) u.armL.rotation.x = -1.25 + Math.sin(nowMs / 800) * 0.05;
-      }
-      dress.flags.forEach((f) => {
-        if (f.userData.cloth) f.userData.cloth.rotation.y = Math.sin(nowMs / 540 + f.userData.ph) * 0.09;
-      });
-      dress.clouds.forEach((c) => {
-        c.position.x += dt * 0.35;
-        if (c.position.x > camX + 90) c.position.x -= 170;
-      });
-      dress.barrels.forEach((b) => {
-        if (!b.dead && b.mesh) b.mesh.rotation.y = Math.sin(nowMs / 900 + b.x) * 0.03;
-      });
-    }
+
+    // ---- dying ----
     posts.forEach((p) => {
       if (!p.mesh || p.e.alive !== false) return;
       if (p.dying > 0) {
@@ -2172,24 +2642,57 @@
         if (p.dying <= 0) p.mesh.visible = false;
       }
     });
-    if (ctx.pl) ctx.pl.inv = 99999;
-    ctx.setState && ctx.setState("play");
+
+    // ---- world dressing follow ----
+    if (dress) {
+      if (dress.sky) { dress.sky.position.set(cam.position.x, 0, cam.position.z + 20); }
+      dress.flags.forEach((f) => {
+        if (f.userData.cloth) f.userData.cloth.rotation.y = Math.sin(nowMs / 540 + f.userData.ph) * 0.09;
+      });
+      dress.clouds.forEach((c) => {
+        c.position.x += dt * 0.3;
+        if (c.position.x > cam.position.x + 90) c.position.x -= 180;
+      });
+      dress.barrels.forEach((b) => {
+        if (!b.dead && b.mesh) b.mesh.rotation.y = Math.sin(nowMs / 900 + b.x) * 0.03;
+      });
+    }
+
+    // ---- tracers / pickups ----
+    for (let i = tracers.length - 1; i >= 0; i--) {
+      const tr = tracers[i];
+      tr.life -= dt;
+      if (tr.grow && tr.mesh.scale) tr.mesh.scale.setScalar(1 + (0.06 - tr.life) * 12);
+      if (tr.life <= 0) { tr.mesh.parent && tr.mesh.parent.remove(tr.mesh); tracers.splice(i, 1); }
+    }
+    pickups.forEach((item) => {
+      if (item.taken || !item.mesh) return;
+      item.mesh.rotation.y += dt * 1.1;
+      item.mesh.position.y = item.y + Math.sin((nowMs / 700) + (item.y || 0)) * 0.05;
+    });
+
+    // ---- viewmodel ----
     const since = performance.now() - lastShot;
     const kick = Math.max(0, recoil);
     recoil = Math.max(0, recoil - 0.08);
     if (reloadK > 0) reloadK = Math.max(0, reloadK - dt / 0.44);
     if (pistol && pistolBase) {
-      const vk = innerWidth < 620 ? 0.38 : innerWidth < 900 ? 0.47 : 0.56;
-      if (Math.abs(pistol.scale.x - vk) > 0.01) pistol.scale.setScalar(vk);
+      const asp = innerWidth / Math.max(1, innerHeight);
+      const tHalf = Math.tan((cam.fov * Math.PI) / 360) * Math.abs(pistolBase.z);
+      const halfW = tHalf * asp;
+      const vk = Math.max(0.14, Math.min(0.4, halfW * 0.58));
+      if (Math.abs(pistol.scale.x - vk) > 0.005) pistol.scale.setScalar(vk);
+      const baseX = Math.min(pistolBase.x, halfW * 0.5);
       const dip = reloadK > 0 ? Math.sin(Math.PI * (1 - reloadK)) : 0;
-      const swayX = aimN.x * 0.016 + Math.sin(nowMs / 740) * 0.003;
-      const swayY = aimN.y * 0.01 + Math.cos(nowMs / 960) * 0.003;
-      pistol.position.x = -0.005 + swayX;
-      pistol.position.z = pistolBase.z + kick * 0.05 + dip * 0.03;
-      pistol.position.y = pistolBase.y - kick * 0.02 - dip * 0.1 + swayY;
-      pistol.rotation.x = -0.44 + kick * 0.22 + dip * 0.55;
-      pistol.rotation.z = dip * 0.3;
-      pistol.rotation.y = 0.46 + aimN.x * 0.06 + dip * 0.12;
+      const swayX = aimN.x * 0.012 + Math.sin(nowMs / 740) * 0.0025;
+      const swayY = aimN.y * 0.008 + Math.cos(nowMs / 960) * 0.0025;
+      pistol.position.x = baseX + swayX;
+      pistol.position.z = pistolBase.z + kick * 0.045 + dip * 0.03;
+      pistol.position.y = pistolBase.y - kick * 0.018 - dip * 0.1 + swayY;
+      // muzzle stays on the reticle; the rig only leans a touch toward the aim
+      pistol.rotation.x = 0.05 + kick * 0.2 + dip * 0.5 + aimN.y * 0.05;
+      pistol.rotation.y = 0.085 - aimN.x * 0.055 + dip * 0.1;
+      pistol.rotation.z = 0.012 + dip * 0.3;
     }
     if (flash) { flash.visible = since < 70; flash.scale.setScalar(1 + (1 - Math.min(1, since / 70)) * 1.4); }
     if (flashLight) flashLight.intensity = since < 95 ? (1 - since / 95) * 2.8 : 0;
@@ -2222,15 +2725,22 @@
     ensureHud((ctx.G && ctx.G.score) || 0);
     if (!window.__railIdle && t > 0.4) window.__railIdle = 1;
     window.__railPhase = phase;
-    window.__railDbg = { phase, posts: posts.length, waveI, waves: waves.length, boss: !!bossPost, bullets, shotsFired, shotsHit, hp, lives, pickups: pickups.length, got: pickups.filter((p) => p.taken).length };
-    ctx.camera.updateMatrixWorld(true);
-    const spot = posts.find((p) => p.popped && p.e.alive !== false && p.role !== "hostage") || (bossPost && bossPost.popped && bossPost.e.alive !== false ? bossPost : null);
+    window.__railDbg = {
+      phase, waveI, u: +pathU.toFixed(3), cam: [+cam.position.x.toFixed(2), +cam.position.z.toFixed(2)],
+      posts: posts.length, alive: posts.filter((p) => p.e.alive !== false).length,
+      exposed: posts.filter((p) => p.e.alive !== false && p.expose > 0.42).length,
+      states: posts.map((p) => p.state).join(","),
+      ally: window.__allyShots || 0,
+      bullets, shotsFired, shotsHit, hp, lives, waveT: +waveT.toFixed(1),
+      pickups: pickups.length, got: pickups.filter((p) => p.taken).length,
+      errs: (window.__railErrs || []).length
+    };
+    const spot = exposedHostiles()[0] || null;
     if (spot && spot.mesh) {
       const v = new T.Vector3();
-      spot.mesh.updateWorldMatrix(true, true);
       spot.mesh.getWorldPosition(v);
       v.y += 0.9;
-      v.project(ctx.camera);
+      v.project(cam);
       window.__aimSpot = { x: (v.x * 0.5 + 0.5) * innerWidth, y: (-v.y * 0.5 + 0.5) * innerHeight };
     } else window.__aimSpot = null;
     window.__pickupSpot = null;
@@ -2238,10 +2748,8 @@
     pickups.forEach((item) => {
       if (item.taken || !item.mesh || item.mesh.visible === false) return;
       const v = new T.Vector3();
-      item.mesh.updateWorldMatrix(true, true);
       item.mesh.getWorldPosition(v);
-      if (v.x < camX + 0.8) return;
-      const pjt = v.clone().project(ctx.camera);
+      const pjt = v.clone().project(cam);
       if (pjt.z < 0 || pjt.z > 1 || Math.abs(pjt.x) > 0.92 || Math.abs(pjt.y) > 0.92) return;
       const x = (pjt.x * 0.5 + 0.5) * innerWidth;
       const y = (-pjt.y * 0.5 + 0.5) * innerHeight;

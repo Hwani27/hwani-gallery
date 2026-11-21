@@ -102,15 +102,20 @@
   const G = { score: 0 };
   const LT = { hemi, amb, key, moon, rim };
 
-  function popScore(n, x) {
+  function popScore(n, at) {
     const el = document.createElement("div");
     el.className = "mgPop" + (n < 0 ? " bad" : "");
     el.textContent = (n > 0 ? "+" : "") + n;
     document.body.appendChild(el);
-    const v = new T.Vector3((typeof x === "number" ? x : 14) + 5.6, 2.1, 3.0);
-    v.project(camera);
-    const sx = (v.x * 0.5 + 0.5) * innerWidth;
-    const sy = (-v.y * 0.5 + 0.5) * innerHeight;
+    let sx = innerWidth * 0.55, sy = innerHeight * 0.42;
+    if (at && typeof at.x === "number" && typeof at.y === "number") {
+      sx = at.x; sy = at.y;
+    } else {
+      const v = new T.Vector3(0, 1.6, -8);
+      v.project(camera);
+      sx = (v.x * 0.5 + 0.5) * innerWidth;
+      sy = (-v.y * 0.5 + 0.5) * innerHeight;
+    }
     el.style.left = Math.max(24, Math.min(innerWidth - 24, sx)) + "px";
     el.style.top = Math.max(40, Math.min(innerHeight - 60, sy)) + "px";
     setTimeout(() => { el.remove(); }, 820);
@@ -143,10 +148,10 @@
     requestAnimationFrame(tick);
     if (state.mode === "play" && window.RAIL && window.RAIL.active) {
       try { window.RAIL.frame(ctx); } catch (err) { if (!window.__frameErr) window.__frameErr = String(err && err.stack || err); }
-      key.position.set(camera.position.x + 26, 46, 30);
-      key.target.position.set(camera.position.x + 16, 0, 8);
+      key.position.set(camera.position.x + 26, 46, camera.position.z + 26);
+      key.target.position.set(camera.position.x, 0, camera.position.z + 8);
       key.target.updateMatrixWorld();
-      rim.position.set(camera.position.x - 6, 10, -26);
+      rim.position.set(camera.position.x - 6, 10, camera.position.z - 26);
     }
     renderer.render(scene, camera);
   }
