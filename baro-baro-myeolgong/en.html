@@ -9,8 +9,9 @@
 <p id="mgLoad" style="font:16px sans-serif;padding:24px">Loading the Jump Right Now engine…</p>
 <script>
 (async function () {
-  const ORIG = "../baro-baro-jump/en.html";
-  let html = await (await fetch(ORIG)).text();
+  const v = Date.now();
+  const ORIG = "../baro-baro-jump/en.html?v=" + v;
+  let html = await (await fetch(ORIG, { cache: "no-store" })).text();
   html = html.replaceAll("url(./fonts/", "url(../baro-baro-jump/fonts/");
   html = html.replaceAll('src="icons/', 'src="../baro-baro-jump/icons/');
   html = html.replaceAll('href="icons/', 'href="../baro-baro-jump/icons/');
@@ -25,7 +26,7 @@
   html = html.replace(cam, cam.replace("postRender52(scene,camera)", rail));
   const boot = '<script>(function(){var G="blockaction"';
   if (!html.includes(boot)) throw new Error("boot missing");
-  html = html.replace(boot, '<script src="gun-sfx.js"><\/script><script src="rail.js"><\/script>' + boot);
+  html = html.replace(boot, '<script src="gun-sfx.js?v=' + v + '"><\/script><script src="rail.js?v=' + v + '"><\/script>' + boot);
   const doc = new DOMParser().parseFromString(html, "text/html");
   document.replaceChild(document.importNode(doc.documentElement, true), document.documentElement);
   const scripts = [...document.scripts];
