@@ -79,7 +79,8 @@
       html.rail-on #baHud,html.rail-on #baPad,html.rail-on #baPadX,html.rail-on #baBoss,
       html.rail-on #baMsg,html.rail-on #baDlg,html.rail-on #baCoach,html.rail-on #baSkip,
       html.rail-on #baLB,html.rail-on #lang7,html.rail-on #gqBtn,html.rail-on #gqToast,
-      html.rail-on #view7Btn,html.rail-on #view7Pop,html.rail-on #baRotate{display:none!important}
+      html.rail-on #view7Btn,html.rail-on #view7Pop,html.rail-on #baRotate,
+      html.rail-on #baOver{display:none!important}
       #railHud{position:fixed;inset:0;z-index:40;pointer-events:none;image-rendering:pixelated}
       #railHud canvas{width:100%;height:100%;image-rendering:pixelated}
       #railX{position:fixed;left:50%;top:46%;width:46px;height:46px;transform:translate(-50%,-50%);z-index:41;pointer-events:none}
@@ -1678,7 +1679,7 @@
     const box = document.createElement("div");
     box.id = "railResult";
     box.className = "show";
-    box.innerHTML = "<div class=card><h2>" + (cleared ? (ko ? "스테이지 클리어" : "STAGE CLEAR") : (ko ? "실패" : "FAILED")) + "</h2><div class=stars>" + stars + "</div><p>" + (ko ? "점수" : "SCORE") + " " + ((ctx.G && ctx.G.score) || 0) + "</p><p>" + (ko ? "명중률" : "ACCURACY") + " " + Math.round(acc * 100) + "%</p><p>" + (ko ? "코인" : "COINS") + " " + got + "/" + tot + "</p><p>COMBO " + bestCombo + "</p></div>";
+    box.innerHTML = "<div class=card><h2>" + (cleared ? (ko ? "스테이지 클리어" : "STAGE CLEAR") : (ko ? "실패" : "FAILED")) + "</h2><div class=stars>" + stars + "</div><p>" + (ko ? "점수" : "SCORE") + " " + ((ctx.G && ctx.G.score) || 0) + "</p><p>" + (ko ? "명중률" : "ACCURACY") + " " + Math.round(acc * 100) + "%</p><p>" + (ko ? "보급" : "SUPPLY") + " " + got + "/" + tot + "</p><p>COMBO " + bestCombo + "</p></div>";
     document.body.appendChild(box);
   }
 
