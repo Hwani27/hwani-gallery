@@ -14,10 +14,11 @@
   html = html.replaceAll("url(./fonts/", "url(../baro-baro-jump/fonts/");
   html = html.replaceAll('src="icons/', 'src="../baro-baro-jump/icons/');
   html = html.replaceAll('href="icons/', 'href="../baro-baro-jump/icons/');
+  html = html.replaceAll("지금 바로 점프 · Jump Right Now", "지금 바로 멸공");
   html = html.replaceAll("지금 바로 점프", "지금 바로 멸공");
   const step = "function stepPlayer(inp){const p=pl;";
   const cam = 'placeCamera(false);bossCam53();space54(dt);crayon58(dt);fx59(dt);bk59(dt);bossBar59();updLights();updateHUD();hud53();updBossBar();speedFx5(state==="play"&&RUN5.sprinting());postRender52(scene,camera)';
-  const rail = 'try{window.__railCtx={scene:scene,camera:camera,renderer:renderer,enemies:enemies,pl:pl,player:player,L:L,W3:W3,G:G,LT:LT,M:M,BOSSK:BOSSK,snd:snd,makeHero:makeHero,makeFoe:makeFoe,makePillager:makePillager,makeCybertruck:makeCybertruck,killFlip:killFlip,hitFlash:hitFlash,hitBoss:hitBoss,addScore:addScore,setState:function(v){state=v}};}catch(e){}try{window.RAIL&&RAIL.frame(window.__railCtx)}catch(e){}postRender52(scene,camera)';
+  const rail = 'try{window.__railCtx={scene:scene,camera:camera,renderer:renderer,enemies:enemies,pl:pl,player:player,L:L,W3:W3,G:G,LT:LT,M:M,BOSSK:BOSSK,snd:snd,makeHero:makeHero,makeFoe:makeFoe,makePillager:makePillager,makeBoss:makeBoss,makeCoin:makeCoin,makeMushroom:makeMushroom,makeArrow:makeArrow,killFlip:killFlip,hitFlash:hitFlash,hitBoss:hitBoss,addScore:addScore,commitStars66:commitStars66,saveSave:saveSave,setState:function(v){state=v}};}catch(e){}try{window.RAIL&&RAIL.frame(window.__railCtx)}catch(e){}postRender52(scene,camera)';
   if (!html.includes(step) || !html.includes(cam)) throw new Error("engine hook missing");
   html = html.replace(step, "function stepPlayer(inp){if(window.RAIL&&RAIL.hold)return;const p=pl;");
   html = html.replace(cam, cam.replace("postRender52(scene,camera)", rail));
