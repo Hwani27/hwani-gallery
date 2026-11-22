@@ -40,7 +40,9 @@
   let gunAim = { yaw: 0, pitch: 0 };
   let flash = null;
   let flashHalo = null;
+  let flashStar = null;
   let flashLight = null;
+  let shells = [];
   let recoil = 0;
   let pistolBase = null;
   let smokes = [];
@@ -316,7 +318,7 @@
   }
 
   function cloneMat(mat, rx, ry) {
-    if (!mat) return new T.MeshLambertMaterial({ color: 0x8d8880 });
+    if (!mat) return new T.MeshStandardMaterial({ color: 0x8d8880, roughness: 0.9 });
     const m = mat.clone();
     if (mat.map) {
       m.map = mat.map.clone();
@@ -343,6 +345,9 @@
      ========================================================= */
   const MT = {};
   const SOL = {};
+  /* the 2d canvas each cached texture was painted on, so a height (bump) map
+     and a roughness map can be derived from the very same grain */
+  const TXCV = {};
 
   /* Highest anisotropic filtering the GPU allows, capped at 8: floors and
      walls keep their grain at grazing angles instead of smearing to mush. */
@@ -365,13 +370,17 @@
     t.wrapS = t.wrapT = T.RepeatWrapping;
     t.anisotropy = Math.max(1, Math.min(8, MAXANISO));
     t.needsUpdate = true;
+    t.__key = key;
     MT[key] = t;
+    TXCV[key] = cv;
     try {
       if (!window.__texSizes) window.__texSizes = {};
       window.__texSizes[key] = [w, h, t.anisotropy];
       if (!window.__texCanvases) window.__texCanvases = {};
       window.__texCanvases[key] = cv;
       window.__texMs = +((window.__texMs || 0) + (performance.now() - t0)).toFixed(1);
+      if (!window.__texMsKey) window.__texMsKey = {};
+      window.__texMsKey[key] = +((window.__texMsKey[key] || 0) + (performance.now() - t0)).toFixed(1);
     } catch (e) {}
     return t;
   }
@@ -437,6 +446,22 @@
     }
   }
 
+  /* Per-pixel grain: the finest surface break a canvas can carry. A few
+     thousand rectangles read as tiles at 1024, one random step per pixel reads
+     as grit. */
+  function grain(g, w, h, amount, seed) {
+    const R = rng(seed || 7);
+    const img = g.getImageData(0, 0, w, h);
+    const d = img.data;
+    for (let i = 0; i < d.length; i += 4) {
+      const n = (R() - 0.5) * amount;
+      d[i] = Math.max(0, Math.min(255, d[i] + n));
+      d[i + 1] = Math.max(0, Math.min(255, d[i + 1] + n));
+      d[i + 2] = Math.max(0, Math.min(255, d[i + 2] + n));
+    }
+    g.putImageData(img, 0, 0);
+  }
+
   function speck(g, w, h, cols, seed, n, size) {
     const R = rng(seed);
     const s = size || Math.max(1, w / 256);
@@ -446,6 +471,91 @@
       g.fillRect((R() * w) | 0, (R() * h) | 0, s + ((R() * s * 2) | 0), s + ((R() * s) | 0));
     }
     g.globalAlpha = 1;
+  }
+
+  /* ---- surface relief ------------------------------------------------
+     A height map is what turns a painted canvas into a surface. It is read
+     off the colour map's own luminance (mortar is darker than stone, a door's
+     joint darker than its panel), box-blurred once so the noise reads as grain
+     instead of static, and pushed out by `gain`. Kept at 256 for memory: bump
+     only perturbs a normal, it carries no colour worth 4x the pixels. */
+  function bumpTex(key, src, opt) {
+    const k = key + "@bump";
+    if (MT[k]) return MT[k];
+    const o = opt || {};
+    const S = o.size || 256;
+    const cv = document.createElement("canvas");
+    cv.width = S;
+    cv.height = S;
+    const g = cv.getContext("2d");
+    g.fillStyle = "#808080";
+    g.fillRect(0, 0, S, S);
+    if (src) g.drawImage(src, 0, 0, S, S);
+    const img = g.getImageData(0, 0, S, S);
+    const d = img.data;
+    const n = S * S;
+    const lum = new Float32Array(n);
+    for (let i = 0, p = 0; p < n; p++, i += 4) lum[p] = d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114;
+    const blur = new Float32Array(n);
+    for (let y = 0; y < S; y++) {
+      const yr = ((y - 1 + S) % S) * S, y0 = y * S, yl = ((y + 1) % S) * S;
+      for (let x = 0; x < S; x++) {
+        const xl = (x - 1 + S) % S, xr = (x + 1) % S;
+        blur[y0 + x] = (lum[yr + xl] + lum[yr + x] + lum[yr + xr]
+                      + lum[y0 + xl] + lum[y0 + x] + lum[y0 + xr]
+                      + lum[yl + xl] + lum[yl + x] + lum[yl + xr]) / 9;
+      }
+    }
+    const gain = o.gain === undefined ? 2.2 : o.gain;
+    const lift = o.lift || 0;
+    for (let p = 0, i = 0; p < n; p++, i += 4) {
+      let v = 128 + (blur[p] - 128) * gain + lift;
+      if (o.invert) v = 255 - v;
+      d[i] = d[i + 1] = d[i + 2] = v < 0 ? 0 : v > 255 ? 255 : v;
+      d[i + 3] = 255;
+    }
+    g.putImageData(img, 0, 0);
+    const t = new T.CanvasTexture(cv);
+    t.wrapS = t.wrapT = T.RepeatWrapping;
+    t.magFilter = T.LinearFilter;
+    t.minFilter = T.LinearMipMapLinearFilter;
+    t.generateMipmaps = true;
+    t.anisotropy = Math.max(1, Math.min(8, MAXANISO));
+    t.needsUpdate = true;
+    MT[k] = t;
+    TXCV[k] = cv;
+    try {
+      if (!window.__texSizes) window.__texSizes = {};
+      window.__texSizes[k] = [S, S, t.anisotropy];
+    } catch (e) {}
+    return t;
+  }
+
+  /* A roughness map is where a surface differs in how it takes the sun: glass
+     mirror-smooth, its aluminium frame half-way, the spandrel rough. Black is
+     mirror, white is matte, exactly as three.js reads it. */
+  function roughTex(key, draw, opt) {
+    const k = key + "@rough";
+    if (MT[k]) return MT[k];
+    const o = opt || {};
+    const S = o.size || 256;
+    const cv = document.createElement("canvas");
+    cv.width = S;
+    cv.height = S;
+    const g = cv.getContext("2d");
+    g.fillStyle = o.base || "#d8d8d8";
+    g.fillRect(0, 0, S, S);
+    draw(g, S, S);
+    const t = new T.CanvasTexture(cv);
+    t.wrapS = t.wrapT = T.RepeatWrapping;
+    t.magFilter = T.LinearFilter;
+    t.minFilter = T.LinearMipMapLinearFilter;
+    t.generateMipmaps = true;
+    t.anisotropy = Math.max(1, Math.min(8, MAXANISO));
+    t.needsUpdate = true;
+    MT[k] = t;
+    TXCV[k] = cv;
+    return t;
   }
 
   /* ---- stone masonry ------------------------------------------------ */
@@ -494,7 +604,7 @@
             g.fillRect(x0 + bwid - 2.3 * u, y0b + 0.9 * u, 1.2 * u, bhei - 2.4 * u);
             // pitted stone face
             const pr = rng((seed + r * 97 + (x | 0)) | 0);
-            for (let i = 0; i < 26 * u * u; i++) {
+            for (let i = 0; i < 16 * u * u; i++) {
               g.globalAlpha = 0.06 + pr() * 0.16;
               g.fillStyle = pr() < 0.5 ? tint[(pr() * tint.length) | 0] : "#ffffff";
               g.fillRect(x0 + 1.5 * u + pr() * (bwid - 3 * u), y0b + 1.5 * u + pr() * (bhei - 3 * u),
@@ -601,6 +711,25 @@
           g.fillStyle = rg;
           g.beginPath(); g.arc(px, py, r, 0, 7); g.fill();
         });
+      }
+      // rain runoff down the face: what makes a concrete wall look old
+      for (let i = 0; i < 16; i++) {
+        const x = R() * w, wd = (2 + R() * 9) * u, y0 = R() * h * 0.45;
+        const lg = g.createLinearGradient(0, y0, 0, y0 + h * (0.3 + R() * 0.5));
+        lg.addColorStop(0, "rgba(64,60,50,.2)");
+        lg.addColorStop(0.7, "rgba(64,60,50,.1)");
+        lg.addColorStop(1, "rgba(64,60,50,0)");
+        g.fillStyle = lg;
+        g.fillRect(x, y0, wd, h * 0.8);
+      }
+      // and the white lime bloom that follows a wet season
+      for (let i = 0; i < 3; i++) {
+        const x = R() * w, y = h * (0.55 + R() * 0.4), r = (16 + R() * 40) * u;
+        const rg = g.createRadialGradient(x, y, 0, x, y, r);
+        rg.addColorStop(0, "rgba(238,236,226,.22)");
+        rg.addColorStop(1, "rgba(238,236,226,0)");
+        g.fillStyle = rg;
+        g.beginPath(); g.arc(x, y, r, 0, 7); g.fill();
       }
     });
   }
@@ -834,6 +963,37 @@
           g.beginPath(); g.arc(px, py, r, 0, 7); g.fill();
         });
       }
+    });
+  }
+
+  /* street-tree foliage: clumps of leaves in three greens over a dark interior,
+     so a clipped box of a tree reads as a bush instead of a green cube */
+  function folTex(key, seed) {
+    return ctex(key, 256, 256, (g, w, h) => {
+      const R = rng(seed || 5);
+      const u = w / 128;
+      g.fillStyle = "#22301b";
+      g.fillRect(0, 0, w, h);
+      const cols = ["#3f6b2c", "#4f7d33", "#5f8f3d", "#33602a", "#6da046", "#2b4a22"];
+      for (let i = 0; i < 1600; i++) {
+        const x = R() * w, y = R() * h;
+        const r = (1.6 + R() * 3.4) * u;
+        g.globalAlpha = 0.5 + R() * 0.5;
+        g.fillStyle = cols[(R() * cols.length) | 0];
+        wrapDraw(w, h, x, y, r * 2, (px, py) => {
+          g.beginPath();
+          g.ellipse(px, py, r, r * 0.62, R() * 3, 0, 7);
+          g.fill();
+        });
+      }
+      /* the shaded inside of the crown shows through the gaps */
+      for (let i = 0; i < 60; i++) {
+        const x = R() * w, y = R() * h, r = (3 + R() * 8) * u;
+        g.globalAlpha = 0.3;
+        g.fillStyle = "#16200f";
+        wrapDraw(w, h, x, y, r, (px, py) => { g.beginPath(); g.arc(px, py, r, 0, 7); g.fill(); });
+      }
+      g.globalAlpha = 1;
     });
   }
 
@@ -1122,6 +1282,66 @@
     });
   }
 
+  /* tyre tread: staggered blocks with a groove between them, so a wheel reads
+     as rubber and not as a black cylinder */
+  function treadTex(key, seed) {
+    return ctex(key, 128, 128, (g, w, h) => {
+      const R = rng(seed || 3);
+      g.fillStyle = "#8a8a8a";
+      g.fillRect(0, 0, w, h);
+      const cols = 4, rows = 8;
+      const cw = w / cols, rh = h / rows;
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const off = (r % 2) * cw * 0.5;
+          const x = c * cw + off + 2, y = r * rh + 2;
+          g.fillStyle = "#b4b4b4";
+          g.fillRect(x, y, cw - 5, rh - 5);
+          g.fillStyle = "rgba(255,255,255,.25)";
+          g.fillRect(x, y, cw - 5, 1.6);
+          g.fillStyle = "rgba(0,0,0,.3)";
+          g.fillRect(x, y + rh - 6.6, cw - 5, 1.6);
+        }
+      }
+      speck(g, w, h, ["#5f5f5f", "#c8c8c8"], seed + 2, 260, 1.2);
+    });
+  }
+
+  /* road paint: a laid film of white or yellow that has been driven over —
+     fine cracks, gravel showing through and the odd scuff */
+  function paintTex(key, base) {
+    return ctex(key, 256, 256, (g, w, h) => {
+      const R = rng(key.length * 977 + 13);
+      const u = w / 128;
+      g.fillStyle = base;
+      g.fillRect(0, 0, w, h);
+      for (let i = 0; i < 900; i++) {
+        g.globalAlpha = 0.04 + R() * 0.13;
+        g.fillStyle = R() < 0.55 ? shade(base, 0.72) : shade(base, 1.12);
+        const s = (0.6 + R() * 2.2) * u;
+        g.fillRect(R() * w, R() * h, s, s * (0.6 + R() * 0.8));
+      }
+      g.globalAlpha = 1;
+      for (let i = 0; i < 12; i++) {
+        g.strokeStyle = "rgba(40,40,40," + (0.1 + R() * 0.18).toFixed(2) + ")";
+        g.lineWidth = 0.8 * u;
+        let x = R() * w, y = R() * h;
+        g.beginPath(); g.moveTo(x, y);
+        for (let k = 0; k < 4; k++) { x += (R() - 0.5) * 22 * u; y += (R() - 0.5) * 22 * u; g.lineTo(x, y); }
+        g.stroke();
+      }
+      for (let i = 0; i < 5; i++) {
+        const x = R() * w, y = R() * h, r = (6 + R() * 16) * u;
+        wrapDraw(w, h, x, y, r, (px, py) => {
+          const rg = g.createRadialGradient(px, py, 0, px, py, r);
+          rg.addColorStop(0, "rgba(120,118,110,.22)");
+          rg.addColorStop(1, "rgba(120,118,110,0)");
+          g.fillStyle = rg; g.beginPath(); g.arc(px, py, r, 0, 7); g.fill();
+        });
+      }
+    });
+  }
+
   function groundTex(key, seed) {
     return ctex(key, 512, 512, (g, w, h) => {
       const R = rng(seed);
@@ -1160,156 +1380,327 @@
   /* ---- Seoul street surfaces --------------------------------------- */
 
   /* asphalt: coarse aggregate in a dark bitumen base, tar seams sealed over,
-     hairline cracks and the pale patches tyres polish into a junction */
-  function asphaltTex(key, seed) {
-    return ctex(key, 512, 512, (g, w, h) => {
+     hairline cracks, the pale tracks tyres polish into a lane and a patch of
+     newer tarmac cut into the old. Painted at 1024 because the road fills the
+     bottom half of the frame and its grain has to survive the perspective. */
+  function asphaltTex(key, seed, size) {
+    const SZ = size || 1024;
+    return ctex(key, SZ, SZ, (g, w, h) => {
       const R = rng(seed);
       const u = w / 128;
-      g.fillStyle = "#4b4e54";
+      g.fillStyle = "#3a3a38";
       g.fillRect(0, 0, w, h);
-      for (let i = 0; i < 6800; i++) {
-        g.globalAlpha = 0.06 + R() * 0.2;
-        g.fillStyle = ["#3b3e44", "#585c63", "#6a6e75", "#31343a", "#7c8188", "#43464c"][(R() * 6) | 0];
-        const s = (0.5 + R() * 2.0) * u;
+      /* a newer patch of tarmac: same family, a shade darker, straight edges */
+      const px0 = w * 0.08, py0 = h * 0.52, pw = w * 0.46, ph = h * 0.3;
+      g.fillStyle = "#333330";
+      g.fillRect(px0, py0, pw, ph);
+      g.strokeStyle = "rgba(22,23,26,.55)";
+      g.lineWidth = 2.2 * u;
+      g.strokeRect(px0, py0, pw, ph);
+      for (let i = 0; i < 900; i++) {
+        g.globalAlpha = 0.05 + R() * 0.14;
+        g.fillStyle = ["#282b2f", "#3d4045", "#4a4e54", "#222428", "#565a60"][(R() * 5) | 0];
+        const s = (0.5 + R() * 1.8) * u;
+        g.fillRect(px0 + R() * pw, py0 + R() * ph, s, s * (0.7 + R() * 0.7));
+      }
+      g.globalAlpha = 1;
+      /* aggregate: fine chips of stone in the bitumen, small enough that a
+         tile of road never reads as a pattern of squares */
+      for (let i = 0; i < 11000; i++) {
+        g.globalAlpha = 0.05 + R() * 0.18;
+        g.fillStyle = ["#2b2c2c", "#45464a", "#55565a", "#202122", "#6a6b70", "#37383a", "#4d4a44"][(R() * 7) | 0];
+        const s = (0.25 + R() * 0.85) * u;
         g.fillRect(R() * w, R() * h, s, s * (0.7 + R() * 0.7));
       }
       g.globalAlpha = 1;
+      grain(g, w, h, 26, seed + 11);
+      /* the two wheel tracks of a lane, polished lighter by traffic */
+      for (let i = 0; i < 2; i++) {
+        const cx = w * (0.26 + i * 0.44);
+        const lg = g.createLinearGradient(cx - 56 * u, 0, cx + 56 * u, 0);
+        lg.addColorStop(0, "rgba(180,186,194,0)");
+        lg.addColorStop(0.5, "rgba(180,186,194,.11)");
+        lg.addColorStop(1, "rgba(180,186,194,0)");
+        g.fillStyle = lg;
+        g.fillRect(cx - 56 * u, 0, 112 * u, h);
+      }
+      /* tar seams run with the road */
       for (let i = 0; i < 3; i++) {
-        g.strokeStyle = "rgba(28,29,33,.5)";
-        g.lineWidth = (2.2 + R() * 1.6) * u;
+        g.strokeStyle = "rgba(26,27,31,.34)";
+        g.lineWidth = (1.1 + R() * 1.1) * u;
         g.beginPath();
         let x = R() * w, y = 0;
         g.moveTo(x, y);
         while (y < h) { y += 20 * u; x += (R() - 0.5) * 14 * u; g.lineTo(x, y); }
         g.stroke();
       }
-      for (let i = 0; i < 26; i++) {
-        g.strokeStyle = "rgba(24,25,28," + (0.18 + R() * 0.25).toFixed(2) + ")";
+      /* and hairline cracks, some of them branching */
+      for (let i = 0; i < 22; i++) {
+        g.strokeStyle = "rgba(22,23,26," + (0.2 + R() * 0.3).toFixed(2) + ")";
         g.lineWidth = 0.7 * u;
         let x = R() * w, y = R() * h;
         g.beginPath(); g.moveTo(x, y);
-        for (let k = 0; k < 5; k++) { x += (R() - 0.5) * 18 * u; y += (R() - 0.3) * 14 * u; g.lineTo(x, y); }
+        const br = R() < 0.4;
+        for (let k = 0; k < 6; k++) {
+          x += (R() - 0.5) * 20 * u; y += (R() - 0.3) * 15 * u;
+          g.lineTo(x, y);
+          if (br && k === 3) {
+            g.moveTo(x, y);
+            g.lineTo(x + (R() - 0.5) * 26 * u, y + R() * 22 * u);
+            g.moveTo(x, y);
+          }
+        }
         g.stroke();
       }
-      for (let i = 0; i < 8; i++) {
-        const x = R() * w, y = R() * h, r = (24 + R() * 40) * u;
-        wrapDraw(w, h, x, y, r, (px, py) => {
-          const rg = g.createRadialGradient(px, py, 0, px, py, r);
-          rg.addColorStop(0, "rgba(150,155,162,.10)");
-          rg.addColorStop(1, "rgba(150,155,162,0)");
-          g.fillStyle = rg; g.beginPath(); g.arc(px, py, r, 0, 7); g.fill();
+      /* oil stains and the sheen patches */
+      for (let i = 0; i < 10; i++) {
+        const x = R() * w, y = R() * h, r = (24 + R() * 44) * u;
+        wrapDraw(w, h, x, y, r, (qx, qy) => {
+          const rg = g.createRadialGradient(qx, qy, 0, qx, qy, r);
+          rg.addColorStop(0, i % 3 ? "rgba(158,164,172,.07)" : "rgba(16,16,19,.3)");
+          rg.addColorStop(1, "rgba(158,164,172,0)");
+          g.fillStyle = rg; g.beginPath(); g.arc(qx, qy, r, 0, 7); g.fill();
         });
       }
     });
   }
 
-  /* sidewalk pavers: four 0.75 m blocks across, staggered joints, chipped
-     corners and a bit of chewing gum ground into the surface */
+  /* sidewalk pavers: four 0.75 m blocks across, staggered joints packed with
+     grit and a little moss, chipped corners, rain-dark blotches and chewing gum
+     pressed into the face */
   function paveTex(key, seed) {
     return ctex(key, 512, 512, (g, w, h) => {
       const R = rng(seed);
       const n = 4, s = w / n;
-      g.fillStyle = "#7b7b78";
+      g.fillStyle = "#5d5d59";
       g.fillRect(0, 0, w, h);
       for (let row = 0; row < n; row++) {
         for (let col = -1; col < n + 1; col++) {
           const off = row % 2 ? s / 2 : 0;
-          const x = col * s + off + 3, y = row * s + 3;
-          g.fillStyle = shade("#b6b6b1", 0.9 + R() * 0.2);
-          g.fillRect(x, y, s - 6, s - 6);
-          g.fillStyle = "rgba(255,255,255,.16)";
-          g.fillRect(x, y, s - 6, 2);
-          g.fillStyle = "rgba(40,40,38,.12)";
-          g.fillRect(x, y + s - 8, s - 6, 2);
-          for (let k = 0; k < 26; k++) {
-            g.globalAlpha = 0.06 + R() * 0.16;
+          const x = col * s + off + 3.5, y = row * s + 3.5;
+          const bw = s - 7, bh = s - 7;
+          const tone = 0.88 + R() * 0.22;
+          g.fillStyle = shade("#b3b3ad", tone);
+          rr(g, x, y, bw, bh, 2.2);
+          g.fill();
+          /* bevel: light on the top-left edge, shade bottom-right */
+          g.fillStyle = "rgba(255,255,255,.22)";
+          g.fillRect(x + 1, y + 1, bw - 2, 1.8);
+          g.fillRect(x + 1, y + 1, 1.8, bh - 2);
+          g.fillStyle = "rgba(30,30,28,.22)";
+          g.fillRect(x + 1, y + bh - 2.8, bw - 2, 2);
+          g.fillRect(x + bw - 2.8, y + 1, 2, bh - 2);
+          /* grit and the aggregate showing through the finish */
+          for (let k = 0; k < 40; k++) {
+            g.globalAlpha = 0.05 + R() * 0.15;
             g.fillStyle = R() < 0.5 ? "#8d8d88" : "#d4d4ce";
-            g.fillRect(x + R() * (s - 8), y + R() * (s - 8), 1.5 * (w / 512) * 2, 1.5 * (w / 512) * 2);
+            const gs = 0.8 + R() * 1.6;
+            g.fillRect(x + R() * (bw - 4), y + R() * (bh - 4), gs, gs);
           }
           g.globalAlpha = 1;
+          /* a chipped corner */
+          if (R() < 0.28) {
+            const cw = 4 + R() * 7, cx = R() < 0.5 ? x : x + bw - cw, cy = R() < 0.5 ? y : y + bh - cw;
+            g.fillStyle = "rgba(70,68,63,.4)";
+            g.beginPath();
+            g.moveTo(cx, cy + cw); g.lineTo(cx + cw * 0.4, cy + cw * 0.3); g.lineTo(cx + cw, cy);
+            g.lineTo(cx + cw, cy + cw); g.closePath(); g.fill();
+          }
+          /* dirt that gathers along the joints */
+          const dj = g.createLinearGradient(x, y, x, y + bh);
+          dj.addColorStop(0, "rgba(58,55,48,.16)");
+          dj.addColorStop(0.25, "rgba(58,55,48,0)");
+          dj.addColorStop(0.8, "rgba(58,55,48,0)");
+          dj.addColorStop(1, "rgba(58,55,48,.2)");
+          g.fillStyle = dj;
+          g.fillRect(x, y, bw, bh);
+          /* moss and rain darkening in a few blocks only */
+          if (R() < 0.18) {
+            const mx = x + R() * bw * 0.6, my = y + R() * bh * 0.6;
+            const rg = g.createRadialGradient(mx, my, 0, mx, my, s * 0.4);
+            rg.addColorStop(0, "rgba(58,66,44,.2)");
+            rg.addColorStop(1, "rgba(58,66,44,0)");
+            g.fillStyle = rg;
+            g.fillRect(x, y, bw, bh);
+          }
         }
       }
-      for (let i = 0; i < 5; i++) {
-        g.fillStyle = "rgba(38,36,32,.5)";
-        g.beginPath(); g.arc(R() * w, R() * h, (2 + R() * 3) * (w / 512) * 2, 0, 7); g.fill();
+      for (let i = 0; i < 7; i++) {
+        g.fillStyle = "rgba(34,32,28,.55)";
+        g.beginPath(); g.arc(R() * w, R() * h, 1.4 + R() * 2.6, 0, 7); g.fill();
       }
+      speck(g, w, h, ["#6f6f69", "#c3c3bc", "#8f8f88"], seed + 5, 520, 1.4);
     });
   }
 
   /* a city facade tile: two floors of glazing over spandrel bands, mullions,
-     sills, a few lit rooms and lowered blinds. One tile is 6 m wide and 6.4 m
-     tall, so a wall repeats it by its own size. */
+     sills, a few lit rooms, lowered blinds and a plant or a desk behind the
+     glass. One tile is 6 m wide and 6.4 m tall, so a wall repeats it by its own
+     size. The tile also carries its own roughness map: the glass is nearly a
+     mirror, its frame half-way, the spandrel and the wall matte. */
   function facadeTex(key, o, seed) {
     const P = o || {};
     const wall = P.wall || "#c2c6cb";
-    const glassTop = P.glassTop || "#c2e0f3";
-    const glassBot = P.glassBot || "#5b7d97";
-    return ctex(key, 384, 384, (g, w, h) => {
-      const R = rng(seed || 5);
+    const glassTop = P.glassTop || "#bfe2f8";
+    const glassBot = P.glassBot || "#41637d";
+    const sd = seed || 5;
+    const t = ctex(key, 512, 512, (g, w, h) => {
+      const R = rng(sd);
+      const u = w / 384;
       g.fillStyle = wall;
       g.fillRect(0, 0, w, h);
-      speck(g, w, h, [shade(wall, 0.93), shade(wall, 1.05), shade(wall, 0.86)], (seed || 5) + 2, 380, 2);
+      speck(g, w, h, [shade(wall, 0.93), shade(wall, 1.05), shade(wall, 0.86)], sd + 2, 700 * u * u, 2.4 * u);
       const bays = 3, floors = 2;
       const bw = w / bays, fh = h / floors;
       for (let f = 0; f < floors; f++) {
         const y0 = f * fh;
-        g.fillStyle = shade(wall, 0.9);
-        g.fillRect(0, y0 + fh - fh * 0.2, w, fh * 0.2);
-        g.fillStyle = "rgba(255,255,255,.25)";
-        g.fillRect(0, y0 + fh - fh * 0.2, w, 2);
+        /* the floor slab: a band of stone under a sharp shadow line */
+        g.fillStyle = shade(wall, 0.84);
+        g.fillRect(0, y0 + fh - fh * 0.19, w, fh * 0.19);
+        g.fillStyle = "rgba(255,255,255,.3)";
+        g.fillRect(0, y0 + fh - fh * 0.19, w, 2.2 * u);
+        g.fillStyle = "rgba(18,22,26,.3)";
+        g.fillRect(0, y0 + fh - fh * 0.19 + 2.2 * u, w, 3 * u);
         for (let b = 0; b < bays; b++) {
           const x0 = b * bw;
-          const gx = x0 + bw * 0.1, gy = y0 + fh * 0.1;
-          const gw = bw * 0.8, gh = fh * 0.62;
-          g.fillStyle = shade(wall, 0.62);
-          g.fillRect(gx - 4, gy - 4, gw + 8, gh + 8);
-          const lit = R() < 0.09;
-          const blinds = !lit && R() < 0.24;
+          const gx = x0 + bw * 0.085, gy = y0 + fh * 0.085;
+          const gw = bw * 0.83, gh = fh * 0.62;
+          /* the reveal: dark inset plus a bright lip on the sun side, which is
+             what makes a window read as a hole instead of a poster */
+          g.fillStyle = "rgba(20,24,28,.5)";
+          g.fillRect(gx - 6 * u, gy - 6 * u, gw + 12 * u, gh + 12 * u);
+          g.fillStyle = shade(wall, 0.72);
+          g.fillRect(gx - 4 * u, gy - 4 * u, gw + 8 * u, gh + 8 * u);
+          g.fillStyle = "rgba(255,255,255,.42)";
+          g.fillRect(gx - 4 * u, gy - 4 * u, gw + 8 * u, 1.6 * u);
+          g.fillRect(gx - 4 * u, gy - 4 * u, 1.6 * u, gh + 8 * u);
+          const lit = R() < 0.11;
+          const blinds = !lit && R() < 0.3;
           if (lit) {
-            g.fillStyle = "#f6e8bd";
+            /* an office with its lights on: warm ceiling strip, a desk edge */
+            const lgw = g.createLinearGradient(gx, gy, gx, gy + gh);
+            lgw.addColorStop(0, "#fbf0cf");
+            lgw.addColorStop(0.5, "#efdcb0");
+            lgw.addColorStop(1, "#c9ae82");
+            g.fillStyle = lgw;
+            g.fillRect(gx, gy, gw, gh);
+            g.fillStyle = "rgba(255,255,255,.85)";
+            g.fillRect(gx + gw * 0.08, gy + gh * 0.08, gw * 0.84, gh * 0.06);
+            g.fillStyle = "rgba(96,78,54,.35)";
+            g.fillRect(gx + gw * 0.12, gy + gh * 0.62, gw * 0.6, gh * 0.07);
+            g.fillRect(gx + gw * 0.76, gy + gh * 0.18, gw * 0.1, gh * 0.5);
           } else {
-            const lg = g.createLinearGradient(gx, gy, gx + gw * 0.4, gy + gh);
+            /* the sky, reflected: bright at the top, the city deep at the base,
+               with a slanted band of glare and a darker band of the block
+               across the street */
+            const lg = g.createLinearGradient(gx, gy, gx + gw * 0.25, gy + gh);
             lg.addColorStop(0, glassTop);
-            lg.addColorStop(0.55, shade(glassTop, 0.86));
+            lg.addColorStop(0.42, shade(glassTop, 0.9));
+            lg.addColorStop(0.62, shade(glassBot, 1.55));
             lg.addColorStop(1, glassBot);
             g.fillStyle = lg;
-          }
-          g.fillRect(gx, gy, gw, gh);
-          if (!lit) {
-            g.globalAlpha = 0.5;
-            g.fillStyle = "#f2fbff";
+            g.fillRect(gx, gy, gw, gh);
+            g.save();
             g.beginPath();
-            g.moveTo(gx, gy + gh * 0.06);
-            g.lineTo(gx + gw * 0.44, gy);
-            g.lineTo(gx + gw * 0.66, gy);
-            g.lineTo(gx, gy + gh * 0.4);
+            g.rect(gx, gy, gw, gh);
+            g.clip();
+            g.globalAlpha = 0.55;
+            g.fillStyle = "#eef8ff";
+            g.beginPath();
+            g.moveTo(gx, gy + gh * 0.1);
+            g.lineTo(gx + gw * 0.42, gy);
+            g.lineTo(gx + gw * 0.68, gy);
+            g.lineTo(gx, gy + gh * 0.46);
             g.closePath();
             g.fill();
+            g.globalAlpha = 0.32;
+            g.fillStyle = shade(glassBot, 0.7);
+            g.fillRect(gx + gw * 0.55, gy, gw * 0.45, gh);
+            g.globalAlpha = 0.4;
+            g.fillStyle = "#dfeef8";
+            g.fillRect(gx, gy + gh * 0.5, gw, 2 * u);
+            /* what is behind the glass: a ceiling line, a desk, a plant */
+            g.globalAlpha = 0.22;
+            g.fillStyle = "#1b232b";
+            g.fillRect(gx, gy, gw, gh * 0.07);
+            if (R() < 0.5) {
+              g.globalAlpha = 0.18;
+              g.fillStyle = "#10161b";
+              g.fillRect(gx + gw * (0.1 + R() * 0.3), gy + gh * 0.66, gw * 0.42, gh * 0.08);
+            }
+            if (R() < 0.35) {
+              g.globalAlpha = 0.24;
+              g.fillStyle = "#2c4a2a";
+              g.beginPath();
+              g.arc(gx + gw * 0.78, gy + gh * 0.72, gh * 0.1, 0, 7);
+              g.fill();
+            }
+            g.restore();
             g.globalAlpha = 1;
-            /* a hint of the room behind: ceiling strip and a desk line */
-            g.fillStyle = "rgba(30,38,46,.22)";
-            g.fillRect(gx, gy, gw, gh * 0.08);
+            /* blinds pulled down over the top part */
+            if (blinds) {
+              const bh2 = gh * (0.35 + R() * 0.4);
+              g.fillStyle = "rgba(240,236,220,.9)";
+              g.fillRect(gx, gy, gw, bh2);
+              g.fillStyle = "rgba(140,136,120,.45)";
+              for (let s2 = 1; s2 < 9; s2++) g.fillRect(gx, gy + (bh2 / 9) * s2, gw, 1.5 * u);
+              g.fillStyle = "rgba(0,0,0,.16)";
+              g.fillRect(gx, gy + bh2 - 3 * u, gw, 3 * u);
+              g.fillStyle = "rgba(255,255,255,.35)";
+              g.fillRect(gx, gy + bh2 * 0.06, gw, gh * 0.05);
+            }
           }
-          if (blinds) {
-            g.fillStyle = "rgba(238,232,212,.82)";
-            g.fillRect(gx, gy + gh * 0.12, gw, gh * 0.56);
-            g.fillStyle = "rgba(150,144,126,.5)";
-            for (let s2 = 0; s2 < 6; s2++) g.fillRect(gx, gy + gh * 0.12 + s2 * gh * 0.093, gw, 1.6);
-          }
-          g.fillStyle = shade(wall, 0.55);
-          g.fillRect(gx + gw * 0.49, gy, 2.4, gh);
-          g.fillStyle = "rgba(255,255,255,.4)";
-          g.fillRect(gx - 4, gy + gh + 3, gw + 8, 2.5);
+          /* the centre mullion, with a lit edge */
+          g.fillStyle = shade(wall, 0.5);
+          g.fillRect(gx + gw * 0.485, gy, 2.6 * u, gh);
+          g.fillStyle = "rgba(255,255,255,.3)";
+          g.fillRect(gx + gw * 0.485, gy, 0.9 * u, gh);
+          /* the sill: a bright ledge with a hard shadow under it */
+          g.fillStyle = shade(wall, 1.12);
+          g.fillRect(gx - 6 * u, gy + gh + 4 * u, gw + 12 * u, 4.5 * u);
+          g.fillStyle = "rgba(20,24,28,.32)";
+          g.fillRect(gx - 6 * u, gy + gh + 8.5 * u, gw + 12 * u, 3.5 * u);
         }
       }
-      /* pilasters and the shadow under the parapet */
-      g.fillStyle = shade(wall, 0.82);
-      for (let b = 0; b <= bays; b++) g.fillRect(b * bw - 2.5, 0, 5, h);
-      g.fillStyle = "rgba(20,24,28,.18)";
-      g.fillRect(0, 0, w, 6);
+      /* pilasters between the bays, lit on one side */
+      for (let b = 0; b <= bays; b++) {
+        const px = b * bw - 3.4 * u;
+        g.fillStyle = shade(wall, 0.86);
+        g.fillRect(px, 0, 6.8 * u, h);
+        g.fillStyle = "rgba(255,255,255,.16)";
+        g.fillRect(px, 0, 1.6 * u, h);
+        g.fillStyle = "rgba(16,20,24,.14)";
+        g.fillRect(px + 5.2 * u, 0, 1.6 * u, h);
+      }
+      /* the shadow the parapet throws on the top course */
+      const par = g.createLinearGradient(0, 0, 0, h * 0.09);
+      par.addColorStop(0, "rgba(20,24,28,.34)");
+      par.addColorStop(1, "rgba(20,24,28,0)");
+      g.fillStyle = par;
+      g.fillRect(0, 0, w, h * 0.09);
       g.fillStyle = "rgba(255,255,255,.12)";
-      g.fillRect(0, h - 4, w, 4);
+      g.fillRect(0, h - 4 * u, w, 4 * u);
     });
+    t.__rough = roughTex(key, (g, w, h) => {
+      const bays = 3, floors = 2;
+      const bw = w / bays, fh = h / floors;
+      for (let f = 0; f < floors; f++) {
+        const y0 = f * fh;
+        for (let b = 0; b < bays; b++) {
+          const x0 = b * bw;
+          /* glass: near-mirror in the middle, a little rougher at the edges
+             where the frame and the dirt are */
+          const lg = g.createLinearGradient(x0 + bw * 0.085, y0, x0 + bw * 0.9, y0 + fh * 0.7);
+          lg.addColorStop(0, "#2a2a2a");
+          lg.addColorStop(1, "#4a4a4a");
+          g.fillStyle = lg;
+          g.fillRect(x0 + bw * 0.085, y0 + fh * 0.085, bw * 0.83, fh * 0.62);
+          g.fillStyle = "#7a7a7a";
+          g.fillRect(x0 + bw * 0.485, y0 + fh * 0.085, 2, fh * 0.62);
+        }
+      }
+    }, { size: 128, base: "#dcdcdc" });
+    return t;
   }
 
   /* shopfront glazing: dark interior, warm strip lights, poster tape */
@@ -1982,7 +2373,7 @@
     if (!SOL.faces) SOL.faces = {};
     if (SOL.faces[key]) return SOL.faces[key];
     const t = ctex("face" + key, 256, 256, (g, w, h) => paintFace(g, w, h, o));
-    SOL.faces[key] = new T.MeshLambertMaterial({ map: t });
+    SOL.faces[key] = new T.MeshStandardMaterial({ map: t, roughness: 0.68, metalness: 0.0, envMapIntensity: 0.18 });
     return SOL.faces[key];
   }
 
@@ -2001,35 +2392,51 @@
   function makeSol() {
     if (SOL.ready) return;
     SOL.ready = 1;
-    const L = (tex, opt) => new T.MeshLambertMaterial(Object.assign({ map: tex }, opt || {}));
-    SOL.stone = L(blockTex("stone", "#bdb6a6", "#5e584c", ["#d6cfbe", "#a9a190", "#948c7c"], 5));
-    SOL.stoneDark = L(blockTex("stoneD", "#9a958a", "#46423a", ["#b3aea2", "#807a70", "#6c665c"], 9));
-    SOL.concrete = L(concreteTex("conc", "#b9b7ad", 13));
-    SOL.sand = L(burlapTex("sand", "#a08a5e", 21));
-    SOL.wood = L(woodTex("wood", "#8a6034", "#4e3413", "#c79a58", 4));
-    SOL.woodDark = L(woodTex("woodD", "#6f4b23", "#38230d", "#a3763c", 8));
-    SOL.camo = L(camoTex("camo", ["#5c6b3c", "#47542e", "#6f7d4a", "#3b4527", "#7d7048"], 31));
-    SOL.camoDark = L(camoTex("camoD", ["#424d2c", "#333d22", "#4f5a36", "#2a321c", "#5c5334"], 37));
-    SOL.camoBoss = L(camoTex("camoBoss", ["#4a4a30", "#33331f", "#5c5c3c", "#262616"], 41));
+    /* MeshStandard over the old Lambert: with roughness and metalness in the
+       shader, sunlight breaks off painted steel, wet glass and worn concrete
+       the way it does outside, and the scene environment map gives the curtain
+       walls and the pistol something to reflect. Everything a player can walk
+       into keeps its silhouette — only the surface changed. */
+    const L = (tex, opt) => new T.MeshStandardMaterial(Object.assign({ map: tex, envMapIntensity: 0.18 }, opt || {}));
+    /* a height map read off the colour canvas the texture was painted on */
+    const BM = (key, gain) => bumpTex(key, TXCV[key], { gain: gain });
+    SOL.stone = L(blockTex("stone", "#bdb6a6", "#5e584c", ["#d6cfbe", "#a9a190", "#948c7c"], 5, { size: 384 }),
+      { roughness: 0.84, metalness: 0.0, bumpMap: BM("stone", 2.6), bumpScale: 0.045 });
+    SOL.stoneDark = L(blockTex("stoneD", "#9a958a", "#46423a", ["#b3aea2", "#807a70", "#6c665c"], 9, { size: 384 }),
+      { roughness: 0.86, metalness: 0.0, bumpMap: BM("stoneD", 2.6), bumpScale: 0.045 });
+    SOL.concrete = L(concreteTex("conc", "#b9b7ad", 13),
+      { roughness: 0.93, metalness: 0.0, bumpMap: BM("conc", 2.0), bumpScale: 0.03 });
+    SOL.sand = L(burlapTex("sand", "#a08a5e", 21), { roughness: 0.95, bumpMap: BM("sand", 2.4), bumpScale: 0.035 });
+    SOL.wood = L(woodTex("wood", "#8a6034", "#4e3413", "#c79a58", 4),
+      { roughness: 0.8, metalness: 0.03, bumpMap: BM("wood", 1.8), bumpScale: 0.02 });
+    SOL.woodDark = L(woodTex("woodD", "#6f4b23", "#38230d", "#a3763c", 8),
+      { roughness: 0.84, metalness: 0.03, bumpMap: BM("woodD", 1.8), bumpScale: 0.02 });
+    SOL.camo = L(camoTex("camo", ["#5c6b3c", "#47542e", "#6f7d4a", "#3b4527", "#7d7048"], 31),
+      { roughness: 0.93, bumpMap: BM("camo", 3.0), bumpScale: 0.012 });
+    SOL.camoDark = L(camoTex("camoD", ["#424d2c", "#333d22", "#4f5a36", "#2a321c", "#5c5334"], 37),
+      { roughness: 0.93, bumpMap: BM("camoD", 3.0), bumpScale: 0.012 });
+    SOL.camoBoss = L(camoTex("camoBoss", ["#4a4a30", "#33331f", "#5c5c3c", "#262616"], 41),
+      { roughness: 0.9, bumpMap: BM("camoBoss", 3.0), bumpScale: 0.012 });
     const weave = weaveTex("weave", "#d2d2d2", 3);
     const weaveFine = weaveTex("weaveF", "#cfcfcf", 7, 1.5);
-    SOL.steel = L(metalTex("steel", 12), { color: 0x7c848e });
-    SOL.helm = L(camoTex("helm", ["#4d5a33", "#3a4526", "#5c6b40", "#2f3820"], 43, 128));
-    SOL.belt = L(leatherTex("belt", "#3a3226", 77), { color: 0x8d8578 });
-    SOL.boot = L(leatherTex("boot", "#2b2319", 4));
-    SOL.skin = L(null, { color: 0xe8b48c });
-    SOL.black = L(polymerTex("poly", 6), { color: 0x1e1e21 });
-    SOL.gunmetal = L(metalTex("gunmetal", 18, { base: "#dfe3e7" }), { color: 0x3d4246 });
-    SOL.red = L(null, { color: 0xc0281f });
-    SOL.gold = L(null, { color: 0xd8a83c });
-    SOL.white = L(weaveFine, { color: 0xf3efe2 });
-    SOL.civil = L(weave, { color: 0xece4d0 });
-    SOL.civilPant = L(weaveFine, { color: 0x3d4a63 });
-    SOL.hair = L(null, { color: 0x241a12 });
-    SOL.olive = L(weave, { color: 0x5c6438 });
-    SOL.oliveDark = L(weave, { color: 0x434a26 });
-    SOL.tire = L(null, { color: 0x22242a });
-    SOL.barrel = L(barrelTex("barrel", 77));
+    SOL.steel = L(metalTex("steel", 12), { color: 0x7c848e, roughness: 0.34, metalness: 0.88, bumpMap: BM("steel", 2.0), bumpScale: 0.008 });
+    SOL.helm = L(camoTex("helm", ["#4d5a33", "#3a4526", "#5c6b40", "#2f3820"], 43, 128),
+      { roughness: 0.44, metalness: 0.18, bumpMap: BM("helm", 3.0), bumpScale: 0.02 });
+    SOL.belt = L(leatherTex("belt", "#3a3226", 77), { color: 0x8d8578, roughness: 0.56, metalness: 0.06, bumpMap: BM("belt", 2.2), bumpScale: 0.02 });
+    SOL.boot = L(leatherTex("boot", "#2b2319", 4), { roughness: 0.7, metalness: 0.04, bumpMap: BM("boot", 2.2), bumpScale: 0.02 });
+    SOL.skin = L(null, { color: 0xe8b48c, roughness: 0.72, metalness: 0.0 });
+    SOL.black = L(polymerTex("poly", 6), { color: 0x1e1e21, roughness: 0.5, metalness: 0.06, bumpMap: BM("poly", 2.4), bumpScale: 0.012 });
+    SOL.gunmetal = L(metalTex("gunmetal", 18, { base: "#dfe3e7" }), { color: 0x3d4246, roughness: 0.3, metalness: 0.9, bumpMap: BM("gunmetal", 2.0), bumpScale: 0.008 });
+    SOL.red = L(null, { color: 0xc0281f, roughness: 0.55, metalness: 0.05 });
+    SOL.gold = L(null, { color: 0xd8a83c, roughness: 0.32, metalness: 0.85 });
+    SOL.white = L(weaveFine, { color: 0xf3efe2, roughness: 0.9 });
+    SOL.civil = L(weave, { color: 0xece4d0, roughness: 0.92 });
+    SOL.civilPant = L(weaveFine, { color: 0x3d4a63, roughness: 0.92 });
+    SOL.hair = L(null, { color: 0x241a12, roughness: 0.86 });
+    SOL.olive = L(weave, { color: 0x5c6438, roughness: 0.93 });
+    SOL.oliveDark = L(weave, { color: 0x434a26, roughness: 0.93 });
+    SOL.tire = L(treadTex("tire", 6), { color: 0x22242a, roughness: 0.95, metalness: 0.02, bumpMap: BM("tire", 3.4), bumpScale: 0.03 });
+    SOL.barrel = L(barrelTex("barrel", 77), { roughness: 0.58, metalness: 0.32, bumpMap: BM("barrel", 2.0), bumpScale: 0.012 });
     SOL.star = new T.MeshBasicMaterial({
       map: ctex("star", 128, 128, (g, w, h) => {
         g.clearRect(0, 0, w, h);
@@ -2042,52 +2449,68 @@
       }),
       transparent: true
     });
-    SOL.flagKR = L(flagKR(), { side: T.FrontSide });
-    SOL.flagKP = L(flagKP(), { side: T.FrontSide });
-    SOL.street = L(cobbleTex("street", "#9b9587", 91));
-    SOL.grass = L(null, { color: 0x6d8a3f });
-    SOL.tan = L(camoTex("tan", ["#ddcda8", "#cdbb94", "#e8dcc0", "#b9a681", "#f0e6cc"], 71));
-    SOL.tanDark = L(camoTex("tanD", ["#8e8062", "#7a6d52", "#9d8f6e", "#6b5f47"], 73));
-    SOL.vest = L(weave, { color: 0x2b3036 });
-    SOL.enemyCloth = L(weave, { color: 0x5c6b39 });
-    SOL.enemyDark = L(weave, { color: 0x49562c });
-    SOL.enemyBelt = L(weaveFine, { color: 0x6d4a28 });
-    SOL.enemyCap = L(weave, { color: 0x53612f });
-    SOL.helmAlly = L(null, { color: 0x4b5145 });
-    SOL.plate = L(weave, { color: 0x333829 });
-    SOL.strap = L(weaveFine, { color: 0x2b2c27 });
-    SOL.rubber = L(null, { color: 0x1b1c1a });
-    SOL.lens = new T.MeshLambertMaterial({ color: 0x24343c, emissive: 0x0a1216 });
-    SOL.bandW = L(weaveFine, { color: 0xe8e6dc });
-    SOL.bandB = L(weaveFine, { color: 0x22407c });
+    SOL.flagKR = L(flagKR(), { side: T.FrontSide, roughness: 0.88, metalness: 0.0 });
+    SOL.flagKP = L(flagKP(), { side: T.FrontSide, roughness: 0.88, metalness: 0.0 });
+    SOL.street = L(cobbleTex("street", "#9b9587", 91),
+      { roughness: 0.9, metalness: 0.0, bumpMap: BM("street", 2.6), bumpScale: 0.04 });
+    SOL.grass = L(null, { color: 0x6d8a3f, roughness: 0.96 });
+    SOL.tan = L(camoTex("tan", ["#ddcda8", "#cdbb94", "#e8dcc0", "#b9a681", "#f0e6cc"], 71),
+      { roughness: 0.93, bumpMap: BM("tan", 3.0), bumpScale: 0.012 });
+    SOL.tanDark = L(camoTex("tanD", ["#8e8062", "#7a6d52", "#9d8f6e", "#6b5f47"], 73),
+      { roughness: 0.93, bumpMap: BM("tanD", 3.0), bumpScale: 0.012 });
+    SOL.vest = L(weave, { color: 0x2b3036, roughness: 0.9 });
+    SOL.enemyCloth = L(weave, { color: 0x5c6b39, roughness: 0.93 });
+    SOL.enemyDark = L(weave, { color: 0x49562c, roughness: 0.93 });
+    SOL.enemyBelt = L(weaveFine, { color: 0x6d4a28, roughness: 0.88 });
+    SOL.enemyCap = L(weave, { color: 0x53612f, roughness: 0.92 });
+    SOL.helmAlly = L(null, { color: 0x4b5145, roughness: 0.5, metalness: 0.15 });
+    SOL.plate = L(weave, { color: 0x333829, roughness: 0.9 });
+    SOL.strap = L(weaveFine, { color: 0x2b2c27, roughness: 0.9 });
+    SOL.rubber = L(null, { color: 0x1b1c1a, roughness: 0.95 });
+    SOL.lens = L(null, { color: 0x24343c, emissive: 0x0a1216, roughness: 0.12, metalness: 0.45 });
+    SOL.bandW = L(weaveFine, { color: 0xe8e6dc, roughness: 0.9 });
+    SOL.bandB = L(weaveFine, { color: 0x22407c, roughness: 0.9 });
     /* ---- Seoul set materials ---- */
-    SOL.asphalt = L(asphaltTex("asphalt", 13));
-    SOL.pave = L(paveTex("pave", 21));
-    SOL.facA = L(facadeTex("facA", { wall: "#cbd0d5", glassTop: "#bfe0f5", glassBot: "#5b7d97" }, 5));
-    SOL.facB = L(facadeTex("facB", { wall: "#d7d1c3", glassTop: "#d4e8f0", glassBot: "#6c8a94" }, 7));
-    SOL.facC = L(facadeTex("facC", { wall: "#8f979e", glassTop: "#a6cbe2", glassBot: "#3f5a6b" }, 9));
-    SOL.shopGlass = L(shopTex("shopGlass", 3));
-    SOL.shopFascia = L(null, { color: 0x24282d });
-    SOL.awnA = L(weave, { color: 0x2f6f4e });
-    SOL.awnB = L(weave, { color: 0xb8342c });
-    SOL.doorDark = L(null, { color: 0x15181b });
-    SOL.curb = L(null, { color: 0x9a9a94 });
-    SOL.roofDeck = L(concreteTex("roofDeck", "#a9a9a2", 27));
-    SOL.concLight = L(concreteTex("concLight", "#c6c6be", 29));
-    SOL.archLit = L(concreteTex("archLit", "#d9cfba", 31), { emissive: 0x4a4030 });
-    SOL.tankBlue = L(null, { color: 0x6f8fa4 });
-    SOL.acUnit = L(null, { color: 0xc9cbc6 });
-    SOL.metalDark = L(null, { color: 0x3a3e44 });
-    SOL.poleGray = L(null, { color: 0x8e949a });
-    SOL.ledFrame = L(null, { color: 0x1b1d21 });
+    SOL.pave = L(paveTex("pave", 21),
+      { roughness: 0.86, metalness: 0.0, bumpMap: BM("pave", 2.6), bumpScale: 0.05 });
+    SOL.facA = L(facadeTex("facA", { wall: "#c2c8cf", glassTop: "#b6dcf4", glassBot: "#2c445a" }, 5),
+      { roughness: 0.55, metalness: 0.22, envMapIntensity: 0.6, bumpMap: BM("facA", 2.0), bumpScale: 0.02 });
+    SOL.facB = L(facadeTex("facB", { wall: "#cdc6b7", glassTop: "#cde8f4", glassBot: "#37545f" }, 7),
+      { roughness: 0.55, metalness: 0.22, envMapIntensity: 0.6, bumpMap: BM("facB", 2.0), bumpScale: 0.02 });
+    SOL.facC = L(facadeTex("facC", { wall: "#848d96", glassTop: "#9cc6de", glassBot: "#22384a" }, 9),
+      { roughness: 0.55, metalness: 0.22, envMapIntensity: 0.6, bumpMap: BM("facC", 2.0), bumpScale: 0.02 });
+    SOL.facA.roughnessMap = MT["facA@rough"] || null;
+    SOL.facB.roughnessMap = MT["facB@rough"] || null;
+    SOL.facC.roughnessMap = MT["facC@rough"] || null;
+    SOL.shopGlass = L(shopTex("shopGlass", 3), { roughness: 0.22, metalness: 0.4, envMapIntensity: 0.7 });
+    SOL.shopFascia = L(null, { color: 0x24282d, roughness: 0.62, metalness: 0.2 });
+    SOL.awnA = L(weave, { color: 0x2f6f4e, roughness: 0.78 });
+    SOL.awnB = L(weave, { color: 0xb8342c, roughness: 0.78 });
+    SOL.doorDark = L(null, { color: 0x15181b, roughness: 0.45, metalness: 0.15 });
+    SOL.curb = L(null, { color: 0x9a9a94, roughness: 0.82 });
+    SOL.roofDeck = L(concreteTex("roofDeck", "#a9a9a2", 27),
+      { roughness: 0.95, bumpMap: BM("roofDeck", 2.0), bumpScale: 0.028 });
+    SOL.concLight = L(concreteTex("concLight", "#c6c6be", 29),
+      { roughness: 0.92, bumpMap: BM("concLight", 2.0), bumpScale: 0.028 });
+    SOL.archLit = L(concreteTex("archLit", "#d9cfba", 31),
+      { emissive: 0x4a4030, roughness: 0.9, bumpMap: BM("archLit", 2.0), bumpScale: 0.024 });
+    SOL.tankBlue = L(null, { color: 0x6f8fa4, roughness: 0.55, metalness: 0.2 });
+    SOL.acUnit = L(null, { color: 0xc9cbc6, roughness: 0.62, metalness: 0.22 });
+    SOL.metalDark = L(null, { color: 0x3a3e44, roughness: 0.42, metalness: 0.7 });
+    SOL.poleGray = L(null, { color: 0x8e949a, roughness: 0.46, metalness: 0.55 });
+    SOL.ledFrame = L(null, { color: 0x1b1d21, roughness: 0.5, metalness: 0.35 });
     SOL.ledScreen = new T.MeshBasicMaterial({ map: ledTex("led") });
-    SOL.gateStone = L(blockTex("gateStone", "#cdc7b8", "#7a7466", ["#e2dccd", "#b8b1a2", "#a29b8d"], 61, { size: 512 }));
-    SOL.woodRed = L(woodTex("woodRed", "#a45332", "#6d2a17", "#cf8557", 12));
-    SOL.dancheongG = L(null, { color: 0x2f6b4f });
-    SOL.dancheongR = L(null, { color: 0xb23a2c });
-    SOL.roofTile = L(roofTileTex("roofTile"), { emissive: 0x1b1f24 });
-    SOL.roofRidge = L(null, { color: 0x8a9099 });
-    SOL.rafter = L(woodTex("rafter", "#6b4b2c", "#432c15", "#8f6b45", 23));
+    SOL.gateStone = L(blockTex("gateStone", "#cdc7b8", "#7a7466", ["#e2dccd", "#b8b1a2", "#a29b8d"], 61, { size: 512 }),
+      { roughness: 0.8, metalness: 0.0, bumpMap: BM("gateStone", 2.8), bumpScale: 0.05 });
+    SOL.woodRed = L(woodTex("woodRed", "#a45332", "#6d2a17", "#cf8557", 12),
+      { roughness: 0.52, metalness: 0.05, bumpMap: BM("woodRed", 1.8), bumpScale: 0.02 });
+    SOL.dancheongG = L(null, { color: 0x2f6b4f, roughness: 0.55, metalness: 0.08 });
+    SOL.dancheongR = L(null, { color: 0xb23a2c, roughness: 0.55, metalness: 0.08 });
+    SOL.roofTile = L(roofTileTex("roofTile"),
+      { emissive: 0x1b1f24, roughness: 0.46, metalness: 0.14, bumpMap: BM("roofTile", 2.4), bumpScale: 0.04 });
+    SOL.roofRidge = L(null, { color: 0x8a9099, roughness: 0.4, metalness: 0.6 });
+    SOL.rafter = L(woodTex("rafter", "#6b4b2c", "#432c15", "#8f6b45", 23),
+      { roughness: 0.82, bumpMap: BM("rafter", 1.8), bumpScale: 0.018 });
     SOL.gateSign = new T.MeshBasicMaterial({
       map: ctex("gateSign", 320, 104, (g, w, h) => {
         g.fillStyle = "#1b2230";
@@ -2102,42 +2525,46 @@
         g.fillText("서울", w / 2, h / 2 + 2);
       })
     });
-    SOL.concPole = L(concreteTex("concPole", "#a9a9a3", 33));
-    SOL.coneOrange = L(null, { color: 0xe2622a });
-    SOL.paintWhite = L(null, { color: 0xeeece2 });
-    SOL.paintYellow = L(null, { color: 0xd3ad30 });
-    SOL.hydrant = L(null, { color: 0xc03a2c });
-    SOL.scaffPlank = L(woodTex("plank", "#9a7440", "#6a4a22", "#c49a60", 19));
-    SOL.scaffPole = L(null, { color: 0x7d838a });
-    SOL.scaffNet = new T.MeshLambertMaterial({ color: 0x2f7a45, transparent: true, opacity: 0.55, side: T.DoubleSide });
-    SOL.planter = L(null, { color: 0x8d8b84 });
-    SOL.soil = L(null, { color: 0x3a2f22 });
-    SOL.hedge = L(null, { color: 0x4c7a3a });
-    SOL.policeWhite = L(null, { color: 0xf1f4f6 });
-    SOL.policeBlue = L(null, { color: 0x20438f });
+    SOL.concPole = L(concreteTex("concPole", "#a9a9a3", 33),
+      { roughness: 0.9, bumpMap: BM("concPole", 2.0), bumpScale: 0.026 });
+    SOL.coneOrange = L(null, { color: 0xe2622a, roughness: 0.52, metalness: 0.04 });
+    SOL.paintWhite = L(paintTex("paintW", "#eeece2"), { roughness: 0.62, metalness: 0.02 });
+    SOL.paintYellow = L(paintTex("paintY", "#d3ad30"), { roughness: 0.62, metalness: 0.02 });
+    SOL.hydrant = L(null, { color: 0xc03a2c, roughness: 0.44, metalness: 0.22 });
+    SOL.scaffPlank = L(woodTex("plank", "#9a7440", "#6a4a22", "#c49a60", 19),
+      { roughness: 0.82, bumpMap: BM("plank", 1.8), bumpScale: 0.018 });
+    SOL.scaffPole = L(null, { color: 0x7d838a, roughness: 0.4, metalness: 0.62 });
+    SOL.scaffNet = new T.MeshStandardMaterial({ color: 0x2f7a45, roughness: 0.9, transparent: true, opacity: 0.55, side: T.DoubleSide, envMapIntensity: 0.18 });
+    SOL.planter = L(null, { color: 0x8d8b84, roughness: 0.85 });
+    SOL.soil = L(null, { color: 0x3a2f22, roughness: 0.98 });
+    SOL.hedge = L(folTex("fol", 3), { roughness: 0.9, bumpMap: BM("fol", 3.2), bumpScale: 0.05 });
+    SOL.policeWhite = L(null, { color: 0xf1f4f6, roughness: 0.3, metalness: 0.12, envMapIntensity: 0.5 });
+    SOL.policeBlue = L(null, { color: 0x20438f, roughness: 0.34, metalness: 0.15 });
     SOL.policeText = new T.MeshBasicMaterial({ map: signTex("policeText", "POLICE", "#ffffff", "#1b3f8f") });
-    SOL.carGlass = new T.MeshLambertMaterial({ color: 0x2a3b47, emissive: 0x0a1216 });
-    SOL.hubCap = L(null, { color: 0xb9bdc2 });
+    SOL.carGlass = L(null, { color: 0x22333f, emissive: 0x060c10, roughness: 0.07, metalness: 0.55, envMapIntensity: 0.9 });
+    SOL.hubCap = L(null, { color: 0xb9bdc2, roughness: 0.24, metalness: 0.95 });
     SOL.lampRed = new T.MeshBasicMaterial({ color: 0xd52a20 });
     SOL.lampBlue = new T.MeshBasicMaterial({ color: 0x2a6df0 });
     SOL.lampWarm = new T.MeshBasicMaterial({ color: 0xffe6a8 });
-    SOL.drumOrange = L(null, { color: 0xe4692a });
-    SOL.drumDark = L(null, { color: 0x9c3f16 });
-    SOL.busGreen = L(null, { color: 0x2f8f5b });
-    SOL.busDark = L(null, { color: 0x1c5f3c });
+    SOL.drumOrange = L(null, { color: 0xe4692a, roughness: 0.58, metalness: 0.28 });
+    SOL.drumDark = L(null, { color: 0x9c3f16, roughness: 0.62, metalness: 0.26 });
+    SOL.busGreen = L(null, { color: 0x2f8f5b, roughness: 0.32, metalness: 0.18, envMapIntensity: 0.5 });
+    SOL.busDark = L(null, { color: 0x1c5f3c, roughness: 0.38, metalness: 0.16 });
     SOL.busRoute = new T.MeshBasicMaterial({ map: signTex("busRoute", "143", "#1c5f3c", "#ffffff") });
     SOL.busBoard = new T.MeshBasicMaterial({ map: signTex("busBoard", "143  서울역", "#101314", "#e8e2c8") });
-    SOL.armyOlive = L(weave, { color: 0x4d5a34 });
-    SOL.armyDark = L(weave, { color: 0x3a4426 });
-    SOL.truckWhite = L(null, { color: 0xe9ecee });
-    SOL.truckBlue = L(null, { color: 0x3f6f9e });
-    SOL.barrier = L(concreteTex("barrierConc", "#cfcdc4", 41));
-    SOL.concBlock = L(concreteTex("concBlock", "#bab8ae", 43));
-    SOL.siteWall = L(null, { color: 0xc2c6c4 });
-    SOL.siteWallCap = L(null, { color: 0x7d838a });
+    SOL.armyOlive = L(weave, { color: 0x4d5a34, roughness: 0.78, metalness: 0.12 });
+    SOL.armyDark = L(weave, { color: 0x3a4426, roughness: 0.8, metalness: 0.1 });
+    SOL.truckWhite = L(null, { color: 0xe9ecee, roughness: 0.32, metalness: 0.18 });
+    SOL.truckBlue = L(null, { color: 0x3f6f9e, roughness: 0.36, metalness: 0.18 });
+    SOL.barrier = L(concreteTex("barrierConc", "#cfcdc4", 41),
+      { roughness: 0.9, metalness: 0.0, bumpMap: BM("barrierConc", 2.0), bumpScale: 0.032 });
+    SOL.concBlock = L(concreteTex("concBlock", "#bab8ae", 43),
+      { roughness: 0.91, bumpMap: BM("concBlock", 2.0), bumpScale: 0.03 });
+    SOL.siteWall = L(null, { color: 0xc2c6c4, roughness: 0.72, metalness: 0.08 });
+    SOL.siteWallCap = L(null, { color: 0x7d838a, roughness: 0.5, metalness: 0.45 });
     SOL.workSign = new T.MeshBasicMaterial({ map: signTex("workSign", "공사중", "#f2c230", "#1a1a1a") });
-    SOL.strapY = L(null, { color: 0xd8c23a });
-    SOL.barricadePanel = new T.MeshLambertMaterial({
+    SOL.strapY = L(null, { color: 0xd8c23a, roughness: 0.7 });
+    SOL.barricadePanel = new T.MeshStandardMaterial({
       map: ctex("barPanel", 192, 48, (g, w, h) => {
         g.fillStyle = "#e8e6df";
         g.fillRect(0, 0, w, h);
@@ -2149,17 +2576,20 @@
         }
         g.fillStyle = "rgba(0,0,0,.18)";
         g.fillRect(0, h - 4, w, 4);
-      })
+      }),
+      roughness: 0.55, metalness: 0.1, envMapIntensity: 0.2
     });
-    SOL.towerWhite = L(null, { color: 0xe8ecef });
-    SOL.towerGlass = L(null, { color: 0x5d7f97 });
-    SOL.mountain = L(null, { color: 0x4f6e4a });
-    SOL.rubbleChunk = L(concreteTex("rubble", "#b8b6ad", 47));
-    SOL.digi = L(digiCamoTex("digi", 5));
-    SOL.digiDark = L(digiCamoTex("digiD", 9));
-    SOL.helmDigi = L(digiCamoTex("helmDigi", 13));
-    SOL.digiVest = L(weave, { color: 0x3f4a35 });
-    SOL.flagPatch = L(flagKR(), { side: T.FrontSide });
+    SOL.towerWhite = L(null, { color: 0xe8ecef, roughness: 0.6, metalness: 0.1 });
+    SOL.towerGlass = L(null, { color: 0x5d7f97, roughness: 0.12, metalness: 0.5, envMapIntensity: 0.8 });
+    SOL.mountain = L(null, { color: 0x4f6e4a, roughness: 0.98, metalness: 0.0 });
+    SOL.rubbleChunk = L(concreteTex("rubble", "#b8b6ad", 47),
+      { roughness: 0.93, bumpMap: BM("rubble", 2.0), bumpScale: 0.028 });
+    SOL.digi = L(digiCamoTex("digi", 5), { roughness: 0.9, bumpMap: BM("digi", 3.0), bumpScale: 0.01 });
+    SOL.digiDark = L(digiCamoTex("digiD", 9), { roughness: 0.9, bumpMap: BM("digiD", 3.0), bumpScale: 0.01 });
+    SOL.helmDigi = L(digiCamoTex("helmDigi", 13), { roughness: 0.46, metalness: 0.16, bumpMap: BM("helmDigi", 3.0), bumpScale: 0.018 });
+    SOL.digiVest = L(weave, { color: 0x3f4a35, roughness: 0.9 });
+    SOL.flagPatch = L(flagKR(), { side: T.FrontSide, roughness: 0.85 });
+    SOL.brass = L(null, { color: 0xb8892f, roughness: 0.28, metalness: 0.92 });
     SOL.glint = new T.MeshBasicMaterial({
       map: ctex("glint", 64, 64, (g, w, h) => {
         g.clearRect(0, 0, w, h);
@@ -2742,7 +3172,7 @@
   function signMat(i) {
     const s = SIGN_LIST[i % SIGN_LIST.length];
     const key = "sign" + (i % SIGN_LIST.length);
-    if (!SOL[key]) SOL[key] = new T.MeshLambertMaterial({ map: signTex(key, s[0], s[1], s[2], s[3]) });
+    if (!SOL[key]) SOL[key] = new T.MeshStandardMaterial({ map: signTex(key, s[0], s[1], s[2], s[3]), roughness: 0.42, metalness: 0.08, envMapIntensity: 0.2 });
     return SOL[key];
   }
 
@@ -2899,10 +3329,10 @@
     const arm = new T.Mesh(new T.BoxGeometry(5.0, 0.16, 0.16), SOL.poleGray);
     arm.position.set(0, 5.5, 0);
     g.add(arm);
-    const a = new T.Mesh(new T.PlaneGeometry(2.2, 1.1), new T.MeshLambertMaterial({ map: roadSignTex("signSeoul", "서울역", "Seoul Station", "up") }));
+    const a = new T.Mesh(new T.PlaneGeometry(2.2, 1.1), new T.MeshStandardMaterial({ map: roadSignTex("signSeoul", "서울역", "Seoul Station", "up"), roughness: 0.4, metalness: 0.12 }));
     a.position.set(-0.95, 4.75, 0.02);
     g.add(a);
-    const b = new T.Mesh(new T.PlaneGeometry(2.2, 1.1), new T.MeshLambertMaterial({ map: roadSignTex("signNamsan", "남산", "Namsan", "right") }));
+    const b = new T.Mesh(new T.PlaneGeometry(2.2, 1.1), new T.MeshStandardMaterial({ map: roadSignTex("signNamsan", "남산", "Namsan", "right"), roughness: 0.4, metalness: 0.12 }));
     b.position.set(1.45, 4.75, 0.02);
     g.add(b);
     const backA = new T.Mesh(new T.BoxGeometry(4.6, 1.2, 0.08), SOL.metalDark);
@@ -3790,12 +4220,24 @@
     const body = new T.Group();
     g.add(aim);
     g.add(body);
-    const mk = (hex) => { const m = new T.MeshLambertMaterial({ color: hex }); m.color.convertSRGBToLinear(); return m; };
+    /* The viewmodel fills the lower third of the frame, so its materials are
+       the ones a player actually inspects: the slide is blued steel with a
+       brushed grain and a hard highlight, the frame is moulded polymer, the
+       butt is checkered rubber, and the sights glow. Everything here is a
+       Standard material with its own roughness so the sun leaves a hot streak
+       along the top of the slide and nothing on the grip. */
+    const mk = (hex, opt) => {
+      const m = new T.MeshStandardMaterial(Object.assign({ color: hex, roughness: 0.72, metalness: 0.0, envMapIntensity: 0.18 }, opt || {}));
+      m.color.convertSRGBToLinear();
+      return m;
+    };
     // brushed steel body parts share one map so the grain lines up
     const smetal = metalTex("pistolSteel", 23);
     const mpoly = polymerTex("pistolPoly", 29);
-    const mm = (hex, tex, rx, ry) => {
-      const m = new T.MeshLambertMaterial({ color: hex, map: tex || null });
+    const sBump = bumpTex("pistolSteel", TXCV["pistolSteel"], { gain: 1.8 });
+    const pBump = bumpTex("pistolPoly", TXCV["pistolPoly"], { gain: 2.6 });
+    const mm = (hex, tex, rx, ry, opt) => {
+      const m = new T.MeshStandardMaterial(Object.assign({ color: hex, map: tex || null, roughness: 0.3, metalness: 0.9, envMapIntensity: 0.7 }, opt || {}));
       if (tex) {
         const t = tex.clone();
         t.wrapS = t.wrapT = T.RepeatWrapping;
@@ -3807,15 +4249,20 @@
       m.color.convertSRGBToLinear();
       return m;
     };
-    const slide = mm(0x49525f, smetal, 1, 1.6);
-    const slideDark = mm(0x333a45, smetal, 1, 1.6);
-    const slideTop = mm(0x59636f, smetal, 1, 1.6);
-    const poly = mm(0x22262c, mpoly, 2, 2);
-    const bore = mk(0x07090b);
-    const steel = mm(0x7f8792, smetal, 1, 1);
-    const skin = mk(0xc08a5e);
-    const gripMat = new T.MeshLambertMaterial({
+    const slide = mm(0x4b5563, smetal, 1, 1.6, { roughness: 0.26, metalness: 0.92, bumpMap: sBump, bumpScale: 0.0025 });
+    const slideDark = mm(0x323945, smetal, 1, 1.6, { roughness: 0.34, metalness: 0.9, bumpMap: sBump, bumpScale: 0.0025 });
+    const slideTop = mm(0x606b78, smetal, 1, 1.6, { roughness: 0.2, metalness: 0.95, bumpMap: sBump, bumpScale: 0.002 });
+    const poly = mm(0x22262c, mpoly, 2, 2, { roughness: 0.5, metalness: 0.05, bumpMap: pBump, bumpScale: 0.0035 });
+    const bore = mk(0x07090b, { roughness: 0.45, metalness: 0.35 });
+    const steel = mm(0x828a95, smetal, 1, 1, { roughness: 0.24, metalness: 0.96 });
+    const skin = mk(0xc08a5e, { roughness: 0.75 });
+    const gripMat = new T.MeshStandardMaterial({
       color: 0xffffff,
+      roughness: 0.62,
+      metalness: 0.03,
+      envMapIntensity: 0.2,
+      bumpMap: bumpTex("grip", TXCV["grip"], { gain: 2.8 }),
+      bumpScale: 0.0035,
       map: (() => {
         const t = gripTex();
         const c2 = t.clone();
@@ -3864,11 +4311,14 @@
     // rear U-notch sight with white dots
     add(0.032, 0.036, 0.03, -0.034, 0.128, -0.335, slideDark);
     add(0.032, 0.036, 0.03, 0.034, 0.128, -0.335, slideDark);
-    add(0.012, 0.012, 0.006, -0.034, 0.132, -0.318, mk(0xf2f6f2));
-    add(0.012, 0.012, 0.006, 0.034, 0.132, -0.318, mk(0xf2f6f2));
+    /* tritium dots: white lamps that keep a little light of their own, so the
+       sight still reads when the pistol is in the shade of a building */
+    const lamp = (hex) => mk(hex, { emissive: hex, emissiveIntensity: 0.9, roughness: 0.35 });
+    add(0.012, 0.012, 0.006, -0.034, 0.132, -0.318, lamp(0xf6faf4));
+    add(0.012, 0.012, 0.006, 0.034, 0.132, -0.318, lamp(0xf6faf4));
     // front blade with a green dot
     add(0.024, 0.038, 0.028, 0, 0.132, -0.34, slideDark);
-    add(0.014, 0.014, 0.006, 0, 0.136, -0.324, mk(0x9ad24a));
+    add(0.014, 0.014, 0.006, 0, 0.136, -0.324, mk(0x9ad24a, { emissive: 0x9ad24a, emissiveIntensity: 1.1, roughness: 0.3 }));
     // muzzle and bore
     add(0.062, 0.058, 0.03, 0, 0.062, -0.372, slideDark);
     add(0.028, 0.028, 0.02, 0, 0.062, -0.386, bore);
@@ -3903,7 +4353,10 @@
       t.repeat.set(Math.max(1, Math.round(w / 0.2)), Math.max(1, Math.round(len / 0.2)));
       t.anisotropy = Math.max(1, Math.min(8, MAXANISO));
       t.needsUpdate = true;
-      const m = new T.MeshLambertMaterial({ color: tint || 0xffffff, map: t });
+      const m = new T.MeshStandardMaterial({
+        color: tint || 0xffffff, map: t, roughness: 0.92, metalness: 0.02, envMapIntensity: 0.18,
+        bumpMap: tex.__key ? bumpTex(tex.__key, TXCV[tex.__key], { gain: 3.0 }) : null, bumpScale: 0.004
+      });
       m.color.convertSRGBToLinear();
       return m;
     };
@@ -3964,6 +4417,45 @@
     f.visible = false;
     const halo = add(0.1, 0.1, 0.02, 0, 0.062, -0.42, new T.MeshBasicMaterial({ color: 0xffc14a, transparent: true, opacity: 0.8, depthWrite: false }));
     halo.visible = false;
+    /* a four-point star of flame on two crossed cards: the box core alone read
+       as a yellow cube, this gives the flash a burning shape */
+    const starTex = ctex("muzzleStar", 128, 128, (g, w, h) => {
+      g.clearRect(0, 0, w, h);
+      const c = 64;
+      const rg = g.createRadialGradient(c, c, 0, c, c, 60);
+      rg.addColorStop(0, "rgba(255,252,232,1)");
+      rg.addColorStop(0.18, "rgba(255,228,150,.95)");
+      rg.addColorStop(0.45, "rgba(255,158,60,.55)");
+      rg.addColorStop(1, "rgba(255,110,20,0)");
+      g.fillStyle = rg;
+      g.beginPath(); g.arc(c, c, 60, 0, 7); g.fill();
+      g.save();
+      g.translate(c, c);
+      for (let i = 0; i < 4; i++) {
+        g.rotate(Math.PI / 2);
+        const lg = g.createLinearGradient(0, 0, 0, -60);
+        lg.addColorStop(0, "rgba(255,236,176,.9)");
+        lg.addColorStop(1, "rgba(255,140,40,0)");
+        g.fillStyle = lg;
+        g.beginPath();
+        g.moveTo(-7, 0); g.lineTo(0, -60); g.lineTo(7, 0);
+        g.closePath(); g.fill();
+      }
+      g.restore();
+    });
+    const starMat = new T.MeshBasicMaterial({
+      map: starTex, transparent: true, blending: T.AdditiveBlending,
+      depthWrite: false, depthTest: false, side: T.DoubleSide, opacity: 0.95
+    });
+    const star = new T.Group();
+    for (let i = 0; i < 2; i++) {
+      const card = new T.Mesh(new T.PlaneGeometry(0.72, 0.72), starMat);
+      card.rotation.y = i * Math.PI / 2;
+      star.add(card);
+    }
+    star.position.set(0, 0.062, -0.44);
+    star.visible = false;
+    aim.add(star);
     const flashLight = new T.PointLight(0xffc878, 0, 6, 2);
     flashLight.position.set(0, 0.06, -0.42);
     aim.add(flashLight);
@@ -3977,7 +4469,7 @@
     aim.rotation.order = "YXZ";
     aim.rotation.set(0, 0, 0);
     camera.add(g);
-    return { g, aim, body, upperL, flash: f, halo, light: flashLight };
+    return { g, aim, body, upperL, flash: f, halo, star, light: flashLight };
   }
 
   function roleTag(el) {
@@ -3995,7 +4487,7 @@
   /* ---------------- course dressing ---------------- */
 
   function darkMat(col) {
-    const m = new T.MeshLambertMaterial({ color: col === undefined ? 0x14161a : col });
+    const m = new T.MeshStandardMaterial({ color: col === undefined ? 0x14161a : col, roughness: 0.88, metalness: 0.06, envMapIntensity: 0.18 });
     m.color.convertSRGBToLinear();
     return m;
   }
@@ -4101,6 +4593,77 @@
     return g;
   }
 
+  /* The scene environment: a painted sky-and-street panorama run through
+     PMREM, so every glass pane, hubcap and pistol slide has the same sky and
+     city to reflect. One 512x256 equirect and one prefilter pass at boot; no
+     cube camera, no per-frame cost. */
+  function buildSceneEnv(ctx) {
+    if (!ctx || !ctx.renderer || !T.PMREMGenerator) return null;
+    if (window.__mgEnv) return window.__mgEnv;
+    try {
+      const eq = ctex("envEQ", 512, 256, (g, w, h) => {
+        const sk = g.createLinearGradient(0, 0, 0, h * 0.52);
+        sk.addColorStop(0, "#2b6fc4");
+        sk.addColorStop(0.55, "#79b4e4");
+        sk.addColorStop(0.86, "#c8e2f4");
+        sk.addColorStop(1, "#eaf4fb");
+        g.fillStyle = sk;
+        g.fillRect(0, 0, w, h * 0.52);
+        /* the sun and its flare, up and to the left */
+        const sx = w * 0.18, sy = h * 0.16;
+        const sun = g.createRadialGradient(sx, sy, 0, sx, sy, h * 0.2);
+        sun.addColorStop(0, "rgba(255,252,236,1)");
+        sun.addColorStop(0.12, "rgba(255,244,214,.92)");
+        sun.addColorStop(0.5, "rgba(255,232,186,.28)");
+        sun.addColorStop(1, "rgba(255,232,186,0)");
+        g.fillStyle = sun;
+        g.fillRect(sx - h * 0.2, sy - h * 0.2, h * 0.4, h * 0.4);
+        /* a few soft clouds */
+        const R = rng(31);
+        for (let c = 0; c < 14; c++) {
+          const cx = R() * w, cy = h * (0.08 + R() * 0.3), sc = 6 + R() * 20;
+          g.fillStyle = "rgba(255,255,255," + (0.18 + R() * 0.35).toFixed(2) + ")";
+          for (let i = 0; i < 5; i++) g.fillRect(cx + (R() - 0.5) * sc * 4, cy + (R() - 0.5) * sc, sc * (1 + R()), sc * 0.45);
+        }
+        /* the city: a ragged skyline just under the horizon, with the far
+           blocks of the boulevard in front of it */
+        const R2 = rng(77);
+        for (let pass = 0; pass < 2; pass++) {
+          const base = h * (pass ? 0.545 : 0.515);
+          g.fillStyle = pass ? "rgba(86,104,122,.95)" : "rgba(150,178,200,.9)";
+          let x = 0;
+          while (x < w) {
+            const bw = 8 + R2() * 34, bh = (pass ? 10 : 26) + R2() * (pass ? 16 : 40);
+            g.fillRect(x, base - bh, bw, bh);
+            if (R2() < 0.35) {
+              g.fillStyle = "rgba(255,240,196,.5)";
+              for (let ry = 0; ry < bh; ry += 4) g.fillRect(x + 2, base - bh + ry, 2, 1.5);
+              g.fillStyle = pass ? "rgba(86,104,122,.95)" : "rgba(150,178,200,.9)";
+            }
+            x += bw + 1 + R2() * 5;
+          }
+        }
+        /* the street the player stands on, dark and warm from the stone */
+        const gr = g.createLinearGradient(0, h * 0.53, 0, h);
+        gr.addColorStop(0, "#8b8f95");
+        gr.addColorStop(0.35, "#5c6066");
+        gr.addColorStop(1, "#3b3e42");
+        g.fillStyle = gr;
+        g.fillRect(0, h * 0.53, w, h * 0.47);
+      });
+      eq.mapping = T.EquirectangularReflectionMapping;
+      const pm = new T.PMREMGenerator(ctx.renderer);
+      const rt = pm.fromEquirectangular(eq);
+      pm.dispose();
+      window.__mgEnv = rt.texture;
+      window.__mgEnvMs = 1;
+      return rt.texture;
+    } catch (e) {
+      window.__mgEnvErr = String(e && e.stack || e);
+      return null;
+    }
+  }
+
   function dressBattlefield(ctx) {
     makeSol();
     const S = new T.Group();
@@ -4115,17 +4678,24 @@
     sky.position.set(0, 0, 10);
     S.add(sky);
     ctx.scene.background = new T.Color(0x9ed2f5).convertSRGBToLinear();
-    ctx.scene.fog = new T.Fog(0xd3e4f2, 120, 420);
+    /* haze that closes the far end of the boulevard: Sungnyemun and Namsan sit
+       in it, so they read as distance instead of painted cardboard */
+    ctx.scene.fog = new T.Fog(0xd6e6f2, 130, 460);
     if (ctx.scene.fog.color && ctx.scene.fog.color.convertSRGBToLinear) ctx.scene.fog.color.convertSRGBToLinear();
+    buildSceneEnv(ctx);
+    if (window.__mgEnv) ctx.scene.environment = window.__mgEnv;
     if (ctx.LT) {
       const LT = ctx.LT;
-      if (LT.hemi) { LT.hemi.intensity = 0.55; LT.hemi.color.setHex(0xdcefff); LT.hemi.groundColor && LT.hemi.groundColor.setHex(0x8a8578); }
-      if (LT.amb) { LT.amb.intensity = 0.22; LT.amb.color && LT.amb.color.setHex(0xbfd6ea); }
-      if (LT.key) { LT.key.intensity = 1.08; LT.key.color.setHex(0xfff6e0); }
-      if (LT.moon) { LT.moon.intensity = 0.08; LT.moon.color && LT.moon.color.setHex(0xa8c4e6); }
-      if (LT.rim) { LT.rim.intensity = 0.3; LT.rim.color && LT.rim.color.setHex(0xffd2a8); }
+      /* a hard low-winter sun with a cool sky dome over it, a warm bounce off
+         the asphalt from the right, and almost nothing from the north: enough
+         contrast for shadows to read as shapes, not as grey smears */
+      if (LT.hemi) { LT.hemi.intensity = 0.26; LT.hemi.color.setHex(0xd8e9fb); LT.hemi.groundColor && LT.hemi.groundColor.setHex(0xa89a80); }
+      if (LT.amb) { LT.amb.intensity = 0.05; LT.amb.color && LT.amb.color.setHex(0xbfd6ea); }
+      if (LT.key) { LT.key.intensity = 2.35; LT.key.color.setHex(0xffeecd); }
+      if (LT.moon) { LT.moon.intensity = 0.1; LT.moon.color && LT.moon.color.setHex(0xa8c4e6); }
+      if (LT.rim) { LT.rim.intensity = 0.5; LT.rim.color && LT.rim.color.setHex(0xffd7ab); }
     }
-    if (ctx.renderer) ctx.renderer.toneMappingExposure = 1.0;
+    if (ctx.renderer) ctx.renderer.toneMappingExposure = 1.12;
     try {
       const caps = ctx.renderer && ctx.renderer.capabilities;
       if (caps && caps.getMaxAnisotropy) MAXANISO = Math.min(8, caps.getMaxAnisotropy() || 4);
@@ -4133,11 +4703,14 @@
     } catch (e) {}
 
     /* ---- ground: asphalt everywhere, so no hole can ever show ---- */
-    const tex = asphaltTex("asphaltG", 17);
+    const tex = asphaltTex("asphaltG", 17, 768);
     tex.needsUpdate = true;
     tex.wrapS = tex.wrapT = T.RepeatWrapping;
     tex.repeat.set(36, 36);
-    const ground = new T.Mesh(new T.PlaneGeometry(300, 300), new T.MeshLambertMaterial({ map: tex }));
+    const ground = new T.Mesh(new T.PlaneGeometry(300, 300), new T.MeshStandardMaterial({
+      map: tex, roughness: 0.84, metalness: 0.02, envMapIntensity: 0.1,
+      bumpMap: bumpTex("asphaltG", TXCV["asphaltG"], { gain: 2.0 }), bumpScale: 0.055
+    }));
     ground.rotation.x = -Math.PI / 2;
     ground.position.set(-18, 0.24, 30);
     ground.receiveShadow = true;
@@ -4257,14 +4830,14 @@
 
     /* ================= LANDMARKS ================= */
     /* the big flag on the west block, hung 6.5 m up and facing the road */
-    const bigFlag = makeFlagPlane(S, "kr", 11.9, 5.5, 23.4, 4.6, 3.05, -2.55);
+    const bigFlag = makeFlagPlane(S, "kr", 11.9, 6.0, 23.4, 4.6, 3.05, -2.55);
     bigFlag.name = "bigFlag";
     const fpole = new T.Mesh(new T.CylinderGeometry(0.07, 0.07, 4.4, 6), SOL.poleGray);
-    fpole.position.set(11.9, 7.2, 23.4);
+    fpole.position.set(11.9, 7.7, 23.4);
     fpole.rotation.z = Math.PI / 2;
     S.add(fpole);
     const fbase = new T.Mesh(new T.BoxGeometry(0.3, 0.9, 0.3), SOL.metalDark);
-    fbase.position.set(13.0, 7.4, 23.4);
+    fbase.position.set(13.0, 7.9, 23.4);
     S.add(fbase);
     /* a second, smaller one on the far block, across the junction */
     makeFlagPlane(S, "kr", -12.9, 7.6, 14.0, 4.2, 2.8, Math.PI / 2).name = "towerFlag";
@@ -4277,7 +4850,10 @@
     makeStreetLamp(S, 12.6, -4.0, Math.PI);
     makeStreetLamp(S, -12.6, 16.0, 0);
     makeTrafficLight(S, -10.6, 19.4, Math.PI / 2);
-    makeTrafficLight(S, 10.6, 19.4, -Math.PI / 2);
+    /* this one stands a little further from the flag and reaches over the
+       road instead of across the cloth, so the taegeukgi is never in front
+       of a signal head */
+    makeTrafficLight(S, 10.6, 17.4, Math.PI);
     makePlanter(S, -12.4, 9.0, 1.8);
     makePlanter(S, 12.4, -9.0, 1.8);
     makeHydrant(S, -12.2, 6.2);
@@ -4567,6 +5143,8 @@
     sparks = [];
     smokes.forEach((s) => s.parent && s.parent.remove(s));
     smokes = [];
+    shells.forEach((s) => s.parent && s.parent.remove(s));
+    shells = [];
     if (dress && dress.root) {
       dress.root.parent && dress.root.parent.remove(dress.root);
       disposeGeo(dress.root);
@@ -4619,6 +5197,7 @@
     pistolBase = { x: rig.g.position.x, y: rig.g.position.y, z: rig.g.position.z };
     flash = rig.flash;
     flashHalo = rig.halo;
+    flashStar = rig.star;
     flashLight = rig.light;
     window.__pistol = pistol;
     /* model factory hooks (handy for eyeballing the cast without playing) */
@@ -5194,6 +5773,33 @@
     } catch (e) { window.__gruntErr = String(e && e.stack || e); }
   }
 
+  /* a spent case: brass, thrown out of the ejection port, spinning, bouncing
+     off the asphalt once and gone. One shared geometry and material, at most a
+     dozen in the air, so the effect costs a handful of draw calls. */
+  let SHELL_GEO = null;
+  function ejectShell(ctx) {
+    if (!ctx || !pistol || !SOL.brass) return;
+    if (shells.length > 10) return;
+    if (!SHELL_GEO) SHELL_GEO = new T.BoxGeometry(0.017, 0.017, 0.04);
+    pistol.updateMatrixWorld(true);
+    const p = new T.Vector3(0.06, 0.085, -0.11);
+    pistol.localToWorld(p);
+    const m = new T.Mesh(SHELL_GEO, SOL.brass);
+    m.position.copy(p);
+    m.rotation.set(Math.random() * 3, Math.random() * 3, Math.random() * 3);
+    const q = ctx.camera.quaternion;
+    const right = new T.Vector3(1, 0, 0).applyQuaternion(q);
+    const up = new T.Vector3(0, 1, 0).applyQuaternion(q);
+    const fwd = new T.Vector3(0, 0, -1).applyQuaternion(q);
+    m.userData.v = right.multiplyScalar(1.5 + Math.random() * 0.8)
+      .addScaledVector(up, 1.3 + Math.random() * 0.5)
+      .addScaledVector(fwd, 0.3);
+    m.userData.spin = new T.Vector3(14 + Math.random() * 10, 12 + Math.random() * 10, 10 + Math.random() * 10);
+    m.userData.life = 1.5;
+    ctx.scene.add(m);
+    shells.push(m);
+  }
+
   function spawnSmoke(camera) {
     if (smokes.length > 8 || !pistol) return;
     const m = new T.Mesh(new T.SphereGeometry(0.05, 6, 5), new T.MeshBasicMaterial({ color: 0xd8d2c4, transparent: true, opacity: 0.35, depthWrite: false }));
@@ -5349,7 +5955,14 @@
     recoil = 1;
     if (flash) { flash.visible = true; flash.scale.setScalar(1); }
     if (flashHalo) { flashHalo.visible = true; flashHalo.scale.setScalar(1); }
+    if (flashStar) {
+      flashStar.visible = true;
+      flashStar.scale.setScalar(0.72);
+      flashStar.rotation.z = 0;
+      if (flashStar.children[0] && flashStar.children[0].material) flashStar.children[0].material.opacity = 0.95;
+    }
     spawnSmoke(ctx.camera);
+    ejectShell(ctx);
     gun("shot");
     ctx.camera.updateMatrixWorld(true);
     ctx.scene.updateMatrixWorld(true);
@@ -6244,6 +6857,37 @@
       const k = Math.min(1, since / 90);
       flashHalo.scale.setScalar(1 + k * 2.2);
       if (flashHalo.material) flashHalo.material.opacity = 0.8 * (1 - k);
+    }
+    if (flashStar) {
+      const k = Math.min(1, since / 80);
+      flashStar.visible = since < 80;
+      flashStar.scale.setScalar(0.72 + k * 1.05);
+      flashStar.rotation.z = k * 0.7;
+      if (flashStar.children[0] && flashStar.children[0].material) {
+        flashStar.children[0].material.opacity = 0.95 * (1 - k);
+      }
+    }
+    for (let i = shells.length - 1; i >= 0; i--) {
+      const sh = shells[i];
+      sh.userData.life -= dt;
+      sh.userData.v.y -= 9.4 * dt;
+      sh.position.addScaledVector(sh.userData.v, dt);
+      sh.rotation.x += sh.userData.spin.x * dt;
+      sh.rotation.y += sh.userData.spin.y * dt;
+      sh.rotation.z += sh.userData.spin.z * dt;
+      const floor = 0.33;
+      if (sh.position.y < floor) {
+        sh.position.y = floor;
+        sh.userData.v.y = Math.abs(sh.userData.v.y) * 0.34;
+        sh.userData.v.x *= 0.55;
+        sh.userData.v.z *= 0.55;
+        sh.userData.spin.multiplyScalar(0.55);
+        if (sh.userData.v.y < 0.35) sh.userData.v.y = 0;
+      }
+      if (sh.userData.life <= 0 || !sh.parent) {
+        if (sh.parent) sh.parent.remove(sh);
+        shells.splice(i, 1);
+      }
     }
     for (let i = smokes.length - 1; i >= 0; i--) {
       const s = smokes[i];
