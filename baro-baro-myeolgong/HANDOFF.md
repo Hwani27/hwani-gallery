@@ -424,7 +424,7 @@ Stage 1(서울)은 손대지 않았고, 그 뒤에 **Stage 2**를 붙였다. 두
 - **차량이 방어물 관통 금지**: `vehBlockers()`(엄폐물·상륙 방어물·고정 장애물 박스), `segClear`, 오토바이 출발점 `clearRunFrom`(startWave에서 재배치), 트럭 경로 `clearPath`(우회점 삽입), 추격 오토바이·보트 `c.dodge` 차선 회피, 전차 보스는 점프 대신 주행하며 막힌 자리로는 안 감.
 - **꺾이는 시가지**: `STAGE.city.turns=[[z, 각도],…]`(7~12 스테이지, z −26·22에서 90° 지그재그). 데이터는 `bendCityStage`(경로·웨이브 hold/look/yaw·바이크 출발점·보스 yaw), 배경은 `bendCity`(z별 다리 그룹으로 옮겨 회전, 다른 다리 도로에 걸친 소품 제거, 블록 겹침은 앞 다리 우선). 보스 방향은 `bossYaw`. 피난민도 레일 방향 따라 걷게.
 - **오토바이 소리**: `bikeVoice()` — 펄스파 배기음 + 소프트클립 + 배기 공명 + 팝마다 열리는 노이즈.
-- **녹음 효과음 슬롯**: `sfx/manifest.json`에 키→파일을 적으면 그 소리를 재생(`loop_rotor/bike/diesel/jeep`, `bike_pass`, `explosion`, `scream`, `hurt`), 없으면 합성음. 사용법·라이선스 표는 `sfx/README.md`.
+- **녹음 효과음 슬롯**: `sfx/manifest.json`에 키→파일을 적으면 그 소리를 재생(`loop_rotor/bike/diesel/jeep`, `bike_pass`, `explosion`), 없으면 합성음. 사람 목소리(`scream`/`hurt`)는 11-23 피드백으로 파일·키를 삭제하고 피격음은 합성한 짧은 저역 타격음만 쓴다. 사용법·라이선스 표는 `sfx/README.md`.
 - 테스트: full.py 1·5·7·8·9·10·11·12 클리어, clip4 7~11 레일 관통 0(12의 −108 지점은 기존부터 있던 상륙정 자체 충돌), UI 스크린샷.
 
 ## 6-0. v24~v25 — 그래픽 강화 7종 (2026-11-23)

@@ -5,7 +5,7 @@
 
 ## 지금 들어 있는 파일 (2026-11-23, 전부 CC0)
 
-여덟 개 키를 모두 채웠습니다. 합성음은 남은 키가 없어서 지금은 전부 녹음된 소리로 납니다.
+여섯 개 키를 채웠습니다.
 
 | 키 | 파일 | 길이 | 쓰는 곳 |
 |---|---|---|---|
@@ -15,15 +15,22 @@
 | `loop_jeep` | `loop_jeep.ogg` | 0.5 s 루프 | 추격전 지프·보트 |
 | `bike_pass` | `bike_pass.mp3` | 2.8 s | 오토바이 돌진 시작 |
 | `explosion` | `boom_1.mp3`, `boom_2.mp3`, `boom_3.mp3` | 1.0 / 4.0 / 1.3 s | 폭발 (무작위) |
-| `scream` | `scream_1.mp3`, `scream_2.mp3`, `scream_3.mp3` | 1.0 / 1.8 / 1.3 s | 적 사망 비명 (무작위) |
-| `hurt` | `hurt_1.mp3` ~ `hurt_5.mp3` | 0.5~0.7 s | 적 피격 신음 (무작위) |
+
+### 사람 목소리(`scream`, `hurt`)는 뺐습니다
+
+한때 적 사망 비명(`scream_1~3.mp3`)과 피격 신음(`hurt_1~5.mp3`) 녹음을 넣었지만,
+"비명소리는 괴성 고성 빼고 낮은 음만", 이어서 "신음 포함 너무 시끄럽고 듣기싫다"는 피드백에 따라
+**파일과 `manifest.json` 키를 모두 삭제**했습니다. 사람 목소리는 음을 낮춰도 거슬려서,
+지금은 피격·사망 모두 `gun-sfx.js`의 합성음으로 짧고 둔탁한 저역 타격음(퍽)만 냅니다.
+사망일 때만 반 박자 뒤에 쓰러지는 낮은 소리가 한 번 더 얹히고, 전체 볼륨은 총성의 3분의 1 아래로 잡았습니다.
+다시 목소리를 넣지 않으려고 로더에서도 `scream`/`hurt` 키를 재생하지 않습니다.
 
 ### 포맷을 나눈 이유
 
 - **루프 4개는 `.ogg`(Opus, 64 kbps 모노, 48 kHz)** — 이어 붙이는 지점이 샘플 단위로 이어져
   엔진 소리가 끊기지 않습니다. Chrome·Firefox·Android WebView·Safari 18.4 이상(iOS 18.4 이상)에서 재생됩니다.
   Ogg를 못 읽는 옛 브라우저에서는 그 키만 합성음으로 돌아갑니다(로더가 이미 그렇게 동작합니다).
-- **한 번만 나는 소리 8종은 `.mp3`(128 kbps 모노, 44.1 kHz)** — 모든 브라우저에서 확실히 재생되고,
+- **한 번만 나는 소리 4종은 `.mp3`(128 kbps 모노, 44.1 kHz)** — 모든 브라우저에서 확실히 재생되고,
   루프가 아니라 이음매 문제도 없습니다.
 
 ### 손본 것
@@ -34,7 +41,7 @@
   브라우저가 디코딩한 버퍼를 재생 속도(48k/44.1k)에 맞춰 리샘플링할 때 마지막 몇 샘플이
   약간 흔들려서, 그 부분을 0에 가깝게 둬 딱딱 끊기는 소리가 나지 않게 하기 위해서입니다
   (들리는 이음매 없음, 44.1 kHz 컨텍스트에서 실측 −33 dBFS 이하).
-- 라우드니스는 루프 RMS −14 dBFS, 폭발 −19.5 dBFS, 비명·신음 −17.5 dBFS 로 맞췄고
+- 라우드니스는 루프 RMS −14 dBFS, 폭발 −19.5 dBFS 로 맞췄고
   피크는 −1.5 dBFS 아래로 제한했습니다(게임 쪽 버스 컴프레서·리미터 앞).
 - 앞뒤 무음은 잘라냈고, 끝에는 30~40 ms 페이드아웃을 넣어 딱 끊기는 소리를 없앴습니다.
 
@@ -47,9 +54,7 @@
   "loop_diesel": "tank_loop.ogg",
   "loop_jeep": "jeep_loop.ogg",
   "bike_pass": "motorbike_pass.ogg",
-  "explosion": ["boom1.ogg", "boom2.ogg"],
-  "scream": ["scream1.ogg", "scream2.ogg", "scream3.ogg"],
-  "hurt": ["hurt1.ogg", "hurt2.ogg"]
+  "explosion": ["boom1.ogg", "boom2.ogg"]
 }
 ```
 
@@ -61,8 +66,6 @@
 | `loop_jeep` | 추격전 지프·보트 | 루프 |
 | `bike_pass` | 오토바이 돌진 시작 | 2~3초 한 번 |
 | `explosion` | 폭발 (여러 개면 무작위) | 한 번 |
-| `scream` | 적 사망 비명 (여러 개면 무작위) | 한 번 |
-| `hurt` | 적 피격 신음 | 한 번 |
 
 파일은 `.ogg` 또는 `.mp3`, 44.1kHz, 짧고 앞뒤 무음이 없는 것이 좋습니다.
 
@@ -82,14 +85,6 @@ CC-BY는 크레딧 표기를 하면 쓸 수 있고, CC-BY-NC(비상업)·CC-BY-S
 | `boom_1.mp3` | https://opengameart.org/content/explosion-0 | tinyworlds | CC0 |
 | `boom_2.mp3` | https://opengameart.org/content/chunky-explosion | joth | CC0 |
 | `boom_3.mp3` | https://opengameart.org/content/mechanical-explosion | spring-spring | CC0 |
-| `scream_1.mp3` | https://freesound.org/people/EricSueiro/sounds/220819/ | EricSueiro | CC0 |
-| `scream_2.mp3` | https://freesound.org/people/AlpacaGuy/sounds/460036/ | AlpacaGuy | CC0 |
-| `scream_3.mp3` | https://freesound.org/people/joseppujol/sounds/221544/ | joseppujol | CC0 |
-| `hurt_1.mp3` | https://opengameart.org/content/pain-sounds-by-emopreben | EmoPreben | CC0 |
-| `hurt_2.mp3` | https://opengameart.org/content/pain-sounds-by-emopreben | EmoPreben | CC0 |
-| `hurt_3.mp3` | https://opengameart.org/content/pain-sounds-by-emopreben | EmoPreben | CC0 |
-| `hurt_4.mp3` | https://opengameart.org/content/pain-sounds-by-emopreben | EmoPreben | CC0 |
-| `hurt_5.mp3` | https://opengameart.org/content/pain-sounds-by-emopreben | EmoPreben | CC0 |
 
 - OpenGameArt 파일은 원본 파일을 그대로 받았습니다.
 - Freesound 파일은 페이지의 공개 HQ 미리듣기(mp3)를 받아 편집했습니다. 원본 내려받기는 로그인이

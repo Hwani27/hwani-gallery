@@ -9046,8 +9046,8 @@
     try { g.unlock(); g[name] && g[name](); } catch (e) {}
   }
 
-  /* a soldier's voice: a short "윽!" when he is only winged, a long
-     falling "으악!" when the round puts him down */
+  /* a soldier taking a round: a short dull low thud, and on a kill the body
+     dropping a beat later — no voice (the recorded cries were removed) */
   function grunt(fatal) {
     try {
       const G = window.GunSFX;
