@@ -31,13 +31,23 @@
     normal: { ko: "보통", en: "NORMAL", dmg: 1, aim: 1, lives: 3, boss: 1, xp: 1 },
     hard: { ko: "정예", en: "ELITE", dmg: 1.4, aim: 0.78, lives: 2, boss: 1.3, xp: 1.5 }
   };
+  /* in war order: the fall and the retreat, the landing, the advance north */
   const STAGES = [
-    { id: 1, ko: "서울 시가지", en: "SEOUL DOWNTOWN", sub: "SEOUL · 숭례문", subEn: "SEOUL · SUNGNYEMUN", boss: "적 지휘관", bossEn: "COMMANDER", c: "#4c5c2d" },
-    { id: 2, ko: "DMZ · 판문점", en: "DMZ & PANMUNJOM", sub: "GOP · JSA", subEn: "GOP · JSA", boss: "장갑차", bossEn: "APC", c: "#2f4a56" },
-    { id: 3, ko: "평화의 집", en: "PEACE HOUSE", sub: "PANMUNJOM · MDL", subEn: "PANMUNJOM · MDL", boss: "공격헬기", bossEn: "GUNSHIP", c: "#3d4f6a" },
-    { id: 4, ko: "평양 진입", en: "INTO PYONGYANG", sub: "PYONGYANG · SQUARE", subEn: "PYONGYANG · SQUARE", boss: "주력 전차", bossEn: "MAIN TANK", c: "#5a3a34" },
-    { id: 5, ko: "압록강 · 백두산", en: "YALU & PAEKTU", sub: "CHASE · CHEONJI", subEn: "CHASE · CHEONJI", boss: "총사령관", bossEn: "SUPREME LEADER", c: "#2c4b5e" }
+    { id: 6, lab: "1-1", ch: 1, ko: "서울 함락", en: "FALL OF SEOUL", sub: "1950.6 · SEOUL", subEn: "1950.6 · SEOUL", boss: "적 전차", bossEn: "TANK", c: "#6a2a1c" },
+    { id: 7, lab: "1-2", ch: 1, ko: "대전", en: "DAEJEON", sub: "EXPO · 지연전", subEn: "EXPO · DELAY", boss: "적 지휘관", bossEn: "COMMANDER", c: "#2f5a7a" },
+    { id: 8, lab: "1-3", ch: 1, ko: "대구", en: "DAEGU", sub: "낙동강 방어선", subEn: "NAKDONG LINE", boss: "장갑차", bossEn: "APC", c: "#6a3a5a" },
+    { id: 9, lab: "1-4", ch: 1, ko: "광주", en: "GWANGJU", sub: "금남로 · 무등산", subEn: "GEUMNAM-RO", boss: "공격헬기", bossEn: "GUNSHIP", c: "#4a5a2a" },
+    { id: 10, lab: "1-5", ch: 1, ko: "경주", en: "GYEONGJU", sub: "천년고도 · 석탑", subEn: "OLD CAPITAL", boss: "적 지휘관", bossEn: "COMMANDER", c: "#7a5a2a" },
+    { id: 11, lab: "1-6", ch: 1, ko: "부산", en: "BUSAN", sub: "최후 방어선", subEn: "LAST PERIMETER", boss: "주력 전차", bossEn: "MAIN TANK", c: "#2a4a7a" },
+    { id: 12, lab: "2-1", ch: 2, ko: "인천 상륙작전", en: "INCHEON LANDING", sub: "1950.9.15 · 상륙정", subEn: "1950.9.15 · LANDING", boss: "공격헬기", bossEn: "GUNSHIP", c: "#2a5a8a" },
+    { id: 1, lab: "2-2", ch: 2, ko: "서울 수복", en: "RETAKE SEOUL", sub: "숭례문 탈환", subEn: "SUNGNYEMUN", boss: "적 지휘관", bossEn: "COMMANDER", c: "#4c5c2d" },
+    { id: 2, lab: "3-1", ch: 3, ko: "DMZ · 판문점", en: "DMZ & PANMUNJOM", sub: "GOP · JSA", subEn: "GOP · JSA", boss: "장갑차", bossEn: "APC", c: "#2f4a56" },
+    { id: 3, lab: "3-2", ch: 3, ko: "평화의 집", en: "PEACE HOUSE", sub: "PANMUNJOM · MDL", subEn: "PANMUNJOM · MDL", boss: "공격헬기", bossEn: "GUNSHIP", c: "#3d4f6a" },
+    { id: 4, lab: "3-3", ch: 3, ko: "평양 진입", en: "INTO PYONGYANG", sub: "PYONGYANG · SQUARE", subEn: "PYONGYANG · SQUARE", boss: "주력 전차", bossEn: "MAIN TANK", c: "#5a3a34" },
+    { id: 5, lab: "3-4", ch: 3, ko: "압록강 · 백두산", en: "YALU & PAEKTU", sub: "CHASE · CHEONJI", subEn: "CHASE · CHEONJI", boss: "총사령관", bossEn: "SUPREME LEADER", c: "#2c4b5e" }
   ];
+  const CHAPTERS = { 1: ["CHAPTER 1 · 남침", "CHAPTER 1 · INVASION"], 2: ["CHAPTER 2 · 반격", "CHAPTER 2 · COUNTERSTRIKE"], 3: ["CHAPTER 3 · 북진", "CHAPTER 3 · NORTHWARD"] };
+
 
   function blank() { return { xp: 0, best: {}, diff: "normal", mode: "op", plays: 0, clears: 0 }; }
   let D = blank();
@@ -80,7 +90,7 @@
     const df = DIFFS[r.diff || D.diff] || DIFFS.normal;
     const before = D.xp, r0 = rankIdx(before);
     if (r.practice) return { xp: 0, before: before, after: before, rank0: r0, rank1: r0, rankUp: false, newBest: false, practice: true };
-    let gain = Math.round((r.score || 0) / 20) + (r.cleared ? 300 + 80 * r.stage : 60) + (r.cleared ? (r.stars || 0) * 100 : 0);
+    let gain = Math.round((r.score || 0) / 20) + (r.cleared ? 300 + 60 * Math.max(0, STAGES.findIndex((x) => x.id === r.stage)) : 60) + (r.cleared ? (r.stars || 0) * 100 : 0);
     gain = Math.round(gain * df.xp * (r.continues ? 1 / (1 + r.continues) : 1));
     D.xp = before + gain;
     D.plays = (D.plays || 0) + 1;
@@ -151,13 +161,13 @@
   .mSeg.mode button.on[data-v=practice]{background:linear-gradient(180deg,#8fd0e8,#4f98b8)}
   .mNote{margin:8px 2px 0;font-size:12px;color:#98a28c;min-height:16px}
   .mList{display:grid;gap:8px;margin:16px 0 0}
-  .mList h3{margin:4px 2px 2px;font:800 11px/1 ui-monospace,monospace;letter-spacing:.26em;color:#8f9a7c}
+  .mList h3{margin:12px 2px 2px;font:800 11px/1 ui-monospace,monospace;letter-spacing:.26em;color:#8f9a7c}
   .mCard{position:relative;display:flex;align-items:center;gap:12px;width:100%;min-height:62px;padding:8px 12px 8px 8px;border-radius:14px;
     border:1px solid rgba(255,255,255,.12);background:linear-gradient(90deg,var(--c) 0,rgba(20,24,16,.92) 62%);color:#eef1e6;cursor:pointer;
     touch-action:manipulation;text-align:left;font:inherit;overflow:hidden;box-shadow:0 6px 16px rgba(0,0,0,.4)}
   .mCard:active{transform:translateY(1px)}
   .mCard .no{flex:none;width:46px;height:46px;border-radius:11px;background:rgba(0,0,0,.35);display:grid;place-items:center;
-    font:900 20px/1 ui-monospace,monospace;color:#f2ecd0;border:1px solid rgba(255,255,255,.14)}
+    font:900 15px/1 ui-monospace,monospace;color:#f2ecd0;border:1px solid rgba(255,255,255,.14)}
   .mCard .tx{flex:1;min-width:0}
   .mCard .tx b{display:block;font-size:16px;font-weight:900}
   .mCard .tx small{display:block;margin-top:3px;font:700 10px/1.2 ui-monospace,monospace;letter-spacing:.14em;color:#b8c0a6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -175,7 +185,8 @@
     #mgMenu .mL{grid-column:1}
     #mgMenu .mR{grid-column:2;grid-row:1 / span 2}
     .mHead{margin:12px 0 12px}.mHead h1{font-size:clamp(30px,6vw,46px)}.mHead .tKicker{display:none}
-    .mList{margin:0}.mCard{min-height:52px}.mCard .no{width:40px;height:40px;font-size:17px}
+    .mList{margin:0}.mCard{min-height:52px}.mCard .no{width:40px;height:40px;font-size:13px}
+    #mgMenu .mR{max-height:calc(100vh - 24px);overflow:auto;padding-right:4px}
     .mFoot{display:none}
   }`;
   document.head.appendChild(css);
@@ -186,13 +197,13 @@
     gfx: '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><rect x="3" y="5" width="18" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 20h8M12 17v3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M7 13l3-3 2.5 2.5L17 8" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>'
   };
   const L = ko
-    ? { kicker: "RAIL SHOOTER", sub: "블록 세상 군사 레일 슈팅 — 바로, 총을 들다", go: "작전 개시", goAll: "전 작전 완료 · 처음부터", mode: { op: "작전", practice: "연습" }, ops: "작전 선택", toNext: "다음 계급까지", max: "최고 계급", next: "다음 보상", none: "기록 없음", best: "최고",
+    ? { kicker: "1950 · RAIL SHOOTER", sub: "남침에서 인천 상륙, 그리고 북진까지 — 블록 세상 레일 슈팅", go: "작전 개시", goAll: "전 작전 완료 · 처음부터", mode: { op: "작전", practice: "연습" }, ops: "작전 선택", toNext: "다음 계급까지", max: "최고 계급", next: "다음 보상", none: "기록 없음", best: "최고",
         noteOp: "목숨을 다 잃으면 이어하기(CONTINUE) · 계급 경험치 획득", notePr: "연습 모드: 죽지 않음 · 모든 작전 자유 선택 · 경험치·기록 없음", hint: "<span>탭/클릭 <b>사격</b></span><span><b>R</b> 재장전</span><span><b>G</b> 수류탄</span><span>숫자키 <b>1·2·3</b> 무기</span>" }
     : { kicker: "BLOCK MILITARY RAIL SHOOTER", sub: "A block-world military rail shooter", go: "START MISSION", goAll: "ALL CLEAR · FROM THE TOP", mode: { op: "CAMPAIGN", practice: "PRACTICE" }, ops: "MISSIONS", toNext: "to next rank", max: "Top rank", next: "Next reward", none: "No record", best: "BEST",
         noteOp: "Lose every life and you can CONTINUE · earns rank XP", notePr: "Practice: no deaths · any mission · no XP or records", hint: "<span>Tap/click <b>fire</b></span><span><b>R</b> reload</span><span><b>G</b> grenade</span><span>Keys <b>1·2·3</b> weapons</span>" };
 
   function nextStage() {
-    for (let i = 1; i <= 5; i++) if (!(D.best[i] && D.best[i].stars > 0)) return i;
+    for (let i = 0; i < STAGES.length; i++) { const id = STAGES[i].id; if (!(D.best[id] && D.best[id].stars > 0)) return id; }
     return 0;
   }
 
@@ -203,13 +214,16 @@
     const xb = xpBar(D.xp);
     const np = nextPerk(xb.i);
     const ns = nextStage();
-    const goStage = ns || 1;
-    const st = STAGES[goStage - 1];
+    const goStage = ns || STAGES[0].id;
+    const st = STAGES.find((x) => x.id === goStage);
+    let lastCh = 0;
     const cards = STAGES.map((s) => {
+      const head = s.ch !== lastCh ? '<h3>' + CHAPTERS[s.ch][ko ? 0 : 1] + "</h3>" : "";
+      lastCh = s.ch;
       const b = D.best[s.id];
       const stars = b ? "★".repeat(b.stars) + "☆".repeat(3 - b.stars) : "☆☆☆";
-      return '<button class="mCard' + (b && b.stars ? " clear" : "") + '" id="' + (s.id === 1 ? "mgStart" : "mgStart" + s.id) + '" type="button" data-stage="' + s.id + '" style="--c:' + s.c + '">' +
-        '<span class="no">0' + s.id + '</span><span class="tx"><b>' + (ko ? s.ko : s.en) + "</b><small>" + (ko ? s.sub : s.subEn) + " · BOSS " + (ko ? s.boss : s.bossEn) + "</small></span>" +
+      return head + '<button class="mCard' + (b && b.stars ? " clear" : "") + '" id="' + (s.id === 1 ? "mgStart" : "mgStart" + s.id) + '" type="button" data-stage="' + s.id + '" style="--c:' + s.c + '">' +
+        '<span class="no">' + s.lab + '</span><span class="tx"><b>' + (ko ? s.ko : s.en) + "</b><small>" + (ko ? s.sub : s.subEn) + " · BOSS " + (ko ? s.boss : s.bossEn) + "</small></span>" +
         '<span class="rc"><i' + (b ? "" : ' class="n"') + ">" + stars + "</i><em>" + (b ? L.best + " " + b.score.toLocaleString() : L.none) + "</em></span></button>";
     }).join("");
     wrap.innerHTML =
@@ -220,12 +234,12 @@
         '<div class="mIcons"><button id="mgSound" class="mIco" type="button" aria-label="sound">' + SVG.snd + '<span class="tSoundTxt" hidden></span></button>' +
         '<button id="mgGfx" class="mIco" type="button" aria-label="graphics" title="">' + SVG.gfx + '<span class="tGfxTxt" hidden></span></button></div></div>' +
       '<div class="mHead"><p class="tKicker">' + L.kicker + "</p><h1>" + (ko ? "지금 바로 <em>멸공</em>" : "Destroy <em>Now</em>") + '</h1><p class="tSub">' + L.sub + "</p></div>" +
-      '<button class="mGo" id="mgGo" type="button"><span class="pl">' + SVG.play + "</span><span><b>" + (ns ? L.go : L.goAll) + "</b><small>STAGE " + goStage + "-1 · " + (ko ? st.ko : st.en) + "</small></span></button>" +
+      '<button class="mGo" id="mgGo" type="button"><span class="pl">' + SVG.play + "</span><span><b>" + (ns ? L.go : L.goAll) + "</b><small>STAGE " + st.lab + " · " + (ko ? st.ko : st.en) + "</small></span></button>" +
       '<div class="mRow"><div class="mSeg mode">' + ["op", "practice"].map((v) => '<button type="button" data-k="mode" data-v="' + v + '"' + (D.mode === v ? ' class="on"' : "") + ">" + L.mode[v] + "</button>").join("") + "</div>" +
       '<div class="mSeg diff">' + Object.keys(DIFFS).map((v) => '<button type="button" data-k="diff" data-v="' + v + '"' + (D.diff === v ? ' class="on"' : "") + ">" + (ko ? DIFFS[v].ko : DIFFS[v].en) + "</button>").join("") + "</div></div>" +
       '<p class="mNote">' + (D.mode === "practice" ? L.notePr : L.noteOp) + "</p>" +
       "</div>" +
-      '<div class="mR"><div class="mList"><h3>' + L.ops + "</h3>" + cards + "</div>" +
+      '<div class="mR"><div class="mList">' + cards + "</div>" +
       '<p class="mFoot">' + L.hint + "</p></div>";
     wrap.querySelectorAll(".mSeg button").forEach((b) => b.addEventListener("click", (e) => {
       e.preventDefault();

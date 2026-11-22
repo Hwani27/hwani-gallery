@@ -4177,6 +4177,13 @@
      ?mood=day|dusk|snow in the URL overrides it for previewing. Weather is a
      single Points cloud that follows the camera, so it costs one draw call. */
   const MOODS = {
+    war: {
+      sky: ["#2a1a1c", "#4a2420", "#7a3420", "#b8502a", "#d87a3a", "#e8a060"],
+      bg: 0x7a4a34, fog: 0x8a5a40, fogNear: 40, fogFar: 260,
+      sun: [-20, 8, 70], sunDisc: 0xff8a3a,
+      hemi: [0.36, 0xd89070, 0x3a3028], amb: [0.14, 0xc08070], key: [1.7, 0xff9a50], rim: [0.7, 0xff6a30], moon: [0.12, 0x8a7080],
+      exposure: 0.98, cloud: [0x5a3a34, 0x2a1c1c, 0.6], wx: "motes"
+    },
     dusk: {
       sky: ["#1e2f63", "#4a3f7c", "#a35a7e", "#ef8452", "#ffc073", "#ffe0a8"],
       bg: 0xd98a5c, fog: 0xe39a6c, fogNear: 55, fogFar: 230,
@@ -5765,20 +5772,154 @@
     spots: [[-5.6, 12.6], [-0.6, 11.8], [4.6, 12.4]]
   };
 
+  const CITY_Z0 = -62, CITY_Z1 = 62;
+  const cityX = (z) => Math.sin(z / 26) * 1.1;
   const STAGES = {
+    /* ---- CHAPTER 1: 남침 — the line falls back south ---- */
+    6: {
+      id: 6, music: "fall", label: "STAGE 1-1", clock: 360, path: PATH1, boss: BOSS1,
+      waves: WAVES1.map((w, i) => Object.assign({}, w, { radio: [
+        "새벽 4시, 적의 전면 남침! 서울 도심까지 밀고 들어왔다!",
+        "시민 대피가 먼저다! 대로의 적부터 막아라!",
+        "골목으로 적이 쏟아진다! 엄폐하며 후퇴로를 지켜라!",
+        "적 공수부대 강하! 한강 쪽 퇴로가 위험하다!",
+        "불타는 건물 사이로 적 증원! 버텨라!",
+        "광장이 함락 직전이다! 마지막 시민들이 빠져나간다!",
+        "적 주력 진입! 한강 이남으로 철수 준비!"
+      ][i % 7] })),
+      dress: "seoulFall", bossKind: "apc", bossTank: true, bossHp: 90,
+      introDur: 4.4,
+      introCam: [[9.0, 13.5, -28.0, 0, 8.0, 40.0], [0, 1.68, -10.0, 0, 1.55, 3.5]],
+      introLines: [
+        { t: 0.4, text: "1950년 6월. 적이 기습 남침했다. 서울이 불타고 있다." },
+        { t: 2.3, text: "시민들이 피할 시간을 벌어라. 버틸 수 있는 데까지 버텨라!" }
+      ],
+      bossRadio: "적 전차가 도심에 진입했다! 포구가 빛나면 포구를, 약점은 앞쪽 흡기구!"
+    },
+    7: {
+      id: 7, music: "retreat", label: "STAGE 1-2", clock: 380, path: cityPath(), boss: cityBoss(),
+      waves: genWaves(707, ["DAEJEON STN", "EXPO-RO", "GAPCHEON"], [
+        "대전 사수! 지연전으로 시간을 벌어라!", "엑스포로에 적 정찰 오토바이!", "상공에 적 헬기! 다리 쪽 엄폐!",
+        "민간인 대피 중, 오사 주의!", "적 증원 접근! 교차로를 지켜라!", "갑천 방면 적 헬기 재접근!", "공수부대 강하! 지휘소를 지켜라!"], { bikes: true, hostage: true }),
+      dress: "citygen", bossKind: "man", bossHp: 18,
+      city: {
+        seed: 7, mood: "day", tall: 14, tints: [0xdfe8f0, 0xe6e2d8, 0xa8b4c0], sign: [-12.4, -44, "대전광역시", "DAEJEON", Math.PI / 2, "#2f8a4a"],
+        cars: [["bus", 7.6, -12, 0, "152"], ["police", -7.4, 26, Math.PI]],
+        banners: [[-12.2, 4, "과학도시 대전", "#2a5aa8"], [12.2, 36, "대전 사수", "#a82a2a"]],
+        hills: [[0, 170, 240, 50, 30], [-90, 120, 80, 60, 24]],
+        landmarks: [["tower", 0, 112, 56, "hanbit"], ["dome", -30, 86, 13], ["pavilion", 30, 84, 9, 5, {}], ["glass", [[-30, 78, 10, 10, 26, 0], [34, 82, 12, 10, 34, 1], [52, 120, 10, 10, 40, 2], [-56, 130, 12, 10, 30, 1]]]]
+      },
+      introDur: 4.2, introCam: [[7, 14, -84, 0, 10, 20], [0.0, 1.68, -62, 0, 1.55, -48]],
+      introLines: [{ t: 0.4, text: "서울 함락. 전선은 대전까지 밀렸다." }, { t: 2.2, text: "대전역 일대에서 적의 남하를 지연시켜라!" }],
+      bossRadio: "적 선봉 지휘관 확인! 엄폐물 사이를 옮겨 다닌다, 머리를 노려라!"
+    },
+    8: {
+      id: 8, music: "retreat", label: "STAGE 1-3", clock: 380, path: cityPath(), boss: cityBoss(),
+      waves: genWaves(808, ["DONGSEONG-RO", "STADIUM", "PALGONG"], [
+        "대구 방어선이다! 한 발짝도 물러서지 마라!", "적 오토바이 돌격조!", "적 헬기가 고가도로 위로 넘어온다!",
+        "피난민 사이에 숨은 적, 오사 주의!", "적 박격포 진지 발견!", "적 헬기 재접근! 경기장 쪽!", "적 공수 강하! 마지막 블록을 지켜라!"], { bikes: true, hostage: true }),
+      dress: "citygen", bossKind: "apc", bossHp: 70,
+      city: {
+        seed: 8, mood: "dusk", cherry: true, tints: [0xeadcc8, 0xf0e0c0, 0xc8b8a8], sign: [12.4, -44, "대구광역시", "DAEGU", -Math.PI / 2, "#2f8a4a"],
+        cars: [["truck", 7.8, 8, 0.05], ["bus", -7.6, -20, Math.PI, "410"]],
+        banners: [[12.2, -6, "대구, 더 큰 미래로", "#c22a6a", 9], [-12.2, 30, "낙동강 방어선", "#a82a2a"]],
+        hills: [[0, 175, 260, 60, 34], [70, 140, 80, 60, 22]],
+        landmarks: [["tower", 6, 150, 74, "slim"], ["stadium", -56, 100, 24, 16], ["pavilion", 30, 84, 10, 6, { wall: 4 }], ["overpass", 40], ["glass", [[-34, 80, 10, 10, 22, 0], [30, 120, 10, 10, 28, 1]]]]
+      },
+      introDur: 4.2, introCam: [[-7, 14, -84, 0, 10, 20], [0.0, 1.68, -62, 0, 1.55, -48]],
+      introLines: [{ t: 0.4, text: "낙동강 방어선. 대구가 뚫리면 끝이다." }, { t: 2.2, text: "시가지로 침투한 적을 몰아내라!" }],
+      bossRadio: "적 장갑차 돌입! 일반 탄은 튕긴다, 앞쪽 흡기구와 수류탄!"
+    },
+    9: {
+      id: 9, music: "retreat", label: "STAGE 1-4", clock: 380, path: cityPath(), boss: cityBoss(),
+      waves: genWaves(909, ["GEUMNAM-RO", "PLAZA", "MUDEUNG"], [
+        "호남 방면 적 우회 부대! 광주를 지켜라!", "금남로에 적 오토바이!", "적 헬기 출현! 광장 엄폐!",
+        "시민 대피 중, 오사 주의!", "적 증원, 기념탑 방향!", "적 헬기 재접근!", "적 공수 강하! 무등산 방면 퇴로 확보!"], { bikes: true, hostage: true }),
+      dress: "citygen", bossKind: "heli", bossHp: 40,
+      city: {
+        seed: 9, mood: "day", tall: 8, tints: [0xd8d4cc, 0xe8e0d0, 0xb8b0a4], sign: [-12.4, -44, "광주광역시", "GWANGJU CITY", Math.PI / 2, "#d8302a"],
+        cars: [["bus", 7.6, -16, 0, "518"], ["police", -7.4, 20, Math.PI]],
+        banners: [[-12.2, 0, "빛고을 광주", "#2a5aa8"], [12.2, 30, "광주 사수", "#a82a2a"]],
+        hills: [[0, 190, 280, 70, 46], [-80, 150, 90, 60, 28]],
+        landmarks: [["twin", 0, 100, 40], ["pavilion", 30, 82, 10, 6, { wall: 3, rail: 1 }], ["tower", -40, 200, 46, "slim"], ["glass", [[-30, 80, 10, 10, 24, 1], [36, 130, 10, 10, 28, 0]]]]
+      },
+      introDur: 4.2, introCam: [[7, 14, -84, 0, 10, 20], [0.0, 1.68, -62, 0, 1.55, -48]],
+      introLines: [{ t: 0.4, text: "적이 호남으로 우회해 광주까지 내려왔다." }, { t: 2.2, text: "금남로를 따라 적을 저지하라!" }],
+      bossRadio: "광주 상공에 적 공격헬기! 로켓 충전이 보이면 집중 사격!"
+    },
+    10: {
+      id: 10, music: "heritage", label: "STAGE 1-5", clock: 380, path: cityPath(), boss: cityBoss(),
+      waves: genWaves(1010, ["DAEREUNGWON", "CHEOMSEONG", "BULGUKSA"], [
+        "천년 고도 경주! 문화재를 지키며 적을 막아라!", "적 오토바이가 돌담길로!", "적 헬기 출현! 석탑 뒤로 엄폐!",
+        "관광객 대피 중, 오사 주의!", "적 증원, 첨성대 방향!", "적 헬기 재접근!", "적 공수 강하! 탑 앞 광장을 지켜라!"], { bikes: true, hostage: true }),
+      dress: "citygen", bossKind: "man", bossHp: 20,
+      city: {
+        seed: 10, mood: "day", paved: true, hanok: true, low: true, cherry: true,
+        sign: [12.4, -44, "경주", "Gyeongju", -Math.PI / 2, "#8a5a2a"],
+        cars: [],
+        banners: [[-12.2, -10, "경주", "#2a4aa8", 8], [12.2, 6, "경주", "#c22a2a", 8], [-12.2, 34, "천년고도", "#2a6a3a", 8]],
+        hills: [[0, 170, 280, 70, 32], [-80, 120, 80, 60, 26], [80, 120, 80, 60, 24]],
+        landmarks: [["pagoda", 4, 88, 1.8, 5], ["observatory", 26, 74, 1.2], ["pavilion", -28, 78, 14, 7, {}], ["pagoda", -40, 130, 1.2, 3], ["pavilion", 20, 140, 18, 8, { wall: 2 }]]
+      },
+      introDur: 4.2, introCam: [[7, 14, -84, 0, 10, 20], [0.0, 1.68, -62, 0, 1.55, -48]],
+      introLines: [{ t: 0.4, text: "동부 전선, 적이 경주까지 다가왔다." }, { t: 2.2, text: "천년 고도의 탑과 대를 지켜내라!" }],
+      bossRadio: "적 지휘관이 탑 앞 광장에 숨었다! 머리를 노려라!"
+    },
+    11: {
+      id: 11, music: "perimeter", label: "STAGE 1-6", clock: 400, path: cityPath(), boss: cityBoss(),
+      waves: genWaves(1111, ["HAEUNDAE", "GWANGALLI", "PERIMETER"], [
+        "부산 교두보, 최후 방어선이다! 여기서 물러설 곳은 없다!", "해변 도로로 적 오토바이!", "바다 위로 적 헬기!",
+        "피난민 다수, 오사 주의!", "적 증원, 등대 방향!", "적 헬기 재접근!", "적 공수 강하! 이 선을 지켜라, 반격이 온다!"], { bikes: true, hostage: true, paras: true }),
+      dress: "citygen", bossKind: "apc", bossTank: true, bossHp: 110,
+      city: {
+        seed: 11, mood: "day", seaSide: true, tall: 16, tints: [0xf0f0ec, 0xe0e8f0, 0xc0ccd8], sign: [-12.4, -44, "부산", "BUSAN", Math.PI / 2, "#2a5aa8"],
+        cars: [["truck", -7.8, -8, Math.PI], ["police", -7.4, 24, Math.PI]],
+        banners: [[-12.2, 6, "부산", "#c22a2a", 9], [-12.2, 40, "최후 방어선", "#2a4aa8"]],
+        hills: [[-60, 170, 220, 70, 40]],
+        landmarks: [["suspension", 120, 70, -0.25, 40, 260], ["lighthouse", 44, 46, 0xc8302a], ["ship", 70, 20, 0.6, 31, 0.6], ["ship", 140, 160, -0.3, 52, 0.8],
+          ["glass", [[-30, 80, 10, 10, 40, 0], [-44, 60, 10, 10, 52, 1], [-32, 110, 12, 12, 60, 2], [-56, 96, 10, 10, 46, 0], [-46, 140, 12, 10, 56, 1]]]]
+      },
+      introDur: 4.4, introCam: [[20, 16, -84, 0, 8, 30], [0.0, 1.68, -62, 0, 1.55, -48]],
+      introLines: [{ t: 0.4, text: "낙동강 최후 방어선, 부산." }, { t: 2.2, text: "반격의 그날까지, 이 해안을 반드시 지켜라!" }],
+      bossRadio: "적 주력 전차가 해안도로로! 포구를 막고 흡기구를 노려라!"
+    },
+    /* ---- CHAPTER 2: 반격 — Incheon, then Seoul again ---- */
+    12: {
+      id: 12, music: "landing", label: "STAGE 2-1", clock: 420,
+      path: cityPath([[0, -152], [0, -144], [0.4, -136], [0.8, -128], [0.6, -120], [0, -112], [-0.6, -104], [-0.6, -96], [0, -88], [0, -80], [0, -74], [0, -68]]),
+      boss: cityBoss(), chase: "boat",
+      waves: genWaves(1212, ["BEACH", "SONGDO", "CENTRAL PARK"], [
+        "상륙 성공! 해안 교두보를 확보하라!", "적 오토바이 반격조!", "적 헬기 출현! 교두보 엄폐!",
+        "시민 구출 우선, 오사 주의!", "적 증원, 센트럴파크 방향!", "적 헬기 재접근!", "적 공수 강하! 인천을 되찾아라!"], { bikes: true, hostage: true }),
+      dress: "citygen", bossKind: "heli", bossHp: 46,
+      city: {
+        seed: 12, mood: "day", sea: true, cherry: true, tall: 18, tints: [0xe8f0f8, 0xd8e4ee, 0xb0c4d4], sign: [-12.4, -40, "인천 송도", "Incheon Songdo", Math.PI / 2, "#2a6ab8"],
+        cars: [["police", -7.4, 24, Math.PI]],
+        banners: [[12.2, -20, "인천상륙작전", "#2a4aa8", 9], [-12.2, 20, "인천", "#c22a2a"]],
+        hills: [[-120, 220, 200, 60, 30]],
+        landmarks: [["beach", -72, -56], ["hedgehogs", [[-6, -66], [5, -64], [-9, -60], [8, -60], [-4, -61], [11, -67], [-12, -64]]],
+          ["fire", -18, 0.4, -58, 1.4], ["fire", 16, 0.4, -54, 1.2],
+          ["ship", -46, -150, 0.25, 52, 1.1], ["ship", 56, -178, -0.3, 31, 0.9], ["ship", -90, -210, 0.1, 17, 0.8],
+          ["taper", 10, 168, 96], ["sculptureS", 30, 82, 1.5], ["suspension", 0, 230, 0, 44, 300],
+          ["glass", [[-30, 80, 10, 10, 46, 0], [34, 100, 12, 10, 60, 1], [-40, 120, 12, 12, 70, 2], [44, 140, 10, 10, 64, 0], [-24, 160, 10, 12, 80, 1], [60, 180, 12, 12, 56, 2], [-60, 170, 10, 10, 50, 0]]]]
+      },
+      introDur: 5.0, introCam: [[-24, 18, -190, 0, 4, -100], [0, 1.68, -152, 0, 1.55, -138]],
+      introLines: [{ t: 0.4, text: "1950년 9월 15일, 인천 상륙작전 개시!" }, { t: 2.4, text: "상륙정 전진! 해안의 적을 쓸고 인천을 되찾아라!" }],
+      bossRadio: "송도 상공에 적 공격헬기! 기체에 집중 사격!"
+    },
     1: {
-      id: 1, music: "seoul", label: "STAGE 1-1", clock: 360, path: PATH1, waves: WAVES1, boss: BOSS1,
+      id: 1, music: "seoul", label: "STAGE 2-2", clock: 360, path: PATH1, waves: WAVES1, boss: BOSS1,
       dress: "city", bossKind: "man",
       introDur: 4.2,
       introCam: [[9.0, 11.5, -26.0, 0, 7.0, 40.0], [0, 1.68, -10.0, 0, 1.55, 3.5]],
       introLines: [
-        { t: 0.4, text: "여기는 본부. 서울 도심에 적 병력이 침투했다." },
-        { t: 2.2, text: "서울역 방면으로 진격해 숭례문을 탈환하라. 민간인 오사에 주의!" }
+        { t: 0.4, text: "인천 상륙 성공! 전군, 서울로 진격한다." },
+        { t: 2.2, text: "서울역 방면으로 진격해 숭례문을 되찾아라. 민간인 오사에 주의!" }
       ],
       bossRadio: "적 지휘관 확인! 엄폐물 사이를 옮겨 다닌다, 머리를 노려라!"
     },
     3: {
-      id: 3, music: "summit", label: "STAGE 3-1", clock: 380, path: PATH_S, waves: WAVES_S, boss: BOSS_S,
+      id: 3, music: "summit", label: "STAGE 3-2", clock: 380, path: PATH_S, waves: WAVES_S, boss: BOSS_S,
       dress: "summit", bossKind: "heli", bossHp: 46,
       introDur: 4.0,
       introCam: [[7.0, 10.0, -60.0, 0, 5.0, -10.0], [0, 1.68, -44.0, 0, 1.55, -30.0]],
@@ -5789,7 +5930,7 @@
       bossRadio: "판문각 상공에 적 공격헬기! 기총 소사를 피해 기체를 집중 사격하라!"
     },
     5: {
-      id: 5, music: "paektu", label: "STAGE 5-1", clock: 400, path: PATH5, waves: WAVES5, boss: BOSS5,
+      id: 5, music: "paektu", label: "STAGE 3-4", clock: 400, path: PATH5, waves: WAVES5, boss: BOSS5,
       dress: "paektu", bossKind: "commander", bossHp: 40, chase: true,
       introDur: 5.2,
       introCam: [[7.0, 9.0, -176.0, 0, 1.0, -128.0], [0, 1.68, -152.0, 0, 1.55, -138.0]],
@@ -5800,7 +5941,7 @@
       bossRadio: "천지 전망대에 적 총사령관 확인! 경호원을 쓰러뜨리고 사령관을 제압하라!"
     },
     4: {
-      id: 4, music: "pyongyang", label: "STAGE 4-1", clock: 380, path: PATH3, waves: WAVES3, boss: BOSS3,
+      id: 4, music: "pyongyang", label: "STAGE 3-3", clock: 380, path: PATH3, waves: WAVES3, boss: BOSS3,
       dress: "pyongyang", bossKind: "apc", bossTank: true, bossHp: 110,
       introDur: 4.0,
       introCam: [[-8.0, 9.0, -58.0, 0, 6.0, -6.0], [0, 1.68, -44.0, 0, 1.55, -30.0]],
@@ -5811,7 +5952,7 @@
       bossRadio: "광장에 적 주력 전차! 포구를 막고 앞쪽 흡기구를 노려라!"
     },
     2: {
-      id: 2, music: "dmz", label: "STAGE 2-1", clock: 360, path: PATH2, waves: WAVES2, boss: BOSS2,
+      id: 2, music: "dmz", label: "STAGE 3-1", clock: 360, path: PATH2, waves: WAVES2, boss: BOSS2,
       dress: "dmz", bossKind: "apc", bossHp: 60,
       bossRadio: "중장갑 차량 확인! 일반 탄은 튕긴다, 앞쪽 흡기구와 수류탄!",
       introDur: 3.8,
@@ -6590,7 +6731,9 @@
      DMZ wire and the Panmunjom plaza of stage 2 */
   function dressBattlefield(ctx) {
     DET.b = null;
-    const out = STAGE && STAGE.dress === "dmz" ? dressStage2(ctx) : STAGE && STAGE.dress === "pyongyang" ? dressStage3(ctx) : STAGE && STAGE.dress === "summit" ? dressSummit(ctx) : STAGE && STAGE.dress === "paektu" ? dressPaektu(ctx) : dressStage1(ctx);
+    const out = STAGE && STAGE.dress === "dmz" ? dressStage2(ctx) : STAGE && STAGE.dress === "pyongyang" ? dressStage3(ctx) : STAGE && STAGE.dress === "summit" ? dressSummit(ctx) : STAGE && STAGE.dress === "paektu" ? dressPaektu(ctx)
+      : STAGE && STAGE.dress === "citygen" ? dressCity(ctx)
+      : STAGE && STAGE.dress === "seoulFall" ? warify(ctx, dressStage1(ctx)) : dressStage1(ctx);
     try { flushDetail(null); } catch (e) { window.__detErr = String(e); }
     try { applyRelief(ctx.scene); } catch (e) { window.__reliefErr = String(e && e.stack || e); }
     return out;
@@ -7097,8 +7240,10 @@
       tagOff(p);
     });
     posts.length = 0;
+    if (chase) chase.fx.forEach((m) => m.parent && m.parent.remove(m));
     chase = null;
     if (jeepRig) jeepRig.visible = false;
+    if (boatRig) boatRig.visible = false;
     debris.forEach((m) => m.parent && m.parent.remove(m));
     debris.length = 0;
     MONU = null;
@@ -7387,7 +7532,7 @@
         if (g > 0.003) G.loop("b" + (p.uid || (p.uid = Math.random().toString(36).slice(2))), "bike", g, p.chase ? 1.25 : 1.1);
       }
     });
-    if (chase) G.loop("jeep", "jeep", 0.12, 1 + Math.sin(chase.t * 0.7) * 0.08);
+    if (chase) G.loop("jeep", "jeep", chase.boat ? 0.16 : 0.12, (chase.boat ? 0.8 : 1) + Math.sin(chase.t * 0.7) * 0.08);
   }
 
   function pause() {
@@ -7964,19 +8109,97 @@
     g.visible = false;
     return g;
   }
+  /* (v21) the Incheon landing craft: steel sides, a bow ramp, ribs and a
+     bow gun, seen from the troop well */
+  let boatRig = null;
+  function makeBoatRig() {
+    const g = new T.Group();
+    const M = (c, r, m) => new T.MeshStandardMaterial({ color: new T.Color(c).convertSRGBToLinear(), roughness: r, metalness: m || 0, envMapIntensity: 0.4 });
+    const hull = M(0x6a7076, 0.6, 0.4), hullD = M(0x4a5056, 0.65, 0.4), deck = M(0x3e4246, 0.8, 0.2), rust = M(0x6a4a36, 0.8);
+    const B = (w, h, d, x, y, z, m) => { const o = new T.Mesh(new T.BoxGeometry(w, h, d), m); o.position.set(x, y, z); g.add(o); return o; };
+    [-1, 1].forEach((s) => {
+      B(0.16, 0.9, 3.4, s * 1.3, -0.92, -1.9, hull);
+      B(0.3, 0.08, 3.4, s * 1.24, -0.45, -1.9, hullD);
+      for (let k = 0; k < 5; k++) B(0.06, 0.82, 0.08, s * 1.2, -0.95, -0.5 - k * 0.72, hullD);
+      B(0.04, 0.12, 0.3, s * 1.18, -0.6, -1.4, rust);
+    });
+    B(2.6, 1.1, 0.16, 0, -0.82, -3.6, hull);
+    B(2.6, 0.08, 0.3, 0, -0.26, -3.55, hullD);
+    for (let k = 0; k < 4; k++) B(2.4, 0.05, 0.05, 0, -1.2 + k * 0.25, -3.5, hullD);
+    B(2.5, 0.06, 3.4, 0, -1.38, -1.9, deck);
+    const gun = new T.Group();
+    const gm = M(0x2a2c2e, 0.5, 0.6);
+    const b1 = new T.Mesh(new T.BoxGeometry(0.12, 0.12, 0.9), gm); b1.position.set(0, 0, -0.45); gun.add(b1);
+    const b2 = new T.Mesh(new T.BoxGeometry(0.2, 0.18, 0.3), gm); gun.add(b2);
+    gun.position.set(0.9, -0.12, -3.3); g.add(gun);
+    g.visible = false;
+    return g;
+  }
+  function makeEnemyBoat() {
+    const g = new T.Group();
+    const M = (c, r, m) => new T.MeshStandardMaterial({ color: new T.Color(c).convertSRGBToLinear(), roughness: r, metalness: m || 0 });
+    const hull = M(0x4e5a44, 0.7, 0.2), dark = M(0x2a302a, 0.7), white = M(0xe8ece8, 0.6);
+    const B = (w, h, d, x, y, z, m) => { const o = new T.Mesh(new T.BoxGeometry(w, h, d), m); o.position.set(x, y, z); o.castShadow = true; g.add(o); return o; };
+    B(1.7, 0.5, 4.2, 0, 0.1, 0, hull);
+    B(1.3, 0.3, 1.0, 0, 0.1, 2.3, hull).rotation.x = 0.35;
+    B(1.0, 0.6, 1.0, 0, 0.6, -0.8, dark);
+    B(0.9, 0.08, 0.9, 0, 0.94, -0.8, white);
+    B(1.74, 0.08, 4.24, 0, 0.36, 0, dark);
+    g.userData.wake = B(1.9, 0.04, 1.4, 0, -0.1, -2.6, M(0xffffff, 0.3));
+    return g;
+  }
+  function splashAt(ctx, x, z, big) {
+    const m = new T.Mesh(new T.CylinderGeometry(0.5, 1.2, 1, 8, 1, true), new T.MeshBasicMaterial({ color: 0xf4f8fc, transparent: true, opacity: 0.85, depthWrite: false }));
+    m.position.set(x, 0.5, z);
+    m.userData.t = 0; m.userData.h = big ? 9 : 5;
+    ctx.scene.add(m);
+    chase.fx.push(m);
+    if (big) gun("boom");
+  }
+
   function startChase(ctx) {
-    if (!jeepRig) { jeepRig = makeJeepRig(); ctx.camera.add(jeepRig); }
-    jeepRig.visible = true;
-    chase = { t: 0, i: 0, plan: [1.4, 3.0, 5.2, 7.0, 9.2, 11.4, 13.0, 15.2], riders: [] };
+    const boat = STAGE.chase === "boat";
+    if (boat) {
+      if (!boatRig) { boatRig = makeBoatRig(); ctx.camera.add(boatRig); }
+      boatRig.visible = true;
+      if (jeepRig) jeepRig.visible = false;
+    } else {
+      if (!jeepRig) { jeepRig = makeJeepRig(); ctx.camera.add(jeepRig); }
+      jeepRig.visible = true;
+      if (boatRig) boatRig.visible = false;
+    }
+    chase = { t: 0, i: 0, plan: [1.4, 3.0, 5.2, 7.0, 9.2, 11.4, 13.0, 15.2], riders: [], boat: boat, fx: [], sink: [], splashT: 0.6 };
+    if (boat) {
+      if (dress && dress.ally) dress.ally.visible = false;
+      radio("상륙정 전진! 적 경비정이 다가온다, 해안까지 버텨라!", 3400);
+      return;
+    }
     if (dress && dress.ally) dress.ally.visible = false;
     radio("추격전! 국경 도로 돌파 중 — 정면에서 적 오토바이 부대!", 3400);
     gun("motor");
   }
   function spawnChaser(ctx, lat, k) {
-    const ahead = 36;
+    let ahead = 36;
+    if (chase.boat) {
+      /* boats stay on the water: never spawn past the shoreline */
+      const here = pathAt(pathU);
+      ahead = Math.min(36, -74 - here.z);
+      if (ahead < 12) return null;
+    }
     const u = Math.min(1, pathU + ahead / pathLen);
     const pt = pathAt(u);
-    const p = makePost({ yaw: 0, hold: { x: pt.x, z: pt.z - 2 } }, { role: k % 3 === 2 ? "tough" : "weak", lat: 0, dep: 2, bike: true, run: { from: [pt.x, pt.z], dur: 99, delay: 0 } }, 70 + k);
+    const p = chase.boat
+      ? makePost({ yaw: 0, hold: { x: pt.x, z: pt.z - 2 } }, { role: k % 3 === 2 ? "tough" : "weak", lat: 0, dep: 2 }, 70 + k)
+      : makePost({ yaw: 0, hold: { x: pt.x, z: pt.z - 2 } }, { role: k % 3 === 2 ? "tough" : "weak", lat: 0, dep: 2, bike: true, run: { from: [pt.x, pt.z], dur: 99, delay: 0 } }, 70 + k);
+    if (chase.boat && p.mesh) {
+      const bt = makeEnemyBoat();
+      const sc = p.mesh.scale.x || 1;
+      bt.scale.setScalar(1 / sc);
+      bt.position.set(0, -0.42 / sc, 0);
+      bt.rotation.y = Math.PI;
+      p.mesh.add(bt);
+      p.mount = bt;
+    }
     p.run = null;
     p.live = true;
     p.state = "chase";
@@ -7991,6 +8214,7 @@
   function stepChase(ctx, dt) {
     if (!chase) return;
     chase.t += dt;
+    if (chase.boat && ctx.camera.position.z > -69) { endChase(ctx); return; }
     while (chase.i < chase.plan.length && chase.t >= chase.plan[chase.i]) {
       const k = chase.i++;
       const side = k % 2 ? 1 : -1;
@@ -8008,17 +8232,18 @@
       const tg = curve.getTangentAt(u);
       const tl = Math.hypot(tg.x, tg.z) || 1, tx = tg.x / tl, tz = tg.z / tl;
       const lat = c.lat * (c.ahead < 9 ? 1 + (9 - Math.max(0, c.ahead)) * 0.05 : 1) + Math.sin(chase.t * 1.8 + c.ph) * 0.5;
-      p.x = pt.x + tz * lat;
-      p.z = pt.z - tx * lat;
-      p.y = 0.98;
+      p.x = pt.x + tz * lat * (chase.boat ? 1.6 : 1);
+      p.z = pt.z - tx * lat * (chase.boat ? 1.6 : 1);
+      p.y = chase.boat ? 0.5 + Math.sin(chase.t * 2.4 + c.ph) * 0.12 : 0.98;
       const yaw = Math.atan2(-tx, -tz);
       posePost(p, cam.position, dt);
-      applyRidePose(p, yaw, Math.cos(chase.t * 1.8 + c.ph) * 0.14);
+      if (p.mount) { p.mesh.rotation.z = Math.sin(chase.t * 1.9 + c.ph) * 0.06; }
+      else applyRidePose(p, yaw, Math.cos(chase.t * 1.8 + c.ph) * 0.14);
       if (p.bikeMesh) {
         (p.bikeMesh.userData.wheels || []).forEach((w) => { w.rotation.x += dt * 26; });
         if (p.bikeMesh.userData.stand) p.bikeMesh.userData.stand.visible = false;
       }
-      if (Math.random() < 0.3) smokeAt(ctx, p.x + tx * 1.0, 0.45, p.z + tz * 1.0, 0x9a8c74);
+      if (Math.random() < 0.3) smokeAt(ctx, p.x + tx * 1.0, chase.boat ? 0.2 : 0.45, p.z + tz * 1.0, chase.boat ? 0xf2f6fa : 0x9a8c74);
       p.visTop = p.y + 1.6;
       const armed = c.ahead < 27 && c.ahead > 6.5 && p.aim < 90;
       if (armed) {
@@ -8035,11 +8260,34 @@
         if (p.mesh && p.mesh.parent) p.mesh.parent.remove(p.mesh);
       }
     });
-    if (jeepRig) {
+    if (jeepRig && !chase.boat) {
       const t = chase.t;
       jeepRig.position.y = Math.sin(t * 11) * 0.012 + (Math.random() < 0.02 ? -0.03 : 0);
       jeepRig.rotation.z = Math.sin(t * 1.3) * 0.012;
       if (jeepRig.userData.wheel) jeepRig.userData.wheel.rotation.z = Math.sin(t * 0.9) * 0.4;
+    }
+    if (chase.boat) {
+      const t = chase.t;
+      if (boatRig) { boatRig.position.y = Math.sin(t * 1.7) * 0.05; boatRig.rotation.z = Math.sin(t * 1.1) * 0.025; boatRig.rotation.x = Math.sin(t * 1.5) * 0.02; }
+      /* shell splashes walking across the water around the boat */
+      chase.splashT -= dt;
+      if (chase.splashT <= 0) {
+        chase.splashT = 0.5 + Math.random() * 0.9;
+        const u = Math.min(1, pathU + (8 + Math.random() * 26) / pathLen);
+        const q = pathAt(u);
+        const side = Math.random() < 0.5 ? -1 : 1;
+        splashAt(ctx, q.x + side * (3 + Math.random() * 14), q.z, Math.random() < 0.35);
+      }
+      chase.fx = chase.fx.filter((m) => {
+        m.userData.t += dt;
+        const k = m.userData.t / 1.4;
+        m.scale.set(1 + k * 0.6, m.userData.h * Math.sin(Math.min(1, k) * Math.PI) + 0.1, 1 + k * 0.6);
+        m.position.y = m.scale.y / 2;
+        m.material.opacity = 0.85 * (1 - k);
+        if (k >= 1) { m.parent && m.parent.remove(m); return false; }
+        return true;
+      });
+      chase.sink = chase.sink.filter((m) => { m.position.y -= dt * 0.5; m.rotation.x += dt * 0.25; if (m.position.y < -2.5) { m.parent && m.parent.remove(m); return false; } return true; });
     }
   }
   function endChase(ctx) {
@@ -8052,10 +8300,14 @@
       if (p.mesh && p.mesh.parent) p.mesh.parent.remove(p.mesh);
     });
     const down = chase.riders.filter((p) => p.e.alive === false && !p.escaped && p.mesh && p.mesh.parent).length;
+    const wasBoat = chase.boat;
+    chase.fx.forEach((m) => m.parent && m.parent.remove(m));
     chase = null;
     if (jeepRig) jeepRig.visible = false;
+    if (boatRig) boatRig.visible = false;
     if (dress && dress.ally) dress.ally.visible = true;
-    radio(down >= 6 ? "추격대 전멸! 하차, 압록강 초소로 진입한다!" : "하차! 압록강 국경 초소로 진입한다!", 3000);
+    if (wasBoat) radio("램프 개방! 상륙, 상륙! 해안 교두보를 확보하라!", 3200);
+    else radio(down >= 6 ? "추격대 전멸! 하차, 압록강 초소로 진입한다!" : "하차! 압록강 국경 초소로 진입한다!", 3000);
   }
   window.__chase = () => (chase ? { t: +chase.t.toFixed(1), riders: chase.riders.length, alive: chase.riders.filter((p) => p.live !== false && p.e.alive !== false).length } : null);
 
@@ -8227,11 +8479,17 @@
     let shot = null;
     try { shot = window.MG && window.MG.snap ? window.MG.snap(1280) : null; } catch (e) {}
     const ko = (document.documentElement.lang || "").startsWith("ko");
-    const NEXT = { 1: [2, "다음 작전 · DMZ·판문점", "NEXT · DMZ & PANMUNJOM"], 2: [3, "다음 작전 · 평화의 집", "NEXT · PEACE HOUSE"], 3: [4, "다음 작전 · 평양 진입", "NEXT · INTO PYONGYANG"], 4: [5, "다음 작전 · 압록강·백두산", "NEXT · YALU & PAEKTU"] };
-    const nx = cleared ? NEXT[stageId] : null;
+    /* (v21) the campaign runs in war order, not in id order */
+    const ORD = [6, 7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5];
+    const NM = { 1: ["서울 수복", "RETAKE SEOUL"], 2: ["DMZ·판문점", "DMZ & PANMUNJOM"], 3: ["평화의 집", "PEACE HOUSE"], 4: ["평양 진입", "INTO PYONGYANG"], 5: ["압록강·백두산", "YALU & PAEKTU"],
+      6: ["서울 함락", "FALL OF SEOUL"], 7: ["대전", "DAEJEON"], 8: ["대구", "DAEGU"], 9: ["광주", "GWANGJU"], 10: ["경주", "GYEONGJU"], 11: ["부산", "BUSAN"], 12: ["인천 상륙작전", "INCHEON LANDING"] };
+    const oi = ORD.indexOf(stageId);
+    const nId = oi >= 0 && oi < ORD.length - 1 ? ORD[oi + 1] : 0;
+    const nx = cleared && nId ? [nId, "다음 작전 · " + NM[nId][0], "NEXT · " + NM[nId][1]] : null;
     const nextB = nx ? "<button class=primary data-act=next data-stage=" + nx[0] + ">" + (ko ? nx[1] : nx[2]) + "</button>" : "";
     const head = cleared
-      ? (stageId === 2 ? (ko ? "작전 성공 · JSA 확보" : "MISSION CLEAR · JSA SECURED") : stageId === 3 ? (ko ? "작전 성공 · 판문각 확보" : "MISSION CLEAR · PANMUNGAK SECURED") : stageId === 4 ? (ko ? "작전 성공 · 평양 광장 확보" : "MISSION CLEAR · SQUARE SECURED") : stageId === 5 ? (ko ? "최종 작전 성공 · 총사령관 제압" : "FINAL MISSION · LEADER DOWN")  : (ko ? "작전 성공 · 숭례문 탈환" : "MISSION CLEAR"))
+      ? ({ 6: ko ? "철수 성공 · 시민 대피 완료" : "WITHDRAWAL COMPLETE", 7: ko ? "지연전 성공 · 대전" : "DAEJEON HELD", 8: ko ? "방어 성공 · 대구" : "DAEGU HELD", 9: ko ? "방어 성공 · 광주" : "GWANGJU HELD",
+          10: ko ? "방어 성공 · 경주" : "GYEONGJU HELD", 11: ko ? "최후 방어선 사수 · 부산" : "THE PERIMETER HOLDS", 12: ko ? "상륙 성공 · 인천 탈환" : "INCHEON RETAKEN" }[stageId]) || (stageId === 2 ? (ko ? "작전 성공 · JSA 확보" : "MISSION CLEAR · JSA SECURED") : stageId === 3 ? (ko ? "작전 성공 · 판문각 확보" : "MISSION CLEAR · PANMUNGAK SECURED") : stageId === 4 ? (ko ? "작전 성공 · 평양 광장 확보" : "MISSION CLEAR · SQUARE SECURED") : stageId === 5 ? (ko ? "최종 작전 성공 · 총사령관 제압" : "FINAL MISSION · LEADER DOWN")  : (ko ? "서울 수복 · 숭례문 탈환" : "SEOUL RETAKEN"))
       : (ko ? "작전 실패" : "MISSION FAILED");
     const box = document.createElement("div");
     box.id = "railResult";
@@ -8545,6 +8803,7 @@
     p.state = "dead";
     p.dying = 1.05;
     if (p.bikeMesh) { dropBike(ctx, p, true); p.y = 0.3; addPts(ctx, 200); }
+    if (p.mount && p.mount.parent) { ctx.scene.attach(p.mount); if (chase) chase.sink.push(p.mount); p.mount = null; addPts(ctx, 200); }
     try {
       const cols = p.role === "boss" ? [0x4a4a30, 0x33331f, 0xe0b48c, 0x2a2a1a] : p.role === "tough" ? [0x424d2c, 0x333d22, 0xe0b48c, 0x1e2416] : [0x5a6a3a, 0x48562e, 0xe8bc94, 0x2c3520];
       voxBreak(ctx.scene, p.x, (p.y || 0.3) + 0.3, p.z, cols, p.role === "boss" ? 26 : 14, p.role === "boss" ? 1.4 : 1);
@@ -9992,6 +10251,7 @@
     stepFallers(dt);
     stepCrashed(ctx, dt);
     if (debris.length) stepDebris(dt);
+    if (dress && dress.fires && dress.fires.length) stepFires(dt);
     if (!ended) { try { stepEngines(ctx); } catch (e) {} }
     stepNades(ctx, dt);
     /* the SMG keeps firing while the trigger is held */
@@ -11836,6 +12096,638 @@
     applyMood(ctx, S, sky, clouds, moodOverride() || "snow");
     dress = { root: S, sky, flags, clouds, barrels: [], ally, truck1: null, trunks };
     return dress;
+  }
+
+  /* ================= v21: THE CITY STAGES =================
+     The campaign now follows the war: Seoul falls, the line is pushed back
+     through Daejeon, Daegu, Gwangju and Gyeongju to the Busan perimeter,
+     then the Incheon landing turns it, Seoul is retaken and the advance
+     goes north. Every new city is one data block (STAGES[n].city) laid over
+     a shared avenue: a 124 m boulevard with shopfront blocks or a seafront
+     on either side, street furniture, a city sign, and the landmarks that
+     make the place read at a glance. Waves come from one generator, so each
+     city plays on the same tested footprint: the street is 20 m wide, the
+     rail runs down its middle and every man stands inside the kerbs. */
+  function cityPath(pre) {
+    const pts = (pre || []).slice();
+    for (let z = CITY_Z0; z <= 60; z += 6) pts.push([+cityX(z).toFixed(2), z]);
+    return pts;
+  }
+  function cityBoss() {
+    const x = cityX(56);
+    return { hold: [+x.toFixed(2), 56], look: [+x.toFixed(2), 2.4, 68], spots: [[-5.6, 11.2], [-0.6, 10.6], [4.6, 11.0]] };
+  }
+  /* seven zones down the avenue, members from a seeded table so a city
+     always plays the same, with bikes, a helicopter and paratroopers in
+     their own zones */
+  function genWaves(seed, names, radios, opt) {
+    const R = rng(seed);
+    const o = opt || {};
+    const zs = [-50, -34, -18, -2, 14, 30, 44];
+    const lats = [-6.6, -4.4, -2.4, 2.4, 4.4, 6.6];
+    const covers = ["sandbag", "crate", "barrier", "crates", "sandbag", "bunker", "crate"];
+    const picksK = ["ammo", "supply", "grenade", "smg", "shotgun", "ammo", "life"];
+    return zs.map((z, i) => {
+      const x = +cityX(z).toFixed(2);
+      const n = 3 + (i > 2 ? 1 : 0) + (i > 4 ? 1 : 0);
+      const used = [];
+      const members = [];
+      for (let k = 0; k < n; k++) {
+        let lat;
+        do { lat = lats[(R() * lats.length) | 0]; } while (used.indexOf(lat) >= 0 && used.length < lats.length);
+        used.push(lat);
+        const role = k === 0 && i > 1 ? "tough" : (k === 1 && i % 2 ? "throw" : "weak");
+        members.push({ role: role, lat: lat + (R() - 0.5) * 0.5, dep: 8.2 + R() * 4.2, cover: covers[(i + k) % covers.length] });
+      }
+      if (o.bikes && (i === 1 || i === 4)) {
+        const side = R() < 0.5 ? -1 : 1;
+        members.push({ role: "weak", lat: side * 5.6, dep: 11.6, cover: "crate", bike: true, run: { from: [x + side * 3.0, z + 34], dur: 3.8, delay: 1.0 } });
+      }
+      if (o.hostage && i === 3) members.push({ role: "hostage", lat: 0.8, dep: 10.4 });
+      if (o.heli !== false && (i === 2 || i === 5)) members.push({ air: "heli", lat: (R() - 0.5) * 3, dep: 22, y: 9.8, orbit: 6 });
+      if (i === 6 || (o.paras && i === 4)) {
+        [-3.6, 1.2, 4.8].forEach((pl) => members.push({ air: "para", role: "para", lat: pl, dep: 13 + R() * 2, y: 8 + R(), land: [pl * 0.9, 10.5 + R()] }));
+      }
+      return {
+        id: i + 1, zone: names[Math.min(names.length - 1, (i / 7 * names.length) | 0)], hold: [x, z], yaw: 0,
+        look: [x, 1.9 + (i === 2 || i === 5 ? 0.8 : 0), z + 14], time: 26 + i,
+        radio: radios[i % radios.length],
+        picks: [[-3.2, 5.8, picksK[i % picksK.length]], [3.4, 6.4, picksK[(i + 3) % picksK.length]]],
+        members: members
+      };
+    });
+  }
+
+  /* ---- shared materials and little builders for the city landmarks ---- */
+  const CM = {};
+  function cmat(c, r, m, o) {
+    const k = c + "|" + r + "|" + (m || 0) + "|" + (o ? JSON.stringify(o) : "");
+    if (CM[k]) return CM[k];
+    const p = Object.assign({ color: new T.Color(c).convertSRGBToLinear(), roughness: r, metalness: m || 0 }, o || {});
+    if (p.emissive != null) p.emissive = new T.Color(p.emissive).convertSRGBToLinear();
+    return (CM[k] = new T.MeshStandardMaterial(p));
+  }
+  function bx(S, w, h, d, x, y, z, m, o) {
+    const g = new T.Mesh(new T.BoxGeometry(w, h, d), m);
+    g.position.set(x, y, z);
+    if (o && o.ry) g.rotation.y = o.ry;
+    if (o && o.rz) g.rotation.z = o.rz;
+    if (o && o.rx) g.rotation.x = o.rx;
+    g.castShadow = !(o && o.noCast);
+    g.receiveShadow = true;
+    g.userData.noBlock = !(o && o.wall);
+    if (o && o.wall) g.userData.wall = 1;
+    S.add(g);
+    return g;
+  }
+  function cyl(S, rt, rb, h, x, y, z, m, seg, o) {
+    const g = new T.Mesh(new T.CylinderGeometry(rt, rb, h, seg || 16), m);
+    g.position.set(x, y, z);
+    g.castShadow = !(o && o.noCast);
+    g.receiveShadow = true;
+    g.userData.noBlock = !(o && o.wall);
+    if (o && o.wall) g.userData.wall = 1;
+    S.add(g);
+    return g;
+  }
+  function vSignTex(key, text, bg, fg) {
+    return ctex(key, 96, 320, (g, w, h) => {
+      g.fillStyle = bg; g.fillRect(0, 0, w, h);
+      g.strokeStyle = "rgba(255,255,255,.55)"; g.lineWidth = 4; g.strokeRect(6, 6, w - 12, h - 12);
+      g.fillStyle = fg; g.textAlign = "center"; g.textBaseline = "middle";
+      const ch = Array.from(text);
+      const fs = Math.min(64, (h - 40) / ch.length);
+      g.font = "900 " + fs + "px Pretendard, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif";
+      ch.forEach((c, i) => g.fillText(c, w / 2, 24 + fs * (i + 0.5)));
+    }, { smooth: true });
+  }
+  function lmCitySign(S, x, z, title, sub, ry, accent) {
+    const g = new T.Group();
+    const stone = cmat(0xb9b3a6, 0.9);
+    bx(g, 5.6, 2.4, 0.9, 0, 1.5, 0, stone);
+    bx(g, 5.9, 0.3, 1.1, 0, 2.85, 0, cmat(0x9d978a, 0.9));
+    bx(g, 6.0, 0.4, 1.2, 0, 0.5, 0, cmat(0x8f897c, 0.9));
+    const t = ctex("citySign-" + title, 640, 220, (c, w, h) => {
+      c.fillStyle = "#ece6d8"; c.fillRect(0, 0, w, h);
+      c.fillStyle = accent || "#2a6a3a"; c.beginPath(); c.arc(100, h / 2, 62, 0, 7); c.fill();
+      c.fillStyle = "#ece6d8"; c.beginPath(); c.arc(100, h / 2, 30, 0, 7); c.fill();
+      c.fillStyle = "#2a2a2a"; c.textBaseline = "middle";
+      c.font = "900 82px Pretendard, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif"; c.fillText(title, 190, h * 0.38);
+      c.font = "800 42px Pretendard, system-ui, sans-serif"; c.fillStyle = "#4a4a4a"; c.fillText(sub, 194, h * 0.74);
+    }, { smooth: true });
+    [1, -1].forEach((s) => {
+      const p = new T.Mesh(new T.PlaneGeometry(5.2, 1.8), new T.MeshStandardMaterial({ map: t, roughness: 0.7 }));
+      p.position.set(0, 1.55, s * 0.46);
+      if (s < 0) p.rotation.y = Math.PI;
+      g.add(p);
+    });
+    g.position.set(x, 0.3, z);
+    g.rotation.y = ry || 0;
+    g.traverse((o) => { o.userData.noBlock = 1; });
+    S.add(g);
+    return g;
+  }
+  function lmBanner(S, x, z, text, bg, h) {
+    const H = h || 7;
+    cyl(S, 0.08, 0.1, H + 1, x, 0.3 + (H + 1) / 2, z, cmat(0x9aa0a6, 0.4, 0.7), 8);
+    const p = new T.Mesh(new T.PlaneGeometry(1.3, H * 0.62), new T.MeshStandardMaterial({ map: vSignTex("vb-" + text + bg, text, bg, "#ffffff"), roughness: 0.8, side: T.DoubleSide }));
+    p.position.set(x + 0.72, 0.3 + H * 0.62, z);
+    p.rotation.y = x > 0 ? -Math.PI / 2 : Math.PI / 2;
+    p.userData.noBlock = 1;
+    S.add(p);
+  }
+  /* a tower on a hill or a plaza: shaft, observation pod, antenna */
+  function lmTower(S, x, z, h, style) {
+    const white = cmat(0xeceae4, 0.5, 0.1), grey = cmat(0xa8adb2, 0.5, 0.4), glass = cmat(0x5a8ab0, 0.12, 0.6);
+    const base = style === "hill" ? 0 : 0.3;
+    if (style === "hanbit") {
+      for (let k = 0; k < 3; k++) {
+        const a = (k / 3) * Math.PI * 2;
+        const leg = bx(S, 0.5, h * 0.5, 0.5, x + Math.cos(a) * 2.2, base + h * 0.24, z + Math.sin(a) * 2.2, white);
+        leg.rotation.z = Math.cos(a) * 0.08; leg.rotation.x = -Math.sin(a) * 0.08;
+      }
+      cyl(S, 0.7, 1.2, h * 0.55, x, base + h * 0.5, z, white, 12);
+      cyl(S, 3.4, 3.0, 1.6, x, base + h * 0.72, z, glass, 20);
+      cyl(S, 3.7, 3.7, 0.35, x, base + h * 0.72 + 0.95, z, white, 20);
+      cyl(S, 3.2, 3.2, 0.3, x, base + h * 0.72 - 0.95, z, white, 20);
+      cyl(S, 0.18, 0.3, h * 0.35, x, base + h * 0.92, z, grey, 8);
+    } else {
+      cyl(S, style === "slim" ? 0.8 : 1.1, style === "slim" ? 1.3 : 1.6, h * 0.72, x, base + h * 0.36, z, white, 14);
+      cyl(S, 2.8, 2.2, 2.2, x, base + h * 0.76, z, glass, 18);
+      cyl(S, 3.0, 3.0, 0.4, x, base + h * 0.76 + 1.3, z, white, 18);
+      cyl(S, 2.0, 2.6, 0.6, x, base + h * 0.76 - 1.4, z, white, 18);
+      cyl(S, 0.2, 0.35, h * 0.3, x, base + h * 0.95, z, grey, 8);
+      for (let k = 0; k < 3; k++) cyl(S, 0.6 - k * 0.15, 0.6 - k * 0.15, 0.25, x, base + h * (0.98 + k * 0.05), z, k % 2 ? white : cmat(0xd8483a, 0.5), 10);
+    }
+  }
+  /* a pavilion (누각): stone plinth or a fortress wall, red columns, a
+     painted bracket band and a hipped roof whose corners lift */
+  function lmPavilion(S, x, z, w, d, opt) {
+    const o = opt || {};
+    const stone = cmat(0xb8b0a0, 0.9), red = cmat(0x9a2a20, 0.6), dan = cmat(0x2f7a6e, 0.6), tile = cmat(0x3a3e44, 0.7), white = cmat(0xe8e2d4, 0.8);
+    let y0 = 0.3;
+    if (o.wall) {
+      bx(S, w + 6, o.wall, d + 4, x, 0.3 + o.wall / 2, z, stone, { wall: 1 });
+      bx(S, w + 6.4, 0.4, d + 4.4, x, 0.3 + o.wall + 0.2, z, cmat(0x9e9686, 0.9));
+      y0 += o.wall + 0.4;
+    } else {
+      bx(S, w + 1.6, 0.9, d + 1.6, x, 0.75, z, stone);
+      y0 += 0.9;
+    }
+    const cols = Math.max(3, Math.round(w / 2.6));
+    for (let i = 0; i < cols; i++) [-1, 1].forEach((s) => cyl(S, 0.22, 0.25, 3.2, x - w / 2 + (i + 0.5) * (w / cols), y0 + 1.6, z + s * d / 2, red, 10));
+    bx(S, w + 0.4, 0.5, d + 0.4, x, y0 + 3.4, z, dan);
+    bx(S, w + 0.6, 0.18, d + 0.6, x, y0 + 3.15, z, red);
+    if (o.rail) for (let i = 0; i < cols * 2; i++) bx(S, 0.08, 0.7, 0.08, x - w / 2 + (i + 0.5) * (w / cols / 2), y0 + 0.35, z + d / 2 + 0.05, red);
+    /* roof: three stepped slabs, then the lifted corners */
+    bx(S, w + 3.2, 0.35, d + 3.2, x, y0 + 3.85, z, tile);
+    bx(S, w + 2.2, 0.55, d + 2.0, x, y0 + 4.25, z, tile);
+    bx(S, w + 0.6, 0.6, d * 0.5, x, y0 + 4.8, z, tile);
+    bx(S, w + 1.2, 0.22, 0.35, x, y0 + 5.15, z, white);
+    [-1, 1].forEach((sx) => [-1, 1].forEach((sz) => {
+      const c = bx(S, 1.6, 0.3, 0.5, x + sx * (w / 2 + 1.5), y0 + 4.05, z + sz * (d / 2 + 1.5), tile, { ry: sx * sz * 0.78 });
+      c.rotation.z = sx * 0.28;
+    }));
+  }
+  /* a granite pagoda: two-step base, five storeys of body and eaves, finial */
+  function lmPagoda(S, x, z, s, tiers) {
+    const g1 = cmat(0xc8c0ae, 0.92), g2 = cmat(0xb2aa98, 0.92);
+    let y = 0.3;
+    bx(S, 7 * s, 1.0 * s, 7 * s, x, y + 0.5 * s, z, g2); y += 1.0 * s;
+    bx(S, 5.8 * s, 1.4 * s, 5.8 * s, x, y + 0.7 * s, z, g1); y += 1.4 * s;
+    bx(S, 6.2 * s, 0.3 * s, 6.2 * s, x, y + 0.15 * s, z, g2); y += 0.3 * s;
+    const n = tiers || 5;
+    for (let i = 0; i < n; i++) {
+      const k = 1 - i * 0.12;
+      const bh = (i === 0 ? 2.2 : 1.1) * s;
+      bx(S, 3.6 * s * k, bh, 3.6 * s * k, x, y + bh / 2, z, g1); y += bh;
+      bx(S, 5.0 * s * k, 0.28 * s, 5.0 * s * k, x, y + 0.14 * s, z, g2); y += 0.28 * s;
+      bx(S, 4.4 * s * k, 0.22 * s, 4.4 * s * k, x, y + 0.11 * s, z, g2); y += 0.22 * s;
+    }
+    cyl(S, 0.25 * s, 0.4 * s, 2.4 * s, x, y + 1.2 * s, z, cmat(0x7a6e58, 0.6, 0.3), 8);
+    for (let k = 0; k < 3; k++) cyl(S, 0.6 * s, 0.6 * s, 0.18 * s, x, y + (0.6 + k * 0.6) * s, z, cmat(0x8a7c62, 0.6, 0.3), 10);
+  }
+  /* 첨성대-like observatory: courses of stone that swell and narrow, a square
+     window half-way up, a well-frame on top */
+  function lmObservatory(S, x, z, s) {
+    const g = cmat(0xc7bba0, 0.95), g2 = cmat(0xa99d84, 0.95);
+    bx(S, 6.4 * s, 0.6 * s, 6.4 * s, x, 0.3 + 0.3 * s, z, g2);
+    let y = 0.3 + 0.6 * s;
+    for (let i = 0; i < 27; i++) {
+      const t = i / 26;
+      const r = (2.6 - 1.2 * Math.pow(t, 1.6) + 0.3 * Math.sin(t * 3.14)) * s;
+      cyl(S, r, r * 1.02, 0.36 * s, x, y + 0.18 * s, z, i % 2 ? g : g2, 14);
+      y += 0.36 * s;
+    }
+    bx(S, 1.0 * s, 1.0 * s, 0.3 * s, x, 0.3 + 5.4 * s, z - 2.1 * s, cmat(0x2a241c, 0.9));
+    [-1, 1].forEach((k) => { bx(S, 3.0 * s, 0.4 * s, 0.4 * s, x, y + 0.2 * s, z + k * 1.2 * s, g2); bx(S, 0.4 * s, 0.4 * s, 3.0 * s, x + k * 1.2 * s, y + 0.6 * s, z, g2); });
+  }
+  function lmDome(S, x, z, r) {
+    const glass = new T.MeshStandardMaterial({ color: new T.Color(0xbfd8ea).convertSRGBToLinear(), roughness: 0.1, metalness: 0.5, transparent: true, opacity: 0.55 });
+    const geo = new T.IcosahedronGeometry(r, 2);
+    const m = new T.Mesh(geo, glass);
+    m.position.set(x, 0.3, z);
+    m.userData.noBlock = 1;
+    S.add(m);
+    const lines = new T.LineSegments(new T.EdgesGeometry(geo, 1), new T.LineBasicMaterial({ color: 0xe8eef2 }));
+    lines.position.copy(m.position);
+    S.add(lines);
+    cyl(S, r * 1.04, r * 1.04, 1.2, x, 0.9, z, cmat(0xd8d8d2, 0.8), 28);
+  }
+  function lmStadium(S, x, z, rx, rz) {
+    const c = cmat(0xd8d8d2, 0.8), g = cmat(0x6aa0c8, 0.2, 0.5), roof = cmat(0xf2f2ee, 0.5, 0.1);
+    const n = 40;
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2;
+      const px = x + Math.cos(a) * rx, pz = z + Math.sin(a) * rz;
+      const seg = (2 * Math.PI * Math.sqrt((rx * rx + rz * rz) / 2)) / n + 0.3;
+      bx(S, seg, 9, 2.2, px, 4.8, pz, i % 4 ? c : g, { ry: -a + Math.PI / 2 });
+      bx(S, seg, 0.4, 6, x + Math.cos(a) * (rx - 2), 9.6, z + Math.sin(a) * (rz - 2), roof, { ry: -a + Math.PI / 2, noCast: true });
+    }
+  }
+  /* a suspension bridge across the water: two towers, deck, main cables,
+     hangers; laid out along x */
+  function lmSuspBridge(S, x0, x1, z, h) {
+    const wh = cmat(0xf0f0ec, 0.5, 0.2), deck = cmat(0x9aa0a4, 0.7);
+    const L = x1 - x0, cx = (x0 + x1) / 2;
+    bx(S, L, 0.8, 6, cx, 4.2, z, deck);
+    bx(S, L, 0.3, 0.2, cx, 5.0, z + 2.9, wh); bx(S, L, 0.3, 0.2, cx, 5.0, z - 2.9, wh);
+    const tx = [x0 + L * 0.28, x0 + L * 0.72];
+    tx.forEach((t) => {
+      [-1, 1].forEach((s) => bx(S, 1.2, h, 1.2, t, h / 2, z + s * 3.2, wh));
+      bx(S, 1.4, 1.2, 7.6, t, h * 0.62, z, wh); bx(S, 1.4, 1.2, 7.6, t, h - 1, z, wh);
+      for (let k = 0; k < 6; k++) bx(S, 0.3, 0.3, 0.3, t, h - 0.2, z + (k - 2.5) * 1.2, cmat(0xfff2c0, 0.4, 0, { emissive: 0xfff2c0, emissiveIntensity: 0.6 }));
+    });
+    const cable = (a, b, sag, zz) => {
+      const pts = [];
+      for (let i = 0; i <= 24; i++) { const t = i / 24; pts.push(new T.Vector3(a + (b - a) * t, (h - 0.5) - sag * 4 * t * (1 - t), zz)); }
+      const line = new T.Line(new T.BufferGeometry().setFromPoints(pts), new T.LineBasicMaterial({ color: 0xe8ecef }));
+      S.add(line);
+      for (let i = 1; i < 24; i += 2) {
+        const p = pts[i];
+        const hl = new T.Line(new T.BufferGeometry().setFromPoints([p, new T.Vector3(p.x, 4.6, zz)]), new T.LineBasicMaterial({ color: 0xd0d6da }));
+        S.add(hl);
+      }
+    };
+    [-3.2, 3.2].forEach((zz) => {
+      cable(x0, tx[0], 3, zz);
+      cable(tx[0], tx[1], h * 0.55, zz);
+      cable(tx[1], x1, 3, zz);
+    });
+    for (let k = 0; k < 6; k++) [-1, 1].forEach((s) => bx(S, 1.6, 4.2, 1.6, x0 + L * (k + 0.5) / 6, 2.0, z + s * 2, deck));
+  }
+  function lmLighthouse(S, x, z, col) {
+    const c = cmat(col || 0xc8302a, 0.5), w = cmat(0xf2f0ea, 0.6);
+    bx(S, 4, 1.4, 4, x, 1.0, z, cmat(0x9a9890, 0.9));
+    for (let k = 0; k < 4; k++) cyl(S, 1.1 - k * 0.12, 1.2 - k * 0.12, 1.6, x, 2.5 + k * 1.6, z, k % 2 ? w : c, 14);
+    cyl(S, 0.9, 0.9, 1.0, x, 9.1, z, cmat(0xfff6c8, 0.2, 0, { emissive: 0xffe9a0, emissiveIntensity: 0.9 }), 12);
+    cyl(S, 0.2, 1.1, 0.8, x, 10.0, z, c, 12);
+  }
+  /* glass towers with a lit crown */
+  function lmGlassTowers(S, list) {
+    const mats = [cmat(0x5d8cb4, 0.12, 0.65), cmat(0x7aa6c8, 0.15, 0.6), cmat(0x4a7a9c, 0.1, 0.7)];
+    list.forEach(([x, z, w, d, h, k]) => {
+      const t = bx(S, w, h, d, x, 0.3 + h / 2, z, mats[(k || 0) % 3]);
+      for (let y = 3.2; y < h; y += 3.2) bx(S, w + 0.08, 0.12, d + 0.08, x, 0.3 + y, z, cmat(0xd8e2ea, 0.5, 0.3), { noCast: true });
+      bx(S, w * 0.6, 1.6, d * 0.6, x, 0.3 + h + 0.8, z, cmat(0xc8ccd0, 0.6));
+      t.userData.noBlock = 1;
+    });
+  }
+  /* a tapering four-sided tower with the top cut on a slant */
+  function lmTaperTower(S, x, z, h) {
+    const g = new T.CylinderGeometry(3.2, 9.0, h, 4, 1);
+    g.rotateY(Math.PI / 4);
+    const m = new T.Mesh(g, cmat(0x6f9ac0, 0.08, 0.7));
+    m.position.set(x, 0.3 + h / 2, z);
+    S.add(m);
+    for (let y = 4; y < h; y += 4) {
+      const k = 1 - y / h;
+      const r = 3.2 + (9.0 - 3.2) * k;
+      const ring = new T.Mesh(new T.CylinderGeometry(r * 1.005, r * 1.005, 0.15, 4, 1, true), cmat(0xdfe8ef, 0.5, 0.3));
+      ring.rotation.y = Math.PI / 4;
+      ring.position.set(x, 0.3 + y, z);
+      S.add(ring);
+    }
+  }
+  function lmSculptureS(S, x, z, s) {
+    const m = cmat(0xd8d4cc, 0.6, 0.2);
+    const t1 = new T.Mesh(new T.TorusGeometry(3 * s, 0.9 * s, 10, 24, Math.PI), m);
+    t1.position.set(x, 3 * s + 0.3, z); S.add(t1);
+    const t2 = new T.Mesh(new T.TorusGeometry(3 * s, 0.9 * s, 10, 24, Math.PI), m);
+    t2.rotation.z = Math.PI; t2.position.set(x + 6 * s, 3 * s + 0.3 + 6 * s * 0, z); t2.position.y = 9 * s + 0.3;
+    t2.position.x = x; S.add(t2);
+    bx(S, 8 * s, 0.6, 3 * s, x, 0.6, z, cmat(0x9a968c, 0.9));
+  }
+  /* a tall stone memorial of two leaning pillars joined near the top */
+  function lmTwinPillar(S, x, z, h) {
+    const st = cmat(0xd6d0c2, 0.9);
+    bx(S, 14, 0.8, 14, x, 0.7, z, cmat(0xb6ae9c, 0.9));
+    bx(S, 10, 0.8, 10, x, 1.5, z, cmat(0xc4bca8, 0.9));
+    [-1, 1].forEach((s) => bx(S, 2.0, h, 2.6, x + s * 1.6, 1.9 + h / 2, z, st, { rz: -s * 0.035 }));
+    bx(S, 5.6, 1.2, 2.8, x, 1.9 + h * 0.86, z, st);
+    bx(S, 3.4, 0.8, 2.8, x, 1.9 + h * 0.6, z, st);
+  }
+  function lmHedgehog(S, x, z) {
+    const m = cmat(0x5a4a3e, 0.6, 0.5);
+    [[0, 0.62], [Math.PI / 2, 0.62], [0, -0.62]].forEach(([ry, rz], i) => {
+      const b = bx(S, 0.2, 2.4, 0.2, x, 1.0, z, m, { noCast: false });
+      b.rotation.set(i === 2 ? 0.62 : 0, ry, i === 2 ? 0 : rz);
+    });
+  }
+  /* a grey warship: knife bow, superstructure, turrets, mast and a hull number */
+  function lmShip(S, x, z, ry, num, sc) {
+    const g = new T.Group();
+    const s = sc || 1;
+    const hull = cmat(0x6c747a, 0.6, 0.3), deck = cmat(0x8a9094, 0.7), dark = cmat(0x3a4044, 0.6);
+    const shp = new T.Shape();
+    shp.moveTo(0, -22 * s); shp.lineTo(3.4 * s, -10 * s); shp.lineTo(3.6 * s, 14 * s); shp.lineTo(2.6 * s, 20 * s); shp.lineTo(-2.6 * s, 20 * s); shp.lineTo(-3.6 * s, 14 * s); shp.lineTo(-3.4 * s, -10 * s); shp.lineTo(0, -22 * s);
+    const hg = new T.ExtrudeGeometry(shp, { depth: 4.2 * s, bevelEnabled: false });
+    hg.rotateX(-Math.PI / 2);
+    const hm = new T.Mesh(hg, hull); hm.position.y = -1.6 * s; g.add(hm);
+    bx(g, 6 * s, 3 * s, 12 * s, 0, 3.6 * s, 4 * s, deck);
+    bx(g, 4.6 * s, 2.4 * s, 6 * s, 0, 6.2 * s, 3 * s, deck);
+    bx(g, 3 * s, 1.6 * s, 3 * s, 0, 8.2 * s, 2 * s, dark);
+    cyl(g, 0.25 * s, 0.35 * s, 9 * s, 0, 11 * s, 2.5 * s, dark, 6);
+    bx(g, 4 * s, 0.2 * s, 0.2 * s, 0, 13 * s, 2.5 * s, dark);
+    [[-12, 1], [-7, 1.6], [13, 1]].forEach(([tz, ty]) => {
+      cyl(g, 1.4 * s, 1.6 * s, 1.0 * s, 0, (2.8 + ty) * s, tz * s, deck, 12);
+      bx(g, 0.3 * s, 0.3 * s, 4 * s, 0.4 * s, (3.1 + ty) * s, (tz - 2.4) * s, dark);
+      bx(g, 0.3 * s, 0.3 * s, 4 * s, -0.4 * s, (3.1 + ty) * s, (tz - 2.4) * s, dark);
+    });
+    const nt = ctex("hullNo" + num, 128, 96, (c, w, h) => { c.fillStyle = "#6c747a"; c.fillRect(0, 0, w, h); c.fillStyle = "#f2f2ee"; c.font = "900 70px Pretendard, system-ui, sans-serif"; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText(String(num), w / 2, h / 2 + 4); }, { smooth: true });
+    [-1, 1].forEach((sd) => { const p = new T.Mesh(new T.PlaneGeometry(4 * s, 3 * s), new T.MeshStandardMaterial({ map: nt, roughness: 0.7 })); p.position.set(sd * 3.45 * s, 1.0 * s, -12 * s); p.rotation.y = sd * Math.PI / 2; g.add(p); });
+    g.position.set(x, 0, z);
+    g.rotation.y = ry || 0;
+    g.traverse((o) => { o.userData.noBlock = 1; });
+    S.add(g);
+    return g;
+  }
+  /* fire and smoke for a burning city: flicker cones and a slow column */
+  function addFire(S, list, x, y, z, s) {
+    const g = new T.Group();
+    const f1 = new T.MeshBasicMaterial({ color: 0xff7a1a, transparent: true, opacity: 0.85, depthWrite: false, toneMapped: false });
+    const f2 = new T.MeshBasicMaterial({ color: 0xffd060, transparent: true, opacity: 0.9, depthWrite: false, toneMapped: false });
+    for (let k = 0; k < 4; k++) {
+      const c = new T.Mesh(new T.ConeGeometry(0.5 * s, 1.6 * s, 6), k % 2 ? f2 : f1);
+      c.position.set((k - 1.5) * 0.45 * s, 0.8 * s, ((k * 7) % 3 - 1) * 0.3 * s);
+      g.add(c);
+    }
+    const smk = [];
+    const sm = new T.MeshBasicMaterial({ color: 0x2a2624, transparent: true, opacity: 0.42, depthWrite: false });
+    for (let k = 0; k < 6; k++) {
+      const p = new T.Mesh(new T.BoxGeometry(1.4 * s, 1.4 * s, 1.4 * s), sm);
+      p.position.set(0, 2 + k * 2.2 * s, 0);
+      g.add(p); smk.push(p);
+    }
+    g.position.set(x, y, z);
+    g.traverse((o) => { o.userData.noBlock = 1; });
+    S.add(g);
+    list.push({ g: g, smk: smk, t: Math.random() * 10, s: s });
+  }
+  function stepFires(dt) {
+    if (!dress || !dress.fires) return;
+    dress.fires.forEach((f) => {
+      f.t += dt;
+      f.g.children.forEach((c, i) => {
+        if (c.geometry.type === "ConeGeometry") { const k = 0.75 + 0.35 * Math.sin(f.t * 13 + i * 2.1) + 0.15 * Math.sin(f.t * 31 + i); c.scale.set(1, k, 1); }
+      });
+      f.smk.forEach((p, i) => {
+        const y = ((f.t * 1.2 + i * 2.2 * f.s) % (13 * f.s));
+        p.position.y = 1.6 + y;
+        p.position.x = Math.sin(f.t * 0.4 + i) * 0.4 + y * 0.18;
+        const k = 1 + y / (5 * f.s);
+        p.scale.setScalar(k);
+        p.rotation.y = f.t * 0.2 + i;
+      });
+    });
+  }
+
+  /* ---- the shared avenue ---- */
+  function dressCity(ctx) {
+    makeSol();
+    const C = STAGE.city;
+    const S = new T.Group();
+    S.name = "battlefieldCity";
+    ctx.scene.add(S);
+    const R = rng(C.seed || 77);
+    const sky = makeSkyDome();
+    sky.geometry.dispose();
+    sky.geometry = new T.SphereGeometry(320, 24, 16);
+    sky.position.set(0, 0, 20);
+    S.add(sky);
+    ctx.scene.background = new T.Color(0x72b8f0).convertSRGBToLinear();
+    ctx.scene.fog = new T.Fog(C.fog || 0xd6e6f2, 130, 520);
+    if (ctx.scene.fog.color.convertSRGBToLinear) ctx.scene.fog.color.convertSRGBToLinear();
+    try { buildSceneEnv(ctx); if (window.__mgEnv) ctx.scene.environment = window.__mgEnv; } catch (e) {}
+    if (ctx.LT) {
+      const LT = ctx.LT;
+      if (LT.hemi) { LT.hemi.intensity = 0.28; LT.hemi.color.setHex(0xd8e9fb); LT.hemi.groundColor && LT.hemi.groundColor.setHex(0xa89a80); }
+      if (LT.amb) LT.amb.intensity = 0.06;
+      if (LT.key) { LT.key.intensity = 2.3; LT.key.color.setHex(0xffeecd); }
+      if (LT.rim) LT.rim.intensity = 0.5;
+      if (LT.moon) LT.moon.intensity = 0.1;
+    }
+    if (ctx.renderer) ctx.renderer.toneMappingExposure = 1.1;
+    const z0 = (C.sea ? -70 : CITY_Z0 - 18), z1 = CITY_Z1 + 30;
+    /* ground: asphalt, or stone paving for the old capital */
+    const gKey = C.paved ? "cityPave" : "asphaltC";
+    const gt = C.paved ? paveTex("cityPave", 31) : asphaltTex("asphaltC", 23, 768);
+    const gtx = gt.clone(); gtx.needsUpdate = true; gtx.wrapS = gtx.wrapT = T.RepeatWrapping; gtx.repeat.set(C.paved ? 70 : 40, C.paved ? 70 : 40);
+    const ground = new T.Mesh(new T.PlaneGeometry(320, 320), new T.MeshStandardMaterial({ map: gtx, roughness: 0.86, metalness: 0.02, envMapIntensity: 0.1, color: C.paved ? new T.Color(0xd8d0c0).convertSRGBToLinear() : 0xffffff }));
+    ground.rotation.x = -Math.PI / 2;
+    ground.position.set(C.seaSide ? -150 : 0, 0.24, C.sea ? 90 : 20);
+    if (C.seaSide) { ground.geometry.dispose(); ground.geometry = new T.PlaneGeometry(320 - 0, 320); ground.position.x = -160 + 12; }
+    ground.receiveShadow = true;
+    ground.userData.noBlock = 1;
+    S.add(ground);
+    void gKey;
+    /* the water for the seafront cities */
+    if (C.seaSide || C.sea) {
+      const wt = ctex("seaTex", 256, 256, (g, w, h) => {
+        const r = rng(91);
+        g.fillStyle = "#2a6c9c"; g.fillRect(0, 0, w, h);
+        const cols = ["#2f78aa", "#26628f", "#3a86b8", "#5aa2cc", "#21587f"];
+        for (let i = 0; i < 900; i++) { g.fillStyle = cols[(r() * 5) | 0]; g.fillRect((r() * 32 | 0) * 8, (r() * 32 | 0) * 8, 8 + (r() < 0.2 ? 8 : 0), 8); }
+      });
+      const wtx = wt.clone(); wtx.needsUpdate = true; wtx.wrapS = wtx.wrapT = T.RepeatWrapping; wtx.repeat.set(60, 60);
+      const sea = new T.Mesh(new T.PlaneGeometry(600, 600), new T.MeshStandardMaterial({ map: wtx, roughness: 0.55, metalness: 0.0, envMapIntensity: 0.2, color: new T.Color(0x7a9cc0).convertSRGBToLinear() }));
+      sea.rotation.x = -Math.PI / 2;
+      sea.position.set(C.seaSide ? 300 + 12 : 0, 0.02, C.sea ? -230 - 70 + 300 - 300 : 0);
+      if (C.sea) { sea.geometry.dispose(); sea.geometry = new T.PlaneGeometry(600, 300); sea.position.set(0, 0.02, -70 - 150); }
+      sea.userData.noBlock = 1;
+      S.add(sea);
+      dress0.sea = sea;
+    }
+    /* road paint and kerbs */
+    const paint = (x, z, w, d, m) => { const p = new T.Mesh(new T.PlaneGeometry(w, d), m); p.rotation.x = -Math.PI / 2; p.position.set(x, 0.312, z); p.userData.noBlock = 1; S.add(p); };
+    if (!C.paved) {
+      for (let z = CITY_Z0 - 10; z < CITY_Z1 + 20; z += 4) { const x = cityX(z); paint(x - 0.18, z, 0.13, 4.05, SOL.paintYellow); paint(x + 0.18, z, 0.13, 4.05, SOL.paintYellow); }
+      [-5, 5].forEach((lx) => { for (let z = CITY_Z0 - 8; z < CITY_Z1 + 20; z += 7) paint(cityX(z) + lx, z, 0.16, 3.2, SOL.paintWhite); });
+      [-26, 22].forEach((cz) => { for (let i = 0; i < 9; i++) paint(-8 + i * 2, cz, 0.55, 3.4, SOL.paintWhite); });
+    }
+    const walk = (x0, x1, zz0, zz1) => {
+      const w = Math.abs(x1 - x0), d = Math.abs(zz1 - zz0);
+      const m = new T.Mesh(new T.BoxGeometry(w, 0.12, d), repMat(SOL.pave, w / 3.2, d / 3.2));
+      m.position.set((x0 + x1) / 2, 0.36, (zz0 + zz1) / 2); m.receiveShadow = true; m.userData.noBlock = 1; S.add(m);
+    };
+    const zA = C.sea ? -56 : z0;
+    walk(-13.8, -10, zA, 52); if (!C.seaSide) walk(10, 13.8, zA, 52); else walk(10, 16, zA, z1);
+    /* ---- the blocks either side, with gaps for side streets ---- */
+    /* each city's own facade palette: the shared facades, tinted */
+    const facs = [SOL.facA, SOL.facB, SOL.facC].map((m, i) => {
+      const t = C.tints && C.tints[i];
+      if (!t) return m;
+      const c = m.clone(); c.color = new T.Color(t).convertSRGBToLinear(); return c;
+    });
+    const block = (side, za, zb) => {
+      const h = (C.low ? 5 : 8) + R() * (C.low ? 3 : (C.tall || 10)) + (zb > 30 ? 4 : 0);
+      const x0 = side < 0 ? -14 - 8 - R() * 6 : 14, x1 = side < 0 ? -14 : 14 + 8 + R() * 6;
+      if (C.hanok) {
+        /* the old town: tiled-roof houses behind a stone wall */
+        const cx = (x0 + x1) / 2, cz = (za + zb) / 2;
+        bx(S, Math.abs(x1 - x0), 1.6, zb - za, cx, 1.1, cz, cmat(0xb7ad98, 0.95), { wall: 1 });
+        bx(S, Math.abs(x1 - x0) + 0.4, 0.3, zb - za + 0.4, cx, 2.05, cz, cmat(0x3a3e44, 0.7));
+        const hw = Math.abs(x1 - x0) - 2;
+        bx(S, hw, 3.0, zb - za - 3, cx + side * 0.8, 1.8, cz, cmat(0xe8dfcc, 0.9), { wall: 1 });
+        bx(S, hw + 2.2, 0.5, zb - za - 1.2, cx + side * 0.8, 3.5, cz, cmat(0x3a3e44, 0.7));
+        bx(S, hw + 0.8, 0.6, (zb - za) * 0.45, cx + side * 0.8, 4.0, cz, cmat(0x30343a, 0.7));
+        for (let k = 0; k < 4; k++) cyl(S, 0.14, 0.16, 2.8, cx + side * 0.8 - side * hw / 2, 1.7, za + 2 + k * ((zb - za - 4) / 3), cmat(0x7a3424, 0.7), 8);
+        return;
+      }
+      makeBlock(S, x0, x1, za, zb, h, { mat: facs[(R() * 3) | 0], shop: side < 0 ? "e" : "w", k: (R() * 6) | 0 });
+    };
+    /* the blocks stop at z 50: the boss fight looks out over an open plaza
+       with the city's landmarks behind it */
+    const runs = [[zA + 2, -30], [-22, 18], [26, 50]];
+    {
+      const pw = C.seaSide ? 71 : 110;
+      const pz = new T.Mesh(new T.BoxGeometry(pw, 0.1, 90), repMat(SOL.pave, pw / 3.2, 90 / 3.2));
+      pz.position.set(C.seaSide ? -19.5 : 0, 0.3, 52 + 45); pz.receiveShadow = true; pz.userData.noBlock = 1; S.add(pz);
+      for (let i = 0; i < 8; i++) {
+        const x = (i % 2 ? 1 : -1) * (14 + (i >> 1) * 7), z = 66 + (i % 3) * 8;
+        if (C.seaSide && x > 15) continue;
+        bx(S, 2.4, 0.7, 2.4, x, 0.65, z, cmat(0xb0aa9c, 0.9));
+      }
+    }
+    runs.forEach(([a, b]) => {
+      let z = a;
+      while (z < b - 6) {
+        const len = Math.min(b - z, 12 + R() * 8);
+        block(-1, z, z + len);
+        if (!C.seaSide) block(1, z, z + len);
+        z += len + 0.6;
+      }
+    });
+    /* the seafront: railing, promenade, benches */
+    if (C.seaSide) {
+      bx(S, 0.12, 1.0, z1 - zA, 15.8, 0.86, (zA + z1) / 2, cmat(0x8a8e92, 0.5, 0.6));
+      for (let z = zA; z < z1; z += 2.4) bx(S, 0.12, 1.0, 0.12, 15.8, 0.86, z, cmat(0x6a6e72, 0.5, 0.6));
+      bx(S, 0.6, 3, z1 - zA, 16.2, -1.0, (zA + z1) / 2, cmat(0x9a968c, 0.9));
+    }
+    /* ---- street furniture ---- */
+    for (let z = zA + 6; z < z1 - 4; z += 14) {
+      makeStreetLamp(S, -10.6, z, Math.PI / 2);
+      if (!C.seaSide) makeStreetLamp(S, 10.6, z + 7, -Math.PI / 2);
+    }
+    const VT = voxBatch();
+    const trunks = [];
+    for (let z = zA + 3; z < z1 - 4; z += 11) {
+      [-11.6, 11.6].forEach((x, k) => {
+        if (C.seaSide && x > 0) return;
+        const zz = z + k * 5.5;
+        if (Math.abs(zz + 24) < 4 || Math.abs(zz - 24) < 4) return;
+        voxTree(VT, x, 0.4, zz, 3.4 + R() * 1.2, 300 + ((zz * 7) | 0) + k, { rx: 1.5, ry: 1.2, cube: 0.5, tint: C.cherry && (k + ((zz / 11) | 0)) % 2 ? [0xf2b8d0, 0xe8a0c0, 0xfad0e0] : [0x8ac06a, 0x74a858, 0x9ccc7a] });
+        trunks.push([x, zz]);
+      });
+    }
+    VT.flush(S, "cityTrees");
+    /* parked vehicles and clutter on the kerb lanes (never in the middle) */
+    (C.cars || []).forEach((c) => {
+      if (c[0] === "bus") makeCityBus(S, c[1], c[2], c[3] || 0, c[4]);
+      else if (c[0] === "police") makePoliceCar(S, c[1], c[2], c[3] || 0);
+      else if (c[0] === "truck") { const t = makeTruck(c[1], c[2]); t.rotation.y = c[3] || 0; S.add(t); }
+    });
+    const barrels = [];
+    for (let i = 0; i < 6; i++) {
+      const z = -46 + i * 18 + R() * 4, x = (i % 2 ? 1 : -1) * (8.6 + R() * 0.6);
+      try { const b = makeBarrel ? makeBarrel(x, z) : null; if (b) { S.add(b); barrels.push({ mesh: b, dead: false, x: x, z: z }); } } catch (e) {}
+    }
+    /* city sign and banners */
+    if (C.sign) lmCitySign(S, C.sign[0], C.sign[1], C.sign[2], C.sign[3], C.sign[4] || 0, C.sign[5]);
+    (C.banners || []).forEach((b) => lmBanner(S, b[0], b[1], b[2], b[3], b[4]));
+    /* hills behind the city */
+    const VH = voxBatch();
+    (C.hills || [[0, 240, 260, 60, 30]]).forEach((hh, i) => voxHill(VH, hh[0], Math.max(hh[1], 200), hh[2], hh[3], hh[4] * 0.85, 600 + i, { cube: 3.2 }));
+    VH.flush(S, "cityHills");
+    /* the landmarks that say where you are */
+    const fires = [];
+    (C.landmarks || []).forEach((L) => {
+      try {
+        const k = L[0];
+        if (k === "tower") lmTower(S, L[1], L[2], L[3], L[4]);
+        else if (k === "pavilion") lmPavilion(S, L[1], L[2], L[3], L[4], L[5]);
+        else if (k === "pagoda") lmPagoda(S, L[1], L[2], L[3], L[4]);
+        else if (k === "observatory") lmObservatory(S, L[1], L[2], L[3]);
+        else if (k === "dome") lmDome(S, L[1], L[2], L[3]);
+        else if (k === "stadium") lmStadium(S, L[1], L[2], L[3], L[4]);
+        else if (k === "suspension") { const G = new T.Group(); lmSuspBridge(G, -L[5] / 2, L[5] / 2, 0, L[4]); G.position.set(L[1], 0, L[2]); G.rotation.y = L[3]; G.traverse((o) => { o.userData.noBlock = 1; }); S.add(G); }
+        else if (k === "lighthouse") lmLighthouse(S, L[1], L[2], L[3]);
+        else if (k === "glass") lmGlassTowers(S, L[1]);
+        else if (k === "taper") lmTaperTower(S, L[1], L[2], L[3]);
+        else if (k === "sculptureS") lmSculptureS(S, L[1], L[2], L[3]);
+        else if (k === "twin") lmTwinPillar(S, L[1], L[2], L[3]);
+        else if (k === "ship") lmShip(S, L[1], L[2], L[3], L[4], L[5]);
+        else if (k === "hedgehogs") L[1].forEach((p) => lmHedgehog(S, p[0], p[1]));
+        else if (k === "fire") addFire(S, fires, L[1], L[2], L[3], L[4] || 1);
+        else if (k === "skyline") voxSkyline(S, L[1]);
+        else if (k === "overpass") {
+          bx(S, 34, 1.0, 6, 0, 7.2, L[1], cmat(0xb4b4ae, 0.85));
+          bx(S, 34, 0.9, 0.3, 0, 8.1, L[1] - 2.9, cmat(0x9a9a94, 0.85)); bx(S, 34, 0.9, 0.3, 0, 8.1, L[1] + 2.9, cmat(0x9a9a94, 0.85));
+          [-15, 15].forEach((x) => bx(S, 1.6, 7, 4, x, 3.7, L[1], cmat(0xa4a49e, 0.85), { wall: 1 }));
+        } else if (k === "beach") {
+          const sand = new T.Mesh(new T.PlaneGeometry(240, L[2] - L[1]), new T.MeshStandardMaterial({ color: new T.Color(0xe2cc98).convertSRGBToLinear(), roughness: 0.95 }));
+          sand.rotation.x = -Math.PI / 2; sand.position.set(0, 0.2, (L[1] + L[2]) / 2); sand.userData.noBlock = 1; S.add(sand);
+        }
+      } catch (e) { window.__lmErr = String(e && e.stack || e); }
+    });
+    /* clouds */
+    const clouds = [];
+    for (let i = 0; i < 9; i++) {
+      const c = makeCloud(-100 + i * 25, 42 + Math.random() * 14, 80 + (i % 3) * 40, 6 + Math.random() * 3);
+      c.scale.y = 0.4; S.add(c); clouds.push(c);
+    }
+    const ally = makeAlly();
+    ally.position.set(4.6, 0.3, (C.sea ? -50 : CITY_Z0) + 2);
+    S.add(ally);
+    const flags = [];
+    S.traverse((o) => { if (o.userData && o.userData.cloth) flags.push(o); });
+    landCovers = [];
+    [[-4.6, 62.4], [1.4, 63.6], [5.8, 62.2]].forEach(([x, z]) => { const c = landCover(x + cityX(z), z, 2.2); S.add(c.g); landCovers.push(c); });
+    walkBlockers = [];
+    S.traverse((o) => {
+      if (!o.isMesh) return;
+      if (o.userData && (o.userData.wall || o.userData.solid)) { const bb = new T.Box3().setFromObject(o); if (bb.max.y > 0.6) walkBlockers.push(bb); }
+    });
+    if (coverRoot) coverRoot.traverse((o) => { if (o.userData && o.userData.cover) walkBlockers.push(new T.Box3().setFromObject(o)); });
+    landCovers.forEach((c) => walkBlockers.push(new T.Box3().setFromObject(c.g)));
+    applyMood(ctx, S, sky, clouds, moodOverride() || C.mood || "day");
+    dress = { root: S, sky, flags, clouds, barrels: barrels, ally, truck1: null, trunks, fires: fires, sea: dress0.sea };
+    dress0.sea = null;
+    return dress;
+  }
+  const dress0 = { sea: null };
+
+  /* Seoul when it falls: the same streets at a burning dusk, smoke columns
+     over the blocks, wrecks in the lanes */
+  function warify(ctx, D) {
+    if (!D || !D.root) return D;
+    const S = D.root;
+    const fires = [];
+    [[-20, 12, -14, 1.6], [18, 10, 4, 1.4], [-22, 9, 30, 1.2], [26, 12, -18, 1.8], [-34, 10, 44, 1.5], [6, 14, 62, 2.2], [-8, 16, 80, 2.4], [30, 11, 40, 1.3]].forEach((f) => addFire(S, fires, f[0], f[1], f[2], f[3]));
+    [[-7.6, -12], [7.8, 9], [-8.2, 14]].forEach(([x, z], i) => addFire(S, fires, x, 0.4, z, 0.7 + i * 0.1));
+    D.fires = fires;
+    try { applyMood(ctx, S, D.sky, D.clouds, "war"); } catch (e) {}
+    return D;
   }
 
   /* ---------------- the helicopter ---------------- */
