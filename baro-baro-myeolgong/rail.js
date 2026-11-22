@@ -2670,6 +2670,7 @@
       const mats = Array.isArray(u.head.material) ? u.head.material.slice() : null;
       if (mats) { mats[4] = deadFaceFor(u.faceKey); u.head.material = mats; }
     } catch (e) {}
+    if (!window.__railYell) return;
     try {
       const cam = window.__railCtx && window.__railCtx.camera;
       if (!cam || !u.headG) return;
@@ -4177,6 +4178,20 @@
      ?mood=day|dusk|snow in the URL overrides it for previewing. Weather is a
      single Points cloud that follows the camera, so it costs one draw call. */
   const MOODS = {
+    overcast: {
+      sky: ["#6e7a88", "#8a96a2", "#a4aeb8", "#bcc4cc", "#cdd3d8", "#d8dde0"],
+      bg: 0xb8c0c8, fog: 0xbcc4ca, fogNear: 60, fogFar: 300,
+      sun: [20, 40, 30], sunDisc: null,
+      hemi: [0.7, 0xd4dce4, 0x8a8a80], amb: [0.28, 0xcfd8e0], key: [1.1, 0xe8ecf0], rim: [0.25, 0xc8d0d8], moon: [0.15, 0xb8c4d0],
+      exposure: 1.05, cloud: [0xd0d6dc, 0x8a929a, 0.6], wx: null
+    },
+    morning: {
+      sky: ["#4a78b8", "#7aa0cc", "#b8c8dc", "#f0d0c0", "#f8dcc0", "#fff0dc"],
+      bg: 0xe8d4c4, fog: 0xead8c8, fogNear: 70, fogFar: 320,
+      sun: [30, 10, 80], sunDisc: 0xffe0b0,
+      hemi: [0.5, 0xf0dcd0, 0x6a6a58], amb: [0.14, 0xe0c8c0], key: [2.0, 0xffd8b0], rim: [0.6, 0xffc89a], moon: [0.1, 0xa8b0d8],
+      exposure: 1.06, cloud: [0xffe0d0, 0xd8a0a0, 0.5], wx: "motes"
+    },
     war: {
       sky: ["#2a1a1c", "#4a2420", "#7a3420", "#b8502a", "#d87a3a", "#e8a060"],
       bg: 0x7a4a34, fog: 0x8a5a40, fogNear: 40, fogFar: 260,
@@ -5803,11 +5818,11 @@
         "민간인 대피 중, 오사 주의!", "적 증원 접근! 교차로를 지켜라!", "갑천 방면 적 헬기 재접근!", "공수부대 강하! 지휘소를 지켜라!"], { bikes: true, hostage: true }),
       dress: "citygen", bossKind: "man", bossHp: 18,
       city: {
-        seed: 7, mood: "day", tall: 14, tints: [0xdfe8f0, 0xe6e2d8, 0xa8b4c0], sign: [-12.4, -44, "대전광역시", "DAEJEON", Math.PI / 2, "#2f8a4a"],
+        seed: 7, mood: "morning", tall: 14, tints: [0xdfe8f0, 0xe6e2d8, 0xa8b4c0], sign: [-12.4, -44, "대전광역시", "DAEJEON", Math.PI / 2, "#2f8a4a"],
         cars: [["bus", 7.6, -12, 0, "152"], ["police", -7.4, 26, Math.PI]],
         banners: [[-12.2, 4, "과학도시 대전", "#2a5aa8"], [12.2, 36, "대전 사수", "#a82a2a"]],
         hills: [[0, 170, 240, 50, 30], [-90, 120, 80, 60, 24]],
-        landmarks: [["tower", 0, 112, 56, "hanbit"], ["dome", -30, 86, 13], ["pavilion", 30, 84, 9, 5, {}], ["glass", [[-30, 78, 10, 10, 26, 0], [34, 82, 12, 10, 34, 1], [52, 120, 10, 10, 40, 2], [-56, 130, 12, 10, 30, 1]]]]
+        landmarks: [["monorail", -8.2, -60, 52], ["fountain", 16, 70, 4.2, true], ["tower", 0, 112, 56, "hanbit"], ["dome", -30, 86, 13], ["pavilion", 30, 84, 9, 5, {}], ["glass", [[-30, 78, 10, 10, 26, 0], [34, 82, 12, 10, 34, 1], [52, 120, 10, 10, 40, 2], [-56, 130, 12, 10, 30, 1]]]]
       },
       introDur: 4.2, introCam: [[7, 14, -84, 0, 10, 20], [0.0, 1.68, -62, 0, 1.55, -48]],
       introLines: [{ t: 0.4, text: "서울 함락. 전선은 대전까지 밀렸다." }, { t: 2.2, text: "대전역 일대에서 적의 남하를 지연시켜라!" }],
@@ -5824,7 +5839,7 @@
         cars: [["truck", 7.8, 8, 0.05], ["bus", -7.6, -20, Math.PI, "410"]],
         banners: [[12.2, -6, "대구, 더 큰 미래로", "#c22a6a", 9], [-12.2, 30, "낙동강 방어선", "#a82a2a"]],
         hills: [[0, 175, 260, 60, 34], [70, 140, 80, 60, 22]],
-        landmarks: [["tower", 6, 150, 74, "slim"], ["stadium", -56, 100, 24, 16], ["pavilion", 30, 84, 10, 6, { wall: 4 }], ["overpass", 40], ["glass", [[-34, 80, 10, 10, 22, 0], [30, 120, 10, 10, 28, 1]]]]
+        landmarks: [["market", -11.6, -56, -32, 81], ["market", 11.6, -20, 16, 82], ["tower", 6, 150, 74, "slim"], ["stadium", -56, 100, 24, 16], ["pavilion", 30, 84, 10, 6, { wall: 4 }], ["overpass", 40], ["glass", [[-34, 80, 10, 10, 22, 0], [30, 120, 10, 10, 28, 1]]]]
       },
       introDur: 4.2, introCam: [[-7, 14, -84, 0, 10, 20], [0.0, 1.68, -62, 0, 1.55, -48]],
       introLines: [{ t: 0.4, text: "낙동강 방어선. 대구가 뚫리면 끝이다." }, { t: 2.2, text: "시가지로 침투한 적을 몰아내라!" }],
@@ -5837,11 +5852,11 @@
         "시민 대피 중, 오사 주의!", "적 증원, 기념탑 방향!", "적 헬기 재접근!", "적 공수 강하! 무등산 방면 퇴로 확보!"], { bikes: true, hostage: true }),
       dress: "citygen", bossKind: "heli", bossHp: 40,
       city: {
-        seed: 9, mood: "day", tall: 8, tints: [0xd8d4cc, 0xe8e0d0, 0xb8b0a4], sign: [-12.4, -44, "광주광역시", "GWANGJU CITY", Math.PI / 2, "#d8302a"],
+        seed: 9, mood: "overcast", tall: 8, tints: [0xd8d4cc, 0xe8e0d0, 0xb8b0a4], sign: [-12.4, -44, "광주광역시", "GWANGJU CITY", Math.PI / 2, "#d8302a"],
         cars: [["bus", 7.6, -16, 0, "518"], ["police", -7.4, 20, Math.PI]],
         banners: [[-12.2, 0, "빛고을 광주", "#2a5aa8"], [12.2, 30, "광주 사수", "#a82a2a"]],
         hills: [[0, 190, 280, 70, 46], [-80, 150, 90, 60, 28]],
-        landmarks: [["twin", 0, 100, 40], ["pavilion", 30, 82, 10, 6, { wall: 3, rail: 1 }], ["tower", -40, 200, 46, "slim"], ["glass", [[-30, 80, 10, 10, 24, 1], [36, 130, 10, 10, 28, 0]]]]
+        landmarks: [["fountain", 0, 74, 6.5], ["twin", 0, 104, 40], ["pavilion", 30, 82, 10, 6, { wall: 3, rail: 1 }], ["tower", -40, 200, 46, "slim"], ["glass", [[-30, 80, 10, 10, 24, 1], [36, 130, 10, 10, 28, 0]]]]
       },
       introDur: 4.2, introCam: [[7, 14, -84, 0, 10, 20], [0.0, 1.68, -62, 0, 1.55, -48]],
       introLines: [{ t: 0.4, text: "적이 호남으로 우회해 광주까지 내려왔다." }, { t: 2.2, text: "금남로를 따라 적을 저지하라!" }],
@@ -5859,7 +5874,7 @@
         cars: [],
         banners: [[-12.2, -10, "경주", "#2a4aa8", 8], [12.2, 6, "경주", "#c22a2a", 8], [-12.2, 34, "천년고도", "#2a6a3a", 8]],
         hills: [[0, 170, 280, 70, 32], [-80, 120, 80, 60, 26], [80, 120, 80, 60, 24]],
-        landmarks: [["pagoda", 4, 88, 1.8, 5], ["observatory", 26, 74, 1.2], ["pavilion", -28, 78, 14, 7, {}], ["pagoda", -40, 130, 1.2, 3], ["pavilion", 20, 140, 18, 8, { wall: 2 }]]
+        landmarks: [["tumuli", [[-40, -30, 14], [-52, 6, 18], [44, -10, 16], [56, 30, 20], [-46, 44, 12]]], ["lanterns", -58, 50, 12], ["pagoda", 4, 88, 1.8, 5], ["observatory", 26, 74, 1.2], ["pavilion", -28, 78, 14, 7, {}], ["pagoda", -40, 130, 1.2, 3], ["pavilion", 20, 140, 18, 8, { wall: 2 }]]
       },
       introDur: 4.2, introCam: [[7, 14, -84, 0, 10, 20], [0.0, 1.68, -62, 0, 1.55, -48]],
       introLines: [{ t: 0.4, text: "동부 전선, 적이 경주까지 다가왔다." }, { t: 2.2, text: "천년 고도의 탑과 대를 지켜내라!" }],
@@ -5876,7 +5891,7 @@
         cars: [["truck", -7.8, -8, Math.PI], ["police", -7.4, 24, Math.PI]],
         banners: [[-12.2, 6, "부산", "#c22a2a", 9], [-12.2, 40, "최후 방어선", "#2a4aa8"]],
         hills: [[-60, 170, 220, 70, 40]],
-        landmarks: [["suspension", 120, 70, -0.25, 40, 260], ["lighthouse", 44, 46, 0xc8302a], ["ship", 70, 20, 0.6, 31, 0.6], ["ship", 140, 160, -0.3, 52, 0.8],
+        landmarks: [["market", -11.6, -56, -10, 83], ["cranes", [[150, -40, 0.3], [168, -10, 0.3], [186, 20, 0.3]]], ["boats", [[34, -40, 0.4, 0x2a5aa8], [48, -10, -0.6, 0xc8382a], [30, 14, 1.2, 0x2a8a5a], [60, 34, 0.2, 0xe8b830]]], ["suspension", 120, 70, -0.25, 40, 260], ["lighthouse", 44, 46, 0xc8302a], ["ship", 70, 20, 0.6, 31, 0.6], ["ship", 140, 160, -0.3, 52, 0.8],
           ["glass", [[-30, 80, 10, 10, 40, 0], [-44, 60, 10, 10, 52, 1], [-32, 110, 12, 12, 60, 2], [-56, 96, 10, 10, 46, 0], [-46, 140, 12, 10, 56, 1]]]]
       },
       introDur: 4.4, introCam: [[20, 16, -84, 0, 8, 30], [0.0, 1.68, -62, 0, 1.55, -48]],
@@ -5900,7 +5915,7 @@
         landmarks: [["beach", -72, -56], ["hedgehogs", [[-6, -66], [5, -64], [-9, -60], [8, -60], [-4, -61], [11, -67], [-12, -64]]],
           ["fire", -18, 0.4, -58, 1.4], ["fire", 16, 0.4, -54, 1.2],
           ["ship", -46, -150, 0.25, 52, 1.1], ["ship", 56, -178, -0.3, 31, 0.9], ["ship", -90, -210, 0.1, 17, 0.8],
-          ["taper", 10, 168, 96], ["sculptureS", 30, 82, 1.5], ["suspension", 0, 230, 0, 44, 300],
+          ["taper", 10, 168, 96], ["sculptureS", 30, 82, 1.5], ["cranes", [[-150, -40, -0.2], [-130, -10, -0.2]]], ["fountain", -16, 74, 4], ["suspension", 0, 230, 0, 44, 300],
           ["glass", [[-30, 80, 10, 10, 46, 0], [34, 100, 12, 10, 60, 1], [-40, 120, 12, 12, 70, 2], [44, 140, 10, 10, 64, 0], [-24, 160, 10, 12, 80, 1], [60, 180, 12, 12, 56, 2], [-60, 170, 10, 10, 50, 0]]]]
       },
       introDur: 5.0, introCam: [[-24, 18, -190, 0, 4, -100], [0, 1.68, -152, 0, 1.55, -138]],
@@ -7693,12 +7708,15 @@
         post.run.dur = Math.max(3.6, post.run.dur);
         const bk = makeMotorbike();
         bk.scale.setScalar(1 / (post.mesh.scale.x || 1));
-        bk.position.set(0, -0.62 / (post.mesh.scale.x || 1), 0.12 / (post.mesh.scale.x || 1));
+        /* (v23) seated: the bike sits on the ground and his hips sit on the
+           saddle (saddle top 0.98 above the ground, 0.28 m behind the axle line) */
+        const scB = post.mesh.scale.x || 1;
+        bk.position.set(0, (0.34 - rideY(post)) / scB, 0.3 / scB);
         post.mesh.add(bk);
         post.bikeMesh = bk;
         post.mesh.position.set(m.run.from[0], post.y, m.run.from[1]);
         post.x = m.run.from[0]; post.z = m.run.from[1];
-        post.y = 0.98;
+        post.y = rideY(post);
         post.bikeYaw = Math.atan2(post.run.dest[0] - post.x, post.run.dest[1] - post.z);
       }
     }
@@ -8234,7 +8252,7 @@
       const lat = c.lat * (c.ahead < 9 ? 1 + (9 - Math.max(0, c.ahead)) * 0.05 : 1) + Math.sin(chase.t * 1.8 + c.ph) * 0.5;
       p.x = pt.x + tz * lat * (chase.boat ? 1.6 : 1);
       p.z = pt.z - tx * lat * (chase.boat ? 1.6 : 1);
-      p.y = chase.boat ? 0.5 + Math.sin(chase.t * 2.4 + c.ph) * 0.12 : 0.98;
+      p.y = chase.boat ? 0.5 + Math.sin(chase.t * 2.4 + c.ph) * 0.12 : rideY(p);
       const yaw = Math.atan2(-tx, -tz);
       posePost(p, cam.position, dt);
       if (p.mount) { p.mesh.rotation.z = Math.sin(chase.t * 1.9 + c.ph) * 0.06; }
@@ -9330,7 +9348,7 @@
       p.runT += dt;
       if (p.runT < 0 && p.bikeMesh) {
         /* waiting on the bike, engine idling, until his cue */
-        p.y = 0.98; p.expose = 1; p.coverTop = undefined;
+        p.y = rideY(p); p.expose = 1; p.coverTop = undefined;
         p.bikeYaw = Math.atan2(p.run.dest[0] - p.run.from[0], p.run.dest[1] - p.run.from[1]);
         posePost(p, cam, dt);
         applyRidePose(p, p.bikeYaw, 0);
@@ -9353,7 +9371,7 @@
           const eb = 1 - Math.pow(1 - kk, 1.8);
           p.x = p.run.from[0] + fx * eb;
           p.z = p.run.from[1] + fz * eb;
-          p.y = 0.98;
+          p.y = rideY(p);
           p.expose = 1;
           p.coverTop = undefined;
           p.bikeYaw = Math.atan2(fx, fz);
@@ -9577,16 +9595,18 @@
     return g;
   }
   /* rider on the saddle: knees up, hands on the bars, leaning in */
+  /* the rider's feet-origin height that puts his hip joint on the saddle */
+  function rideY(p) { const sc = (p.mesh && p.mesh.scale.x) || p.scale || 1.28; return 0.34 + 1.02 - 0.68 * sc; }
   function applyRidePose(p, yaw, lean) {
     const u = p.mesh.userData;
-    if (u.legL) u.legL.rotation.x = -1.25;
-    if (u.legR) u.legR.rotation.x = -1.25;
-    if (u.shinL) u.shinL.rotation.x = 1.35;
-    if (u.shinR) u.shinR.rotation.x = 1.35;
-    if (u.armL) u.armL.rotation.set(-1.25, 0, 0.18);
-    if (u.armR) u.armR.rotation.set(-1.25, 0, -0.18);
+    if (u.legL) { u.legL.rotation.x = -1.45; u.legL.rotation.z = 0.18; }
+    if (u.legR) { u.legR.rotation.x = -1.45; u.legR.rotation.z = -0.18; }
+    if (u.shinL) u.shinL.rotation.x = 1.55;
+    if (u.shinR) u.shinR.rotation.x = 1.55;
+    if (u.armL) u.armL.rotation.set(-1.05, 0, 0.22);
+    if (u.armR) u.armR.rotation.set(-1.05, 0, -0.22);
     if (u.rifle) { u.rifle.position.set(-0.24, 1.05, -0.1); u.rifle.rotation.set(0.9, Math.PI, 0.3); }
-    if (u.body) { u.body.position.y = 0.0; u.body.rotation.x = 0.28; u.body.rotation.z = 0; u.body.scale.y = 1; }
+    if (u.body) { u.body.position.y = 0.0; u.body.rotation.x = 0.34; u.body.rotation.z = 0; u.body.scale.y = 1; }
     if (u.headG) u.headG.rotation.x = -0.2;
     p.mesh.rotation.y = yaw;
     p.mesh.rotation.z = lean || 0;
@@ -10252,6 +10272,7 @@
     stepCrashed(ctx, dt);
     if (debris.length) stepDebris(dt);
     if (dress && dress.fires && dress.fires.length) stepFires(dt);
+    if (dress && dress.anims && dress.anims.length) { dress.animT += dt; dress.anims.forEach((f) => { try { f(dress.animT); } catch (e) {} }); }
     if (!ended) { try { stepEngines(ctx); } catch (e) {} }
     stepNades(ctx, dt);
     /* the SMG keeps firing while the trigger is held */
@@ -12462,6 +12483,110 @@
     S.add(g);
     return g;
   }
+  /* ---- v23: signature street elements, one or two per city ---- */
+  /* 대전: an elevated maglev guideway over the west lane, with a car on it */
+  function lmMonorail(S, x, zA, zB) {
+    const c = cmat(0xe4e6e8, 0.6, 0.2), d = cmat(0x8a9096, 0.6, 0.4);
+    for (let z = zA; z <= zB; z += 18) { bx(S, 0.9, 7.2, 0.9, -11.6, 3.9, z, c); bx(S, 4.4, 0.7, 1.2, -9.6, 7.6, z, c); }
+    bx(S, 1.4, 0.9, zB - zA, x, 8.2, (zA + zB) / 2, c);
+    bx(S, 1.6, 0.12, zB - zA, x, 8.7, (zA + zB) / 2, d);
+    const car = new T.Group();
+    const body = cmat(0xf2f4f6, 0.35, 0.3), band = cmat(0x2a6ab8, 0.4), glass = cmat(0x2a3a48, 0.1, 0.6);
+    bx(car, 2.6, 2.4, 22, 0, 0, 0, body); bx(car, 2.62, 0.4, 22.02, 0, -0.5, 0, band);
+    bx(car, 2.64, 0.8, 20, 0, 0.4, 0, glass);
+    const nose = new T.Mesh(new T.SphereGeometry(1.3, 10, 8, 0, Math.PI * 2, 0, Math.PI / 2), body); nose.rotation.x = Math.PI / 2; nose.position.z = 11; car.add(nose);
+    car.position.set(x, 10.1, 18);
+    car.traverse((o) => { o.userData.noBlock = 1; });
+    S.add(car);
+    return car;
+  }
+  /* a fountain: stone basin, water sheet, jets that pulse */
+  function lmFountain(S, x, z, r, anims, steam) {
+    bx(S, 0.01, 0.01, 0.01, x, 0, z, cmat(0x000000, 1));
+    cyl(S, r, r + 0.3, 0.9, x, 0.75, z, cmat(0xc0b8a8, 0.9), 24);
+    const water = cyl(S, r - 0.25, r - 0.25, 0.1, x, 1.12, z, new T.MeshStandardMaterial({ color: new T.Color(0x5aa0c8).convertSRGBToLinear(), roughness: 0.15, metalness: 0.2 }), 24);
+    water.castShadow = false;
+    const jm = new T.MeshBasicMaterial({ color: 0xe8f4fc, transparent: true, opacity: 0.75, depthWrite: false });
+    const jets = [];
+    const n = 7;
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2, rr = i === 0 ? 0 : r * 0.55;
+      const j = new T.Mesh(new T.CylinderGeometry(0.08, 0.22, 1, 6), jm);
+      j.position.set(x + Math.cos(a) * rr, 1.6, z + Math.sin(a) * rr);
+      j.userData.noBlock = 1;
+      S.add(j); jets.push(j);
+    }
+    const steamM = steam ? new T.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.22, depthWrite: false }) : null;
+    const puffs = [];
+    if (steam) for (let i = 0; i < 6; i++) { const p = new T.Mesh(new T.BoxGeometry(1.2, 1.2, 1.2), steamM); p.userData.noBlock = 1; S.add(p); puffs.push(p); }
+    anims.push((t) => {
+      jets.forEach((j, i) => { const h = (i === 0 ? 4.5 : 2.2) * (0.75 + 0.25 * Math.sin(t * 2.2 + i)); j.scale.y = h; j.position.y = 1.15 + h / 2; });
+      puffs.forEach((p, i) => { const k = ((t * 0.35 + i / puffs.length) % 1); p.position.set(x + Math.sin(i * 2 + t * 0.3) * 0.8, 1.4 + k * 5, z + Math.cos(i) * 0.6); p.scale.setScalar(0.6 + k * 1.6); p.material.opacity = 0.25 * (1 - k); });
+    });
+  }
+  /* market stalls under striped canvas along a kerb */
+  function lmMarket(S, x, zA, zB, seed) {
+    const R = rng(seed || 3);
+    const cols = [0xd8402a, 0x2a6ab8, 0xe8b830, 0x2f8a4a, 0xe86a2a, 0x8a3ab8];
+    for (let z = zA; z < zB; z += 3.4) {
+      if (R() < 0.18) continue;
+      const c = cmat(cols[(R() * cols.length) | 0], 0.85);
+      const sd = x > 0 ? -1 : 1;
+      bx(S, 2.2, 0.08, 2.8, x + sd * 0.4, 2.5, z, c, { rz: sd * 0.18 });
+      [-1, 1].forEach((k) => bx(S, 0.06, 2.4, 0.06, x + sd * 1.3, 1.5, z + k * 1.3, cmat(0x8a8e92, 0.5, 0.6)));
+      bx(S, 1.8, 0.8, 2.4, x - sd * 0.1, 0.8, z, cmat(0x8a6a48, 0.9));
+      for (let k = 0; k < 6; k++) bx(S, 0.3, 0.22, 0.3, x - sd * 0.1 + (R() - 0.5) * 1.2, 1.32, z + (R() - 0.5) * 1.8, cmat([0xd83a2a, 0xe8c030, 0x6ab84a, 0xe8e0d0, 0xa83a8a][k % 5], 0.8));
+    }
+  }
+  /* 경주: royal tomb mounds, grassy domes with a stone ring */
+  function lmTumuli(S, list) {
+    const grass = voxMats().grass;
+    list.forEach(([x, z, r]) => {
+      const m = new T.Mesh(new T.SphereGeometry(r, 20, 10, 0, Math.PI * 2, 0, Math.PI / 2), grass);
+      m.scale.y = 0.55; m.position.set(x, 0.25, z); m.castShadow = true; m.receiveShadow = true; m.userData.noBlock = 1; S.add(m);
+      cyl(S, r + 0.2, r + 0.4, 0.5, x, 0.45, z, cmat(0xb8b0a0, 0.95), 28);
+    });
+  }
+  /* stone lanterns down both kerbs */
+  function lmLanterns(S, zA, zB, step) {
+    const st = cmat(0xbab2a2, 0.95), glow = cmat(0xffe6a0, 0.4, 0, { emissive: 0xffd480, emissiveIntensity: 0.6 });
+    for (let z = zA; z < zB; z += step || 10) [-10.6, 10.6].forEach((x) => {
+      bx(S, 0.6, 0.3, 0.6, x, 0.5, z, st); bx(S, 0.22, 1.0, 0.22, x, 1.15, z, st);
+      bx(S, 0.56, 0.5, 0.56, x, 1.9, z, glow); bx(S, 0.9, 0.18, 0.9, x, 2.25, z, st); bx(S, 0.3, 0.3, 0.3, x, 2.45, z, st);
+    });
+  }
+  /* 부산·인천: port gantry cranes on the far quay */
+  function lmCranes(S, list) {
+    const red = cmat(0xc8382a, 0.6, 0.3), wh = cmat(0xeceae4, 0.6, 0.3);
+    list.forEach(([x, z, ry], i) => {
+      const g = new T.Group();
+      [-4, 4].forEach((a) => [-6, 6].forEach((b) => { const leg = new T.Mesh(new T.BoxGeometry(0.8, 22, 0.8), i % 2 ? wh : red); leg.position.set(a, 11, b); g.add(leg); }));
+      const beam = new T.Mesh(new T.BoxGeometry(1.6, 2, 40), i % 2 ? red : wh); beam.position.set(0, 23, 6); g.add(beam);
+      const top = new T.Mesh(new T.BoxGeometry(9, 1.2, 1.2), red); top.position.set(0, 22, -6); g.add(top);
+      const top2 = top.clone(); top2.position.z = 6; g.add(top2);
+      const cab = new T.Mesh(new T.BoxGeometry(2.4, 1.8, 2.4), wh); cab.position.set(0, 21.2, 14); g.add(cab);
+      g.position.set(x, 0, z); g.rotation.y = ry || 0;
+      g.traverse((o) => { o.userData.noBlock = 1; o.castShadow = true; });
+      S.add(g);
+    });
+  }
+  /* small fishing boats on the swell */
+  function lmBoats(S, list, anims) {
+    const boats = list.map(([x, z, ry, col], i) => {
+      const g = new T.Group();
+      const hull = cmat(col || 0x2a5aa8, 0.6), w = cmat(0xf2f0ea, 0.6);
+      const h = new T.Mesh(new T.BoxGeometry(2.6, 1.0, 7), hull); h.position.y = 0.3; g.add(h);
+      const b2 = new T.Mesh(new T.BoxGeometry(2.0, 0.6, 2.0), hull); b2.position.set(0, 0.4, 3.8); b2.rotation.x = 0.4; g.add(b2);
+      const c = new T.Mesh(new T.BoxGeometry(1.8, 1.4, 2.2), w); c.position.set(0, 1.4, -1.2); g.add(c);
+      const m = new T.Mesh(new T.BoxGeometry(0.12, 4, 0.12), w); m.position.set(0, 2.6, 1.2); g.add(m);
+      g.position.set(x, 0, z); g.rotation.y = ry || 0;
+      g.traverse((o) => { o.userData.noBlock = 1; });
+      S.add(g);
+      return g;
+    });
+    anims.push((t) => boats.forEach((b, i) => { b.position.y = Math.sin(t * 1.3 + i) * 0.15; b.rotation.z = Math.sin(t * 0.9 + i * 2) * 0.05; }));
+  }
+
   /* fire and smoke for a burning city: flicker cones and a slow column */
   function addFire(S, list, x, y, z, s) {
     const g = new T.Group();
@@ -12660,7 +12785,7 @@
     (C.hills || [[0, 240, 260, 60, 30]]).forEach((hh, i) => voxHill(VH, hh[0], Math.max(hh[1], 200), hh[2], hh[3], hh[4] * 0.85, 600 + i, { cube: 3.2 }));
     VH.flush(S, "cityHills");
     /* the landmarks that say where you are */
-    const fires = [];
+    const fires = [], anims = [];
     (C.landmarks || []).forEach((L) => {
       try {
         const k = L[0];
@@ -12680,6 +12805,13 @@
         else if (k === "hedgehogs") L[1].forEach((p) => lmHedgehog(S, p[0], p[1]));
         else if (k === "fire") addFire(S, fires, L[1], L[2], L[3], L[4] || 1);
         else if (k === "skyline") voxSkyline(S, L[1]);
+        else if (k === "monorail") lmMonorail(S, L[1], L[2], L[3]);
+        else if (k === "fountain") lmFountain(S, L[1], L[2], L[3], anims, L[4]);
+        else if (k === "market") lmMarket(S, L[1], L[2], L[3], L[4]);
+        else if (k === "tumuli") lmTumuli(S, L[1]);
+        else if (k === "lanterns") lmLanterns(S, L[1], L[2], L[3]);
+        else if (k === "cranes") lmCranes(S, L[1]);
+        else if (k === "boats") lmBoats(S, L[1], anims);
         else if (k === "overpass") {
           bx(S, 34, 1.0, 6, 0, 7.2, L[1], cmat(0xb4b4ae, 0.85));
           bx(S, 34, 0.9, 0.3, 0, 8.1, L[1] - 2.9, cmat(0x9a9a94, 0.85)); bx(S, 34, 0.9, 0.3, 0, 8.1, L[1] + 2.9, cmat(0x9a9a94, 0.85));
@@ -12711,7 +12843,7 @@
     if (coverRoot) coverRoot.traverse((o) => { if (o.userData && o.userData.cover) walkBlockers.push(new T.Box3().setFromObject(o)); });
     landCovers.forEach((c) => walkBlockers.push(new T.Box3().setFromObject(c.g)));
     applyMood(ctx, S, sky, clouds, moodOverride() || C.mood || "day");
-    dress = { root: S, sky, flags, clouds, barrels: barrels, ally, truck1: null, trunks, fires: fires, sea: dress0.sea };
+    dress = { root: S, sky, flags, clouds, barrels: barrels, ally, truck1: null, trunks, fires: fires, anims: anims, animT: 0, sea: dress0.sea };
     dress0.sea = null;
     return dress;
   }
