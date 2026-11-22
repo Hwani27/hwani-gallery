@@ -145,6 +145,24 @@
       @keyframes railSpin{to{transform:rotate(360deg)}}
       #railResult{position:fixed;inset:0;z-index:50;display:none;align-items:center;justify-content:center;background:rgba(4,8,16,.9);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);color:#fff;font-family:Pretendard,system-ui,sans-serif;text-align:center;padding:24px}
       #railResult.show{display:flex}
+      .railCut{position:fixed;inset:0;z-index:47;pointer-events:none;font-family:Pretendard,system-ui,sans-serif;color:#fff;display:flex;align-items:center;justify-content:center}
+      .railCut .lb{position:absolute;left:0;right:0;height:13vh;background:#000;transition:transform .35s ease}
+      .railCut .lb.t{top:0;transform:translateY(-100%);animation:railLbT .35s ease forwards}
+      .railCut .lb.b{bottom:0;transform:translateY(100%);animation:railLbB .35s ease forwards}
+      @keyframes railLbT{to{transform:translateY(0)}}@keyframes railLbB{to{transform:translateY(0)}}
+      .railCut.out .lb.t{animation:none;transform:translateY(-100%)}.railCut.out .lb.b{animation:none;transform:translateY(100%)}
+      .railCut .cc{text-align:center;padding:14px 40px;background:linear-gradient(90deg,transparent,rgba(120,0,0,.72) 20%,rgba(120,0,0,.72) 80%,transparent);animation:railCutIn .4s ease-out}
+      .railCut.out .cc{opacity:0;transition:opacity .4s}
+      .railCut .w{margin:0;font:900 13px/1 ui-monospace,monospace;letter-spacing:.6em;color:#ffd24a;animation:railBlink .3s steps(2) infinite}
+      @keyframes railBlink{50%{opacity:.25}}
+      .railCut h2{margin:8px 0 4px;font-size:clamp(26px,6vw,44px);font-weight:900;letter-spacing:.02em;text-shadow:0 3px 0 rgba(0,0,0,.6)}
+      .railCut .s{margin:0;font:800 11px/1 ui-monospace,monospace;letter-spacing:.3em;color:#ffb0a0}
+      .railCut.clear .cc{background:linear-gradient(90deg,transparent,rgba(30,60,10,.7) 20%,rgba(30,60,10,.7) 80%,transparent)}
+      .railCut.clear h2{color:#ffe14a;font-size:clamp(34px,8vw,60px)}
+      @keyframes railCutIn{from{transform:scaleX(0);opacity:0}to{transform:scaleX(1);opacity:1}}
+      #railPhoto{position:fixed;left:50%;bottom:max(16px,env(safe-area-inset-bottom));transform:translateX(-50%);z-index:55;display:flex;gap:10px;padding:8px;border-radius:16px;background:rgba(0,0,0,.55);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+      #railPhoto button{min-width:96px;min-height:46px;border-radius:12px;border:2px solid #d8c98a;background:#2a3420;color:#fff;font:900 15px/1 Pretendard,system-ui,sans-serif;cursor:pointer}
+      #railPhoto p{margin:0 6px;align-self:center;color:#d8d8c8;font-size:12px}
       #railCont{position:fixed;inset:0;z-index:52;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle,rgba(60,0,0,.55),rgba(0,0,0,.82));
         color:#fff;font-family:Pretendard,system-ui,sans-serif;text-align:center;padding:20px}
       #railCont .cc{width:min(420px,100%)}
@@ -5832,7 +5850,7 @@
   const STAGES = {
     /* ---- CHAPTER 1: 남침 — the line falls back south ---- */
     6: {
-      id: 6, music: "fall", label: "STAGE 1-1", clock: 360, path: PATH1, boss: BOSS1,
+      id: 6, refugees: true, music: "fall", label: "STAGE 1-1", clock: 360, path: PATH1, boss: BOSS1,
       waves: WAVES1.map((w, i) => Object.assign({}, w, { radio: [
         "새벽 4시, 적의 전면 남침! 서울 도심까지 밀고 들어왔다!",
         "시민 대피가 먼저다! 대로의 적부터 막아라!",
@@ -5852,7 +5870,7 @@
       bossRadio: "적 전차가 도심에 진입했다! 포구가 빛나면 포구를, 약점은 앞쪽 흡기구!"
     },
     7: {
-      id: 7, music: "retreat", label: "STAGE 1-2", clock: 380, path: cityPath(), boss: cityBoss(),
+      id: 7, refugees: true, music: "retreat", label: "STAGE 1-2", clock: 380, path: cityPath(), boss: cityBoss(),
       waves: genWaves(707, ["DAEJEON STN", "EXPO-RO", "GAPCHEON"], [
         "대전 사수! 지연전으로 시간을 벌어라!", "엑스포로에 적 정찰 오토바이!", "상공에 적 헬기! 다리 쪽 엄폐!",
         "민간인 대피 중, 오사 주의!", "적 증원 접근! 교차로를 지켜라!", "갑천 방면 적 헬기 재접근!", "공수부대 강하! 지휘소를 지켜라!"], { bikes: true, hostage: true }),
@@ -5869,7 +5887,7 @@
       bossRadio: "적 선봉 지휘관 확인! 엄폐물 사이를 옮겨 다닌다, 머리를 노려라!"
     },
     8: {
-      id: 8, music: "retreat", label: "STAGE 1-3", clock: 380, path: cityPath(), boss: cityBoss(),
+      id: 8, refugees: true, music: "retreat", label: "STAGE 1-3", clock: 380, path: cityPath(), boss: cityBoss(),
       waves: genWaves(808, ["DONGSEONG-RO", "STADIUM", "PALGONG"], [
         "대구 방어선이다! 한 발짝도 물러서지 마라!", "적 오토바이 돌격조!", "적 헬기가 고가도로 위로 넘어온다!",
         "피난민 사이에 숨은 적, 오사 주의!", "적 박격포 진지 발견!", "적 헬기 재접근! 경기장 쪽!", "적 공수 강하! 마지막 블록을 지켜라!"], { bikes: true, hostage: true }),
@@ -5886,7 +5904,7 @@
       bossRadio: "적 장갑차 돌입! 일반 탄은 튕긴다, 앞쪽 흡기구와 수류탄!"
     },
     9: {
-      id: 9, music: "retreat", label: "STAGE 1-4", clock: 380, path: cityPath(), boss: cityBoss(),
+      id: 9, refugees: true, music: "retreat", label: "STAGE 1-4", clock: 380, path: cityPath(), boss: cityBoss(),
       waves: genWaves(909, ["GEUMNAM-RO", "PLAZA", "MUDEUNG"], [
         "호남 방면 적 우회 부대! 광주를 지켜라!", "금남로에 적 오토바이!", "적 헬기 출현! 광장 엄폐!",
         "시민 대피 중, 오사 주의!", "적 증원, 기념탑 방향!", "적 헬기 재접근!", "적 공수 강하! 무등산 방면 퇴로 확보!"], { bikes: true, hostage: true }),
@@ -5903,7 +5921,7 @@
       bossRadio: "광주 상공에 적 공격헬기! 로켓 충전이 보이면 집중 사격!"
     },
     10: {
-      id: 10, music: "heritage", label: "STAGE 1-5", clock: 380, path: cityPath(), boss: cityBoss(),
+      id: 10, refugees: true, music: "heritage", label: "STAGE 1-5", clock: 380, path: cityPath(), boss: cityBoss(),
       waves: genWaves(1010, ["DAEREUNGWON", "CHEOMSEONG", "BULGUKSA"], [
         "천년 고도 경주! 문화재를 지키며 적을 막아라!", "적 오토바이가 돌담길로!", "적 헬기 출현! 석탑 뒤로 엄폐!",
         "관광객 대피 중, 오사 주의!", "적 증원, 첨성대 방향!", "적 헬기 재접근!", "적 공수 강하! 탑 앞 광장을 지켜라!"], { bikes: true, hostage: true }),
@@ -5921,7 +5939,7 @@
       bossRadio: "적 지휘관이 탑 앞 광장에 숨었다! 머리를 노려라!"
     },
     11: {
-      id: 11, music: "perimeter", label: "STAGE 1-6", clock: 400, path: cityPath(), boss: cityBoss(),
+      id: 11, refugees: true, music: "perimeter", label: "STAGE 1-6", clock: 400, path: cityPath(), boss: cityBoss(),
       waves: genWaves(1111, ["HAEUNDAE", "GWANGALLI", "PERIMETER"], [
         "부산 교두보, 최후 방어선이다! 여기서 물러설 곳은 없다!", "해변 도로로 적 오토바이!", "바다 위로 적 헬기!",
         "피난민 다수, 오사 주의!", "적 증원, 등대 방향!", "적 헬기 재접근!", "적 공수 강하! 이 선을 지켜라, 반격이 온다!"], { bikes: true, hostage: true, paras: true }),
@@ -7302,6 +7320,9 @@
     debris.forEach((m) => m.parent && m.parent.remove(m));
     debris.length = 0;
     WATER.length = 0;
+    clearAmbient();
+    FXL.forEach((f) => f.m.parent && f.m.parent.remove(f.m)); FXL.length = 0;
+    SCORCH.forEach((m) => m.parent && m.parent.remove(m)); SCORCH.length = 0;
     MONU = null;
     shots3.forEach((s) => { if (s.mesh && s.mesh.parent) s.mesh.parent.remove(s.mesh); });
     shots3 = [];
@@ -7386,6 +7407,7 @@
 
   function resetNumbers(ctx) {
     readProfile();
+    slowmo = 0; slowK = 1; finishing = false; finishNow = false;
     clock = CLOCK0; bullets = 20; hp = HPMAX; lives = LIVES0; continues = 0; contOpen = false;
     grenades = 2 + (PERK.nades || 0); holding = false;
     nades.forEach((n) => n.mesh.parent && n.mesh.parent.remove(n.mesh));
@@ -7902,7 +7924,7 @@
      paratroopers as it weakens */
   function stageBossHeli() {
     const w = { yaw: 0, hold: bossHold };
-    const post = makeHeliPost(w, { air: "heli", lat: 0, dep: 24, y: 12, front: 16, sweep: 7.5, flyY: 6.4 }, 0);
+    const post = makeHeliPost(w, { air: "heli", lat: 0, dep: 24, y: 12, front: 16, sweep: 7.5, flyY: 5.0 }, 0);
     post.isBoss = true;
     post.e.hp = Math.round((STAGE.bossHp || 46) * (DIFF.boss || 1));
     post.hpMax = post.e.hp;
@@ -7985,6 +8007,12 @@
         } catch (err) { window.__guardErr = String(err && err.stack || err); }
       });
     }
+    try {
+      const ko = (document.documentElement.lang || "").startsWith("ko");
+      const BN = { man: ["적 지휘관", "ENEMY COMMANDER"], apc: [STAGE.bossTank ? "적 주력 전차" : "적 장갑차", STAGE.bossTank ? "MAIN BATTLE TANK" : "ARMOURED CAR"], heli: ["적 공격헬기", "ATTACK GUNSHIP"], commander: ["총사령관", "SUPREME LEADER"] };
+      const bn = BN[STAGE.bossKind] || BN.man;
+      cutIn(ko ? bn[0] : bn[1], (STAGE.label || "") + " · BOSS");
+    } catch (e) {}
     if (STAGE.bossRadio) radio(STAGE.bossRadio, 4800);
     else if (STAGE.bossKind === "apc") radio("중장갑 차량 확인! 호위 병력 분리, 측면을 노려라!", 4800);
     window.__railPhase = "boss";
@@ -8091,7 +8119,7 @@
   }
 
   function endWave(ctx) {
-    if (ended) return;
+    if (ended || finishing) return;
     if (waveClean) addPts(ctx, 500);
     posts.forEach((p) => {
       if (p.mesh) { p.mesh.parent && p.mesh.parent.remove(p.mesh); }
@@ -8125,7 +8153,7 @@
   }
 
   function hurtPlayer(ctx, dmg) {
-    if (ended || contOpen || window.__railGod) return;
+    if (ended || contOpen || finishing || window.__railGod) return;
     hp -= Math.max(1, Math.round(dmg * (DIFF.dmg || 1)));
     try { window.MGPost && window.MGPost.hurt && window.MGPost.hurt(Math.min(1, 0.35 + dmg / 30)); } catch (e) {}
     shake = 0.7;
@@ -8463,6 +8491,48 @@
   }
   window.__shareCard = (I) => makeShareCard(I);
 
+  /* photo mode: the result card steps aside, drag to look around, save */
+  function photoMode(ctx, card) {
+    const ko = (document.documentElement.lang || "").startsWith("ko");
+    card.style.display = "none";
+    const cam = ctx.camera;
+    const e0 = new T.Euler().setFromQuaternion(cam.quaternion, "YXZ");
+    let yaw = e0.y, pitch = e0.x, drag = null;
+    const bar = document.createElement("div");
+    bar.id = "railPhoto";
+    bar.innerHTML = "<p>" + (ko ? "드래그로 둘러보기" : "Drag to look") + "</p><button data-a=save>" + (ko ? "📸 저장" : "📸 SAVE") + "</button><button data-a=close>" + (ko ? "닫기" : "CLOSE") + "</button>";
+    document.body.appendChild(bar);
+    const down = (e) => { if (e.target.closest && e.target.closest("#railPhoto")) return; drag = { x: e.clientX, y: e.clientY, yaw: yaw, pitch: pitch }; };
+    const move = (e) => {
+      if (!drag) return;
+      yaw = drag.yaw - (e.clientX - drag.x) * 0.005;
+      pitch = Math.max(-0.9, Math.min(0.9, drag.pitch - (e.clientY - drag.y) * 0.005));
+      cam.rotation.order = "YXZ"; cam.rotation.set(pitch, yaw, 0); cam.updateMatrixWorld(true);
+    };
+    const up = () => { drag = null; };
+    addEventListener("pointerdown", down); addEventListener("pointermove", move); addEventListener("pointerup", up);
+    const close = () => {
+      removeEventListener("pointerdown", down); removeEventListener("pointermove", move); removeEventListener("pointerup", up);
+      bar.remove(); card.style.display = "";
+    };
+    bar.addEventListener("click", (e) => {
+      const b = e.target.closest("button[data-a]");
+      if (!b) return;
+      e.stopPropagation();
+      if (b.getAttribute("data-a") === "close") { close(); return; }
+      bar.style.visibility = "hidden";
+      const c = window.MG && window.MG.snap ? window.MG.snap(1920) : null;
+      bar.style.visibility = "";
+      if (!c) return;
+      c.toBlob((blob) => {
+        if (!blob) return;
+        const file = new File([blob], "myeolgong-photo.png", { type: "image/png" });
+        if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] }) && /iPhone|iPad|Android/i.test(navigator.userAgent)) { navigator.share({ files: [file] }).catch(() => {}); return; }
+        const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "myeolgong-photo.png"; document.body.appendChild(a); a.click(); a.remove();
+      }, "image/png");
+    });
+  }
+
   /* (v20) arcade continue: the game freezes on a ten-second count; take it
      and a fresh set of lives drops in where you fell, score kept */
   function offerContinue(ctx) {
@@ -8512,8 +8582,36 @@
     });
   }
 
+  /* (v24) camera direction: a boss cut-in with letterbox and a WARNING
+     card, a slow-motion beat before the result card, and a photo mode */
+  let slowmo = 0, slowK = 1, finishing = false, finishNow = false;
+  function cutIn(title, sub) {
+    const ko = (document.documentElement.lang || "").startsWith("ko");
+    const box = document.createElement("div");
+    box.className = "railCut";
+    box.innerHTML = '<i class="lb t"></i><i class="lb b"></i><div class="cc"><p class="w">WARNING</p><h2>' + title + '</h2><p class="s">' + (sub || "") + "</p></div>";
+    document.body.appendChild(box);
+    slowmo = 1.4; slowK = 0.35;
+    try { window.GunSFX && window.GunSFX.boom && window.GunSFX.boom(); } catch (e) {}
+    setTimeout(() => box.classList.add("out"), 2100);
+    setTimeout(() => box.remove(), 2700);
+    void ko;
+  }
   function finish(ctx, cleared) {
     if (ended) return;
+    if (cleared && !finishing && !finishNow && !window.__railFastEnd) {
+      /* the last shot lands in slow motion before the card comes up */
+      finishing = true;
+      slowmo = 1.6; slowK = 0.25;
+      const fl = document.createElement("div");
+      fl.className = "railCut clear";
+      const ko = (document.documentElement.lang || "").startsWith("ko");
+      fl.innerHTML = '<div class="cc"><h2>' + (ko ? "작전 성공" : "MISSION CLEAR") + "</h2></div>";
+      document.body.appendChild(fl);
+      setTimeout(() => { fl.remove(); finishing = false; finishNow = true; finish(ctx, true); }, 1500);
+      return;
+    }
+    if (finishing) return;
     ended = true;
     try { window.GunSFX && window.GunSFX.stopLoops && window.GunSFX.stopLoops(); } catch (e) {}
     active = false;
@@ -8574,7 +8672,7 @@
       "</b></p><p><span>" + (ko ? "파괴" : "DESTROYED") + "</span><b>" + brokenN + "</b></p><p><span>COMBO</span><b>" + bestCombo + "</b></p></div>" + rankHtml +
       "<div class=btns>" + nextB + "<button" + (nextB ? "" : " class=primary") + " data-act=again>" + (ko ? "다시 하기" : "PLAY AGAIN") +
       "</button><button data-act=title>" + (ko ? "타이틀" : "TITLE") + "</button></div>" +
-      "<div class=\"btns share\"><button data-act=share>" + SHARE_ICO + (ko ? "자랑하기" : "SHARE") + "</button><button data-act=save>" + SAVE_ICO + (ko ? "이미지 저장" : "SAVE IMAGE") + "</button></div></div>";
+      "<div class=\"btns share\"><button data-act=share>" + SHARE_ICO + (ko ? "자랑하기" : "SHARE") + "</button><button data-act=save>" + SAVE_ICO + (ko ? "이미지 저장" : "SAVE IMAGE") + "</button><button data-act=photo>📷 " + (ko ? "포토 모드" : "PHOTO") + "</button></div></div>";
     const shareInfo = { cleared: !!cleared, head: head, stars: stars, nStars: nStars, score: score, acc: Math.round(acc * 100), combo: bestCombo, label: STAGE.label || "1-1", stage: stageId, diff: dName, practice: practice, continues: continues, rec: rec, shot: shot, ko: ko };
     box.addEventListener("click", (e) => {
       const b = e.target && e.target.closest ? e.target.closest("button[data-act]") : null;
@@ -8585,6 +8683,7 @@
       if (act === "again") { try { window.MG && window.MG.playAgain(); } catch (err) {} }
       else if (act === "next") { try { window.MG && window.MG.playStage(+b.getAttribute("data-stage") || 2); } catch (err) {} }
       else if (act === "share" || act === "save") { shareResult(shareInfo, act, b); }
+      else if (act === "photo") { photoMode(ctx, box); }
       else { try { window.MG && window.MG.toTitle(); } catch (err) {} }
     });
     document.body.appendChild(box);
@@ -8908,6 +9007,7 @@
     b.dead = true;
     if (b.mesh) b.mesh.visible = false;
     const px = b.x, py = b.y + 0.55, pz = b.z;
+    try { boomFlash(ctx, px, py, pz, 1.2); boomFx(ctx, px, py, pz); } catch (e) {}
     for (let i = 0; i < 18; i++) {
       const m = new T.Mesh(
         new T.BoxGeometry(0.1 + Math.random() * 0.12, 0.1 + Math.random() * 0.12, 0.1 + Math.random() * 0.12),
@@ -9965,6 +10065,7 @@
     let dt = Math.min(0.05, (nowMs - (frame._t || nowMs)) / 1000) || 0.016;
     if (hitStop > 0) { hitStop = Math.max(0, hitStop - dt); dt *= 0.16; }
     if (window.__railSpeed) dt *= window.__railSpeed;
+    if (slowmo > 0) { slowmo = Math.max(0, slowmo - dt); dt *= slowK; }
     frame._t = nowMs;
     const t = (nowMs - t0) / 1000;
     clock = Math.max(0, CLOCK0 - t);
@@ -10315,6 +10416,8 @@
     if (debris.length) stepDebris(dt);
     if (dress && dress.fires && dress.fires.length) stepFires(dt);
     stepBoomLight(dt);
+    if (FXL.length) stepFxl(dt);
+    if (!ended && phase !== "intro") { try { stepAmbient(ctx, dt); } catch (e) { window.__ambErr = String(e && e.stack || e); } }
     if (WATER.length) stepWater(dt);
     if (dress && dress.anims && dress.anims.length) { dress.animT += dt; dress.anims.forEach((f) => { try { f(dress.animT); } catch (e) {} }); }
     if (!ended) { try { stepEngines(ctx); } catch (e) {} }
@@ -13229,8 +13332,159 @@
     boomK = Math.max(0, boomK - dt * 3.2);
     boomLight.intensity = boomK * boomK * 9 * (0.85 + Math.random() * 0.3);
   }
+  /* (v24) a living backdrop: jet formations crossing the sky, parachutes
+     drifting down far off, and (while the line falls back) refugees on the
+     pavements heading south */
+  const AMB = { t: 0, jetT: 6, chuteT: 3, jets: [], chutes: [], refs: [] };
+  function makeJet() {
+    const g = new T.Group();
+    const M = (c) => new T.MeshStandardMaterial({ color: new T.Color(c).convertSRGBToLinear(), roughness: 0.6, metalness: 0.3 });
+    const b = M(0x6a7280), d = M(0x3e444c);
+    const B = (w, h, dd, x, y, z, m) => { const o = new T.Mesh(new T.BoxGeometry(w, h, dd), m); o.position.set(x, y, z); g.add(o); };
+    B(1.2, 1.2, 9, 0, 0, 0, b); B(0.8, 0.8, 1.6, 0, 0, 5, b); B(0.6, 0.5, 1.4, 0, 0.6, 2.4, M(0x2a3a4a));
+    B(9, 0.2, 2.6, 0, 0, -0.6, b); B(3.6, 0.2, 1.4, 0, 0, -4, b); B(0.2, 2, 1.6, 0, 1, -3.8, b);
+    B(0.9, 0.9, 0.5, 0, 0, -4.6, d);
+    const glow = new T.Mesh(new T.BoxGeometry(0.6, 0.6, 0.3), new T.MeshBasicMaterial({ color: 0xffb060 })); glow.position.z = -4.9; g.add(glow);
+    return g;
+  }
+  function stepAmbient(ctx, dt) {
+    const cam = ctx.camera.position;
+    AMB.t += dt;
+    AMB.jetT -= dt;
+    if (AMB.jetT <= 0 && !AMB.jets.length) {
+      AMB.jetT = 22 + Math.random() * 14;
+      const side = Math.random() < 0.5 ? -1 : 1, y = 55 + Math.random() * 20, z = cam.z + 40 + Math.random() * 60;
+      for (let k = 0; k < 3; k++) {
+        const j = makeJet();
+        j.position.set(cam.x - side * 220 - k * side * 14, y - k * 2, z + (k - 1) * 12);
+        j.rotation.y = side > 0 ? Math.PI / 2 : -Math.PI / 2;
+        j.rotation.z = -side * 0.15;
+        ctx.scene.add(j);
+        AMB.jets.push({ m: j, v: side * 95 });
+      }
+      try { window.GunSFX && window.GunSFX.motor && setTimeout(() => window.GunSFX.boom && 0, 0); } catch (e) {}
+    }
+    AMB.jets = AMB.jets.filter((j) => {
+      j.m.position.x += j.v * dt;
+      const dx = j.m.position.x - cam.x;
+      try { window.GunSFX && window.GunSFX.loop && window.GunSFX.loop("jet", "diesel", Math.max(0, 0.22 - Math.abs(dx) / 900), 2.6); } catch (e) {}
+      if (Math.abs(dx) > 260 && Math.sign(dx) === Math.sign(j.v)) { j.m.parent && j.m.parent.remove(j.m); return false; }
+      return true;
+    });
+    /* parachutes far ahead, in the fighting stages only */
+    AMB.chuteT -= dt;
+    if (AMB.chuteT <= 0 && AMB.chutes.length < 10 && STAGE.dress !== "dmz") {
+      AMB.chuteT = 2 + Math.random() * 4;
+      const g = new T.Group();
+      const can = new T.Mesh(new T.SphereGeometry(2.2, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), new T.MeshStandardMaterial({ color: new T.Color(Math.random() < 0.5 ? 0xe8e4d8 : 0x6a7a4a).convertSRGBToLinear(), roughness: 0.9, side: T.DoubleSide }));
+      can.scale.y = 0.6; can.position.y = 4; g.add(can);
+      const man = new T.Mesh(new T.BoxGeometry(0.5, 1.4, 0.4), new T.MeshStandardMaterial({ color: 0x3a4430 })); g.add(man);
+      g.position.set(cam.x + (Math.random() - 0.5) * 160, 60 + Math.random() * 20, cam.z + 90 + Math.random() * 90);
+      ctx.scene.add(g);
+      AMB.chutes.push({ m: g, sway: Math.random() * 6 });
+    }
+    AMB.chutes = AMB.chutes.filter((c) => {
+      c.m.position.y -= dt * 3.2; c.sway += dt; c.m.position.x += Math.sin(c.sway * 0.6) * dt * 1.2; c.m.rotation.z = Math.sin(c.sway * 0.8) * 0.12;
+      if (c.m.position.y < 8) { c.m.parent && c.m.parent.remove(c.m); return false; }
+      return true;
+    });
+    /* refugees on the pavements in the fall-back stages */
+    if (STAGE.refugees && (STAGE.dress === "citygen" || cam.z < 0) && AMB.refs.length < 8 && Math.random() < dt * 0.8) {
+      try {
+        const m = makeSoldier("hostage");
+        const side = Math.random() < 0.5 ? -1 : 1;
+        m.position.set(side * (11.2 + Math.random() * 1.6), 0.4, cam.z + 18 + Math.random() * 30);
+        m.rotation.y = Math.PI;
+        m.traverse((o) => { o.userData.noBlock = 1; });
+        ctx.scene.add(m);
+        AMB.refs.push({ m: m, ph: Math.random() * 6, spd: 1.1 + Math.random() * 0.6 });
+      } catch (e) {}
+    }
+    AMB.refs = AMB.refs.filter((r) => {
+      r.m.position.z -= r.spd * dt; r.ph += dt * r.spd * 5;
+      const u = r.m.userData;
+      if (u.legL) u.legL.rotation.x = Math.sin(r.ph) * 0.6;
+      if (u.legR) u.legR.rotation.x = -Math.sin(r.ph) * 0.6;
+      if (u.armL) u.armL.rotation.x = -Math.sin(r.ph) * 0.4;
+      if (u.armR) u.armR.rotation.x = Math.sin(r.ph) * 0.4;
+      if (u.body) u.body.position.y = Math.abs(Math.sin(r.ph)) * 0.04;
+      if (r.m.position.z < cam.z - 6) { r.m.parent && r.m.parent.remove(r.m); return false; }
+      return true;
+    });
+  }
+  function clearAmbient() {
+    AMB.jets.forEach((j) => j.m.parent && j.m.parent.remove(j.m));
+    AMB.chutes.forEach((c) => c.m.parent && c.m.parent.remove(c.m));
+    AMB.refs.forEach((r) => r.m.parent && r.m.parent.remove(r.m));
+    AMB.jets = []; AMB.chutes = []; AMB.refs = []; AMB.jetT = 6; AMB.chuteT = 3;
+  }
+
+  /* (v24) explosion dressing: a ground shockwave ring, a fireball that
+     swells and turns to smoke, and a scorch mark that stays */
+  const FXL = [], SCORCH = [];
+  let scorchTex = null;
+  function boomFx(ctx, x, y, z) {
+    const gy = 0.33;
+    const ring = new T.Mesh(new T.RingGeometry(0.55, 1.0, 40), new T.MeshBasicMaterial({ color: 0xd8c8a8, transparent: true, opacity: 0.85, depthWrite: false, side: T.DoubleSide }));
+    ring.rotation.x = -Math.PI / 2; ring.position.set(x, gy + 0.02, z);
+    ctx.scene.add(ring);
+    FXL.push({ m: ring, t: 0, dur: 0.55, kind: "ring" });
+    /* a cluster of blocks: white-yellow core, orange shell, then soot */
+    const ball = new T.Group();
+    ball.position.set(x, Math.max(gy + 0.6, y), z);
+    for (let i = 0; i < 14; i++) {
+      const c = new T.Mesh(new T.BoxGeometry(1, 1, 1), new T.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 1, depthWrite: false }));
+      const a = Math.random() * 6.28, e = Math.random() * 1.2, r = i < 4 ? 0.2 : 0.5 + Math.random() * 0.6;
+      c.userData.d = new T.Vector3(Math.cos(a) * Math.cos(e) * r, Math.sin(e) * r + 0.2, Math.sin(a) * Math.cos(e) * r);
+      c.userData.core = i < 4;
+      c.userData.s0 = (i < 4 ? 0.9 : 0.55) + Math.random() * 0.4;
+      c.rotation.set(Math.random() * 3, Math.random() * 3, Math.random() * 3);
+      ball.add(c);
+    }
+    ctx.scene.add(ball);
+    FXL.push({ m: ball, t: 0, dur: 1.3, kind: "ball" });
+    if (!scorchTex) scorchTex = ctex("scorch", 128, 128, (g, w, h) => {
+      const gr = g.createRadialGradient(w / 2, h / 2, 4, w / 2, h / 2, w / 2);
+      gr.addColorStop(0, "rgba(10,8,6,.92)"); gr.addColorStop(0.55, "rgba(20,16,12,.6)"); gr.addColorStop(1, "rgba(20,16,12,0)");
+      g.fillStyle = gr; g.fillRect(0, 0, w, h);
+      const r = rng(13);
+      for (let i = 0; i < 40; i++) { g.fillStyle = "rgba(0,0,0," + r() * 0.5 + ")"; g.fillRect(w / 2 + (r() - 0.5) * w * 0.9, h / 2 + (r() - 0.5) * h * 0.9, 6, 6); }
+    }, { smooth: true });
+    if (y < 2.5) {
+      const sc = new T.Mesh(new T.PlaneGeometry(3.4, 3.4), new T.MeshBasicMaterial({ map: scorchTex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }));
+      sc.rotation.x = -Math.PI / 2; sc.rotation.z = Math.random() * 6; sc.position.set(x, gy + 0.03, z);
+      ctx.scene.add(sc);
+      SCORCH.push(sc);
+      if (SCORCH.length > 24) { const o = SCORCH.shift(); o.parent && o.parent.remove(o); }
+    }
+  }
+  function stepFxl(dt) {
+    for (let i = FXL.length - 1; i >= 0; i--) {
+      const f = FXL[i];
+      f.t += dt;
+      const k = Math.min(1, f.t / f.dur);
+      if (f.kind === "ring") { f.m.scale.setScalar(1 + k * 9); f.m.material.opacity = 0.8 * (1 - k); }
+      else if (f.kind === "ball") {
+        f.m.position.y += dt * (1.8 - k);
+        const grow = 0.6 + Math.sqrt(k) * 3.2;
+        f.m.children.forEach((c) => {
+          const u = c.userData;
+          c.position.copy(u.d).multiplyScalar(grow);
+          c.scale.setScalar(u.s0 * (0.7 + Math.sqrt(k) * 1.5));
+          /* white-hot -> yellow -> orange -> red -> soot, the core lags */
+          const kk = Math.min(1, k * (u.core ? 1.15 : 1.5));
+          const col = kk < 0.15 ? [1, 0.97, 0.8] : kk < 0.35 ? [1, 0.75, 0.25] : kk < 0.55 ? [0.95, 0.42, 0.1] : kk < 0.7 ? [0.5, 0.16, 0.06] : [0.12, 0.1, 0.09];
+          c.material.color.setRGB(col[0], col[1], col[2]).convertSRGBToLinear();
+          c.material.opacity = kk < 0.7 ? 1 : Math.max(0, 1 - (kk - 0.7) / 0.3) * 0.8;
+          c.rotation.x += dt * 1.5;
+        });
+      }
+      if (k >= 1) { f.m.parent && f.m.parent.remove(f.m); FXL.splice(i, 1); }
+    }
+  }
   function boomAt(ctx, x, y, z) {
     boomFlash(ctx, x, y, z, 1);
+    try { boomFx(ctx, x, y, z); } catch (e) {}
     for (let i = 0; i < 10; i++) {
       const m = new T.Mesh(new T.BoxGeometry(0.09 + Math.random() * 0.1, 0.09 + Math.random() * 0.1, 0.09 + Math.random() * 0.1), new T.MeshBasicMaterial({ color: i % 3 ? 0xffa12a : 0xfff2b0 }));
       m.position.set(x, y, z);
@@ -13865,6 +14119,7 @@
     },
     hurt: (n) => { const ctx = window.__railCtx; if (ctx) hurtPlayer(ctx, n || 10); },
     killHeli: () => { const ctx = window.__railCtx; posts.slice().forEach((p) => { if (p.air === "heli" && p.live !== false && p.e.alive !== false) { p.e.hp = 1; airDamage(ctx, p, new T.Vector3(p.x, p.y, p.z), new T.Box3(new T.Vector3(p.x - 1, p.y - 1, p.z - 1), new T.Vector3(p.x + 1, p.y + 1, p.z + 1))); } }); },
+    boom: (x, y, z) => { const ctx = window.__railCtx; if (ctx) boomAt(ctx, x, y, z); },
     win: () => { const ctx = window.__railCtx; if (ctx) finish(ctx, true); },
     killWave: () => {
       const ctx = window.__railCtx;
