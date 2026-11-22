@@ -13,11 +13,11 @@
 | 영어 페이지 | https://hwani27.github.io/hwani-gallery/baro-baro-myeolgong/en.html |
 | 갤러리 카드 | `index.html`의 `baro-baro-myeolgong/` 카드 → `thumb.png` |
 | 폴더 | `work/hwani-gallery/baro-baro-myeolgong/` (완전 독립 빌드) |
-| 현재 버전 | **v10 통합** (`?v=10`) — v10 표면(텍스처·PBR 재질·환경맵·ACES·그림자·총구 화염/탄피) 위에 **Stage 2(DMZ·판문점)** 를 함께 얹은 상태. PR #12(`feat/myeolgong-v9-seoul-polish`)를 main에 병합하며 충돌 4곳을 해소 |
+| 현재 버전 | **v11** (`?v=11`, v10 통합 + 버그 수정 4건) / 이전 **v10 통합** (`?v=10`) — v10 표면(텍스처·PBR 재질·환경맵·ACES·그림자·총구 화염/탄피) 위에 **Stage 2(DMZ·판문점)** 를 함께 얹은 상태. PR #12(`feat/myeolgong-v9-seoul-polish`)를 main에 병합하며 충돌 4곳을 해소 |
 | 스테이지 | `STAGES` 표: 1 = 서울 시가지(v9 리뉴얼), 2 = DMZ·판문점. 타이틀의 두 버튼 / Stage 1 클리어 결과의 `다음 작전` 버튼으로 진입 |
 | v9 브랜치 | `feat/myeolgong-v9-seoul-polish` → PR #12 (v10도 같은 브랜치) |
 | v6 커밋 | `3df8b62` — full 1st-person arms/torso, adaptive portrait FOV, barrel tracks the aim point |
-| 캐시 버스터 | `?v=10` (index.html·en.html 세 줄) |
+| 캐시 버스터 | `?v=11` (index.html·en.html 세 줄) |
 
 | 로컬 실행 | `cd work/hwani-gallery && python3 -m http.server 8133` → `http://127.0.0.1:8133/baro-baro-myeolgong/index.html` |
 
@@ -416,13 +416,17 @@ Stage 1(서울)은 손대지 않았고, 그 뒤에 **Stage 2**를 붙였다. 두
 
 ## 8. 알려진 다듬을 거리 (사용자 제보 포함)
 
-1. **음수 점수 표기** — `drawHud()`의 `score = (neg ? "-" : "") + String(scv).padStart(neg ? 6 : 7, "0")`. `FONT` 맵에는 `-` 글리프가 없어(숫자·A~Z만) 마이너스가 그려지지 않고, 음수일 때 자리수도 6자리로 줄어 숫자가 밀린다. 사용자는 `000-250` 같은 표기를 봤다고 제보. → `FONT`에 `-` 추가 + 음수/양수 자리수 통일(7자리) + 결과 카드 점수 포맷도 함께 확인.
-2. **카운트다운에 `0.7` 같은 소수 문자열** — 사용자 제보. `drawHud()`의 `time`은 `Math.ceil(clock)`이라 정수여야 하는데 소수가 보임. `clock`을 반올림 없이 blit하는 다른 경로나 결과 카드/점수 팝업에서 소수가 새는지 확인(검증 전).
-3. **보스 메시가 결과 화면 뒤에 남음** — `#railResult`의 배경이 `rgba(4,8,16,.72)` 반투명이라 결과 카드 뒤로 보스/월드가 비친다. 결과 표시 전에 씬 정리 또는 오버레이 불투명도 상향.
-4. **Stage 3(개성·평양) 없음** — `STAGES`에 `path`/`waves`/`boss`/`dress` 묶음을 하나 더 넣고 `setStage(3)`만 연결하면 된다. `dressStage3`는 `dressBattlefield`의 분기에 추가.
-5. **수류탄 없음**, 랭킹/기록 저장 없음(`localStorage` 새로 구현), 입대 튜토리얼 없음.
-6. **보스 게이지 위치** — 세로 화면에서 TIME과 겹치지 않게 `m + 34·sc`에 그린다. HUD를 더 얹으면 이 값을 조정할 것.
-7. **Stage 2 인트로 중 사격** — 인트로 3.8초 동안에도 `pointerdown` 사격은 열려 있다(탄은 소모). 필요하면 `phase === "intro"`에서 `fire()`를 막는다.
+### v11에서 처리 (2026-11-22)
+- ~~음수 점수 표기~~ → 점수는 0 아래로 내려가지 않는다(`addPts`와 `engine.js`의 `addScore` 둘 다 0에서 멈춤). 인질 오사 `-300`은 팝업으로만 보인다. HUD는 항상 7자리.
+- ~~결과 화면 뒤 비침~~ → `#railResult` 배경 `.9` + `backdrop-filter: blur(8px)`, `finish()`에서 권총·HUD·조준점·R 버튼·무전창을 숨긴다. 프레임 루프의 권총 표시 조건에 `phase !== "result"` 추가. `다시 하기`는 `begin()`의 `showHud(true)`로 되살아난다.
+- ~~Stage 2 인트로 중 사격~~ → `fire()` 첫머리에서 `phase === "intro"`면 반환(탄 소모 없음). 헤드리스로 인트로 중 3연타 → 탄 20 유지 확인.
+- **카운트다운 소수(`0.7`)** → 재현 안 됨. HUD에 그려지는 모든 문자열을 `blit` 훅으로 수집해 Stage 1·2를 돌려 봤지만 소수 문자열 0건(`TIME`은 `Math.ceil`, HP·탄·콤보·보스%는 모두 정수). v8 이전 빌드에서 본 것으로 추정. 다시 보이면 스크린샷 요청.
+
+### 남은 것
+1. **Stage 3(개성·평양) 없음** — `STAGES`에 `path`/`waves`/`boss`/`dress` 묶음을 하나 더 넣고 `setStage(3)`만 연결하면 된다. `dressStage3`는 `dressBattlefield`의 분기에 추가.
+2. **수류탄 없음**, 랭킹/기록 저장 없음(`localStorage` 새로 구현), 입대 튜토리얼 없음.
+3. **보스 게이지 위치** — 세로 화면에서 TIME과 겹치지 않게 `m + 34·sc`에 그린다. HUD를 더 얹으면 이 값을 조정할 것.
+4. **`clock`은 실시간 기준** — `__railSpeed`를 올려도 TIME은 실제 초로 줄어든다(테스트 시 참고).
 
 ## 9. 검증하는 법
 

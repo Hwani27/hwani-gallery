@@ -149,7 +149,7 @@
       try { if (name === "hurt" && window.GunSFX) window.GunSFX.hit(); } catch (e) {}
     },
     addScore: function (n, x) {
-      G.score += Math.round(n) || 0;
+      G.score = Math.max(0, G.score + (Math.round(n) || 0)); /* penalties floor at 0 */
       popScore(n | 0, x);
     },
     setState: function () {},

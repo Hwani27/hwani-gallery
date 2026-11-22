@@ -113,7 +113,7 @@
       #railHud canvas{width:100%;height:100%;image-rendering:pixelated}
       #railX{position:fixed;left:50%;top:46%;width:46px;height:46px;transform:translate(-50%,-50%);z-index:41;pointer-events:none}
       #railReload{position:fixed;right:max(12px,env(safe-area-inset-right));bottom:max(12px,env(safe-area-inset-bottom));z-index:42;min-width:72px;min-height:64px;border-radius:16px;border:3px solid #111;background:#1a2430;color:#fff;font:900 16px sans-serif;pointer-events:auto}
-      #railResult{position:fixed;inset:0;z-index:50;display:none;align-items:center;justify-content:center;background:rgba(4,8,16,.72);color:#fff;font-family:Pretendard,system-ui,sans-serif;text-align:center;padding:24px}
+      #railResult{position:fixed;inset:0;z-index:50;display:none;align-items:center;justify-content:center;background:rgba(4,8,16,.9);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);color:#fff;font-family:Pretendard,system-ui,sans-serif;text-align:center;padding:24px}
       #railResult.show{display:flex}
       #railResult .card{width:min(460px,100%);background:#121a16;border:3px solid #d8c98a;border-radius:18px;padding:22px;box-shadow:0 18px 60px rgba(0,0,0,.55)}
       #railResult h2{margin:0 0 8px;font-size:28px;letter-spacing:.02em}
@@ -280,7 +280,7 @@
     let scv = Math.round(hud._score || 0);
     const neg = scv < 0;
     if (neg) scv = -scv;
-    const score = (neg ? "-" : "") + String(scv).padStart(neg ? 6 : 7, "0");
+    const score = (neg ? "-" : "") + String(scv).padStart(neg ? 6 : 7, "0"); /* score is floored at 0 in addPts; the sign path is only a guard */
     blit(g, "SCORE", m, m, sc, "#3ec0ff", "#062033");
     blit(g, score, m, m + 8 * sc + 4, sc, "#f4fbff", "#062033");
     const time = String(Math.max(0, Math.ceil(clock))).padStart(2, "0");
@@ -5808,6 +5808,8 @@
   function addPts(ctx, n) {
     if (ctx.addScore) ctx.addScore(n, window.__lastHitPx || null);
     else if (ctx.G) ctx.G.score = (ctx.G.score || 0) + n;
+    /* arcade rule: a penalty (hostage hit) can take the score down to 0, never below */
+    if (ctx.G && ctx.G.score < 0) ctx.G.score = 0;
   }
 
   function hurtPlayer(ctx, dmg) {
@@ -5831,6 +5833,10 @@
     active = false;
     try { window.GunSFX && window.GunSFX.bgm(false); } catch (e) {}
     phase = "result";
+    /* the result card owns the screen: no gun, HUD or radio peeking out from behind it */
+    if (pistol) pistol.visible = false;
+    showHud(false);
+    if (radioEl) radioEl.classList.remove("show");
     window.__railPhase = "result";
     const acc = shotsFired ? shotsHit / shotsFired : 0;
     const got = pickups.filter((p) => p.taken).length;
@@ -5869,6 +5875,7 @@
     posts.forEach((p) => tagOff(p));
     if (bossPost) tagOff(bossPost);
     if (ctx.G) { ensureHud(ctx.G.score || 0); drawHud(); }
+    showHud(false);
   }
 
   /* ---------------- effects ---------------- */
@@ -6153,6 +6160,8 @@
 
   function fire(ctx) {
     if (!ctx || !booted || reloading || ended) return;
+    /* the Stage 2 camera intro has no gun in hand: a click there must not spend a round */
+    if (phase === "intro") return;
     const now = performance.now();
     if (now - lastShot < 130) return;
     if (bullets <= 0) { gun("dry"); lastShot = now; return; }
@@ -6986,7 +6995,7 @@
     recoil = Math.max(0, recoil - 0.08);
     if (reloadK > 0) reloadK = Math.max(0, reloadK - dt / 0.44);
     if (pistol && pistolBase) {
-      if (pistol.visible === (phase === "intro")) pistol.visible = phase !== "intro";
+      { const want = phase !== "intro" && phase !== "result"; if (pistol.visible !== want) pistol.visible = want; }
       const asp = innerWidth / Math.max(1, innerHeight);
       const tHalf = Math.tan((cam.fov * Math.PI) / 360) * Math.abs(pistolBase.z);
       const halfW = tHalf * asp;
