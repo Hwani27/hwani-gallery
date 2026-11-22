@@ -48,6 +48,7 @@
       try {
         if (typeof AFX !== "undefined" && AFX.sfxBus) dest = AFX.sfxBus();
       } catch (e) {}
+      setTimeout(() => loadSamples(ctx), 0);
       comp = ctx.createDynamicsCompressor();
       comp.threshold.value = -16;
       comp.knee.value = 14;
@@ -89,6 +90,37 @@
     }
     if (ctx.state === "suspended") ctx.resume();
     return ctx;
+  }
+
+  /* (v26) recorded sounds, when there are any: sfx/manifest.json maps a key
+     to a file in sfx/ ({"loop_rotor": "heli.ogg", "scream": ["a.ogg","b.ogg"]}).
+     Every key that has a file plays it; every key without one keeps the
+     synthesized sound, so the folder can be filled in one file at a time. */
+  const SMP = { buf: {}, tried: false };
+  function loadSamples(c) {
+    if (SMP.tried || typeof fetch === "undefined") return;
+    SMP.tried = true;
+    fetch("sfx/manifest.json", { cache: "no-cache" }).then((r) => (r.ok ? r.json() : {})).then((m) => {
+      Object.keys(m || {}).forEach((k) => {
+        [].concat(m[k]).forEach((f) => {
+          fetch("sfx/" + f).then((r) => r.arrayBuffer()).then((b) => new Promise((ok, no) => c.decodeAudioData(b, ok, no))).then((buf) => {
+            (SMP.buf[k] = SMP.buf[k] || []).push(buf);
+          }).catch(() => {});
+        });
+      });
+    }).catch(() => {});
+  }
+  function hasSample(k) { return !!(SMP.buf[k] && SMP.buf[k].length); }
+  function playSample(k, gain, rate, dest) {
+    const L = SMP.buf[k];
+    if (!L || !L.length || !ctx) return false;
+    const src = ctx.createBufferSource();
+    src.buffer = L[(Math.random() * L.length) | 0];
+    src.playbackRate.value = rate || 1;
+    const g = ctx.createGain(); g.gain.value = gain == null ? 0.8 : gain;
+    src.connect(g); g.connect(dest || bus);
+    src.start();
+    return true;
   }
 
   function noise(c, seconds) {
@@ -225,28 +257,60 @@
     band(c, t + 0.02, 0.08, "bandpass", 2400, 2.0, 0.2, 0.001, 0.06, bus);
   }
 
-  /* (v20) a two-stroke bike coming in: a buzzing sawtooth that climbs
-     through two gears, through a low-pass so it sits behind the guns */
+  /* (v26) a motorcycle that sounds like one: not a buzzing saw but a train
+     of exhaust pops. A pulse wave (many equal harmonics) at the firing rate,
+     a soft clip, a low exhaust resonance and a puff of noise gated by every
+     pop; the firing rate is the rev. */
+  let pulseWave = null;
+  function bikeVoice(c, out, nodes, base) {
+    if (!pulseWave) {
+      const N = 28, re = new Float32Array(N + 1), im = new Float32Array(N + 1);
+      for (let n = 1; n <= N; n++) re[n] = 1 / (1 + n * 0.09) * (n % 2 ? 1 : 0.8);
+      pulseWave = c.createPeriodicWave(re, im);
+    }
+    const st = (o) => { o.start(); nodes.push(o); return o; };
+    const fire = c.createOscillator(); fire.setPeriodicWave(pulseWave); fire.frequency.value = base; st(fire);
+    const sh = c.createWaveShaper();
+    const cv = new Float32Array(256); for (let i = 0; i < 256; i++) { const x = i / 128 - 1; cv[i] = Math.tanh(x * 2.2); } sh.curve = cv;
+    const pre = c.createGain(); pre.gain.value = 0.09;
+    const body = c.createBiquadFilter(); body.type = "lowpass"; body.frequency.value = 820; body.Q.value = 0.9;
+    const pipe = c.createBiquadFilter(); pipe.type = "peaking"; pipe.frequency.value = 150; pipe.Q.value = 1.2; pipe.gain.value = 9;
+    const g = c.createGain(); g.gain.value = 0.55;
+    fire.connect(pre); pre.connect(sh); sh.connect(body); body.connect(pipe); pipe.connect(g); g.connect(out);
+    /* exhaust breath: noise opened by each pop */
+    const nz = c.createBufferSource(); nz.buffer = noise(c, 2); nz.loop = true; st(nz);
+    const nb = c.createBiquadFilter(); nb.type = "bandpass"; nb.frequency.value = 1300; nb.Q.value = 0.8;
+    const gate = c.createGain(); gate.gain.value = 0;
+    const pop = c.createOscillator(); pop.type = "square"; pop.frequency.value = base; st(pop);
+    const pg = c.createGain(); pg.gain.value = 0.06; pop.connect(pg); pg.connect(gate.gain);
+    nz.connect(nb); nb.connect(gate); gate.connect(out);
+    /* a rider never holds the throttle dead still */
+    const wob = c.createOscillator(); wob.type = "sine"; wob.frequency.value = 2.3; st(wob);
+    const wg = c.createGain(); wg.gain.value = base * 0.035; wob.connect(wg); wg.connect(fire.frequency); wg.connect(pop.frequency);
+    return { fire, pop };
+  }
   function motor() {
     if (muted()) return;
     const c = ac();
+    if (playSample("bike_pass", 0.7, 0.95 + Math.random() * 0.1)) return;
     const t = c.currentTime;
-    const o = c.createOscillator(), o2 = c.createOscillator(), f = c.createBiquadFilter(), gN = c.createGain();
-    o.type = "sawtooth"; o2.type = "square";
-    o.frequency.setValueAtTime(62, t);
-    o.frequency.linearRampToValueAtTime(118, t + 0.7);
-    o.frequency.linearRampToValueAtTime(84, t + 0.8);
-    o.frequency.linearRampToValueAtTime(140, t + 1.6);
-    o.frequency.linearRampToValueAtTime(70, t + 2.2);
-    o2.frequency.setValueAtTime(31, t);
-    o2.frequency.linearRampToValueAtTime(70, t + 1.6);
-    f.type = "lowpass"; f.frequency.value = 900; f.Q.value = 2;
-    gN.gain.setValueAtTime(0.0001, t);
-    gN.gain.exponentialRampToValueAtTime(0.16, t + 0.12);
-    gN.gain.setValueAtTime(0.16, t + 1.7);
-    gN.gain.exponentialRampToValueAtTime(0.0001, t + 2.3);
-    o.connect(f); o2.connect(f); f.connect(gN); gN.connect(bus);
-    o.start(t); o2.start(t); o.stop(t + 2.4); o2.stop(t + 2.4);
+    const out = c.createGain(), nodes = [];
+    out.connect(bus);
+    const v = bikeVoice(c, out, nodes, 30);
+    /* blip, first gear, second gear, roll off */
+    [v.fire.frequency, v.pop.frequency].forEach((f) => {
+      f.setValueAtTime(30, t);
+      f.linearRampToValueAtTime(58, t + 0.35);
+      f.linearRampToValueAtTime(72, t + 0.9);
+      f.linearRampToValueAtTime(52, t + 1.0);
+      f.linearRampToValueAtTime(80, t + 1.7);
+      f.linearRampToValueAtTime(36, t + 2.3);
+    });
+    out.gain.setValueAtTime(0.0001, t);
+    out.gain.exponentialRampToValueAtTime(0.5, t + 0.1);
+    out.gain.setValueAtTime(0.5, t + 1.8);
+    out.gain.exponentialRampToValueAtTime(0.0001, t + 2.4);
+    nodes.forEach((n) => { try { n.stop(t + 2.5); } catch (e) {} });
   }
 
   /* (v21) looping engines: rotor thump for helicopters, a diesel growl for
@@ -260,6 +324,13 @@
     out.gain.value = 0.0001;
     out.connect(bus);
     const nodes = [];
+    if (hasSample("loop_" + kind)) {
+      const L = SMP.buf["loop_" + kind];
+      const src = c.createBufferSource(); src.buffer = L[0]; src.loop = true;
+      src.loopStart = 0; src.start(0, Math.random() * L[0].duration); nodes.push(src);
+      src.connect(out);
+      return { out, nodes, kind, seen: 0, a: null, smp: src };
+    }
     const osc = (type, f) => { const o = c.createOscillator(); o.type = type; o.frequency.value = f; o.start(); nodes.push(o); return o; };
     const lp = (f, q) => { const b = c.createBiquadFilter(); b.type = "lowpass"; b.frequency.value = f; b.Q.value = q || 0.8; return b; };
     if (kind === "rotor") {
@@ -277,8 +348,11 @@
       a.connect(f); b.connect(f); f.connect(g); g.connect(out);
       const src = c.createBufferSource(); src.buffer = noise(c, 2); src.loop = true; src.start(); nodes.push(src);
       const nf = lp(180); const ng = c.createGain(); ng.gain.value = 0.35; src.connect(nf); nf.connect(ng); ng.connect(out);
+    } else if (kind === "bike") {
+      const v = bikeVoice(c, out, nodes, 46);
+      return { out, nodes, kind, seen: 0, a: v.fire, b: v.pop, base: 46 };
     } else {
-      /* bike / jeep */
+      /* jeep */
       const base = kind === "jeep" ? 52 : 88;
       const a = osc("sawtooth", base), b = osc("square", base / 2);
       const f = lp(kind === "jeep" ? 620 : 1100, 3); const g = c.createGain(); g.gain.value = 0.6;
@@ -313,7 +387,14 @@
     L.seen = performance.now();
     const gv = Math.max(0.0001, Math.min(0.5, gain || 0));
     try { L.out.gain.setTargetAtTime(gv, c.currentTime, 0.08); } catch (e) {}
-    if (pitch && L.a && L.a.frequency && kind !== "rotor") { try { L.a.playbackRate || L.a.frequency.setTargetAtTime((kind === "jeep" ? 52 : kind === "diesel" ? 38 : 88) * pitch, c.currentTime, 0.1); } catch (e) {} }
+    if (pitch && L.smp) { try { L.smp.playbackRate.setTargetAtTime(Math.max(0.5, Math.min(2, pitch)), c.currentTime, 0.1); } catch (e) {} }
+    if (pitch && L.a && L.a.frequency && kind !== "rotor") {
+      try {
+        const f = (L.base || (kind === "jeep" ? 52 : kind === "diesel" ? 38 : 88)) * pitch;
+        L.a.frequency.setTargetAtTime(f, c.currentTime, 0.1);
+        if (L.b) L.b.frequency.setTargetAtTime(f, c.currentTime, 0.1);
+      } catch (e) {}
+    }
     if (!loopTimer) loopTimer = setInterval(loopTick, 200);
   }
   function stopLoops() {
@@ -411,6 +492,7 @@
     const nowMs = typeof performance !== "undefined" ? performance.now() : Date.now();
     if (nowMs - lastGruntAt < (fatal ? 70 : 45)) return false;
     if (liveGrunt > 4) return false;
+    if (playSample(fatal ? "scream" : "hurt", fatal ? 0.75 : 0.6, 0.9 + Math.random() * 0.25)) { lastGruntAt = nowMs; return true; }
     lastGruntAt = nowMs;
     liveGrunt++;
 
@@ -517,6 +599,7 @@
   function boom() {
     if (muted()) return;
     const c = ac();
+    if (playSample("explosion", 0.95, 0.85 + Math.random() * 0.3)) return;
     const t = c.currentTime;
     // ignition crack
     band(c, t, 0.06, "highpass", 3200, 0.6, 0.8, 0.0008, 0.03, bus);

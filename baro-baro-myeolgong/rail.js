@@ -52,7 +52,7 @@
   let puff = null;
   let hud = null;
   let clock = 90;
-  let bullets = 20;
+  let bullets = 20, clipMax = 20;
   let lastShot = 0;
   let hp = 100;
   let lives = 3;
@@ -60,8 +60,21 @@
      MGProfile (profile.js) at the start of every mission */
   let HPMAX = 100, LIVES0 = 3, continues = 0, practice = false, contOpen = false;
   let DIFF = { dmg: 1, aim: 1, lives: 3, boss: 1, xp: 1 }, PERK = { hp: 100, nades: 0, reload: 1, lives: 0 }, diffKey = "normal";
+  /* (v26) pistol finishes bought at the supply depot */
+  const SKIN_COL = {
+    base: [0x4b5563, 0x323945, 0x606b78, 0x22262c], desert: [0xb09a74, 0x8a7656, 0xc4ad86, 0x6e5e44], digital: [0x5a6a4a, 0x3e4a32, 0x6e7e5a, 0x2e3826],
+    navy: [0x2e4a72, 0x1e3050, 0x4a6a96, 0x1a2230], chrome: [0xd8dde2, 0xa8b0b8, 0xeef2f6, 0x2a2e34], gold: [0xe0b440, 0xb88a20, 0xf2cc60, 0x2a1e10], dragon: [0x8a1a1a, 0x3a0a0a, 0xc8302a, 0x140808]
+  };
+  function applySkin(id) {
+    const M = window.__pistolMats, c = SKIN_COL[id] || SKIN_COL.base;
+    if (!M) return;
+    [M.slide, M.slideDark, M.slideTop, M.poly].forEach((m, i) => { m.color.setHex(c[i]).convertSRGBToLinear(); });
+  }
+  let LOAD = null, armor = 0;
   function readProfile() {
     const P = window.MGProfile;
+    try { applySkin((P && P.skin) || "base"); } catch (e) {}
+    try { LOAD = P && P.takeLoadout ? P.takeLoadout() : null; } catch (e) { LOAD = null; }
     try {
       DIFF = (P && P.diffDef) || DIFF;
       diffKey = (P && P.diff) || "normal";
@@ -74,6 +87,8 @@
   }
   let combo = 0;
   let bestCombo = 0;
+  /* (v26) tallies for the daily missions */
+  const MS = { kills: 0, heads: 0, bikes: 0, nades: 0 };
   let shotsFired = 0;
   let shotsHit = 0;
   let hostageHits = 0;
@@ -163,6 +178,20 @@
       #railPhoto{position:fixed;left:50%;bottom:max(16px,env(safe-area-inset-bottom));transform:translateX(-50%);z-index:55;display:flex;gap:10px;padding:8px;border-radius:16px;background:rgba(0,0,0,.55);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
       #railPhoto button{min-width:96px;min-height:46px;border-radius:12px;border:2px solid #d8c98a;background:#2a3420;color:#fff;font:900 15px/1 Pretendard,system-ui,sans-serif;cursor:pointer}
       #railPhoto p{margin:0 6px;align-self:center;color:#d8d8c8;font-size:12px}
+      #railPause{position:fixed;top:max(64px,calc(env(safe-area-inset-top) + 58px));right:max(14px,env(safe-area-inset-right));z-index:42;width:42px;height:42px;padding:9px;border-radius:12px;
+        border:1px solid rgba(255,255,255,.3);background:rgba(10,14,10,.55);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);cursor:pointer;touch-action:manipulation}
+      #railPause svg{width:100%;height:100%;display:block}
+      #railPauseMenu{position:fixed;inset:0;z-index:53;display:flex;align-items:center;justify-content:center;background:rgba(4,8,4,.72);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);
+        font-family:Pretendard,system-ui,sans-serif;color:#fff;padding:16px}
+      #railPauseMenu .pc{width:min(380px,100%);display:grid;gap:10px;text-align:center}
+      #railPauseMenu .k{margin:0;font:800 11px/1 ui-monospace,monospace;letter-spacing:.3em;color:#c9b871}
+      #railPauseMenu h2{margin:2px 0 8px;font-size:34px;font-weight:900}
+      #railPauseMenu button{min-height:52px;border-radius:14px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.07);color:#fff;font:800 16px/1 inherit;cursor:pointer;touch-action:manipulation}
+      #railPauseMenu button.primary{background:linear-gradient(180deg,#56682f,#2c3820);border:2px solid #c9b871;font-size:18px}
+      #railPauseMenu .row{display:flex;gap:8px}#railPauseMenu .row button{flex:1;min-height:44px;font-size:13px}
+      #railPauseMenu .tip{margin:4px 0 0;font:700 12px/1 ui-monospace,monospace;color:#9aa58a}
+      #railShield{position:fixed;inset:0;z-index:41;pointer-events:none;box-shadow:inset 0 0 60px 18px rgba(90,190,255,.55);animation:railShield .25s steps(2) infinite}
+      @keyframes railShield{50%{opacity:.35}}
       #railCont{position:fixed;inset:0;z-index:52;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle,rgba(60,0,0,.55),rgba(0,0,0,.82));
         color:#fff;font-family:Pretendard,system-ui,sans-serif;text-align:center;padding:20px}
       #railCont .cc{width:min(420px,100%)}
@@ -409,6 +438,7 @@
       blit(g, pct, bx + bw - textW(pct, sc * 0.8), by + bh + 5 * sc, sc * 0.8, "#ffd6c8", "#2a0c0c");
     }
     blit(g, "HP " + hp, m, m + 20 * sc, sc, "#ff8a7a", "#2a0c0c");
+    if (armor > 0) blit(g, "ARMOR " + armor, m, m + 38 * sc, sc * 0.8, "#8ad0ff", "#0a1a2a");
     blit(g, "X" + lives, m + textW("HP " + Math.max(100, HPMAX) + " ", sc), m + 20 * sc, sc, "#fff", "#111");
     const by = h - m - 12 * sc;
     if (weapon === "pistol") {
@@ -4166,10 +4196,8 @@
     if (!TRK) {
       const lin = (c) => new T.Color(c).convertSRGBToLinear();
       TRK = {
-        paint: new T.MeshStandardMaterial({ color: lin(0x55603a), roughness: 0.78, metalness: 0.1 }),
-        paintD: new T.MeshStandardMaterial({ color: lin(0x3a4226), roughness: 0.82, metalness: 0.08 }),
-        canvas: new T.MeshStandardMaterial({ color: lin(0x6e6a48), roughness: 0.95 }),
-        wood: new T.MeshStandardMaterial({ color: lin(0x6a5236), roughness: 0.9 }),
+        paint: cmat(0x606c42, 0.78, 0.1), paintD: cmat(0x434c2c, 0.82, 0.08),
+        canvas: cmat(0x7a7650, 0.95), wood: cmat(0x7a5e3e, 0.9),
         black: new T.MeshStandardMaterial({ color: lin(0x141516), roughness: 0.7 }),
         glass: new T.MeshStandardMaterial({ color: lin(0x22303a), roughness: 0.08, metalness: 0.6 }),
         rim: new T.MeshStandardMaterial({ color: lin(0x4a4f3a), roughness: 0.6, metalness: 0.4 }),
@@ -4178,7 +4206,7 @@
     }
     const M = TRK;
     const g = new T.Group();
-    const B = (w, h, d, px, py, pz, m, rz) => { const o = new T.Mesh(new T.BoxGeometry(w, h, d), m); o.position.set(px, py, pz); if (rz) o.rotation.z = rz; o.castShadow = true; o.receiveShadow = true; g.add(o); return o; };
+    const B = (w, h, d, px, py, pz, m, rz) => { const o = new T.Mesh(worldUV(new T.BoxGeometry(w, h, d)), m); o.position.set(px, py, pz); if (rz) o.rotation.z = rz; o.castShadow = true; o.receiveShadow = true; g.add(o); return o; };
     /* chassis rails and bumper */
     B(3.5, 0.16, 0.18, 0.1, 0.62, -0.42, M.black); B(3.5, 0.16, 0.18, 0.1, 0.62, 0.42, M.black);
     B(0.14, 0.2, 1.7, -1.76, 0.66, 0, M.black);
@@ -5847,6 +5875,40 @@
 
   const CITY_Z0 = -62, CITY_Z1 = 62;
   const cityX = (z) => Math.sin(z / 26) * 1.1;
+  /* (v26) a city avenue that turns corners. Everything is still laid out
+     along one straight local avenue; past each turn z the rest of it swings
+     by the turn angle round the crossing. Leg k = number of turns passed. */
+  function cityLeg(turns, z) { let k = 0; (turns || []).forEach((t) => { if (z > t[0]) k++; }); return k; }
+  function cityTurnXZ(turns, k, x, z) {
+    for (let i = k - 1; i >= 0; i--) {
+      const tz = turns[i][0], th = turns[i][1], px = cityX(tz);
+      const dx = x - px, dz = z - tz, c = Math.cos(th), sn = Math.sin(th);
+      x = px + dx * c + dz * sn;
+      z = tz - dx * sn + dz * c;
+    }
+    return [+x.toFixed(3), +z.toFixed(3)];
+  }
+  function cityYaw(turns, k) { let a = 0; for (let i = 0; i < k; i++) a += turns[i][1]; return a; }
+  function bendCityStage(st) {
+    const T_ = st.city && st.city.turns;
+    if (!T_ || !T_.length) return;
+    st.path = st.path.map(([x, z]) => cityTurnXZ(T_, cityLeg(T_, z), x, z));
+    st.waves.forEach((w) => {
+      const k = cityLeg(T_, w.hold[1]);
+      const f = (x, z) => cityTurnXZ(T_, k, x, z);
+      w.hold = f(w.hold[0], w.hold[1]);
+      const lk = f(w.look[0], w.look[2]);
+      w.look = [lk[0], w.look[1], lk[1]];
+      w.yaw = (w.yaw || 0) + cityYaw(T_, k);
+      (w.members || []).forEach((m) => {
+        if (m.run && m.run.from) m.run = Object.assign({}, m.run, { from: f(m.run.from[0], m.run.from[1]) });
+        if (m.car && m.car.path) m.car = Object.assign({}, m.car, { path: m.car.path.map((q) => f(q[0], q[1])) });
+      });
+    });
+    const b = st.boss, k = cityLeg(T_, b.hold[1]);
+    const h = cityTurnXZ(T_, k, b.hold[0], b.hold[1]), l = cityTurnXZ(T_, k, b.look[0], b.look[2]);
+    st.boss = Object.assign({}, b, { hold: h, look: [l[0], b.look[1], l[1]], yaw: cityYaw(T_, k) });
+  }
   const STAGES = {
     /* ---- CHAPTER 1: 남침 — the line falls back south ---- */
     6: {
@@ -5880,7 +5942,7 @@
         cars: [["bus", 7.6, -12, 0, "152"], ["police", -7.4, 26, Math.PI]],
         banners: [[-12.2, 4, "과학도시 대전", "#2a5aa8"], [12.2, 36, "대전 사수", "#a82a2a"]],
         hills: [[0, 170, 240, 50, 30], [-90, 120, 80, 60, 24]],
-        landmarks: [["monorail", -8.2, -60, 52], ["fountain", 16, 70, 4.2, true], ["tower", 0, 112, 56, "hanbit"], ["dome", -30, 86, 13], ["pavilion", 30, 84, 9, 5, {}], ["glass", [[-30, 78, 10, 10, 26, 0], [34, 82, 12, 10, 34, 1], [52, 120, 10, 10, 40, 2], [-56, 130, 12, 10, 30, 1]]]]
+        landmarks: [["monorail", -8.2, -60, -34], ["fountain", 16, 70, 4.2, true], ["tower", 0, 112, 56, "hanbit"], ["dome", -30, 86, 13], ["pavilion", 30, 84, 9, 5, {}], ["glass", [[-30, 78, 10, 10, 26, 0], [34, 82, 12, 10, 34, 1], [52, 120, 10, 10, 40, 2], [-56, 130, 12, 10, 30, 1]]]]
       },
       introDur: 4.2, introCam: [[7, 14, -84, 0, 10, 20], [0.0, 1.68, -62, 0, 1.55, -48]],
       introLines: [{ t: 0.4, text: "서울 함락. 전선은 대전까지 밀렸다." }, { t: 2.2, text: "대전역 일대에서 적의 남하를 지연시켜라!" }],
@@ -5949,7 +6011,7 @@
         cars: [["truck", -7.8, -8, Math.PI], ["police", -7.4, 24, Math.PI]],
         banners: [[-12.2, 6, "부산", "#c22a2a", 9], [-12.2, 40, "최후 방어선", "#2a4aa8"]],
         hills: [[-60, 170, 220, 70, 40]],
-        landmarks: [["market", -11.6, -56, -10, 83], ["cranes", [[150, -40, 0.3], [168, -10, 0.3], [186, 20, 0.3]]], ["boats", [[34, -40, 0.4, 0x2a5aa8], [48, -10, -0.6, 0xc8382a], [30, 14, 1.2, 0x2a8a5a], [60, 34, 0.2, 0xe8b830]]], ["suspension", 120, 70, -0.25, 40, 260], ["lighthouse", 44, 46, 0xc8302a], ["ship", 70, 20, 0.6, 31, 0.6], ["ship", 140, 160, -0.3, 52, 0.8],
+        landmarks: [["market", -11.6, -56, -32, 83], ["cranes", [[150, -40, 0.3], [168, -10, 0.3], [186, 20, 0.3]]], ["boats", [[34, -40, 0.4, 0x2a5aa8], [48, -10, -0.6, 0xc8382a], [30, 14, 1.2, 0x2a8a5a], [60, 34, 0.2, 0xe8b830]]], ["suspension", 120, 70, -0.25, 40, 260], ["lighthouse", 44, 46, 0xc8302a], ["ship", 70, 20, 0.6, 31, 0.6], ["ship", 140, 160, -0.3, 52, 0.8],
           ["glass", [[-30, 80, 10, 10, 40, 0], [-44, 60, 10, 10, 52, 1], [-32, 110, 12, 12, 60, 2], [-56, 96, 10, 10, 46, 0], [-46, 140, 12, 10, 56, 1]]]]
       },
       introDur: 4.4, introCam: [[20, 16, -84, 0, 8, 30], [0.0, 1.68, -62, 0, 1.55, -48]],
@@ -6035,7 +6097,14 @@
         { t: 2.05, text: "지금 즉시 비무장지대(DMZ) 남방한계선을 돌파해 판문점(JSA)을 확보하라!" }
       ]
     }
-  };
+  };  /* (v26) the new cities turn corners like real streets: right then left,
+     or left then right, at the two side streets (z -26 and 22) */
+  (function () {
+    const H = Math.PI / 2;
+    const TT = { 7: [[-26, H], [22, -H]], 8: [[-26, -H], [22, H]], 9: [[-26, H], [22, -H]], 10: [[-26, -H], [22, H]], 11: [[-26, -H], [22, H]], 12: [[-26, H], [22, -H]] };
+    Object.keys(TT).forEach((id) => { const st = STAGES[id]; if (st && st.city) { st.city.turns = TT[id]; bendCityStage(st); } });
+  })();
+
   let STAGE = STAGES[1];
   let stageId = 1;
   let PATH_PTS = STAGE.path;
@@ -6062,6 +6131,7 @@
   let pathLen = 1;
   let pathU = 0;
   let bossHold = { x: YARD_MID, z: BOSS_DEF.hold[1] };
+  let bossYaw = 0;
   let bossU = 0;
 
   function buildRail() {
@@ -6359,6 +6429,7 @@
     const slideDark = mm(0x323945, smetal, 1, 1.6, { roughness: 0.34, metalness: 0.9, bumpMap: sBump, bumpScale: 0.0025 });
     const slideTop = mm(0x606b78, smetal, 1, 1.6, { roughness: 0.2, metalness: 0.95, bumpMap: sBump, bumpScale: 0.002 });
     const poly = mm(0x22262c, mpoly, 2, 2, { roughness: 0.5, metalness: 0.05, bumpMap: pBump, bumpScale: 0.0035 });
+    window.__pistolMats = { slide: slide, slideDark: slideDark, slideTop: slideTop, poly: poly };
     const bore = mk(0x07090b, { roughness: 0.45, metalness: 0.35 });
     const steel = mm(0x828a95, smetal, 1, 1, { roughness: 0.24, metalness: 0.96 });
     const skin = mk(0xc08a5e, { roughness: 0.75 });
@@ -7240,7 +7311,7 @@
     bossCovers = BOSS_DEF.spots.map((s, i) => {
       let g = null;
       try {
-        g = buildCover(coverPlace({ yaw: 0, hold: bossHold }, { role: "boss", lat: s[0], dep: s[1], cover: "heavy" }, i), { yaw: 0 });
+        g = buildCover(coverPlace({ yaw: bossYaw, hold: bossHold }, { role: "boss", lat: s[0], dep: s[1], cover: "heavy" }, i), { yaw: bossYaw });
       } catch (e) {}
       return g;
     });
@@ -7271,6 +7342,7 @@
     const bp = curve.getPointAt(bu);
     bossU = bu;
     bossHold = { x: bp.x, z: bp.z };
+    bossYaw = BOSS_DEF.yaw || 0;
   }
 
   function buildBoss(ctx) { /* the commander is spawned by startBoss() */ bossPost = null; }
@@ -7373,6 +7445,53 @@
     if (rb) rb.style.display = on ? "" : "none";
     const nb = document.getElementById("railNade");
     if (nb) nb.style.display = on ? "" : "none";
+    const pb = document.getElementById("railPause");
+    if (pb) pb.style.display = on ? "" : "none";
+  }
+
+  /* (v26) pause menu: the button top right (or Esc / P, or the app going to
+     the background) freezes the mission; resume, restart, or leave */
+  let pauseOpen = false;
+  function openPause(ctx) {
+    if (pauseOpen || contOpen || ended || finishing || !active || phase === "intro") return;
+    pauseOpen = true;
+    active = false;
+    const pausedAt = performance.now();
+    const ko = (document.documentElement.lang || "").startsWith("ko");
+    try { window.GunSFX && window.GunSFX.stopLoops && window.GunSFX.stopLoops(); window.GunSFX.bgm(false); } catch (e) {}
+    posts.forEach((p) => tagOff(p));
+    const box = document.createElement("div");
+    box.id = "railPauseMenu";
+    const muted = () => { try { return localStorage.getItem("myeolgong_sound") === "0"; } catch (e) { return false; } };
+    box.innerHTML = '<div class="pc"><p class="k">' + (STAGE.label || "") + " · " + (STAGE.city ? "" : "") + (ko ? "작전 일시정지" : "PAUSED") + "</p><h2>" + (ko ? "일시정지" : "PAUSED") + "</h2>" +
+      '<button class="primary" data-a="resume" type="button">▶ ' + (ko ? "계속하기" : "RESUME") + "</button>" +
+      '<button data-a="restart" type="button">↻ ' + (ko ? "처음부터 다시" : "RESTART") + "</button>" +
+      '<button data-a="title" type="button">⌂ ' + (ko ? "메뉴로 돌아가기" : "MAIN MENU") + "</button>" +
+      '<div class="row"><button data-a="sound" type="button">' + (muted() ? "🔇 " + (ko ? "소리 켜기" : "SOUND ON") : "🔊 " + (ko ? "소리 끄기" : "SOUND OFF")) + "</button>" +
+      '<button data-a="gfx" type="button">🖥 ' + (ko ? "그래픽: " : "GFX: ") + ((window.MGPost && window.MGPost.quality) || "auto") + "</button></div>" +
+      '<p class="tip">' + (ko ? "점수 " : "SCORE ") + ((ctx.G && ctx.G.score) || 0).toLocaleString() + " · HP " + Math.max(0, hp) + " · " + (ko ? "목숨 " : "LIVES ") + lives + "</p></div>";
+    document.body.appendChild(box);
+    const resume = () => {
+      box.remove();
+      pauseOpen = false;
+      const now = performance.now();
+      t0 += now - pausedAt;
+      frame._t = now;
+      active = true;
+      try { window.GunSFX && window.GunSFX.bgm(true, false); } catch (e) {}
+    };
+    box.addEventListener("click", (e) => {
+      const b = e.target.closest && e.target.closest("button[data-a]");
+      if (!b) return;
+      e.preventDefault(); e.stopPropagation();
+      const a = b.getAttribute("data-a");
+      if (a === "resume") resume();
+      else if (a === "restart") { box.remove(); pauseOpen = false; try { window.MG && window.MG.playStage(stageId); } catch (err) {} }
+      else if (a === "title") { box.remove(); pauseOpen = false; try { window.MG && window.MG.toTitle(); } catch (err) {} }
+      else if (a === "sound") { const sb = document.getElementById("mgSound"); if (sb) sb.click(); setTimeout(() => { b.textContent = muted() ? "🔇 " + (ko ? "소리 켜기" : "SOUND ON") : "🔊 " + (ko ? "소리 끄기" : "SOUND OFF"); try { window.GunSFX && window.GunSFX.bgm(false); } catch (err) {} }, 50); }
+      else if (a === "gfx") { const gb = document.getElementById("mgGfx"); if (gb) gb.click(); setTimeout(() => { b.textContent = "🖥 " + (ko ? "그래픽: " : "GFX: ") + ((window.MGPost && window.MGPost.pref) || "auto"); }, 50); }
+    });
+    box.__resume = resume;
   }
 
   /* ---- weapons (v16) ----
@@ -7407,13 +7526,24 @@
 
   function resetNumbers(ctx) {
     readProfile();
-    slowmo = 0; slowK = 1; finishing = false; finishNow = false;
+    armor = 0;
+    slowmo = 0; slowK = 1; finishing = false; finishNow = false; invulT = 0; pauseOpen = false;
+    { const sh = document.getElementById("railShield"); if (sh) sh.remove(); const pm = document.getElementById("railPauseMenu"); if (pm) pm.remove(); }
     clock = CLOCK0; bullets = 20; hp = HPMAX; lives = LIVES0; continues = 0; contOpen = false;
     grenades = 2 + (PERK.nades || 0); holding = false;
+    if (LOAD) {
+      grenades += LOAD.nades || 0;
+      if (LOAD.vest) armor = 60;
+      if (LOAD.life) lives += 1;
+      if (LOAD.mag) clipMax = 28;
+    } else clipMax = 20;
+    bullets = clipMax;
     nades.forEach((n) => n.mesh.parent && n.mesh.parent.remove(n.mesh));
     nades.length = 0;
     setWeapon("pistol");
+    if (LOAD && LOAD.start) setWeapon(LOAD.start, LOAD.start === "smg" ? 90 : 16);
     combo = 0; bestCombo = 0; shotsFired = 0; shotsHit = 0; hostageHits = 0;
+    MS.kills = 0; MS.heads = 0; MS.bikes = 0; MS.nades = 0;
     lastShot = 0; reloading = false; reloadK = 0; recoil = 0; hitStop = 0; shake = 0;
     pathU = 0; camX = 0; waveI = 0; wave = null; waveT = 0; waveClean = true; ended = false;
     bossSpawned = false;
@@ -7466,13 +7596,31 @@
     nb.setAttribute("aria-label", "grenade");
     nb.addEventListener("pointerdown", (e) => { e.preventDefault(); e.stopPropagation(); window.RAIL.grenade(); });
     document.body.appendChild(nb);
+    const pbt = document.createElement("button");
+    pbt.id = "railPause";
+    pbt.type = "button";
+    pbt.setAttribute("aria-label", "pause");
+    pbt.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="5" width="4.2" height="14" rx="1.2" fill="#fff"/><rect x="13.8" y="5" width="4.2" height="14" rx="1.2" fill="#fff"/></svg>';
+    pbt.addEventListener("pointerdown", (e) => { e.preventDefault(); e.stopPropagation(); openPause(window.__railCtx); });
+    document.body.appendChild(pbt);
+    if (!window.__railPauseKeys) {
+      window.__railPauseKeys = 1;
+      addEventListener("keydown", (e) => {
+        if (e.key === "Escape" || e.key === "p" || e.key === "P") {
+          const m = document.getElementById("railPauseMenu");
+          if (m && m.__resume) m.__resume(); else openPause(window.__railCtx);
+        }
+      });
+      document.addEventListener("visibilitychange", () => { if (document.hidden) openPause(window.__railCtx); });
+    }
     if (!window.__railKeys) {
       window.__railKeys = 1;
       const aimAt = (e) => { if (e) pointerFrom(e); };
       addEventListener("pointermove", (e) => { if (e.pointerType === "mouse") aimAt(e); });
       const shootAt = (e) => {
         if (!active || ended) return;
-        if (e.target && (e.target.id === "railReload" || e.target.id === "railNade" || e.target.closest && e.target.closest("#railResult,#mgTitle"))) return;
+        if (pauseOpen) return;
+        if (e.target && (e.target.id === "railReload" || e.target.id === "railNade" || e.target.id === "railPause" || e.target.closest && e.target.closest("#railResult,#mgTitle"))) return;
         if (e.button === 2) { window.RAIL.reload(); return; }
         if (e.button != null && e.button !== 0) return;
         aimAt(e);
@@ -7749,7 +7897,9 @@
         const c0 = m.car;
         const truck = makeArmyTruck(SCENE, c0.path[0][0], c0.path[0][1], 0);
         truck.traverse((o) => { if (o.isMesh && o.userData && o.userData.wall) wallList.push(o); });
-        post.car = { g: truck, path: c0.path, speed: c0.speed || 5, delay: c0.delay || 0, seg: 0, t: 0, moving: true };
+        let cpath = c0.path;
+        try { cpath = clearPath(c0.path, 1.3); } catch (e) {}
+        post.car = { g: truck, path: cpath, speed: c0.speed || 5, delay: c0.delay || 0, seg: 0, t: 0, moving: true };
         post.y = 1.38;
         post.coverTop = 1.66;
         post.coverCX = c0.path[0][0];
@@ -7803,6 +7953,17 @@
     curHold = { x: w.hold.x, z: w.hold.z };
     curLook = { x: w.look.x, y: w.look.y, z: w.look.z };
     pathU = w.u;
+    vehB = null;
+    w.staged.forEach((p) => {
+      if (!p || !p.bikeMesh || !p.run || !p.run.from || p.chase) return;
+      const f = clearRunFrom(p.run.from, p.run.dest, 0.55);
+      if (f !== p.run.from) {
+        p.run.from = f;
+        p.x = f[0]; p.z = f[1];
+        p.mesh.position.set(p.x, p.y, p.z);
+        p.bikeYaw = Math.atan2(p.run.dest[0] - p.x, p.run.dest[1] - p.z);
+      }
+    });
     w.staged.forEach((p, i) => {
       if (!p) return;
       p.live = true;
@@ -7893,7 +8054,7 @@
     if (bossStage) return bossStage;
     if (STAGE.bossKind === "apc") return stageBoss2();
     if (STAGE.bossKind === "heli") return stageBossHeli();
-    const w = { yaw: 0, hold: bossHold, covers: bossCovers };
+    const w = { yaw: bossYaw, hold: bossHold, covers: bossCovers };
     const spot = BOSS_DEF.spots[1];
     const post = makePost(w, { role: "boss", lat: spot[0], dep: spot[1], cover: "heavy" }, 1);
     post.isBoss = true;
@@ -7923,7 +8084,7 @@
      lays rocket salvos you can break up by pouring fire into it, and calls
      paratroopers as it weakens */
   function stageBossHeli() {
-    const w = { yaw: 0, hold: bossHold };
+    const w = { yaw: bossYaw, hold: bossHold };
     const post = makeHeliPost(w, { air: "heli", lat: 0, dep: 24, y: 12, front: 16, sweep: 7.5, flyY: 5.0 }, 0);
     post.isBoss = true;
     post.e.hp = Math.round((STAGE.bossHp || 46) * (DIFF.boss || 1));
@@ -8002,7 +8163,7 @@
       /* two bodyguards step out in front of him */
       [-2.8, 2.8].forEach((lat, k) => {
         try {
-          const g = makePost({ yaw: 0, hold: bossHold }, { role: "tough", lat: lat, dep: 8.6 + k * 0.6 }, 40 + k);
+          const g = makePost({ yaw: bossYaw, hold: bossHold }, { role: "tough", lat: lat, dep: 8.6 + k * 0.6 }, 40 + k);
           g.live = true; g.state = "hidden"; g.stateT = 0.5 + k * 0.6; g.guard = true;
         } catch (err) { window.__guardErr = String(err && err.stack || err); }
       });
@@ -8152,9 +8313,12 @@
     if (ctx.G && ctx.G.score < 0) ctx.G.score = 0;
   }
 
+  let invulT = 0;
   function hurtPlayer(ctx, dmg) {
-    if (ended || contOpen || finishing || window.__railGod) return;
-    hp -= Math.max(1, Math.round(dmg * (DIFF.dmg || 1)));
+    if (ended || contOpen || finishing || pauseOpen || invulT > 0 || window.__railGod) return;
+    let dd = Math.max(1, Math.round(dmg * (DIFF.dmg || 1)));
+    if (armor > 0) { const a = Math.min(armor, Math.ceil(dd * 0.7)); armor -= a; dd -= a; }
+    hp -= dd;
     try { window.MGPost && window.MGPost.hurt && window.MGPost.hurt(Math.min(1, 0.35 + dmg / 30)); } catch (e) {}
     shake = 0.7;
     flashScreen(0.6, "radial-gradient(circle at 50% 50%,rgba(255,90,70,.75),rgba(180,20,20,.35) 60%,rgba(120,0,0,0) 85%)");
@@ -8178,10 +8342,10 @@
   let chase = null, jeepRig = null;
   function makeJeepRig() {
     const g = new T.Group();
-    const M = (c, r, m) => new T.MeshStandardMaterial({ color: new T.Color(c).convertSRGBToLinear(), roughness: r, metalness: m || 0, envMapIntensity: 0.3 });
+    const M = (c, r, m) => cmat(c, r, Math.min(0.4, m || 0));
     const olive = M(0x56603a, 0.85), oliveD = M(0x3a4226, 0.9), black = M(0x161616, 0.7), steel = M(0x6a7076, 0.45, 0.5);
     const lamp = new T.MeshBasicMaterial({ color: 0xfff2c8 });
-    const B = (w, h, d, x, y, z, m, rx) => { const o = new T.Mesh(new T.BoxGeometry(w, h, d), m); o.position.set(x, y, z); if (rx) o.rotation.x = rx; g.add(o); return o; };
+    const B = (w, h, d, x, y, z, m, rx) => { const o = new T.Mesh(worldUV(new T.BoxGeometry(w, h, d)), m); o.position.set(x, y, z); if (rx) o.rotation.x = rx; g.add(o); return o; };
     B(1.9, 0.2, 1.9, -0.45, -1.02, -2.25, olive, 0.04);             /* bonnet */
     for (let k = 0; k < 7; k++) B(0.04, 0.03, 1.6, -1.15 + k * 0.233, -0.91, -2.3, oliveD, 0.04); /* bonnet ribs */
     B(1.96, 0.07, 0.07, -0.45, -0.9, -1.28, steel);                 /* folded screen frame */
@@ -8202,9 +8366,9 @@
   let boatRig = null;
   function makeBoatRig() {
     const g = new T.Group();
-    const M = (c, r, m) => new T.MeshStandardMaterial({ color: new T.Color(c).convertSRGBToLinear(), roughness: r, metalness: m || 0, envMapIntensity: 0.4 });
+    const M = (c, r, m) => cmat(c, Math.max(0.3, r), Math.min(0.4, m || 0));
     const hull = M(0x6a7076, 0.6, 0.4), hullD = M(0x4a5056, 0.65, 0.4), deck = M(0x3e4246, 0.8, 0.2), rust = M(0x6a4a36, 0.8);
-    const B = (w, h, d, x, y, z, m) => { const o = new T.Mesh(new T.BoxGeometry(w, h, d), m); o.position.set(x, y, z); g.add(o); return o; };
+    const B = (w, h, d, x, y, z, m) => { const o = new T.Mesh(worldUV(new T.BoxGeometry(w, h, d)), m); o.position.set(x, y, z); g.add(o); return o; };
     [-1, 1].forEach((s) => {
       B(0.16, 0.9, 3.4, s * 1.3, -0.92, -1.9, hull);
       B(0.3, 0.08, 3.4, s * 1.24, -0.45, -1.9, hullD);
@@ -8225,9 +8389,9 @@
   }
   function makeEnemyBoat() {
     const g = new T.Group();
-    const M = (c, r, m) => new T.MeshStandardMaterial({ color: new T.Color(c).convertSRGBToLinear(), roughness: r, metalness: m || 0 });
+    const M = (c, r, m) => cmat(c, Math.max(0.3, r), Math.min(0.4, m || 0));
     const hull = M(0x4e5a44, 0.7, 0.2), dark = M(0x2a302a, 0.7), white = M(0xe8ece8, 0.6);
-    const B = (w, h, d, x, y, z, m) => { const o = new T.Mesh(new T.BoxGeometry(w, h, d), m); o.position.set(x, y, z); o.castShadow = true; g.add(o); return o; };
+    const B = (w, h, d, x, y, z, m) => { const o = new T.Mesh(worldUV(new T.BoxGeometry(w, h, d)), m); o.position.set(x, y, z); o.castShadow = true; g.add(o); return o; };
     B(1.7, 0.5, 4.2, 0, 0.1, 0, hull);
     B(1.3, 0.3, 1.0, 0, 0.1, 2.3, hull).rotation.x = 0.35;
     B(1.0, 0.6, 1.0, 0, 0.6, -0.8, dark);
@@ -8319,9 +8483,22 @@
       const pt = pathAt(u);
       const tg = curve.getTangentAt(u);
       const tl = Math.hypot(tg.x, tg.z) || 1, tx = tg.x / tl, tz = tg.z / tl;
-      const lat = c.lat * (c.ahead < 9 ? 1 + (9 - Math.max(0, c.ahead)) * 0.05 : 1) + Math.sin(chase.t * 1.8 + c.ph) * 0.5;
-      p.x = pt.x + tz * lat * (chase.boat ? 1.6 : 1);
-      p.z = pt.z - tx * lat * (chase.boat ? 1.6 : 1);
+      let lat = c.lat * (c.ahead < 9 ? 1 + (9 - Math.max(0, c.ahead)) * 0.05 : 1) + Math.sin(chase.t * 1.8 + c.ph) * 0.5;
+      /* (v26) steer round barriers instead of through them: look a few metres
+         ahead along his line and slide sideways to the nearest free lane */
+      const lm = chase.boat ? 1.6 : 1, rr = chase.boat ? 1.1 : 0.6;
+      const free = (L) => { for (const a of [0, 1.5, 3.0]) { const q = pathAt(Math.max(0, Math.min(1, pathU + (c.ahead - a) / pathLen))); if (vehHit(q.x + tz * L * lm, q.z - tx * L * lm, rr)) return false; } return true; };
+      let want = 0;
+      if (!free(lat + (c.dodge || 0))) {
+        for (let o = 0.4; o <= 4; o += 0.4) {
+          if (free(lat + o)) { want = o; break; }
+          if (free(lat - o)) { want = -o; break; }
+        }
+      } else want = c.dodge && free(lat) ? 0 : (c.dodge || 0);
+      c.dodge = (c.dodge || 0) + (want - (c.dodge || 0)) * Math.min(1, dt * 6);
+      lat += c.dodge;
+      p.x = pt.x + tz * lat * lm;
+      p.z = pt.z - tx * lat * lm;
       p.y = chase.boat ? 0.5 + Math.sin(chase.t * 2.4 + c.ph) * 0.12 : rideY(p);
       const yaw = Math.atan2(-tx, -tz);
       posePost(p, cam.position, dt);
@@ -8570,6 +8747,12 @@
       lives = LIVES0;
       hp = HPMAX;
       grenades = Math.max(grenades, 2);
+      /* (v26) back in with a full clip and a few seconds of cover */
+      bullets = clipMax; reloading = false; reloadK = 0;
+      if (weapon !== "pistol" && WEAPONS[weapon] && WEAPONS[weapon].ammo) wAmmo = WEAPONS[weapon].ammo;
+      invulT = 4;
+      let sh = document.getElementById("railShield");
+      if (!sh) { sh = document.createElement("div"); sh.id = "railShield"; document.body.appendChild(sh); }
       const now = performance.now();
       t0 += now - pausedAt;
       frame._t = now;
@@ -8633,7 +8816,7 @@
     const score = (ctx.G && ctx.G.score) || 0;
     /* (v20) rank XP and the stage record, then a still for the share card */
     let rec = null;
-    try { rec = window.MGProfile ? window.MGProfile.record({ stage: stageId, cleared: !!cleared, score: score, stars: nStars, diff: diffKey, practice: practice, continues: continues }) : null; } catch (e) { window.__recErr = String(e); }
+    try { rec = window.MGProfile ? window.MGProfile.record({ stage: stageId, cleared: !!cleared, score: score, stars: nStars, diff: diffKey, practice: practice, continues: continues, kills: MS.kills, heads: MS.heads, bikes: MS.bikes, combo: bestCombo, acc: shotsFired ? shotsHit / shotsFired : 0 }) : null; } catch (e) { window.__recErr = String(e); }
     let shot = null;
     try { shot = window.MG && window.MG.snap ? window.MG.snap(1280) : null; } catch (e) {}
     const ko = (document.documentElement.lang || "").startsWith("ko");
@@ -8662,7 +8845,9 @@
         (rec.practice ? (ko ? "연습 모드 — 경험치·기록 없음" : "Practice — no XP or records") : xb.toNext ? (ko ? "다음 계급까지 " : "Next rank in ") + xb.toNext.toLocaleString() + " XP" : (ko ? "최고 계급" : "Top rank")) +
         "</small></div></div>" +
         (rec.rankUp ? '<div class="up">' + (ko ? "진급! " : "PROMOTED! ") + P.rankName(rec.rank0) + " → <b>" + P.rankName(r1) + "</b>" + (rec.perk && rec.perk.length ? "<small>" + rec.perk.join(" · ") + "</small>" : "") + "</div>" : "") +
-        (rec.newBest ? '<div class="nb">' + (ko ? "최고 기록 갱신!" : "NEW BEST!") + "</div>" : "");
+        (rec.newBest ? '<div class="nb">' + (ko ? "최고 기록 갱신!" : "NEW BEST!") + "</div>" : "") +
+        (!rec.practice && (rec.pts || rec.box) ? '<div class="nb" style="color:#ffd54a">' + (rec.pts ? "+" + rec.pts.toLocaleString() + "P " + (ko ? "보급 포인트" : "supply points") : "") + (rec.box ? " · 🎁 " + (ko ? "행운 상자 획득!" : "Lucky box!") : "") + "</div>" : "") +
+        (rec.mis && rec.mis.length ? '<div class="nb" style="color:#9be07a">' + (ko ? "임무 달성: " : "Orders done: ") + rec.mis.join(" · ") + (ko ? " — 메뉴에서 보상 받기" : " — claim in menu") + "</div>" : "");
     }
     const dName = window.MGProfile ? (ko ? DIFF.ko : DIFF.en) : "";
     box.innerHTML = "<div class=card><h2>" + head +
@@ -8961,7 +9146,8 @@
     p.e.alive = false;
     p.state = "dead";
     p.dying = 1.05;
-    if (p.bikeMesh) { dropBike(ctx, p, true); p.y = 0.3; addPts(ctx, 200); }
+    MS.kills++;
+    if (p.bikeMesh) { dropBike(ctx, p, true); p.y = 0.3; addPts(ctx, 200); MS.bikes++; }
     if (p.mount && p.mount.parent) { ctx.scene.attach(p.mount); if (chase) chase.sink.push(p.mount); p.mount = null; addPts(ctx, 200); }
     try {
       const cols = p.role === "boss" ? [0x4a4a30, 0x33331f, 0xe0b48c, 0x2a2a1a] : p.role === "tough" ? [0x424d2c, 0x333d22, 0xe0b48c, 0x1e2416] : [0x5a6a3a, 0x48562e, 0xe8bc94, 0x2c3520];
@@ -9333,6 +9519,7 @@
     try { ctx.hitFlash && ctx.hitFlash(p.e); } catch (e) {}
     if (head) {
       hitMark("head", window.__lastHitPx.x, window.__lastHitPx.y, true, "HEADSHOT!");
+      MS.heads++;
       impactBurst(ctx.scene, hit.at, "head");
       critCross();
       hitStop = Math.max(hitStop, 0.05);
@@ -9616,7 +9803,7 @@
         if (p.isBoss && p.spotI !== undefined) {
           p.spotI = (p.spotI + 1 + ((Math.random() * 2) | 0)) % BOSS_DEF.spots.length;
           const s = BOSS_DEF.spots[p.spotI];
-          const np = waveXY({ yaw: 0, hold: bossHold }, s[0], s[1]);
+          const np = waveXY({ yaw: bossYaw, hold: bossHold }, s[0], s[1]);
           const dl = Math.hypot(np.x - bossHold.x, np.z - bossHold.z) || 1;
           const fr = wallBoxes.length ? pushOutOfWalls(np.x, np.z, 0.4, { x: (np.x - bossHold.x) / dl, z: (np.z - bossHold.z) / dl }) : np;
           p.x = fr.x; p.z = fr.z;
@@ -10066,6 +10253,7 @@
     if (hitStop > 0) { hitStop = Math.max(0, hitStop - dt); dt *= 0.16; }
     if (window.__railSpeed) dt *= window.__railSpeed;
     if (slowmo > 0) { slowmo = Math.max(0, slowmo - dt); dt *= slowK; }
+    if (invulT > 0) { invulT -= dt; if (invulT <= 0) { const sh = document.getElementById("railShield"); if (sh) sh.remove(); } }
     frame._t = nowMs;
     const t = (nowMs - t0) / 1000;
     clock = Math.max(0, CLOCK0 - t);
@@ -10567,6 +10755,81 @@
   }
 
   /* ---------------- walking on the ground ---------------- */
+
+  /* (v26) what a vehicle may not drive through: every cover, the concrete
+     landing barriers and the solid props of the stage. Rebuilt per wave. */
+  let vehB = null, vehBKey = null;
+  function vehBlockers() {
+    const key = wave || 1;
+    if (vehB && vehBKey === key) return vehB;
+    vehB = [];
+    vehBKey = key;
+    walkBlockers.forEach((b) => { if (b.max.y > 0.55) vehB.push(b); });
+    if (coverRoot) {
+      coverRoot.updateMatrixWorld(true);
+      coverRoot.traverse((o) => { if (o.userData && o.userData.cover && o.visible && o.parent) { const b = new T.Box3().setFromObject(o); if (!b.isEmpty() && b.max.y > 0.5) vehB.push(b); } });
+    }
+    landCovers.forEach((c) => { if (c.g && c.g.parent) vehB.push(new T.Box3().setFromObject(c.g)); });
+    return vehB;
+  }
+  function vehHit(x, z, r) {
+    const L = vehBlockers();
+    for (let i = 0; i < L.length; i++) {
+      const b = L[i];
+      if (x > b.min.x - r && x < b.max.x + r && z > b.min.z - r && z < b.max.z + r) return b;
+    }
+    return null;
+  }
+  /* is the line a→b free for a vehicle of half-width r? The last `skip`
+     metres (his own cover at the end) do not count. */
+  function segClear(ax, az, bx, bz, r, skip) {
+    const dx = bx - ax, dz = bz - az, len = Math.hypot(dx, dz);
+    const n = Math.max(2, Math.ceil(len / 0.35));
+    for (let i = 0; i <= n; i++) {
+      const k = i / n;
+      if ((1 - k) * len < (skip || 0)) break;
+      if (vehHit(ax + dx * k, az + dz * k, r)) return false;
+    }
+    return true;
+  }
+  /* a bike's run-in: keep his distance, swing the start around his spot
+     until the line in is free of every barrier */
+  function clearRunFrom(from, dest, r) {
+    if (segClear(from[0], from[1], dest[0], dest[1], r, 1.9)) return from;
+    const dx = from[0] - dest[0], dz = from[1] - dest[1];
+    const d0 = Math.hypot(dx, dz) || 1, a0 = Math.atan2(dx, dz);
+    for (const ds of [1, 0.8, 1.2, 0.6]) {
+      for (let s = 1; s <= 10; s++) {
+        for (const sg of [1, -1]) {
+          const a = a0 + sg * s * 0.16, d = d0 * ds;
+          const fx = dest[0] + Math.sin(a) * d, fz = dest[1] + Math.cos(a) * d;
+          if (vehHit(fx, fz, r + 0.3)) continue;
+          if (segClear(fx, fz, dest[0], dest[1], r, 1.9)) return [fx, fz];
+        }
+      }
+    }
+    return from;
+  }
+  /* a truck's route: a blocked leg gets a detour point beside the barrier */
+  function clearPath(path, r) {
+    const out = [path[0]];
+    for (let i = 1; i < path.length; i++) {
+      const a = out[out.length - 1], b = path[i];
+      const last = i === path.length - 1;
+      if (segClear(a[0], a[1], b[0], b[1], r, last ? 2.2 : 0)) { out.push(b); continue; }
+      const dx = b[0] - a[0], dz = b[1] - a[1], len = Math.hypot(dx, dz) || 1;
+      const nx = dz / len, nz = -dx / len, mx = (a[0] + b[0]) / 2, mz = (a[1] + b[1]) / 2;
+      let done = false;
+      for (let o = 1.2; o <= 7 && !done; o += 0.8) {
+        for (const sg of [1, -1]) {
+          const w = [mx + nx * o * sg, mz + nz * o * sg];
+          if (segClear(a[0], a[1], w[0], w[1], r, 0) && segClear(w[0], w[1], b[0], b[1], r, last ? 2.2 : 0)) { out.push(w, b); done = true; break; }
+        }
+      }
+      if (!done) out.push(b);
+    }
+    return out;
+  }
 
   function canWalk(x, z) {
     for (let i = 0; i < walkBlockers.length; i++) {
@@ -12328,15 +12591,56 @@
 
   /* ---- shared materials and little builders for the city landmarks ---- */
   const CM = {};
+  /* (v26) the generic block surface for every built-up prop: 8×8 cells of
+     slightly varied stone/paint per 1.6 m, mortar lines, chips and stains;
+     tinted by the material colour, voxelized and given relief like the rest
+     of the world. UVs are scaled to world metres (bx/cyl) so it never
+     stretches. */
+  function propTex() {
+    return ctex("propVox", 128, 128, (g, w, h) => {
+      const r = rng(4242);
+      for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) {
+        const v = 212 + ((r() * 40) | 0) - (r() < 0.08 ? 40 : 0);
+        g.fillStyle = "rgb(" + v + "," + v + "," + (v - 4) + ")";
+        g.fillRect(x * 16, y * 16, 16, 16);
+      }
+      g.fillStyle = "rgba(0,0,0,.10)";
+      for (let k = 0; k <= 8; k++) { g.fillRect(0, k * 16 - 1, w, 2); g.fillRect(k * 16 + (k % 2 ? 8 : 0) - 1, 0, 2, h); }
+      for (let i = 0; i < 26; i++) { g.fillStyle = "rgba(" + (r() < 0.5 ? "60,50,40," : "255,255,255,") + (0.06 + r() * 0.1) + ")"; g.fillRect((r() * 16 | 0) * 8, (r() * 16 | 0) * 8, 8, 8 + (r() < 0.3 ? 16 : 0)); }
+    });
+  }
+  function worldUV(geo, sc) {
+    /* box: scale each face's 0..1 uvs by that face's size in metres */
+    const p = geo.parameters || {};
+    const uv = geo.attributes.uv;
+    if (!uv) return geo;
+    const k = 1 / (sc || 1.6);
+    if (geo.type === "BoxGeometry") {
+      const W = p.width || 1, H = p.height || 1, D = p.depth || 1;
+      const faces = [[D, H], [D, H], [W, D], [W, D], [W, H], [W, H]];
+      const per = uv.count / 6;
+      for (let f = 0; f < 6; f++) for (let i = 0; i < per; i++) { const j = f * per + i; uv.setXY(j, uv.getX(j) * faces[f][0] * k, uv.getY(j) * faces[f][1] * k); }
+    } else if (geo.type === "CylinderGeometry") {
+      const C = Math.PI * ((p.radiusTop || 1) + (p.radiusBottom || 1)), H = p.height || 1;
+      for (let j = 0; j < uv.count; j++) uv.setXY(j, uv.getX(j) * C * k, uv.getY(j) * H * k);
+    } else {
+      for (let j = 0; j < uv.count; j++) uv.setXY(j, uv.getX(j) * 4 * k, uv.getY(j) * 4 * k);
+    }
+    uv.needsUpdate = true;
+    return geo;
+  }
   function cmat(c, r, m, o) {
     const k = c + "|" + r + "|" + (m || 0) + "|" + (o ? JSON.stringify(o) : "");
     if (CM[k]) return CM[k];
+    const plain = (o && o.plain) || (m || 0) > 0.45 || r < 0.2;
     const p = Object.assign({ color: new T.Color(c).convertSRGBToLinear(), roughness: r, metalness: m || 0 }, o || {});
+    delete p.plain;
+    if (!plain && !p.map) { const t = propTex().clone(); t.needsUpdate = true; t.wrapS = t.wrapT = T.RepeatWrapping; p.map = t; }
     if (p.emissive != null) p.emissive = new T.Color(p.emissive).convertSRGBToLinear();
     return (CM[k] = new T.MeshStandardMaterial(p));
   }
   function bx(S, w, h, d, x, y, z, m, o) {
-    const g = new T.Mesh(new T.BoxGeometry(w, h, d), m);
+    const g = new T.Mesh(worldUV(new T.BoxGeometry(w, h, d)), m);
     g.position.set(x, y, z);
     if (o && o.ry) g.rotation.y = o.ry;
     if (o && o.rz) g.rotation.z = o.rz;
@@ -12349,7 +12653,7 @@
     return g;
   }
   function cyl(S, rt, rb, h, x, y, z, m, seg, o) {
-    const g = new T.Mesh(new T.CylinderGeometry(rt, rb, h, seg || 16), m);
+    const g = new T.Mesh(worldUV(new T.CylinderGeometry(rt, rb, h, seg || 16)), m);
     g.position.set(x, y, z);
     g.castShadow = !(o && o.noCast);
     g.receiveShadow = true;
@@ -12845,6 +13149,58 @@
   }
 
   /* ---- the shared avenue ---- */
+  /* (v26) swing the legs of a city round their corners: every prop laid
+     past a turn moves into that leg's group (rotated about the crossing);
+     whatever then stands in another leg's street is cleared, and where two
+     legs' blocks meet the earlier one stays */
+  function bendCity(S, TURNS, keep, C) {
+    const legs = [S];
+    TURNS.forEach(([tz, th], i) => {
+      const G = new T.Group();
+      G.name = "cityLeg" + (i + 1);
+      const px = cityX(tz), c = Math.cos(th), sn = Math.sin(th);
+      G.rotation.y = th;
+      G.position.set(px - (px * c + tz * sn), 0, tz - (-px * sn + tz * c));
+      legs[i].add(G);
+      legs.push(G);
+    });
+    S.children.slice().forEach((o) => {
+      if (keep.has(o) || legs.indexOf(o) >= 0 || o.userData.fixedLeg) return;
+      let k = o.userData.leg;
+      if (k == null) {
+        const b = new T.Box3().setFromObject(o);
+        if (b.isEmpty()) return;
+        k = cityLeg(TURNS, (b.min.z + b.max.z) / 2);
+      }
+      if (k > 0) legs[k].add(o);
+    });
+    S.updateMatrixWorld(true);
+    const inv = legs.map((g) => new T.Matrix4().copy(g.matrixWorld).invert());
+    const v = new T.Vector3();
+    const lo = (j) => (j === 0 ? -1e9 : TURNS[j - 1][0]), hi = (j) => (j === TURNS.length ? 1e9 : TURNS[j][0] + 11.8);
+    const inCorr = (j, wx, wz) => { v.set(wx, 0, wz).applyMatrix4(inv[j]); return v.z > lo(j) && v.z < hi(j) && Math.abs(v.x - cityX(v.z)) < 11.8; };
+    const drop = [], blks = [];
+    legs.forEach((g, i) => g.children.slice().forEach((o) => {
+      if (legs.indexOf(o) >= 0 || keep.has(o) || o.isInstancedMesh || o.userData.fixedLeg) return;
+      const b = new T.Box3().setFromObject(o);
+      if (b.isEmpty() || b.max.y < 0.5) return;
+      const sx = b.max.x - b.min.x, sz = b.max.z - b.min.z;
+      if (sx > 70 || sz > 70) return;
+      let hit = false;
+      if (!o.userData.keepBend) {
+        for (let a = 0; a <= 4 && !hit; a++) for (let c = 0; c <= 4 && !hit; c++) {
+          const wx = b.min.x + 0.5 + Math.max(0, sx - 1) * a / 4, wz = b.min.z + 0.5 + Math.max(0, sz - 1) * c / 4;
+          for (let j = 0; j < legs.length; j++) if (j !== i && inCorr(j, wx, wz)) { hit = true; break; }
+        }
+      }
+      if (hit) { drop.push(o); return; }
+      if (o.userData.blk || o.userData.keepBend) blks.push([o.userData.keepBend ? -1 : i, b.expandByScalar(-0.3), o]);
+    }));
+    blks.forEach(([i, b, o]) => { const hit = i >= 0 && blks.find(([j, B, O]) => O !== o && j < i && drop.indexOf(O) < 0 && B.intersectsBox(b)); if (hit) drop.push(o); });
+    drop.forEach((o) => { if (o.parent) o.parent.remove(o); });
+    window.__bend = { legs: legs.length, dropped: drop.length };
+  }
+
   function dressCity(ctx) {
     makeSol();
     const C = STAGE.city;
@@ -12852,6 +13208,18 @@
     S.name = "battlefieldCity";
     ctx.scene.add(S);
     const R = rng(C.seed || 77);
+    const TURNS = C.turns || [];
+    /* (v26) the seafront only runs along the first leg once the avenue turns */
+    const seaHere = (z) => !!C.seaSide && (!TURNS.length || z < TURNS[0][0] - 2);
+    const nearTurn = (z, d) => TURNS.some((t) => Math.abs(z - t[0]) < d);
+    const legSpans = (a, b) => {
+      /* [a,b] cut into one span per leg, leaving each crossing open */
+      if (!TURNS.length) return [[a, b]];
+      const out = []; let z = a;
+      TURNS.forEach((t) => { if (t[0] - 13.9 > z) out.push([z, Math.min(b, t[0] - 13.9)]); z = Math.max(z, t[0] + 13.9); });
+      if (b > z) out.push([z, b]);
+      return out;
+    };
     const sky = makeSkyDome();
     sky.geometry.dispose();
     sky.geometry = new T.SphereGeometry(320, 24, 16);
@@ -12875,10 +13243,12 @@
     const gKey = C.paved ? "cityPave" : "asphaltC";
     const gt = C.paved ? paveTex("cityPave", 31) : asphaltTex("asphaltC", 23, 768);
     const gtx = gt.clone(); gtx.needsUpdate = true; gtx.wrapS = gtx.wrapT = T.RepeatWrapping; gtx.repeat.set(C.paved ? 70 : 40, C.paved ? 70 : 40);
-    const ground = new T.Mesh(new T.PlaneGeometry(320, 320), new T.MeshStandardMaterial({ map: gtx, roughness: 0.86, metalness: 0.02, envMapIntensity: 0.1, color: C.paved ? new T.Color(0xd8d0c0).convertSRGBToLinear() : 0xffffff }));
+    const GS = TURNS.length ? 460 : 320;
+    const ground = new T.Mesh(new T.PlaneGeometry(GS, GS), new T.MeshStandardMaterial({ map: gtx, roughness: 0.86, metalness: 0.02, envMapIntensity: 0.1, color: C.paved ? new T.Color(0xd8d0c0).convertSRGBToLinear() : 0xffffff }));
     ground.rotation.x = -Math.PI / 2;
     ground.position.set(C.seaSide ? -150 : 0, 0.24, C.sea ? 90 : 20);
-    if (C.seaSide) { ground.geometry.dispose(); ground.geometry = new T.PlaneGeometry(320 - 0, 320); ground.position.x = -160 + 12; }
+    if (C.seaSide) { ground.geometry.dispose(); ground.geometry = new T.PlaneGeometry(GS, GS); ground.position.x = -GS / 2 + 12; }
+    if (TURNS.length) gtx.repeat.set(GS / 8, GS / 8);
     ground.receiveShadow = true;
     ground.userData.noBlock = 1;
     S.add(ground);
@@ -12903,11 +13273,14 @@
       if (C.sea) foamStrip(S, 0, -70.5, 260, 3, 0);
       if (C.seaSide) foamStrip(S, 17.4, 0, 3, 200, 0);
     }
+    /* everything so far (sky, ground, water) stays put; what follows is laid
+       along the avenue and turns its corners with it */
+    const keep = new Set(S.children);
     /* road paint and kerbs */
     const paint = (x, z, w, d, m) => { const p = new T.Mesh(new T.PlaneGeometry(w, d), m); p.rotation.x = -Math.PI / 2; p.position.set(x, 0.312, z); p.userData.noBlock = 1; S.add(p); };
     if (!C.paved) {
-      for (let z = CITY_Z0 - 10; z < CITY_Z1 + 20; z += 4) { const x = cityX(z); paint(x - 0.18, z, 0.13, 4.05, SOL.paintYellow); paint(x + 0.18, z, 0.13, 4.05, SOL.paintYellow); }
-      [-5, 5].forEach((lx) => { for (let z = CITY_Z0 - 8; z < CITY_Z1 + 20; z += 7) paint(cityX(z) + lx, z, 0.16, 3.2, SOL.paintWhite); });
+      for (let z = CITY_Z0 - 10; z < CITY_Z1 + 20; z += 4) { if (nearTurn(z, 12)) continue; const x = cityX(z); paint(x - 0.18, z, 0.13, 4.05, SOL.paintYellow); paint(x + 0.18, z, 0.13, 4.05, SOL.paintYellow); }
+      [-5, 5].forEach((lx) => { for (let z = CITY_Z0 - 8; z < CITY_Z1 + 20; z += 7) if (!nearTurn(z, 12)) paint(cityX(z) + lx, z, 0.16, 3.2, SOL.paintWhite); });
       [-26, 22].forEach((cz) => { for (let i = 0; i < 9; i++) paint(-8 + i * 2, cz, 0.55, 3.4, SOL.paintWhite); });
     }
     const walk = (x0, x1, zz0, zz1) => {
@@ -12916,7 +13289,7 @@
       m.position.set((x0 + x1) / 2, 0.36, (zz0 + zz1) / 2); m.receiveShadow = true; m.userData.noBlock = 1; S.add(m);
     };
     const zA = C.sea ? -56 : z0;
-    walk(-13.8, -10, zA, 52); if (!C.seaSide) walk(10, 13.8, zA, 52); else walk(10, 16, zA, z1);
+    legSpans(zA, 52).forEach(([a, b]) => { walk(-13.8, -10, a, b); if (!seaHere(a)) walk(10, 13.8, a, b); else walk(10, 16, a, TURNS.length ? b : z1); });
     /* ---- the blocks either side, with gaps for side streets ---- */
     /* each city's own facade palette: the shared facades, tinted */
     const facs = [SOL.facA, SOL.facB, SOL.facC].map((m, i) => {
@@ -12924,9 +13297,11 @@
       if (!t) return m;
       const c = m.clone(); c.color = new T.Color(t).convertSRGBToLinear(); return c;
     });
-    const block = (side, za, zb) => {
-      const h = (C.low ? 5 : 8) + R() * (C.low ? 3 : (C.tall || 10)) + (zb > 30 ? 4 : 0);
-      const x0 = side < 0 ? -14 - 8 - R() * 6 : 14, x1 = side < 0 ? -14 : 14 + 8 + R() * 6;
+    const block = (side, za, zb, back) => { const G = new T.Group(); G.userData.blk = 1; S.add(G); blockIn(G, side, za, zb, back); };
+    const blockIn = (S, side, za, zb, back) => {
+      const h = (C.low ? 5 : 8) + R() * (C.low ? 3 : (C.tall || 10)) + (zb > 30 ? 4 : 0) + (back ? 6 + R() * 8 : 0);
+      const e = back ? 16 : 0;
+      const x0 = side < 0 ? -14 - e - 8 - R() * 6 : 14 + e, x1 = side < 0 ? -14 - e : 14 + e + 8 + R() * 6;
       if (C.hanok) {
         /* the old town: tiled-roof houses behind a stone wall */
         const cx = (x0 + x1) / 2, cz = (za + zb) / 2;
@@ -12945,47 +13320,66 @@
        with the city's landmarks behind it */
     const runs = [[zA + 2, -30], [-22, 18], [26, 50]];
     {
-      const pw = C.seaSide ? 71 : 110;
+      const sS = seaHere(60);
+      const pw = sS ? 71 : 110;
       const pz = new T.Mesh(new T.BoxGeometry(pw, 0.1, 90), repMat(SOL.pave, pw / 3.2, 90 / 3.2));
-      pz.position.set(C.seaSide ? -19.5 : 0, 0.3, 52 + 45); pz.receiveShadow = true; pz.userData.noBlock = 1; S.add(pz);
+      pz.position.set(sS ? -19.5 : 0, 0.3, 52 + 45); pz.receiveShadow = true; pz.userData.noBlock = 1; S.add(pz);
       for (let i = 0; i < 8; i++) {
         const x = (i % 2 ? 1 : -1) * (14 + (i >> 1) * 7), z = 66 + (i % 3) * 8;
-        if (C.seaSide && x > 15) continue;
+        if (sS && x > 15) continue;
         bx(S, 2.4, 0.7, 2.4, x, 0.65, z, cmat(0xb0aa9c, 0.9));
       }
     }
-    runs.forEach(([a, b]) => {
+    const fillRun = (a, b, sides) => {
       let z = a;
       while (z < b - 6) {
         const len = Math.min(b - z, 12 + R() * 8);
-        block(-1, z, z + len);
-        if (!C.seaSide) block(1, z, z + len);
+        sides.forEach((sd) => { if (sd < 0 || !seaHere(z)) block(sd, z, z + len); });
         z += len + 0.6;
       }
-    });
+    };
+    if (!TURNS.length) runs.forEach(([a, b]) => fillRun(a, b, [-1, 1]));
+    else {
+      /* (v26) each leg's blocks stop short of the corner on the inside of
+         a turn; on the outside the next leg's blocks start back across the
+         end of the old street, so every crossing is a T with a wall ahead */
+      [-1, 1].forEach((sd) => {
+        for (let k = 0; k <= TURNS.length; k++) {
+          let a = zA + 2, b = 50;
+          if (k > 0) { const t = TURNS[k - 1]; a = t[0] + ((sd > 0) === (t[1] > 0) ? 14 : -13.2); }
+          if (k < TURNS.length) { const t = TURNS[k]; b = t[0] + ((sd > 0) === (t[1] > 0) ? -14 : 11.5); }
+          fillRun(a, b, [sd]);
+          /* a taller row behind, so the corners do not open onto bare ground */
+          if (!C.hanok) { let z = a - 8; while (z < b + 6) { const len = 12 + R() * 10; if (sd < 0 || !seaHere(z)) block(sd, z, z + len, true); z += len + 2; } }
+        }
+      });
+    }
     /* the seafront: railing, promenade, benches */
     if (C.seaSide) {
-      bx(S, 0.12, 1.0, z1 - zA, 15.8, 0.86, (zA + z1) / 2, cmat(0x8a8e92, 0.5, 0.6));
-      for (let z = zA; z < z1; z += 2.4) bx(S, 0.12, 1.0, 0.12, 15.8, 0.86, z, cmat(0x6a6e72, 0.5, 0.6));
-      bx(S, 0.6, 3, z1 - zA, 16.2, -1.0, (zA + z1) / 2, cmat(0x9a968c, 0.9));
+      const zr = TURNS.length ? TURNS[0][0] - 12 : z1;
+      bx(S, 0.12, 1.0, zr - zA, 15.8, 0.86, (zA + zr) / 2, cmat(0x8a8e92, 0.5, 0.6));
+      for (let z = zA; z < zr; z += 2.4) bx(S, 0.12, 1.0, 0.12, 15.8, 0.86, z, cmat(0x6a6e72, 0.5, 0.6));
+      bx(S, 0.6, 3, zr - zA, 16.2, -1.0, (zA + zr) / 2, cmat(0x9a968c, 0.9));
     }
     /* ---- street furniture ---- */
     for (let z = zA + 6; z < z1 - 4; z += 14) {
-      makeStreetLamp(S, -10.6, z, Math.PI / 2);
-      if (!C.seaSide) makeStreetLamp(S, 10.6, z + 7, -Math.PI / 2);
+      if (!nearTurn(z, 14)) makeStreetLamp(S, -10.6, z, Math.PI / 2);
+      if (!seaHere(z + 7) && !nearTurn(z + 7, 14)) makeStreetLamp(S, 10.6, z + 7, -Math.PI / 2);
     }
-    const VT = voxBatch();
+    const VTs = [];
     const trunks = [];
     for (let z = zA + 3; z < z1 - 4; z += 11) {
       [-11.6, 11.6].forEach((x, k) => {
-        if (C.seaSide && x > 0) return;
         const zz = z + k * 5.5;
-        if (Math.abs(zz + 24) < 4 || Math.abs(zz - 24) < 4) return;
+        if (seaHere(zz) && x > 0) return;
+        if (Math.abs(zz + 24) < 4 || Math.abs(zz - 24) < 4 || nearTurn(zz, 14)) return;
+        const lg = cityLeg(TURNS, zz);
+        const VT = VTs[lg] || (VTs[lg] = voxBatch());
         voxTree(VT, x, 0.4, zz, 3.4 + R() * 1.2, 300 + ((zz * 7) | 0) + k, { rx: 1.5, ry: 1.2, cube: 0.5, tint: C.cherry && (k + ((zz / 11) | 0)) % 2 ? [0xf2b8d0, 0xe8a0c0, 0xfad0e0] : [0x8ac06a, 0x74a858, 0x9ccc7a] });
         trunks.push([x, zz]);
       });
     }
-    VT.flush(S, "cityTrees");
+    VTs.forEach((VT, lg) => { if (VT) VT.flush(S, "cityTrees" + lg).forEach((m) => { m.userData.leg = lg; }); });
     /* parked vehicles and clutter on the kerb lanes (never in the middle) */
     (C.cars || []).forEach((c) => {
       if (c[0] === "bus") makeCityBus(S, c[1], c[2], c[3] || 0, c[4]);
@@ -13003,11 +13397,21 @@
     /* hills behind the city */
     const VH = voxBatch();
     (C.hills || [[0, 240, 260, 60, 30]]).forEach((hh, i) => voxHill(VH, hh[0], Math.max(hh[1], 200), hh[2], hh[3], hh[4] * 0.85, 600 + i, { cube: 3.2 }));
-    VH.flush(S, "cityHills");
+    VH.flush(S, "cityHills").forEach((m) => { m.userData.leg = TURNS.length; });
     /* the landmarks that say where you are */
     const fires = [], anims = [];
+    const LMS = [];
     (C.landmarks || []).forEach((L) => {
-      try {
+      const listy = { glass: 1, tumuli: 1, cranes: 1, boats: 1 };
+      if (TURNS.length && listy[L[0]] && Array.isArray(L[1]) && L[1].length > 1) L[1].forEach((it) => LMS.push([L[0], [it]]));
+      else LMS.push(L);
+    });
+    const FIXED = { ship: 1, boats: 1, cranes: 1, lighthouse: 1, beach: 1, hedgehogs: 1 };
+    LMS.forEach((L) => {
+      const G = new T.Group();
+      if (FIXED[L[0]] || (L[0] === "suspension" && C.seaSide)) G.userData.fixedLeg = 1;
+      S.add(G);
+      (function (S) { try {
         const k = L[0];
         if (k === "tower") lmTower(S, L[1], L[2], L[3], L[4]);
         else if (k === "pavilion") lmPavilion(S, L[1], L[2], L[3], L[4], L[5]);
@@ -13041,7 +13445,15 @@
           sand.rotation.x = -Math.PI / 2; sand.position.set(0, 0.2, (L[1] + L[2]) / 2); sand.userData.noBlock = 1; S.add(sand);
         }
       } catch (e) { window.__lmErr = String(e && e.stack || e); }
+      })(G);
     });
+    if (TURNS.length) {
+      bendCity(S, TURNS, keep, C);
+      S.updateMatrixWorld(true);
+      const wp = new T.Vector3();
+      barrels.forEach((b) => { b.mesh.getWorldPosition(wp); b.x = wp.x; b.z = wp.z; });
+      trunks.forEach((t) => { const q = cityTurnXZ(TURNS, cityLeg(TURNS, t[1]), t[0], t[1]); t[0] = q[0]; t[1] = q[1]; });
+    }
     /* clouds */
     const clouds = [];
     for (let i = 0; i < 9; i++) {
@@ -13054,7 +13466,8 @@
     const flags = [];
     S.traverse((o) => { if (o.userData && o.userData.cloth) flags.push(o); });
     landCovers = [];
-    [[-4.6, 62.4], [1.4, 63.6], [5.8, 62.2]].forEach(([x, z]) => { const c = landCover(x + cityX(z), z, 2.2); S.add(c.g); landCovers.push(c); });
+    [[-4.6, 62.4], [1.4, 63.6], [5.8, 62.2]].forEach(([x, z]) => { const q = cityTurnXZ(TURNS, cityLeg(TURNS, z), x + cityX(z), z); const c = landCover(q[0], q[1], 2.2); c.g.rotation.y += cityYaw(TURNS, cityLeg(TURNS, z)); S.add(c.g); landCovers.push(c); });
+    S.updateMatrixWorld(true);
     walkBlockers = [];
     S.traverse((o) => {
       if (!o.isMesh) return;
@@ -13393,22 +13806,32 @@
       try {
         const m = makeSoldier("hostage");
         const side = Math.random() < 0.5 ? -1 : 1;
-        m.position.set(side * (11.2 + Math.random() * 1.6), 0.4, cam.z + 18 + Math.random() * 30);
-        m.rotation.y = Math.PI;
+        /* (v26) along the street the rail is on now, wherever it points */
+        let fx = 0, fz = 1, cx = 0, cz = cam.z;
+        if (curve && STAGE.dress === "citygen") {
+          const tg = curve.getTangentAt(Math.min(1, pathU + 0.02)); const tl = Math.hypot(tg.x, tg.z) || 1; fx = tg.x / tl; fz = tg.z / tl;
+          const ahead = 18 + Math.random() * 30, q = pathAt(Math.min(1, pathU + ahead / pathLen));
+          cx = q.x; cz = q.z;
+          const lx = fz, lz = -fx, off = side * (11.2 + Math.random() * 1.6);
+          m.position.set(cx + lx * off, 0.4, cz + lz * off);
+        } else m.position.set(side * (11.2 + Math.random() * 1.6), 0.4, cam.z + 18 + Math.random() * 30);
+        m.rotation.y = Math.atan2(-fx, -fz);
+        m.userData.fwd = [fx, fz];
         m.traverse((o) => { o.userData.noBlock = 1; });
         ctx.scene.add(m);
         AMB.refs.push({ m: m, ph: Math.random() * 6, spd: 1.1 + Math.random() * 0.6 });
       } catch (e) {}
     }
     AMB.refs = AMB.refs.filter((r) => {
-      r.m.position.z -= r.spd * dt; r.ph += dt * r.spd * 5;
+      const fw = r.m.userData.fwd || [0, 1];
+      r.m.position.x -= fw[0] * r.spd * dt; r.m.position.z -= fw[1] * r.spd * dt; r.ph += dt * r.spd * 5;
       const u = r.m.userData;
       if (u.legL) u.legL.rotation.x = Math.sin(r.ph) * 0.6;
       if (u.legR) u.legR.rotation.x = -Math.sin(r.ph) * 0.6;
       if (u.armL) u.armL.rotation.x = -Math.sin(r.ph) * 0.4;
       if (u.armR) u.armR.rotation.x = Math.sin(r.ph) * 0.4;
       if (u.body) u.body.position.y = Math.abs(Math.sin(r.ph)) * 0.04;
-      if (r.m.position.z < cam.z - 6) { r.m.parent && r.m.parent.remove(r.m); return false; }
+      if ((r.m.position.x - cam.x) * fw[0] + (r.m.position.z - cam.z) * fw[1] < -6 || Math.hypot(r.m.position.x - cam.x, r.m.position.z - cam.z) > 90) { r.m.parent && r.m.parent.remove(r.m); return false; }
       return true;
     });
   }
@@ -13842,7 +14265,7 @@
       g.userData.cannonMuzzle = mz;
     }
     const spot = BOSS_DEF.spots[1];
-    const p0 = waveXY({ yaw: 0, hold: bossHold }, spot[0], spot[1]);
+    const p0 = waveXY({ yaw: bossYaw, hold: bossHold }, spot[0], spot[1]);
     /* (v17) armour: ordinary hits barely scratch it; the glowing vent, a
        grenade, or jamming the main gun is how it dies */
     const hp = Math.round((STAGE.bossHp || 60) * (DIFF.boss || 1));
@@ -13884,7 +14307,7 @@
       for (let i = 0; i < n; i++) {
         const lat = (i - (n - 1) / 2) * 4.2 + (Math.random() - 0.5);
         try {
-          const q = makeParaPost({ yaw: 0, hold: bossHold }, { air: "para", role: "para", lat: lat, dep: 13 + Math.random() * 2, y: 7.6 + Math.random(), land: [lat * 1.1, 9.6 + Math.random()] }, 90 + i);
+          const q = makeParaPost({ yaw: bossYaw, hold: bossHold }, { air: "para", role: "para", lat: lat, dep: 13 + Math.random() * 2, y: 7.6 + Math.random(), land: [lat * 1.1, 9.6 + Math.random()] }, 90 + i);
           q.live = true; q.state = "drop"; q.burstN = 0; q.aim = (q.aimMax || 2.4) * (0.8 + Math.random() * 0.4);
         } catch (err) { window.__escortErr = String(err && err.stack || err); }
       }
@@ -13936,18 +14359,33 @@
     stepCannon(p, ctx, dt);
     if (p.jump) {
       const j = p.jump;
-      j.t += dt / 0.8;
-      const k = Math.min(1, j.t);
+      const veh = p.air === "apc";
+      j.t += dt / (veh ? 1.7 : 0.8);
+      const k = veh ? (function (t) { t = Math.min(1, t); return t * t * (3 - 2 * t); })(j.t) : Math.min(1, j.t);
       p.x = j.fx + (j.tx - j.fx) * k;
       p.z = j.fz + (j.tz - j.fz) * k;
-      p.y = 0.3 + Math.sin(Math.PI * k) * 0.95;
+      p.y = veh ? 0.3 : 0.3 + Math.sin(Math.PI * k) * 0.95;
+      if (veh && Math.random() < 0.4) smokeAt(ctx, p.x, 0.4, p.z, 0x8a7c66);
       if (k >= 1) { p.jump = null; p.y = 0.3; p.moveT = 4.2 + Math.random() * 2.0; }
     } else if (p.moveT > 0) {
       p.moveT -= dt;
       if (p.moveT <= 0 && p.burstN === 0) {
-        p.spotI = (p.spotI + 1 + ((Math.random() * 2) | 0)) % BOSS_DEF.spots.length;
+        const NS = BOSS_DEF.spots.length;
+        let pick = (p.spotI + 1 + ((Math.random() * 2) | 0)) % NS;
+        if (p.air === "apc") {
+          /* (v26) a tank drives, it does not hop: only to a spot it can
+             reach without going through a barrier */
+          for (let t = 0; t < NS; t++) {
+            const i = (pick + t) % NS;
+            if (i === p.spotI) continue;
+            const q = waveXY({ yaw: bossYaw, hold: bossHold }, BOSS_DEF.spots[i][0], BOSS_DEF.spots[i][1]);
+            if (segClear(p.x, p.z, q.x, q.z, 1.3, 0)) { pick = i; break; }
+            if (t === NS - 1) pick = p.spotI;
+          }
+        }
+        p.spotI = pick;
         const s = BOSS_DEF.spots[p.spotI];
-        const np = waveXY({ yaw: 0, hold: bossHold }, s[0], s[1]);
+        const np = waveXY({ yaw: bossYaw, hold: bossHold }, s[0], s[1]);
         p.jump = { fx: p.x, fz: p.z, tx: np.x, tz: np.z, t: 0 };
       }
     }
@@ -14147,11 +14585,11 @@
     grenade: () => { try { throwGrenade(window.__railCtx); } catch (err) { window.__nadeErr = String(err && err.stack || err); } },
     giveWeapon: (w) => { if (w === "grenade") grenades += 2; else setWeapon(w); },
     reload: () => {
-      if (!booted || !active || reloading || bullets >= 20 || ended || weapon !== "pistol") return;
+      if (!booted || !active || reloading || bullets >= clipMax || ended || weapon !== "pistol") return;
       reloading = true;
       reloadK = 1;
       gun("reload");
-      setTimeout(() => { bullets = 20; reloading = false; }, 420);
+      setTimeout(() => { bullets = clipMax; reloading = false; }, 420);
     }
   };
 })();
