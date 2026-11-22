@@ -1,5 +1,5 @@
 /* 지금 바로 점프 오프라인 서비스 워커. BUILD는 index.html 해시. */
-const BUILD = 'v6.3.0-82b9a3ff2a';
+const BUILD = 'v6.3.0-ba78c81937';
 const CACHE = 'baro-jump-' + BUILD;
 const CORE = ['./',
   './index.html',
@@ -32,7 +32,10 @@ self.addEventListener('fetch', e => {
   if (url.origin !== self.location.origin) return;
   if (url.pathname.endsWith('/sw.js')) return;
   if (req.mode === 'navigate') {
-    e.respondWith(caches.open(CACHE).then(c => c.match(req).then(hit => hit || c.match('./index.html').then(home => home || fetch(req)))));
+    e.respondWith(fetch(req).then(r => {
+      if (r && r.ok) { const cp = r.clone(); caches.open(CACHE).then(c => c.put(req, cp)); }
+      return r;
+    }).catch(() => caches.open(CACHE).then(c => c.match(req).then(hit => hit || c.match('./index.html')))));
     return;
   }
   e.respondWith(caches.open(CACHE).then(c => c.match(req, { ignoreSearch: true }).then(hit => hit || fetch(req).then(r => {
