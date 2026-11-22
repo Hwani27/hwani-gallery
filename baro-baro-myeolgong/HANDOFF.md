@@ -13,11 +13,11 @@
 | 영어 페이지 | https://hwani27.github.io/hwani-gallery/baro-baro-myeolgong/en.html |
 | 갤러리 카드 | `index.html`의 `baro-baro-myeolgong/` 카드 → `thumb.png` |
 | 폴더 | `work/hwani-gallery/baro-baro-myeolgong/` (완전 독립 빌드) |
-| 현재 버전 | **v12** (`?v=12`, 화면 후처리 `post.js` + 적 테두리 빛) / v11 (`?v=11`, 버그 수정 4건) / 이전 **v10 통합** (`?v=10`) — v10 표면(텍스처·PBR 재질·환경맵·ACES·그림자·총구 화염/탄피) 위에 **Stage 2(DMZ·판문점)** 를 함께 얹은 상태. PR #12(`feat/myeolgong-v9-seoul-polish`)를 main에 병합하며 충돌 4곳을 해소 |
+| 현재 버전 | **v13** (`?v=13`, 레일 관통 수정 · 복셀 텍스처 · 나무/남산/숭례문/버스 · 파편·탄흔) / v12 (`?v=12`, 화면 후처리 `post.js` + 적 테두리 빛) / v11 (`?v=11`, 버그 수정 4건) / 이전 **v10 통합** (`?v=10`) — v10 표면(텍스처·PBR 재질·환경맵·ACES·그림자·총구 화염/탄피) 위에 **Stage 2(DMZ·판문점)** 를 함께 얹은 상태. PR #12(`feat/myeolgong-v9-seoul-polish`)를 main에 병합하며 충돌 4곳을 해소 |
 | 스테이지 | `STAGES` 표: 1 = 서울 시가지(v9 리뉴얼), 2 = DMZ·판문점. 타이틀의 두 버튼 / Stage 1 클리어 결과의 `다음 작전` 버튼으로 진입 |
 | v9 브랜치 | `feat/myeolgong-v9-seoul-polish` → PR #12 (v10도 같은 브랜치) |
 | v6 커밋 | `3df8b62` — full 1st-person arms/torso, adaptive portrait FOV, barrel tracks the aim point |
-| 캐시 버스터 | `?v=12` (index.html·en.html **네 줄**: post·engine·gun-sfx·rail) |
+| 캐시 버스터 | `?v=13` (index.html·en.html **네 줄**: post·engine·gun-sfx·rail) |
 
 | 로컬 실행 | `cd work/hwani-gallery && python3 -m http.server 8133` → `http://127.0.0.1:8133/baro-baro-myeolgong/index.html` |
 
@@ -414,6 +414,21 @@ Stage 1(서울)은 손대지 않았고, 그 뒤에 **Stage 2**를 붙였다. 두
 - **v3**: 군사 리스킨(블록 병사·가림막·기름통), HUD·결과 화면.
 - **v2**: 레일 슈터 골격(`baro-baro-jump` 엔진 위에 얹었다가 이후 완전 분리).
 - **v1**: `baro-baro-jump` HTML을 fetch/DOMParser로 재파싱해 쓰던 시절 → **지금은 금지된 구조**. 독립 빌드로 되돌리지 말 것.
+
+## 7-0. v13 — 벽 관통 수정 + 레퍼런스 비주얼 1차 (2026-11-22)
+
+사용자 지시: "움직임에서 벽·건물 뚫고 가는 거 막기(1-1 골목)", "텍스처·모델링·액션 강화", "버스가 색칠한 네모 수준", 레퍼런스 이미지 4장(복셀 텍스처팩 느낌의 서울·DMZ·판문점·평양 — 평양은 참고만, 아직 미등장).
+
+- **레일 관통 수정** (`buildRailBlockers` / `planSteer` / `steerStep`): 원인은 카메라 경로가 지나간 웨이브의 엄폐물(`covers-wN`)과 나무 줄기를 그대로 통과하던 것. 스테이지를 지을 때 경로 주변의 고체(엄폐물·바리케이드·차량·벽 조각·나무 줄기)를 상자로 모으고(긴 대각선 판은 회전 상자로 판정), 경로를 0.25 m마다 끊어 좌우 −4~+4 m 중 비어 있는 칸을 표시한 뒤 동적계획법으로 "중앙 가까이·천천히 꺾기·정지점에서는 정확히 경로 위" 선을 고른다. 이동 중 카메라는 이 프로파일만큼 옆으로 비켜 간다. 검증: 실제 플레이 궤적을 0.6/1.0/1.6 m 높이 레이로 검사해 Stage 1·2 관통 0건(`tests/clip4.py` 방식, `window.__steerPlan`·`__steer`·`__railBlockers`).
+- **복셀 텍스처팩** (`voxelize` in `ctex`): 모든 표면 텍스처를 1/8로 박스 평균 축소 → 텍셀마다 명암 흔들기 + 일부 밝은/어두운 점 → 확대(보간 없음), 샘플러 Nearest. 크기·UV 그대로라 범프맵도 블록이 된다. 글자·깃발·얼굴·하늘·화면 효과는 제외(`VOXEL_SKIP`).
+- **복셀 키트** (`voxBatch`·`voxTree`·`voxPine`·`voxHill`·`voxSkyline`): 재질별 InstancedMesh(인스턴스 색) 한 개씩이라 나무 수백 그루도 그리기 호출 몇 번. 나무 줄기는 `dress.trunks`로 레일 차단물에 들어간다.
+  - Stage 1: 가로수 17그루(보도·숭례문 대로·마당), 남산 = 복셀 능선(300×110 m, 정상 74 m) + 숲 + 남산타워, 숭례문 뒤 고층 스카이라인 26동, 하늘 더 짙게.
+  - **숭례문 재제작** (`makeSungnyemunFar`): 석축 + 아치 + 여장, 붉은 기둥 2층 누각 + 창살 벽 + 단청 띠, 회색 기와 팔작지붕 2단(모서리 들림), 崇禮門 현판.
+  - Stage 2: 땅을 풀밭으로(도로만 흙), 소나무·참나무 150그루, 바위·풀 무더기, 뒤 숲 능선.
+- **시내버스 재제작** (`busMats`/`makeCityBus`): 랩핑 텍스처(서울버스 초록·연두 띠·흰 하단·스우시), 반투명 창 너머 좌석·손잡이 봉·바닥, 플러그 도어 2개, 지붕 에어컨·CNG 탱크, 토끼귀 사이드미러, 와이퍼, LED 행선판, 휠하우스(검은 구멍) + 허브 너트.
+- **액션**: 적이 쓰러지면 군복·피부색 블록 파편이 튀어 바닥에 튕기며 사라진다(`voxBreak`/`stepChunks`), 벽에 막힌 탄은 표면에 탄흔을 남긴다(`bulletHole`, 최대 90, 스테이지 재시작 시 정리). `__fxCount()`에 `chunks`/`holes`.
+- **회귀 수정**: PR #12 병합 때 `makeCrate`·`makeSandbags`·`makeBarrier`·`makeTruck`이 빠져 Stage 2 꾸미기가 `makeGP`에서 예외로 중단되고 있었다(`__dressErr`, try/catch로 조용히 삼킴). 0650d97에서 복원 → Stage 2 후반 소품(모래주머니·트럭 잔해 등)이 이제 나온다.
+- 성능 참고: Stage 1 그리기 호출 ~1,550, 인스턴스 ~4,200 / Stage 2 ~2,000, ~7,900. 헤드리스(SwiftShader)는 1~2 fps라 `__railSpeed`로 당겨서 검증할 것.
 
 ## 7-1. v12 — 화면 후처리 + 적 테두리 빛 (2026-11-22)
 

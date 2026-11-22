@@ -371,6 +371,66 @@
      walls keep their grain at grazing angles instead of smearing to mush. */
   let MAXANISO = 4;
 
+  /* ---- voxel texture pack ----
+     Every surface texture is painted at full size as before, then folded down
+     to chunky texels (1/8 size, box-averaged), given a per-texel shade jitter
+     and a few bright/dark specks the way block-game texture packs are drawn,
+     and blown back up with no smoothing. The texture keeps its size and UVs,
+     so bump maps made from the same canvas come out blocky too, and the
+     sampler uses nearest filtering up close. Lettering, flags, faces, the sky
+     and screen effects keep their smooth canvases. */
+  const VOXEL_SKIP = /^(flag|star|sign|gateSign|policeText|busRoute|busBoard|workSign|barPanel|led|glint|muzzle|sky|env|face|dmzBoard|cclBoard|mineBoard|chainlink|shopGlass|grip|pistol)/;
+  const VOXEL_DIV = 8;
+  function voxelKey(key) { return !VOXEL_SKIP.test(key) && key.indexOf("@") < 0; }
+  function hash2(x, y, s) {
+    let h = (x * 374761393 + y * 668265263 + s * 2246822519) | 0;
+    h = Math.imul(h ^ (h >>> 13), 1274126177);
+    return ((h ^ (h >>> 16)) >>> 0) / 4294967295;
+  }
+  function voxelize(cv, key) {
+    const w = cv.width, h = cv.height;
+    const sw = Math.max(8, Math.round(w / VOXEL_DIV)), sh = Math.max(8, Math.round(h / VOXEL_DIV));
+    /* box-average in two halvings so the small copy is a true mean, not a
+       bilinear pick */
+    let src = cv, cw = w, ch = h;
+    while (cw / 2 >= sw * 1.01 && ch / 2 >= sh * 1.01) {
+      const nc = document.createElement("canvas");
+      nc.width = Math.max(sw, Math.round(cw / 2)); nc.height = Math.max(sh, Math.round(ch / 2));
+      const ng = nc.getContext("2d");
+      ng.imageSmoothingEnabled = true;
+      ng.drawImage(src, 0, 0, nc.width, nc.height);
+      src = nc; cw = nc.width; ch = nc.height;
+    }
+    const sc = document.createElement("canvas");
+    sc.width = sw; sc.height = sh;
+    const sg = sc.getContext("2d");
+    sg.imageSmoothingEnabled = true;
+    sg.drawImage(src, 0, 0, sw, sh);
+    const id = sg.getImageData(0, 0, sw, sh), d = id.data;
+    let seed = 0;
+    for (let i = 0; i < key.length; i++) seed = (seed * 31 + key.charCodeAt(i)) | 0;
+    for (let y = 0; y < sh; y++) {
+      for (let x = 0; x < sw; x++) {
+        const i = (y * sw + x) * 4;
+        const r = hash2(x, y, seed);
+        /* soft jitter on every texel, a hard speck on a few */
+        let k = 1 + (r - 0.5) * 0.16;
+        const r2 = hash2(x + 911, y + 377, seed);
+        if (r2 > 0.955) k *= 1.16; else if (r2 < 0.045) k *= 0.8;
+        d[i] = Math.min(255, d[i] * k);
+        d[i + 1] = Math.min(255, d[i + 1] * k);
+        d[i + 2] = Math.min(255, d[i + 2] * k);
+      }
+    }
+    sg.putImageData(id, 0, 0);
+    const g = cv.getContext("2d");
+    g.save();
+    g.imageSmoothingEnabled = false;
+    g.clearRect(0, 0, w, h);
+    g.drawImage(sc, 0, 0, w, h);
+    g.restore();
+  }
+
   function ctex(key, w, h, draw, opt) {
     if (MT[key]) return MT[key];
     const t0 = (typeof performance !== "undefined" ? performance.now() : 0);
@@ -380,9 +440,11 @@
     cv.height = h;
     const g = cv.getContext("2d");
     draw(g, w, h);
+    const px = !o.smooth && voxelKey(key) && w >= 64 && h >= 64;
+    if (px) voxelize(cv, key);
     const t = new T.CanvasTexture(cv);
     if (T.sRGBEncoding !== undefined) t.encoding = T.sRGBEncoding;
-    t.magFilter = T.LinearFilter;
+    t.magFilter = px ? T.NearestFilter : T.LinearFilter;
     t.minFilter = T.LinearMipMapLinearFilter;
     t.generateMipmaps = true;
     t.wrapS = t.wrapT = T.RepeatWrapping;
@@ -3530,40 +3592,347 @@
   }
 
   /* the far silhouette down the boulevard: Sungnyemun on its stone base */
+  /* Sungnyemun: a granite platform pierced by a round-topped arch, a
+     two-storey timber pavilion with red columns and dancheong bands, and two
+     hipped roofs of grey tile whose eaves sweep up at the corners (stepped,
+     block-style). Faces the player down the boulevard. */
   function makeSungnyemunFar(S, cx, cz, s) {
     makeSol();
-    const W = 26 * s, D = 9 * s, BASE = 8.4 * s;
     const g = new T.Group();
-    const stone = repMat(SOL.gateStone, W / 6, BASE / 6);
-    const base = new T.Mesh(new T.BoxGeometry(W, BASE, D), stone);
-    base.position.set(cx, BASE / 2, cz);
-    S.add(base);
-    const OPEN = 6.4 * s, HALF = OPEN / 2;
-    [[-W / 2, -HALF], [HALF, W / 2]].forEach(([a, b]) => {
-      const w = b - a;
-      const p = new T.Mesh(new T.BoxGeometry(w, BASE * 0.62, D), stone);
-      p.position.set(cx + (a + b) / 2, BASE * 0.31, cz);
-      S.add(p);
-    });
-    const tunnel = new T.Mesh(new T.BoxGeometry(OPEN, BASE * 0.55, D * 0.9), SOL.archLit);
-    tunnel.position.set(cx, BASE * 0.3, cz);
-    S.add(tunnel);
-    const py = BASE;
-    const pav = new T.Mesh(new T.BoxGeometry(W * 0.62, 3.4 * s, D * 0.74), SOL.woodRed);
-    pav.position.set(cx, py + 1.7 * s, cz);
-    S.add(pav);
-    for (let i = 0; i < 2; i++) {
-      const w = W * (1.06 - i * 0.14), d = D * (1.32 - i * 0.1);
-      const eave = new T.Mesh(new T.BoxGeometry(w, 0.4 * s, d), SOL.roofTile);
-      eave.position.set(cx, py + (3.2 + i * 3.0) * s, cz);
-      S.add(eave);
-      const frust = new T.Mesh(new T.CylinderGeometry(w * 0.2, w * 0.62, 2.2 * s, 4, 1), SOL.roofTile);
-      frust.rotation.y = Math.PI / 4;
-      frust.scale.z = d / w;
-      frust.position.set(cx, py + (4.3 + i * 3.0) * s, cz);
-      S.add(frust);
+    const W = 30 * s, D = 11 * s, BASE = 8.6 * s, OPEN = 5.2 * s;
+    const stone = repMat(SOL.gateStone, W / 5, BASE / 5);
+    const dark = new T.MeshBasicMaterial({ color: 0x14110e });
+    const tileM = new T.MeshStandardMaterial({ map: SOL.roofTile.map, color: 0x6a7078, roughness: 0.8, metalness: 0.05 });
+    const red = SOL.woodRed;
+    const dan = new T.MeshStandardMaterial({ color: 0x2f7d6b, roughness: 0.7 });
+    const lattice = new T.MeshStandardMaterial({ map: ctex("snmLattice", 64, 64, (gg, w, h) => {
+      gg.fillStyle = "#3a2a1c"; gg.fillRect(0, 0, w, h);
+      gg.fillStyle = "#c9b48a"; for (let i = 4; i < w; i += 10) { gg.fillRect(i, 0, 3, h); gg.fillRect(0, i, w, 3); }
+    }), roughness: 0.85 });
+    const B = (w, h, d, x, y, z, m) => { const o = new T.Mesh(new T.BoxGeometry(w, h, d), m); o.position.set(x, y, z); o.castShadow = true; o.receiveShadow = true; g.add(o); return o; };
+    /* platform with a battered (stepped) foot and the arch */
+    B(W + 1.2 * s, 1.0 * s, D + 1.2 * s, 0, 0.5 * s, 0, stone);
+    const side = (W - OPEN) / 2;
+    B(side, BASE, D, -(OPEN / 2 + side / 2), BASE / 2, 0, stone);
+    B(side, BASE, D, (OPEN / 2 + side / 2), BASE / 2, 0, stone);
+    B(OPEN, BASE * 0.34, D, 0, BASE * 0.83, 0, stone);
+    /* arch: a dark tunnel, its round head stepped in blocks */
+    B(OPEN, BASE * 0.66, D * 0.98, 0, BASE * 0.33, 0, dark);
+    for (let k = 0; k < 2; k++) {
+      const ww = OPEN * (1 - (k + 1) * 0.22);
+      B(ww, BASE * 0.06, D * 0.98, 0, BASE * (0.66 + k * 0.06) + BASE * 0.03, 0, dark);
     }
+    B(W, 0.35 * s, D, 0, BASE + 0.17 * s, 0, SOL.stoneDark || stone);
+    /* parapet crenels */
+    for (let x = -W / 2 + 0.8 * s; x < W / 2; x += 2.2 * s) {
+      B(1.2 * s, 0.9 * s, 0.6 * s, x, BASE + 0.8 * s, D / 2 - 0.3 * s, stone);
+      B(1.2 * s, 0.9 * s, 0.6 * s, x, BASE + 0.8 * s, -D / 2 + 0.3 * s, stone);
+    }
+    /* storey 1 */
+    const y1 = BASE + 0.35 * s;
+    const pw = W * 0.66, pd = D * 0.66, ph = 3.2 * s;
+    B(pw, 0.3 * s, pd, 0, y1 + 0.15 * s, 0, SOL.stoneDark || stone);
+    for (let i = 0; i <= 5; i++) {
+      const x = -pw / 2 + 0.3 * s + i * ((pw - 0.6 * s) / 5);
+      B(0.5 * s, ph, 0.5 * s, x, y1 + 0.3 * s + ph / 2, pd / 2 - 0.3 * s, red);
+      B(0.5 * s, ph, 0.5 * s, x, y1 + 0.3 * s + ph / 2, -pd / 2 + 0.3 * s, red);
+    }
+    B(pw - 1.2 * s, ph * 0.8, pd - 1.6 * s, 0, y1 + 0.3 * s + ph * 0.42, 0, lattice);
+    B(pw + 0.3 * s, 0.6 * s, pd + 0.3 * s, 0, y1 + ph + 0.05 * s, 0, dan);
+    const roof = (y, rw, rd, tiers) => {
+      /* eave plate with upturned corners, then stepped tile courses to a ridge */
+      B(rw, 0.35 * s, rd, 0, y, 0, tileM);
+      [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([a, b]) => {
+        B(1.6 * s, 0.35 * s, 1.6 * s, a * (rw / 2 - 0.5 * s), y + 0.45 * s, b * (rd / 2 - 0.5 * s), tileM);
+        B(0.8 * s, 0.35 * s, 0.8 * s, a * (rw / 2 - 0.2 * s), y + 0.8 * s, b * (rd / 2 - 0.2 * s), tileM);
+      });
+      for (let t = 1; t <= tiers; t++) {
+        const k = t / (tiers + 1);
+        B(rw * (1 - k * 0.55) - 0.6 * s, 0.5 * s, rd * (1 - k * 0.85), 0, y + t * 0.5 * s, 0, tileM);
+      }
+      const ry = y + (tiers + 0.6) * 0.5 * s;
+      B(rw * 0.42, 0.45 * s, 0.6 * s, 0, ry, 0, SOL.stoneDark || tileM);
+      B(0.5 * s, 1.0 * s, 0.7 * s, rw * 0.21, ry + 0.3 * s, 0, SOL.stoneDark || tileM);
+      B(0.5 * s, 1.0 * s, 0.7 * s, -rw * 0.21, ry + 0.3 * s, 0, SOL.stoneDark || tileM);
+      return ry;
+    };
+    const r1 = roof(y1 + ph + 0.5 * s, pw + 4.2 * s, pd + 4.0 * s, 2);
+    /* storey 2 */
+    const y2 = r1 + 0.2 * s;
+    const pw2 = pw * 0.8, pd2 = pd * 0.72, ph2 = 2.6 * s;
+    for (let i = 0; i <= 4; i++) {
+      const x = -pw2 / 2 + 0.3 * s + i * ((pw2 - 0.6 * s) / 4);
+      B(0.45 * s, ph2, 0.45 * s, x, y2 + ph2 / 2, pd2 / 2 - 0.25 * s, red);
+      B(0.45 * s, ph2, 0.45 * s, x, y2 + ph2 / 2, -pd2 / 2 + 0.25 * s, red);
+    }
+    B(pw2 - 1.0 * s, ph2 * 0.85, pd2 - 1.2 * s, 0, y2 + ph2 * 0.45, 0, lattice);
+    B(pw2 + 0.3 * s, 0.5 * s, pd2 + 0.3 * s, 0, y2 + ph2, 0, dan);
+    roof(y2 + ph2 + 0.45 * s, pw2 + 4.6 * s, pd2 + 4.4 * s, 4);
+    /* the name board under the upper eave */
+    {
+      const sg = new T.Mesh(new T.PlaneGeometry(1.2 * s, 2.0 * s), new T.MeshBasicMaterial({ map: ctex("snmSign", 96, 160, (gg, w, h) => {
+        gg.fillStyle = "#1d2b4a"; gg.fillRect(0, 0, w, h);
+        gg.strokeStyle = "#d8b04a"; gg.lineWidth = 6; gg.strokeRect(4, 4, w - 8, h - 8);
+        gg.fillStyle = "#f0d27a"; gg.font = "900 40px serif"; gg.textAlign = "center"; gg.textBaseline = "middle";
+        ["崇", "禮", "門"].forEach((c, i) => gg.fillText(c, w / 2, 32 + i * 48));
+      }, { smooth: true }) }));
+      sg.position.set(0, r1 - 0.2 * s, pd / 2 + 0.05 * s);
+      g.add(sg);
+    }
+    g.position.set(cx, 0.3, cz);
+    g.rotation.y = Math.PI;
+    S.add(g);
     return g;
+  }
+
+  /* ---- Stage 2 field props (restored: lost in the PR #12 merge) ---- */
+
+  function makeCrate(x, z, s, y) {
+    makeSol();
+    const g = new T.Group();
+    part(g, s, s, s, 0, s / 2, 0, SOL.wood);
+    part(g, s * 1.02, s * 0.1, s * 1.02, 0, s * 0.1, 0, SOL.woodDark);
+    part(g, s * 1.02, s * 0.1, s * 1.02, 0, s * 0.9, 0, SOL.woodDark);
+    part(g, s * 0.12, s * 1.02, s * 1.02, -s * 0.42, s * 0.5, 0, SOL.woodDark);
+    part(g, s * 0.12, s * 1.02, s * 1.02, s * 0.42, s * 0.5, 0, SOL.woodDark);
+    [-1, 1].forEach((sx) => [-1, 1].forEach((sz) => {
+      part(g, s * 0.1, s * 0.1, s * 0.1, sx * s * 0.46, s * 0.06, sz * s * 0.46, SOL.steel);
+      part(g, s * 0.1, s * 0.1, s * 0.1, sx * s * 0.46, s * 0.94, sz * s * 0.46, SOL.steel);
+    }));
+    g.position.set(x, y === undefined ? 0.3 : y, z);
+    g.rotation.y = (Math.random() - 0.5) * 0.5;
+    return g;
+  }
+
+  function makeSandbags(x, z, w, rows) {
+    makeSol();
+    const g = new T.Group();
+    const bw = 0.52, bh = 0.26, bd = 0.36;
+    for (let r = 0; r < rows; r++) {
+      const n = Math.max(1, Math.round(w / bw) - (r % 2 ? 1 : 0));
+      for (let i = 0; i < n; i++) {
+        const m = part(g, bw * 0.94, bh, bd, -w / 2 + bw / 2 + i * bw + (r % 2 ? bw / 2 : 0), bh / 2 + r * bh * 0.94, 0, SOL.sand);
+        m.rotation.y = (Math.random() - 0.5) * 0.18;
+        m.rotation.z = (Math.random() - 0.5) * 0.06;
+      }
+    }
+    g.position.set(x, 0.3, z);
+    return g;
+  }
+
+  function makeBarrier(x, z) {
+    makeSol();
+    const g = new T.Group();
+    part(g, 1.7, 0.62, 0.4, 0, 0.31, 0, SOL.concrete);
+    part(g, 1.5, 0.16, 0.34, 0, 0.7, 0, SOL.concrete);
+    part(g, 0.3, 0.2, 0.42, -0.6, 0.42, 0, SOL.stoneDark);
+    g.position.set(x, 0.3, z);
+    g.rotation.y = (Math.random() - 0.5) * 0.12;
+    return g;
+  }
+
+  function makeTruck(x, z) {
+    makeSol();
+    const g = new T.Group();
+    part(g, 3.0, 0.2, 1.5, 0, 0.66, 0, SOL.oliveDark);
+    part(g, 1.5, 0.62, 1.4, -1.05, 1.06, 0, SOL.oliveDark);
+    part(g, 0.5, 0.5, 1.36, -1.6, 1.1, 0, SOL.olive);
+    part(g, 0.12, 0.36, 1.2, -1.86, 1.08, 0, SOL.glass || SOL.oliveDark);
+    part(g, 1.7, 0.7, 1.46, 0.75, 1.1, 0, SOL.olive);
+    part(g, 1.8, 0.08, 1.5, 0.75, 1.46, 0, SOL.oliveDark);
+    [-1.0, 0.4, 1.1].forEach((wx) => {
+      [-0.76, 0.76].forEach((wz) => {
+        const w = new T.Mesh(new T.CylinderGeometry(0.36, 0.36, 0.24, 10), SOL.tire);
+        w.rotation.x = Math.PI / 2;
+        w.position.set(wx, 0.66, wz);
+        w.castShadow = true;
+        g.add(w);
+      });
+    });
+    g.position.set(x, 0.3, z);
+    g.rotation.y = -0.08;
+    return g;
+  }
+
+  /* ================= VOXEL KIT =================
+     Cubes are collected per material and turned into one InstancedMesh each,
+     with a colour per instance, so a whole forested hill, every street tree
+     and the far skyline cost a handful of draw calls. */
+  let VOXM = null;
+  function voxMats() {
+    if (VOXM) return VOXM;
+    makeSol();
+    const leafTex = ctex("voxLeaf", 128, 128, (g, w, h) => {
+      const R = rng(77);
+      g.fillStyle = "#4d7f35"; g.fillRect(0, 0, w, h);
+      const cols = ["#3d6a2a", "#5a9140", "#6aa44a", "#2f5522", "#78b052", "#456f30"];
+      for (let i = 0; i < 900; i++) {
+        g.fillStyle = cols[(R() * cols.length) | 0];
+        g.fillRect((R() * 16 | 0) * 8, (R() * 16 | 0) * 8, 8, 8);
+      }
+    });
+    const barkTex = ctex("voxBark", 64, 128, (g, w, h) => {
+      const R = rng(91);
+      g.fillStyle = "#6b4a2b"; g.fillRect(0, 0, w, h);
+      const cols = ["#5a3d22", "#7a5634", "#4b321c", "#836040"];
+      for (let i = 0; i < 260; i++) { g.fillStyle = cols[(R() * 4) | 0]; g.fillRect((R() * 8 | 0) * 8, (R() * 16 | 0) * 8, 8, 8 + (R() * 2 | 0) * 8); }
+    });
+    const grassTex = ctex("voxGrass", 128, 128, (g, w, h) => {
+      const R = rng(113);
+      g.fillStyle = "#5e8f3c"; g.fillRect(0, 0, w, h);
+      const cols = ["#4f7f33", "#6c9e45", "#7bab4f", "#557f36", "#86b65a"];
+      for (let i = 0; i < 700; i++) { g.fillStyle = cols[(R() * 5) | 0]; g.fillRect((R() * 16 | 0) * 8, (R() * 16 | 0) * 8, 8, 8); }
+    });
+    const rockTex = ctex("voxRock", 128, 128, (g, w, h) => {
+      const R = rng(131);
+      g.fillStyle = "#8d8d86"; g.fillRect(0, 0, w, h);
+      const cols = ["#7a7a73", "#a2a29a", "#6c6c66", "#b3b3aa", "#868a7e"];
+      for (let i = 0; i < 700; i++) { g.fillStyle = cols[(R() * 5) | 0]; g.fillRect((R() * 16 | 0) * 8, (R() * 16 | 0) * 8, 8, 8); }
+    });
+    [leafTex, barkTex, grassTex, rockTex].forEach((t) => { t.magFilter = T.NearestFilter; });
+    VOXM = {
+      leaf: new T.MeshStandardMaterial({ map: leafTex, roughness: 0.92, metalness: 0 }),
+      bark: new T.MeshStandardMaterial({ map: barkTex, roughness: 0.95, metalness: 0 }),
+      grass: new T.MeshStandardMaterial({ map: grassTex, roughness: 0.95, metalness: 0 }),
+      rock: new T.MeshStandardMaterial({ map: rockTex, roughness: 0.9, metalness: 0 }),
+      plain: new T.MeshStandardMaterial({ color: 0xffffff, roughness: 0.85, metalness: 0.05 })
+    };
+    return VOXM;
+  }
+  function voxBatch() {
+    const groups = new Map();
+    const col = new T.Color();
+    const api = {
+      n: 0,
+      cube(mat, x, y, z, sx, sy, sz, hex, rotY, opt) {
+        let gk = groups.get(mat);
+        if (!gk) { gk = { mat: mat, list: [], cast: false, recv: true }; groups.set(mat, gk); }
+        gk.list.push([x, y, z, sx, sy, sz, hex == null ? 0xffffff : hex, rotY || 0]);
+        if (opt && opt.cast) gk.cast = true;
+        api.n++;
+      },
+      flush(S, name) {
+        const box = new T.BoxGeometry(1, 1, 1);
+        const m4 = new T.Matrix4(), q = new T.Quaternion(), e = new T.Euler(), pos = new T.Vector3(), scl = new T.Vector3();
+        const out = [];
+        groups.forEach((gk) => {
+          const im = new T.InstancedMesh(box, gk.mat, gk.list.length);
+          gk.list.forEach((c, i) => {
+            pos.set(c[0], c[1], c[2]); scl.set(c[3], c[4], c[5]);
+            e.set(0, c[7], 0); q.setFromEuler(e);
+            m4.compose(pos, q, scl);
+            im.setMatrixAt(i, m4);
+            col.setHex(c[6]);
+            im.setColorAt(i, col);
+          });
+          im.instanceMatrix.needsUpdate = true;
+          if (im.instanceColor) im.instanceColor.needsUpdate = true;
+          im.castShadow = gk.cast;
+          im.receiveShadow = gk.recv;
+          im.name = (name || "vox") + "-" + (gk.mat.name || "m");
+          im.userData.noBlock = 1;
+          im.frustumCulled = false;
+          S.add(im);
+          out.push(im);
+        });
+        return out;
+      }
+    };
+    return api;
+  }
+  /* a broadleaf street tree (zelkova / ginkgo look): a trunk with two limbs
+     and a crown of 0.5 m cubes, hollow inside, ragged at the edge */
+  function voxTree(V, x, y0, z, h, seed, opt) {
+    const M = voxMats();
+    const R = rng(seed || 1);
+    const o = opt || {};
+    const tint = o.tint || [0xffffff, 0xe8f2dc, 0xd6e8c6, 0xf4ffe8];
+    V.cube(M.bark, x, y0 + h * 0.4, z, 0.36, h * 0.8, 0.36, 0xffffff, 0, { cast: true });
+    V.cube(M.bark, x + 0.3, y0 + h * 0.72, z, 0.6, 0.22, 0.22, 0xffffff);
+    V.cube(M.bark, x - 0.24, y0 + h * 0.66, z + 0.1, 0.5, 0.2, 0.2, 0xffffff);
+    const c = o.cube || 0.5;
+    const rx = o.rx || 1.7, ry = o.ry || 1.35;
+    const cy = y0 + h * 0.8 + ry * 0.55;
+    const n = Math.ceil(rx / c) + 1, ny = Math.ceil(ry / c) + 1;
+    for (let i = -n; i <= n; i++) for (let j = -ny; j <= ny; j++) for (let k = -n; k <= n; k++) {
+      const dx = i * c, dy = j * c, dz = k * c;
+      const d = (dx * dx) / (rx * rx) + (dy * dy) / (ry * ry) + (dz * dz) / (rx * rx);
+      if (d > 1) continue;
+      if (d < 0.5) continue; /* hollow */
+      if (d > 0.78 && R() < 0.35) continue; /* ragged edge */
+      V.cube(M.leaf, x + dx, cy + dy, z + dz, c, c, c, tint[(R() * tint.length) | 0], 0, { cast: true });
+    }
+  }
+  /* a Korean red pine / spruce: a straight trunk and stacked square tiers */
+  function voxPine(V, x, y0, z, h, seed) {
+    const M = voxMats();
+    const R = rng(seed || 3);
+    V.cube(M.bark, x, y0 + h * 0.5, z, 0.4, h, 0.4, 0xd9c2a8, 0, { cast: true });
+    const tiers = Math.max(3, Math.round(h / 1.6));
+    for (let t = 0; t < tiers; t++) {
+      const k = t / tiers;
+      const r = (1 - k) * h * 0.26 + 0.35;
+      const y = y0 + h * 0.3 + t * (h * 0.72 / tiers);
+      const tone = [0x9fc28a, 0x8fb57c, 0xb0cf98][(R() * 3) | 0];
+      V.cube(M.leaf, x, y, z, r * 2, 0.55, r * 2, tone, R() * 0.4, { cast: true });
+      V.cube(M.leaf, x, y + 0.4, z, r * 1.4, 0.45, r * 1.4, tone, R() * 0.4 + 0.7, { cast: true });
+    }
+    V.cube(M.leaf, x, y0 + h + 0.2, z, 0.45, 0.6, 0.45, 0x9fc28a);
+  }
+  /* a forested hill as a stepped height field: columns of soil topped by
+     grass, and crowns standing on it at random */
+  function voxHill(V, cx, cz, w, d, peak, seed, opt) {
+    const M = voxMats();
+    const R = rng(seed || 9);
+    const o = opt || {};
+    const cell = o.cell || 4;
+    const nx = Math.round(w / cell), nz = Math.round(d / cell);
+    const base = o.base == null ? -4 : o.base;
+    const hAt = (u, v) => {
+      /* a ridge with a main summit and two shoulders, plus wobble */
+      const a = Math.exp(-((u - 0.5) ** 2) / 0.07 - ((v - 0.55) ** 2) / 0.1);
+      const b = 0.62 * Math.exp(-((u - 0.2) ** 2) / 0.04 - ((v - 0.6) ** 2) / 0.08);
+      const c = 0.58 * Math.exp(-((u - 0.8) ** 2) / 0.04 - ((v - 0.6) ** 2) / 0.08);
+      const wob = 0.06 * Math.sin(u * 23 + seed) * Math.cos(v * 17);
+      return Math.max(0, Math.max(a, b, c) + wob);
+    };
+    const tops = [];
+    for (let i = 0; i < nx; i++) for (let k = 0; k < nz; k++) {
+      const u = (i + 0.5) / nx, v = (k + 0.5) / nz;
+      const hh = Math.round((hAt(u, v) * peak) / 2) * 2;
+      if (hh < 1) continue;
+      const x = cx - w / 2 + (i + 0.5) * cell, z = cz - d / 2 + (k + 0.5) * cell;
+      const shade = 0.6 + R() * 0.16;
+      const g = Math.round(255 * shade);
+      V.cube(M.grass, x, base + (hh - base) / 2, z, cell, hh - base, cell, (g << 16) | (Math.min(255, g + 10) << 8) | g);
+      tops.push([x, hh, z, u, v]);
+    }
+    /* crowns: big leafy cubes, denser low on the slopes */
+    tops.forEach(([x, hh, z]) => {
+      const n = R() < 0.85 ? 1 + (R() * 2 | 0) : 0;
+      for (let t = 0; t < n; t++) {
+        const s = cell * (0.55 + R() * 0.5);
+        const tone = [0x7f9a6c, 0x6b8a5c, 0x8fa978, 0x5f7d52, 0x9bb084][(R() * 5) | 0];
+        V.cube(M.leaf, x + (R() - 0.5) * cell * 0.8, hh + s * 0.5 + R() * 0.8, z + (R() - 0.5) * cell * 0.8, s, s * (0.8 + R() * 0.5), s, tone, R() * 1.2);
+      }
+    });
+    return { hAt: (u, v) => hAt(u, v) * peak, tops };
+  }
+  /* far skyline: tall towers with facade textures, set behind the near blocks */
+  function voxSkyline(S, list) {
+    makeSol();
+    const mats = [SOL.facA, SOL.facB, SOL.facC];
+    list.forEach(([x, z, w, d, h, k]) => {
+      const mat = repMat(mats[k % 3], Math.max(w, d) / 6, h / 6.4);
+      const b = new T.Mesh(new T.BoxGeometry(w, h, d), mat);
+      b.position.set(x, h / 2 - 0.5, z);
+      b.userData.noBlock = 1;
+      S.add(b);
+      /* a roof crown: plant room and a lit aerial on the taller ones */
+      const c = new T.Mesh(new T.BoxGeometry(w * 0.5, 2.2, d * 0.5), SOL.concrete || mat);
+      c.position.set(x, h + 0.6, z);
+      S.add(c);
+    });
   }
 
   /* Namsan: the ridge, the tower and its aerial farm, far up the valley */
@@ -3576,13 +3945,19 @@
       [0, 14, 96], [-34, 4, 84], [34, 2, 80], [-64, 18, 66], [66, 16, 62],
       [-96, 30, 54], [98, 34, 50], [-20, 46, 70], [24, 48, 66]
     ];
+    /* the mountain is a stepped voxel ridge under a forest of crowns; the
+       old cone ridge is kept only far behind it as a hazy second range */
     ridge.forEach(([dx, dz, hh], i) => {
+      if (Math.abs(dx) < 70) return;
       const m = new T.Mesh(new T.ConeGeometry(hh * 1.25, hh, 7, 1), new T.MeshLambertMaterial({ color: tones[i % tones.length] }));
-      m.position.set(cx + dx, hh / 2 - 12, cz + dz);
+      m.position.set(cx + dx, hh / 2 - 12, cz + dz + 40);
       m.rotation.y = i * 0.6;
       S.add(m);
     });
-    const peak = 62;
+    const V = voxBatch();
+    const hill = voxHill(V, cx, cz + 10, 300, 110, 74, 404, { cell: 5, base: -6 });
+    V.flush(S, "namsan");
+    const peak = Math.round(hill.hAt(0.5, 0.55)) - 1;
     const g = new T.Group();
     const base = new T.Mesh(new T.CylinderGeometry(3.4, 5.4, 10, 10), SOL.towerWhite);
     base.position.y = 5;
@@ -3842,81 +4217,202 @@
     return g;
   }
 
-  function makeCityBus(S, x, z, rotY, route) {
+  /* Seoul city bus (low-floor, 11 m): a painted livery on the body sides,
+     a real glazed cabin you can see seats and grab poles through, two plug
+     doors, a stepped roof with the AC pod and CNG tanks, the rabbit-ear
+     mirrors, wheel arches, hubs with nuts, and the LED route boards. */
+  let BUS = null;
+  function busMats() {
+    if (BUS) return BUS;
     makeSol();
+    const sideTex = ctex("busLivery", 1024, 256, (g, w, h) => {
+      /* body: Seoul branch-bus green, a lime belt and a white rocker */
+      g.fillStyle = "#2f9a55"; g.fillRect(0, 0, w, h);
+      const gr = g.createLinearGradient(0, 0, 0, h);
+      gr.addColorStop(0, "rgba(255,255,255,.10)"); gr.addColorStop(0.5, "rgba(255,255,255,0)"); gr.addColorStop(1, "rgba(0,0,0,.14)");
+      g.fillStyle = gr; g.fillRect(0, 0, w, h);
+      g.fillStyle = "#9fd34a"; g.fillRect(0, h * 0.10, w, h * 0.09);
+      g.fillStyle = "#f2f5ee"; g.fillRect(0, h * 0.78, w, h * 0.22);
+      g.fillStyle = "#1f6e3c"; g.fillRect(0, h * 0.75, w, h * 0.03);
+      /* swoosh */
+      g.fillStyle = "rgba(255,255,255,.85)";
+      g.beginPath(); g.moveTo(w * 0.52, h * 0.78); g.quadraticCurveTo(w * 0.70, h * 0.30, w * 0.98, h * 0.26);
+      g.lineTo(w * 0.98, h * 0.36); g.quadraticCurveTo(w * 0.74, h * 0.42, w * 0.60, h * 0.78); g.closePath(); g.fill();
+      g.fillStyle = "#ffffff";
+      g.font = "900 " + Math.round(h * 0.2) + "px Pretendard, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif";
+      g.textBaseline = "middle";
+      g.fillText("서울버스", w * 0.06, h * 0.45);
+      g.font = "700 " + Math.round(h * 0.09) + "px sans-serif";
+      g.fillText("SEOUL BUS", w * 0.065, h * 0.62);
+      /* panel seams and rivet lines */
+      g.strokeStyle = "rgba(0,0,0,.25)"; g.lineWidth = 2;
+      for (let x = 0; x < w; x += w / 9) { g.beginPath(); g.moveTo(x, h * 0.2); g.lineTo(x, h * 0.75); g.stroke(); }
+      g.beginPath(); g.moveTo(0, h * 0.2); g.lineTo(w, h * 0.2); g.stroke();
+    }, { smooth: true });
+    const frontTex = ctex("busFace", 256, 256, (g, w, h) => {
+      g.fillStyle = "#2f9a55"; g.fillRect(0, 0, w, h);
+      g.fillStyle = "#9fd34a"; g.fillRect(0, h * 0.06, w, h * 0.06);
+      g.fillStyle = "#f2f5ee"; g.fillRect(0, h * 0.7, w, h * 0.3);
+      g.fillStyle = "#1c2226"; g.fillRect(w * 0.3, h * 0.36, w * 0.4, h * 0.16);
+      g.fillStyle = "#c9d0d4"; for (let i = 0; i < 6; i++) g.fillRect(w * 0.32, h * (0.375 + i * 0.022), w * 0.36, h * 0.008);
+      g.fillStyle = "#ffffff"; g.font = "900 30px sans-serif"; g.textAlign = "center"; g.fillText("SEOUL", w / 2, h * 0.27);
+    }, { smooth: true });
+    BUS = {
+      side: new T.MeshStandardMaterial({ map: sideTex, roughness: 0.3, metalness: 0.15, envMapIntensity: 0.55 }),
+      face: new T.MeshStandardMaterial({ map: frontTex, roughness: 0.3, metalness: 0.15, envMapIntensity: 0.55 }),
+      green: new T.MeshStandardMaterial({ color: 0x2f9a55, roughness: 0.32, metalness: 0.15, envMapIntensity: 0.5 }),
+      white: new T.MeshStandardMaterial({ color: 0xeef1ea, roughness: 0.35, metalness: 0.1 }),
+      roof: new T.MeshStandardMaterial({ color: 0xdfe3df, roughness: 0.5, metalness: 0.2 }),
+      black: new T.MeshStandardMaterial({ color: 0x0c0d0f, roughness: 0.75, metalness: 0.1, envMapIntensity: 0.25 }),
+      rubber: new T.MeshStandardMaterial({ color: 0x1a1b1d, roughness: 0.9 }),
+      glass: new T.MeshStandardMaterial({ color: 0x18313d, roughness: 0.05, metalness: 0.4, transparent: true, opacity: 0.52, envMapIntensity: 1.1, depthWrite: false }),
+      tint: new T.MeshStandardMaterial({ color: 0x0f1a20, roughness: 0.06, metalness: 0.5, envMapIntensity: 1.0 }),
+      seat: new T.MeshStandardMaterial({ color: 0x2b4f86, roughness: 0.8 }),
+      seatR: new T.MeshStandardMaterial({ color: 0xd8662a, roughness: 0.8 }),
+      floor: new T.MeshStandardMaterial({ color: 0x4a4d50, roughness: 0.9 }),
+      pole: new T.MeshStandardMaterial({ color: 0xf0c419, roughness: 0.35, metalness: 0.5 }),
+      chrome: new T.MeshStandardMaterial({ color: 0xc6cacd, roughness: 0.2, metalness: 0.95 }),
+      led: new T.MeshBasicMaterial({ color: 0xffb02e }),
+      hole: new T.MeshBasicMaterial({ color: 0x050607 }),
+      head: new T.MeshBasicMaterial({ color: 0xfff4d6 }),
+      amber: new T.MeshBasicMaterial({ color: 0xffa21f }),
+      red: SOL.lampRed,
+      tank: new T.MeshStandardMaterial({ color: 0x8c949a, roughness: 0.4, metalness: 0.6 })
+    };
+    return BUS;
+  }
+
+  function makeCityBus(S, x, z, rotY, route) {
+    const M = busMats();
     const g = new T.Group();
-    const L = 10.6, W = 2.5, H = 2.9;
-    const body = new T.Mesh(new T.BoxGeometry(W, H, L), SOL.busGreen);
-    body.position.y = 1.05 + H / 2;
-    body.castShadow = true;
-    body.receiveShadow = true;
-    body.userData.wall = 1;
-    g.add(body);
-    const skirt = new T.Mesh(new T.BoxGeometry(W + 0.02, 0.55, L - 0.1), SOL.busDark);
-    skirt.position.y = 0.92;
-    g.add(skirt);
-    /* window band down both sides */
-    [-1, 1].forEach((s) => {
-      const win = new T.Mesh(new T.BoxGeometry(0.04, 1.05, L - 1.6), SOL.carGlass);
-      win.position.set(s * (W / 2 + 0.01), 2.85, -0.2);
-      g.add(win);
-      for (let i = 0; i < 6; i++) {
-        const mull = new T.Mesh(new T.BoxGeometry(0.06, 1.05, 0.09), SOL.busDark);
-        mull.position.set(s * (W / 2 + 0.03), 2.85, -4.2 + i * 1.55);
-        g.add(mull);
+    const L = 11.0, W = 2.5, HB = 0.34; /* length, width, floor-pan height */
+    const add = (w, h, d, px, py, pz, mat, cast) => {
+      const m = new T.Mesh(new T.BoxGeometry(w, h, d), mat);
+      m.position.set(px, py, pz);
+      if (cast) m.castShadow = true;
+      m.receiveShadow = true;
+      g.add(m);
+      return m;
+    };
+    /* lower body: livery on both sides, solid ends */
+    const lowH = 1.25, lowY = HB + 0.22 + lowH / 2;
+    const lower = new T.Mesh(new T.BoxGeometry(W, lowH, L), [M.side, M.side, M.green, M.black, M.face, M.green]);
+    lower.position.y = lowY;
+    lower.castShadow = true; lower.receiveShadow = true;
+    lower.userData.wall = 1;
+    g.add(lower);
+    /* the window storey: corner pillars, glass, pillars between bays */
+    const winB = lowY + lowH / 2, winH = 1.12, winY = winB + winH / 2;
+    const cab = add(W - 0.12, winH, L - 0.2, 0, winY, 0, M.glass);
+    cab.renderOrder = 2;
+    [-1, 1].forEach((sx) => {
+      for (let i = 0; i <= 7; i++) {
+        const pz = -L / 2 + 0.25 + i * ((L - 0.5) / 7);
+        add(0.08, winH, i === 0 || i === 7 ? 0.32 : 0.12, sx * (W / 2 - 0.04), winY, pz, M.black);
       }
-      const band = new T.Mesh(new T.BoxGeometry(0.03, 0.12, L - 1.0), SOL.paintWhite);
-      band.position.set(s * (W / 2 + 0.02), 2.16, 0);
-      g.add(band);
-      const num = new T.Mesh(new T.PlaneGeometry(0.9, 0.3), SOL.busRoute);
-      num.position.set(s * (W / 2 + 0.03), 3.55, 3.4);
-      num.rotation.y = s * Math.PI / 2;
+      add(0.06, 0.1, L - 0.1, sx * (W / 2 - 0.03), winB + 0.04, 0, M.rubber);
+      /* route number on the side above the windows */
+      const num = new T.Mesh(new T.PlaneGeometry(0.95, 0.3), SOL.busRoute);
+      num.position.set(sx * (W / 2 + 0.005), winB + winH + 0.18, sx > 0 ? 3.6 : -3.6);
+      num.rotation.y = sx * Math.PI / 2;
       g.add(num);
     });
-    /* front: windscreen, destination board, lights */
-    const front = new T.Mesh(new T.BoxGeometry(W - 0.14, 1.25, 0.06), SOL.carGlass);
-    front.position.set(0, 2.86, L / 2 + 0.01);
-    g.add(front);
-    const board = new T.Mesh(new T.PlaneGeometry(1.7, 0.34), SOL.busBoard);
-    board.position.set(0, 3.72, L / 2 + 0.04);
-    g.add(board);
-    const bumper = new T.Mesh(new T.BoxGeometry(W, 0.34, 0.2), SOL.metalDark);
-    bumper.position.set(0, 0.88, L / 2 + 0.04);
-    g.add(bumper);
-    [-0.8, 0.8].forEach((sx) => {
-      const hl = new T.Mesh(new T.BoxGeometry(0.34, 0.22, 0.06), SOL.lampWarm);
-      hl.position.set(sx, 1.24, L / 2 + 0.05);
-      g.add(hl);
-      const tl = new T.Mesh(new T.BoxGeometry(0.3, 0.5, 0.06), SOL.lampRed);
-      tl.position.set(sx, 1.35, -L / 2 - 0.05);
-      g.add(tl);
+    /* roof: a top plate, a stepped upper skin, the AC pod and the CNG tank cover */
+    const roofY = winB + winH;
+    add(W, 0.36, L, 0, roofY + 0.18, 0, M.green, true);
+    add(W - 0.3, 0.12, L - 0.4, 0, roofY + 0.42, 0, M.roof, true);
+    add(1.7, 0.36, 2.6, 0, roofY + 0.66, -1.4, M.roof, true);
+    for (let i = 0; i < 4; i++) add(1.5, 0.03, 0.3, 0, roofY + 0.86, -2.4 + i * 0.66, M.black);
+    add(2.0, 0.42, 3.2, 0, roofY + 0.69, 2.6, M.roof, true);
+    [-0.5, 0.5].forEach((sx) => {
+      const t = new T.Mesh(new T.CylinderGeometry(0.17, 0.17, 2.9, 10), M.tank);
+      t.rotation.x = Math.PI / 2;
+      t.position.set(sx, roofY + 0.95, 2.6);
+      g.add(t);
     });
-    /* the rear destination window and engine grille */
-    const rear = new T.Mesh(new T.BoxGeometry(W - 0.2, 0.9, 0.06), SOL.carGlass);
-    rear.position.set(0, 3.0, -L / 2 - 0.01);
-    g.add(rear);
-    const grille = new T.Mesh(new T.BoxGeometry(W - 0.5, 0.6, 0.08), SOL.metalDark);
-    grille.position.set(0, 1.5, -L / 2 - 0.02);
-    g.add(grille);
-    /* door on the near side */
-    [-1, 1].forEach((s, i) => {
-      const door = new T.Mesh(new T.BoxGeometry(0.06, 2.05, 1.1), SOL.carGlass);
-      door.position.set(s * (W / 2 + 0.02), 1.88, i ? 0.9 : 2.9);
-      g.add(door);
-    });
-    [-3.4, 2.9].forEach((wz) => {
+    /* interior through the glass: floor, seat rows, grab poles */
+    add(W - 0.2, 0.06, L - 0.6, 0, winB - 0.55, 0, M.floor);
+    for (let i = 0; i < 8; i++) {
+      const pz = -L / 2 + 1.2 + i * 1.05;
+      if (pz > 2.4 && pz < 3.6) continue;
       [-1, 1].forEach((sx) => {
-        const w = new T.Mesh(new T.CylinderGeometry(0.52, 0.52, 0.36, 12), SOL.tire);
-        w.rotation.z = Math.PI / 2;
-        w.position.set(sx * (W / 2 - 0.12), 0.52, wz);
-        w.castShadow = true;
-        g.add(w);
-        const hub = new T.Mesh(new T.CylinderGeometry(0.24, 0.24, 0.38, 8), SOL.hubCap);
-        hub.rotation.z = Math.PI / 2;
-        hub.position.set(sx * (W / 2 - 0.1), 0.52, wz);
-        g.add(hub);
+        const mat = (i === 6 && sx < 0) ? M.seatR : M.seat;
+        add(0.82, 0.12, 0.48, sx * 0.72, winB - 0.12, pz, mat);
+        add(0.82, 0.62, 0.1, sx * 0.72, winB + 0.18, pz - 0.22, mat);
+      });
+      if (i % 2 === 0) add(0.04, winH + 0.9, 0.04, 0.32, winB + 0.05, pz + 0.4, M.pole);
+    }
+    add(0.04, 0.04, L - 1, 0.42, roofY - 0.12, 0, M.pole);
+    add(0.04, 0.04, L - 1, -0.42, roofY - 0.12, 0, M.pole);
+    /* front: a raked windscreen, LED board, grille, lamps, bumper, wipers */
+    const fz = L / 2;
+    const ws = add(W - 0.16, winH + 0.42, 0.05, 0, winY - 0.18, fz + 0.02, M.tint);
+    ws.rotation.x = -0.06;
+    add(W, 0.08, 0.1, 0, winB - 0.42, fz + 0.04, M.black);
+    const brd = new T.Mesh(new T.PlaneGeometry(1.9, 0.32), SOL.busBoard);
+    brd.position.set(0, roofY + 0.12, fz + 0.06);
+    g.add(brd);
+    add(2.0, 0.38, 0.04, 0, roofY + 0.12, fz + 0.03, M.black);
+    [-1, 1].forEach((sx) => {
+      add(0.42, 0.2, 0.05, sx * 0.86, HB + 0.66, fz + 0.03, M.head);
+      add(0.18, 0.1, 0.05, sx * 1.0, HB + 0.88, fz + 0.03, M.amber);
+      add(0.5, 0.06, 0.04, sx * 0.86, HB + 0.53, fz + 0.04, M.chrome);
+      /* the rabbit-ear mirror: an arm curling forward, a tall head */
+      const arm = add(0.05, 0.05, 0.6, sx * (W / 2 - 0.02), roofY - 0.05, fz + 0.28, M.black);
+      arm.rotation.y = sx * 0.3;
+      add(0.04, 0.3, 0.04, sx * (W / 2 + 0.06), roofY - 0.25, fz + 0.55, M.black);
+      add(0.07, 0.34, 0.2, sx * (W / 2 + 0.08), roofY - 0.56, fz + 0.56, M.black);
+      const wiper = add(0.03, 0.85, 0.03, sx * 0.4, winB + 0.36, fz + 0.06, M.black);
+      wiper.rotation.z = sx * 0.55;
+    });
+    add(W + 0.04, 0.32, 0.18, 0, HB + 0.28, fz + 0.06, M.black);
+    add(W - 0.6, 0.06, 0.04, 0, HB + 0.42, fz + 0.15, M.chrome);
+    /* rear: engine grille, tail-light clusters, rear board */
+    const rz = -L / 2;
+    add(W - 0.6, 0.55, 0.05, 0, HB + 0.9, rz - 0.02, M.black);
+    for (let i = 0; i < 5; i++) add(W - 0.7, 0.03, 0.06, 0, HB + 0.7 + i * 0.1, rz - 0.04, M.chrome);
+    [-1, 1].forEach((sx) => {
+      add(0.22, 0.62, 0.05, sx * 1.08, HB + 1.05, rz - 0.03, M.red);
+      add(0.22, 0.14, 0.05, sx * 1.08, HB + 0.66, rz - 0.03, M.amber);
+    });
+    add(W + 0.04, 0.3, 0.16, 0, HB + 0.28, rz - 0.06, M.black);
+    add(W - 0.24, 0.62, 0.05, 0, winY + 0.1, rz - 0.02, M.tint);
+    /* doors: the front door by the driver, the centre door; split glass leaves */
+    [[fz - 1.15, 1.05], [0.3, 1.25]].forEach(([dz, dw]) => {
+      [-1, 1].forEach((sx) => {
+        if (sx < 0) return; /* doors on the kerb side only (+x before rotation) */
+        add(0.05, winB + winH - HB - 0.25, dw + 0.08, sx * (W / 2 + 0.01), (HB + 0.22 + winB + winH) / 2, dz, M.black);
+        [-1, 1].forEach((h) => {
+          add(0.04, winB + winH - HB - 0.5, dw / 2 - 0.08, sx * (W / 2 + 0.03), (HB + 0.32 + winB + winH - 0.1) / 2, dz + h * dw / 4, M.tint);
+        });
+        add(0.03, 0.04, dw, sx * (W / 2 + 0.05), winB - 0.1, dz, M.chrome);
       });
     });
+    /* wheels: dark arches, tyres, steel hubs with a ring of nuts */
+    [-3.6, 3.2].forEach((wz) => {
+      [-1, 1].forEach((sx) => {
+        add(0.02, 0.66, 1.3, sx * (W / 2 + 0.004), HB + 0.55, wz, M.hole);
+        const tyre = new T.Mesh(new T.CylinderGeometry(0.5, 0.5, 0.32, 18), SOL.tire);
+        tyre.rotation.z = Math.PI / 2;
+        tyre.position.set(sx * (W / 2 - 0.14), 0.5, wz);
+        tyre.castShadow = true;
+        g.add(tyre);
+        const hub = new T.Mesh(new T.CylinderGeometry(0.29, 0.29, 0.34, 14), M.chrome);
+        hub.rotation.z = Math.PI / 2;
+        hub.position.set(sx * (W / 2 - 0.13), 0.5, wz);
+        g.add(hub);
+        const cap = new T.Mesh(new T.CylinderGeometry(0.1, 0.12, 0.36, 8), M.black);
+        cap.rotation.z = Math.PI / 2;
+        cap.position.set(sx * (W / 2 - 0.12), 0.5, wz);
+        g.add(cap);
+        for (let k = 0; k < 8; k++) {
+          const a = k / 8 * Math.PI * 2;
+          add(0.06, 0.04, 0.04, sx * (W / 2 + 0.05), 0.5 + Math.sin(a) * 0.19, wz + Math.cos(a) * 0.19, M.black);
+        }
+      });
+    });
+    /* underbody shadow box so the floor never shows sky under the bus */
+    add(W - 0.3, 0.28, L - 0.8, 0, HB + 0.1, 0, M.black);
     g.position.set(x, 0.3, z);
     g.rotation.y = rotY || 0;
     S.add(g);
@@ -4326,6 +4822,7 @@
     if (curve) return;
     const pts = PATH_PTS.map(([x, z]) => new T.Vector3(x, CAM_Y, z));
     curve = new T.CatmullRomCurve3(pts, false, "catmullrom", 0.35);
+    window.__railCurve = curve;
     pathLen = Math.max(1, curve.getLength());
   }
 
@@ -4341,6 +4838,161 @@
   }
 
   function pathAt(u) { return curve.getPointAt(Math.max(0, Math.min(1, u))); }
+
+  /* ---- the rail never walks through anything solid ----
+     Every solid thing near the rail (wave cover, crates, barriers, parked
+     vehicles, tree trunks, wall pieces) is boxed once per stage. While the
+     camera moves, the boxes that sit across the next few metres of track push
+     it sideways onto the open side; the offset eases in and out, so it reads as
+     the player stepping round the obstacle instead of passing through it. */
+  let railBlockers = [];
+  let steerOff = 0;
+  const _bb = new T.Box3(), _sz = new T.Vector3();
+  function buildRailBlockers(ctx) {
+    railBlockers = [];
+    if (!curve) return;
+    const samples = [];
+    for (let i = 0; i <= 240; i++) samples.push(curve.getPointAt(i / 240));
+    const roots = [];
+    if (coverRoot) roots.push(coverRoot);
+    if (dress && dress.root) roots.push(dress.root);
+    roots.forEach((root) => root.updateMatrixWorld(true));
+    roots.forEach((root) => root.traverse((o) => {
+      if (!o.isMesh || !o.visible || !o.geometry) return;
+      if (o.userData && o.userData.noBlock) return;
+      _bb.setFromObject(o);
+      _bb.getSize(_sz);
+      /* things you would walk into: reaching from below the knee to above it,
+         not ground plates, not overhead signs, not whole city blocks */
+      if (_bb.min.y > 1.75 || _bb.max.y < 0.45) return;
+      if (_sz.x > 40 || _sz.z > 40) return;
+      if (_sz.x < 0.05 && _sz.z < 0.05) return;
+      let near = false;
+      for (let i = 0; i < samples.length; i++) {
+        const q = samples[i];
+        if (q.x > _bb.min.x - 2.2 && q.x < _bb.max.x + 2.2 && q.z > _bb.min.z - 2.2 && q.z < _bb.max.z + 2.2) { near = true; break; }
+      }
+      if (!near) return;
+      /* keep an oriented test as well: a long diagonal wall or plane has a
+         huge axis box but only a thin footprint */
+      if (!o.geometry.boundingBox) o.geometry.computeBoundingBox();
+      const inv = new T.Matrix4().copy(o.matrixWorld).invert();
+      const sc = new T.Vector3().setFromMatrixScale(o.matrixWorld);
+      railBlockers.push({ minX: _bb.min.x, maxX: _bb.max.x, minZ: _bb.min.z, maxZ: _bb.max.z, o: o,
+        inv: inv, lb: o.geometry.boundingBox.clone(), sx: Math.abs(sc.x) || 1, sy: Math.abs(sc.y) || 1, sz: Math.abs(sc.z) || 1 });
+    }));
+    /* instanced tree trunks are not meshes of their own: box them by hand */
+    ((dress && dress.trunks) || []).forEach(([x, z]) => {
+      railBlockers.push({ minX: x - 0.22, maxX: x + 0.22, minZ: z - 0.22, maxZ: z + 0.22 });
+    });
+    window.__railBlockers = railBlockers.length;
+    window.__railBlockList = railBlockers;
+  }
+  /* The side-step profile is planned once per stage over the whole rail:
+     sample the track every 0.25 m, mark which sideways offsets (-4..4 m) are
+     clear of every blocker, then pick the cheapest smooth line through the
+     clear cells (dynamic programming: stay near the centre, change slowly,
+     sit exactly on the rail at every hold). The camera just reads it. */
+  const STEER_R = 0.62, STEER_STEP = 0.25, STEER_K = 41, STEER_D = 0.1;
+  const _lq = new T.Vector3();
+  function blockHit(B, qx, qz) {
+    if (!B.inv) return true;
+    const lb = B.lb;
+    for (const y of [0.7, 1.2, 1.6]) {
+      _lq.set(qx, y, qz).applyMatrix4(B.inv);
+      const rx = STEER_R / B.sx, ry = STEER_R / B.sy, rz = STEER_R / B.sz;
+      if (_lq.x > lb.min.x - rx && _lq.x < lb.max.x + rx &&
+          _lq.y > lb.min.y - ry && _lq.y < lb.max.y + ry &&
+          _lq.z > lb.min.z - rz && _lq.z < lb.max.z + rz) return true;
+    }
+    return false;
+  }
+  let steerProf = null;
+  function planSteer(holdUs) {
+    steerProf = null;
+    if (!curve || !railBlockers.length) return;
+    const N = Math.max(2, Math.ceil(pathLen / STEER_STEP));
+    const mid = (STEER_K - 1) / 2;
+    const free = new Uint8Array((N + 1) * STEER_K);
+    for (let i = 0; i <= N; i++) {
+      const u = i / N;
+      const p = curve.getPointAt(u), t = curve.getTangentAt(u);
+      const tl = Math.hypot(t.x, t.z) || 1, nx = t.z / tl, nz = -t.x / tl;
+      for (let k = 0; k < STEER_K; k++) {
+        const o = (k - mid) * STEER_D * 2;
+        const qx = p.x + nx * o, qz = p.z + nz * o;
+        let ok = 1;
+        for (let b = 0; b < railBlockers.length; b++) {
+          const B = railBlockers[b];
+          if (!(qx > B.minX - STEER_R && qx < B.maxX + STEER_R && qz > B.minZ - STEER_R && qz < B.maxZ + STEER_R)) continue;
+          if (blockHit(B, qx, qz)) { ok = 0; break; }
+        }
+        free[i * STEER_K + k] = ok;
+      }
+    }
+    const holdI = new Set((holdUs || []).map((u) => Math.round(Math.max(0, Math.min(1, u)) * N)));
+    const INF = 1e9;
+    const cost = new Float64Array((N + 1) * STEER_K).fill(INF);
+    const from = new Int16Array((N + 1) * STEER_K).fill(-1);
+    for (let k = 0; k < STEER_K; k++) {
+      if (k === mid) cost[k] = 0;
+    }
+    for (let i = 1; i <= N; i++) {
+      const isHold = holdI.has(i);
+      for (let k = 0; k < STEER_K; k++) {
+        if (isHold && k !== mid) continue;
+        const o = Math.abs(k - mid) * STEER_D * 2;
+        const here = (free[i * STEER_K + k] || isHold ? 0 : 400) + o * 0.35;
+        let best = INF, arg = -1;
+        for (let dk = -1; dk <= 1; dk++) {
+          const pk = k + dk;
+          if (pk < 0 || pk >= STEER_K) continue;
+          const c = cost[(i - 1) * STEER_K + pk] + dk * dk * 0.08;
+          if (c < best) { best = c; arg = pk; }
+        }
+        cost[i * STEER_K + k] = best + here;
+        from[i * STEER_K + k] = arg;
+      }
+    }
+    let k = mid, bestC = INF;
+    for (let kk = 0; kk < STEER_K; kk++) if (cost[N * STEER_K + kk] < bestC) { bestC = cost[N * STEER_K + kk]; k = kk; }
+    const raw = new Float32Array(N + 1);
+    let blocked = 0;
+    for (let i = N; i >= 0; i--) {
+      raw[i] = (k - mid) * STEER_D * 2;
+      if (!free[i * STEER_K + k] && !holdI.has(i)) blocked++;
+      if (i > 0) k = from[i * STEER_K + k];
+      if (k < 0) k = mid;
+    }
+    /* a light smoothing pass so the step-in reads as an ease, not a zig-zag;
+       holds stay pinned to the rail */
+    const prof = new Float32Array(N + 1);
+    for (let i = 0; i <= N; i++) {
+      if (holdI.has(i)) { prof[i] = 0; continue; }
+      let a = 0, w = 0;
+      for (let j = -4; j <= 4; j++) {
+        const q = i + j;
+        if (q < 0 || q > N) continue;
+        const ww = 5 - Math.abs(j);
+        a += raw[q] * ww; w += ww;
+      }
+      prof[i] = a / w;
+    }
+    steerProf = { N: N, prof: prof };
+    window.__steerFree = () => { const rows = []; for (let i = 0; i <= N; i++) { let r = ""; for (let kk = 0; kk < STEER_K; kk++) r += free[i * STEER_K + kk] ? "." : "#"; const pt = curve.getPointAt(i / N); rows.push(i + " " + pt.x.toFixed(1) + "," + pt.z.toFixed(1) + " " + r + " " + raw[i].toFixed(1) + (holdI.has(i) ? " H" : "")); } return rows.join("\n"); };
+    window.__steerPlan = { N: N, blocked: blocked, max: Math.max.apply(null, Array.from(prof).map(Math.abs)) };
+  }
+  function steerStep(p, tx, tz, dt, u) {
+    let target = 0;
+    if (steerProf) {
+      const f = Math.max(0, Math.min(1, u)) * steerProf.N;
+      const i0 = Math.floor(f), i1 = Math.min(steerProf.N, i0 + 1), a = f - i0;
+      target = steerProf.prof[i0] * (1 - a) + steerProf.prof[i1] * a;
+    }
+    steerOff += (target - steerOff) * (1 - Math.exp(-8 * dt));
+    window.__steer = +steerOff.toFixed(2);
+    return steerOff;
+  }
 
   /* camera.fov is the VERTICAL angle. A fixed ~58° on a portrait phone
      (aspect ~0.46) squeezes the horizontal cone down to ~30°, so the left and
@@ -4846,7 +5498,7 @@
     sky.geometry = new T.SphereGeometry(300, 24, 16);
     sky.position.set(0, 0, 10);
     S.add(sky);
-    ctx.scene.background = new T.Color(0x9ed2f5).convertSRGBToLinear();
+    ctx.scene.background = new T.Color(0x72b8f0).convertSRGBToLinear();
     /* haze that closes the far end of the boulevard: Sungnyemun and Namsan sit
        in it, so they read as distance instead of painted cardboard */
     ctx.scene.fog = new T.Fog(0xd6e6f2, 130, 460);
@@ -4995,7 +5647,7 @@
     walk(-6.6, -5.0, 28, 76);
     for (let z = 30; z < 74; z += 7) paintBar(0, z, 0.22, 3.6, SOL.paintWhite);
     makeSungnyemunFar(S, 0, 80, 1.15);
-    makeNamsan(S, 14, 176);
+    makeNamsan(S, 10, 150);
 
     /* ================= LANDMARKS ================= */
     /* the big flag on the west block, hung 6.5 m up and facing the road */
@@ -5030,19 +5682,31 @@
     makeCone(S, -2.6, 11.0);
 
     /* trees on both sidewalks */
-    [[-12.6, -8.0], [-12.6, 13.6], [12.6, 6.2], [12.6, 17.4], [-12.6, 22.4]].forEach(([x, z]) => {
-      const tree = new T.Group();
-      part(tree, 0.34, 2.4, 0.34, 0, 1.2, 0, SOL.woodDark);
-      const leaf = new T.Mesh(new T.BoxGeometry(2.2, 1.5, 2.2), SOL.hedge);
-      leaf.position.y = 3.0;
-      leaf.castShadow = true;
-      tree.add(leaf);
-      const leaf2 = new T.Mesh(new T.BoxGeometry(1.5, 1.1, 1.5), SOL.hedge);
-      leaf2.position.set(0.2, 3.9, -0.15);
-      tree.add(leaf2);
-      tree.position.set(x, 0.3, z);
-      S.add(tree);
+    const VT = voxBatch();
+    const trunks = [];
+    [[-12.6, -8.0], [-12.6, 13.6], [12.6, 6.2], [12.6, 17.4], [-12.6, 22.4], [12.6, -14.0], [-12.6, -16.0],
+     [6.0, 32.0], [-6.0, 36.0], [6.0, 44.0], [-6.0, 50.0], [6.0, 58.0], [-6.0, 64.0], [6.0, 70.0],
+     [-46.2, 40.5], [-46.2, 48.5], [-31.4, 34.0]].forEach(([x, z], i) => {
+      const h = 3.2 + (i % 3) * 0.5;
+      voxTree(VT, x, 0.3, z, h, 31 + i * 7, { rx: 1.6 + (i % 2) * 0.3, ry: 1.25 });
+      trunks.push([x, z]);
     });
+    VT.flush(S, "streetTrees");
+    /* low hedges in the planters and along the yard wall */
+    const VH = voxBatch();
+    const vm = voxMats();
+    for (let i = 0; i < 9; i++) VH.cube(vm.leaf, -46.6, 0.75, 38 + i * 1.4, 0.9, 0.9, 1.3, [0xffffff, 0xdfeecf][i % 2]);
+    VH.flush(S, "hedges");
+    /* skyline behind Sungnyemun, climbing toward the foot of Namsan */
+    const R7 = rng(717);
+    const sky1 = [];
+    for (let i = 0; i < 26; i++) {
+      const side = i % 2 ? 1 : -1;
+      const x = side * (16 + R7() * 70), z = 96 + R7() * 56;
+      const w = 9 + R7() * 9, d = 9 + R7() * 9, h = 18 + R7() * 34 * (1 - Math.abs(x) / 120);
+      sky1.push([x, z, w, d, h, i]);
+    }
+    voxSkyline(S, sky1);
 
     /* the parked bus and police car that frame the first firefight */
     makeCityBus(S, -11.6, 15.4, Math.PI / 2, "143").name = "bus143";
@@ -5106,7 +5770,7 @@
 
     dress = {
       root: S, sky, flags, clouds, barrels, ally,
-      truck1: null
+      truck1: null, trunks: trunks
     };
     return dress;
   }
@@ -5309,6 +5973,7 @@
     if (coverRoot) { coverRoot.parent && coverRoot.parent.remove(coverRoot); disposeGeo(coverRoot); coverRoot = null; }
     if (bossPost) { tagOff(bossPost); bossPost = null; }
     sparks.forEach((s) => s.parent && s.parent.remove(s));
+    clearFx2();
     sparks = [];
     smokes.forEach((s) => s.parent && s.parent.remove(s));
     smokes = [];
@@ -5439,13 +6104,23 @@
        the start: nothing the enemy hides behind may appear after he does */
     try { prebuildCovers(); } catch (err) { window.__coverErr = String(err && err.stack || err); }
     buildPickups(ctx);
+    const td0 = performance.now();
     try { dressBattlefield(ctx); } catch (err) { window.__dressErr = String(err && err.stack || err); }
+    window.__dressMs = +(performance.now() - td0).toFixed(0);
     /* walls, for stopping bullets */
     wallList = [];
     try {
       if (dress && dress.root) dress.root.traverse((o) => { if (o.isMesh && o.userData && o.userData.wall) wallList.push(o); });
     } catch (e) {}
     try { rebuildWallBoxes(); } catch (err) { window.__wallErr = String(err && err.stack || err); }
+    try {
+      const tb0 = performance.now();
+      buildRailBlockers(ctx);
+      const tb1 = performance.now();
+      planSteer(waves.map((w) => w.u).concat([bossU, 0]));
+      window.__steerMs = [+(tb1 - tb0).toFixed(0), +(performance.now() - tb1).toFixed(0)];
+    } catch (err) { window.__blockErr = String(err && err.stack || err); }
+    steerOff = 0;
     try { stageWave(waves[0]); } catch (err) { window.__stageErr = String(err && err.stack || err); }
     const cam = ctx.camera;
     cam.near = 0.06; cam.fov = viewFov(); cam.far = 320;
@@ -5960,6 +6635,76 @@
 
   /* chips and dust: concrete throws pale grit and a grey puff, flesh throws
      red, so "stopped by the wall" and "hit the man" never read the same */
+  /* ---- block-break debris and bullet holes ----
+     A man who goes down bursts a spray of little cubes in his uniform and
+     skin colours that bounce on the road and shrink away, the way a block
+     breaks in a voxel game. Rounds that stop in a wall leave a dark pocked
+     square on the surface that stays for the rest of the stage. */
+  const chunks = [];
+  const holes = [];
+  let chunkGeo = null, holeGeo = null, holeMat = null;
+  function voxBreak(scene, x, y, z, cols, n, power) {
+    if (!chunkGeo) chunkGeo = new T.BoxGeometry(1, 1, 1);
+    const k = power || 1;
+    for (let i = 0; i < (n || 12); i++) {
+      const m = new T.Mesh(chunkGeo, new T.MeshStandardMaterial({ color: cols[i % cols.length], roughness: 0.85 }));
+      const sz = 0.07 + Math.random() * 0.09;
+      m.scale.setScalar(sz);
+      m.position.set(x + (Math.random() - 0.5) * 0.4, y + Math.random() * 0.9, z + (Math.random() - 0.5) * 0.4);
+      m.userData.v = new T.Vector3((Math.random() - 0.5) * 3.4 * k, (1.6 + Math.random() * 2.6) * k, (Math.random() - 0.5) * 3.4 * k);
+      m.userData.w = new T.Vector3(Math.random() * 9, Math.random() * 9, Math.random() * 9);
+      m.userData.life = 1.1 + Math.random() * 0.5;
+      m.userData.sz = sz;
+      m.castShadow = true;
+      scene.add(m);
+      chunks.push(m);
+    }
+    while (chunks.length > 160) { const o = chunks.shift(); o.parent && o.parent.remove(o); o.material.dispose(); }
+  }
+  function stepChunks(dt) {
+    for (let i = chunks.length - 1; i >= 0; i--) {
+      const m = chunks[i], u = m.userData;
+      u.life -= dt;
+      u.v.y -= 9.8 * dt;
+      m.position.addScaledVector(u.v, dt);
+      const floor = 0.3 + u.sz / 2;
+      if (m.position.y < floor) { m.position.y = floor; u.v.y *= -0.32; u.v.x *= 0.6; u.v.z *= 0.6; u.w.multiplyScalar(0.6); }
+      m.rotation.x += u.w.x * dt; m.rotation.y += u.w.y * dt; m.rotation.z += u.w.z * dt;
+      if (u.life < 0.3) m.scale.setScalar(Math.max(0.001, u.sz * (u.life / 0.3)));
+      if (u.life <= 0) { m.parent && m.parent.remove(m); m.material.dispose(); chunks.splice(i, 1); }
+    }
+  }
+  const _hn = new T.Vector3(), _nm = new T.Matrix3();
+  function bulletHole(scene, hit) {
+    if (!hit || !hit.face || !hit.object) return;
+    if (!holeGeo) {
+      holeGeo = new T.PlaneGeometry(0.12, 0.12);
+      holeMat = new T.MeshBasicMaterial({ map: ctex("bulletHole", 16, 16, (g, w, h) => {
+        g.clearRect(0, 0, w, h);
+        g.fillStyle = "rgba(40,36,32,.55)"; g.fillRect(2, 2, 12, 12);
+        g.fillStyle = "rgba(12,10,9,.95)"; g.fillRect(5, 5, 6, 6);
+        g.fillStyle = "rgba(230,225,215,.5)"; g.fillRect(3, 2, 3, 2); g.fillRect(11, 11, 2, 3);
+      }, { smooth: true }), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 });
+      holeMat.map.magFilter = T.NearestFilter;
+    }
+    _nm.getNormalMatrix(hit.object.matrixWorld);
+    _hn.copy(hit.face.normal).applyMatrix3(_nm).normalize();
+    const m = new T.Mesh(holeGeo, holeMat);
+    m.position.copy(hit.point).addScaledVector(_hn, 0.012);
+    m.lookAt(hit.point.x + _hn.x, hit.point.y + _hn.y, hit.point.z + _hn.z);
+    m.rotation.z = Math.random() * 3;
+    m.userData.noBlock = 1;
+    scene.add(m);
+    holes.push(m);
+    while (holes.length > 90) { const o = holes.shift(); o.parent && o.parent.remove(o); }
+  }
+  function clearFx2() {
+    chunks.forEach((m) => { m.parent && m.parent.remove(m); m.material.dispose(); });
+    chunks.length = 0;
+    holes.forEach((m) => m.parent && m.parent.remove(m));
+    holes.length = 0;
+  }
+
   function impactBurst(scene, at, kind) {
     const conc = kind === "concrete";
     const skull = kind === "head";
@@ -6110,6 +6855,10 @@
     p.e.alive = false;
     p.state = "dead";
     p.dying = 1.05;
+    try {
+      const cols = p.role === "boss" ? [0x4a4a30, 0x33331f, 0xe0b48c, 0x2a2a1a] : p.role === "tough" ? [0x424d2c, 0x333d22, 0xe0b48c, 0x1e2416] : [0x5a6a3a, 0x48562e, 0xe8bc94, 0x2c3520];
+      voxBreak(ctx.scene, p.x, (p.y || 0.3) + 0.3, p.z, cols, p.role === "boss" ? 26 : 14, p.role === "boss" ? 1.4 : 1);
+    } catch (e) {}
     /* every soldier goes down his own way: tipping back, pitching forward,
        folding left or right, with a knockback away from the muzzle */
     const camP = ctx.camera ? ctx.camera.position : null;
@@ -6293,6 +7042,7 @@
         const sp = screenOf(blocked.point, ctx.camera);
         hitMark("block", sp.x, sp.y);
         impactBurst(ctx.scene, blocked.point, "concrete");
+        bulletHole(ctx.scene, blocked);
         gun("dry");
       }
       return;
@@ -6875,7 +7625,11 @@
         const goalU = phase === "toBoss" ? bossU : (waves[waveI] ? waves[waveI].u : bossU);
         pathU = Math.min(goalU, pathU + (7.4 * dt) / pathLen);
         const p = pathAt(pathU);
-        cam.position.set(p.x, CAM_Y, p.z);
+        const tng = curve.getTangentAt(Math.max(0, Math.min(1, pathU)));
+        const tl = Math.hypot(tng.x, tng.z) || 1;
+        const tx = tng.x / tl, tz = tng.z / tl;
+        const so = steerStep(p, tx, tz, dt, pathU);
+        cam.position.set(p.x + tz * so, CAM_Y, p.z - tx * so);
         const ahead = pathAt(pathU + 7 / pathLen);
         const zone = phase === "toBoss" ? { x: BOSS_DEF.look[0], y: BOSS_DEF.look[1], z: BOSS_DEF.look[2] }
                                         : (waves[waveI] ? waves[waveI].look : null);
@@ -6896,7 +7650,13 @@
           else if (phase === "toBoss") { startBoss(ctx); }
         }
       } else {
-        cam.position.set(curHold.x, CAM_Y, curHold.z);
+        /* at a hold the side-step relaxes back to the hold point */
+        steerOff *= Math.exp(-3.2 * dt);
+        const hu = Math.max(0, Math.min(1, pathU));
+        const tng = curve ? curve.getTangentAt(hu) : null;
+        const tl = tng ? (Math.hypot(tng.x, tng.z) || 1) : 1;
+        const tx = tng ? tng.x / tl : 0, tz = tng ? tng.z / tl : 1;
+        cam.position.set(curHold.x + tz * steerOff, CAM_Y, curHold.z - tx * steerOff);
         lookGoal = { x: curLook.x, y: curLook.y, z: curLook.z };
       }
     } else {
@@ -7116,7 +7876,7 @@
         kick: +kick.toFixed(3), dip: +dip.toFixed(3), aimD: +aimD.toFixed(1) };
     }
     window.__gunAim = gunAim;
-    window.__fxCount = () => ({ sparks: sparks.length, smokes: smokes.length, tracers: tracers.length });
+    window.__fxCount = () => ({ sparks: sparks.length, smokes: smokes.length, tracers: tracers.length, chunks: chunks.length, holes: holes.length });
     window.__insideWall = insideWall;
     window.__wallStats = () => ({ boxes: wallBoxes.length, allyNudges: window.__allyWallNudges || 0, postNudges: window.__postWallNudge || 0 });
     window.__allyObj = () => dress && dress.ally;
@@ -7174,6 +7934,7 @@
         smokes.splice(i, 1);
       }
     }
+    stepChunks(dt);
     for (let i = sparks.length - 1; i >= 0; i--) {
       const s = sparks[i];
       s.userData.life -= dt;
@@ -7962,7 +8723,12 @@
     }
 
     /* ---- ground: dirt everywhere, the tactical road on top ---- */
-    const dirt = surf(soilTex(), 30, 30, { shine: 1, spec: 0x120f0a, bump: bumpNoise("soilB", 256, 61, 0.9), bumpScale: 0.16 });
+    /* the open ground is grass now; only the tactical roads stay dirt */
+    const gTex = voxMats().grass.map.clone();
+    gTex.wrapS = gTex.wrapT = T.RepeatWrapping;
+    gTex.repeat.set(110, 110);
+    gTex.needsUpdate = true;
+    const dirt = new T.MeshStandardMaterial({ map: gTex, color: 0xc4d6a8, roughness: 0.96 });
     const ground = new T.Mesh(new T.PlaneGeometry(300, 300), dirt);
     ground.rotation.x = -Math.PI / 2;
     ground.position.set(0, 0.24, 34);
@@ -8102,6 +8868,47 @@
     S.add(makeCrate(-4.4, 61.2, 0.8));
     S.add(makeBarrier(-34.6, 51.0));
 
+    /* ---- the DMZ has gone back to forest: pines and oaks crowd both
+       sides of the wire, rocks and grass between them, forested hills
+       behind (voxel kit, a few instanced draw calls) ---- */
+    const trunks2 = [];
+    {
+      const VF = voxBatch();
+      const vm = voxMats();
+      const RF = rng(2207);
+      const pts = [];
+      if (curve) for (let i = 0; i <= 120; i++) pts.push(curve.getPointAt(i / 120));
+      const clear = (x, z, r) => {
+        for (let i = 0; i < pts.length; i++) { const dx = pts[i].x - x, dz = pts[i].z - z; if (dx * dx + dz * dz < r * r) return false; }
+        return !(Math.abs(x) < 12.5 && z < 36);
+      };
+      let placed = 0;
+      for (let tries = 0; tries < 900 && placed < 150; tries++) {
+        const x = (RF() - 0.5) * 120, z = -18 + RF() * 110;
+        if (!clear(x, z, 9)) continue;
+        const h = 6 + RF() * 6;
+        if (RF() < 0.72) voxPine(VF, x, 0.25, z, h, tries + 1);
+        else voxTree(VF, x, 0.25, z, h * 0.55, tries + 3, { rx: 2.0 + RF() * 0.8, ry: 1.6, cube: 0.6, tint: [0xc9dcb4, 0xb7cfa0, 0xd8e8c4] });
+        trunks2.push([x, z]);
+        placed++;
+      }
+      /* rocks and grass tufts near the wire */
+      for (let i = 0; i < 70; i++) {
+        const x = (RF() < 0.5 ? -1 : 1) * (12 + RF() * 26), z = -16 + RF() * 60;
+        if (!clear(x, z, 4.5)) continue;
+        const r = 0.5 + RF() * 1.1;
+        VF.cube(vm.rock, x, 0.25 + r * 0.35, z, r * 1.4, r * 0.8, r * 1.1, [0xffffff, 0xe6e6e0, 0xd2d4cc][i % 3], RF() * 3, { cast: true });
+        if (RF() < 0.6) VF.cube(vm.rock, x + r * 0.4, 0.25 + r * 0.8, z - r * 0.2, r * 0.7, r * 0.5, r * 0.7, 0xf0f0ea, RF() * 3);
+      }
+      for (let i = 0; i < 260; i++) {
+        const x = (RF() < 0.5 ? -1 : 1) * (7.2 + RF() * 30), z = -16 + RF() * 62;
+        if (Math.abs(x) < 7.2) continue;
+        const hgt = 0.25 + RF() * 0.35;
+        VF.cube(vm.leaf, x, 0.25 + hgt / 2, z, 0.35 + RF() * 0.3, hgt, 0.35 + RF() * 0.3, [0xd5e8b8, 0xbad6a0, 0xe4f0cc][i % 3], RF());
+      }
+      voxHill(VF, 0, 150, 340, 90, 38, 919, { cell: 5, base: -4 });
+      VF.flush(S, "dmzForest");
+    }
     /* ---- valley ridges and haze so the horizon never ends in sky ---- */
     S.add(makeRidge(0, 138, 170, 20, 46, 0x5b7560, 0x6a8768));
     S.add(makeRidge(-96, 124, 90, 15, 38, 0x5a7462, 0x6a866c));
@@ -8152,7 +8959,7 @@
       const gx = side * (4.9 + R() * 3.2);
       const gz = -8 + R() * 40;
       if (gz > 31) continue;
-      const tuft = part(S, 0.7 + R() * 0.6, 0.16 + R() * 0.14, 0.7 + R() * 0.5, gx, 0.34, gz, SOL.grass);
+      const tuft = part(S, 0.5 + R() * 0.4, 0.22 + R() * 0.2, 0.5 + R() * 0.3, gx, 0.36, gz, voxMats().leaf);
       tuft.castShadow = false;
     }
     /* wrecked truck and a collapsed wire section on the verge */
@@ -8221,7 +9028,8 @@
 
     dress = {
       root: S, sky, flags, clouds, barrels: [], ally,
-      truck1: waves && waves[2] ? waveXY(waves[2], -4.6, 8.4) : null
+      truck1: waves && waves[2] ? waveXY(waves[2], -4.6, 8.4) : null,
+      trunks: trunks2
     };
     window.__stage2 = { landCovers: landCovers.length, walkBlockers: walkBlockers.length };
     return dress;
