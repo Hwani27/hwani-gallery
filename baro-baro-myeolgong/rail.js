@@ -40,7 +40,9 @@
   let gunAim = { yaw: 0, pitch: 0 };
   let flash = null;
   let flashHalo = null;
+  let flashStar = null;
   let flashLight = null;
+  let shells = [];
   let recoil = 0;
   let pistolBase = null;
   let smokes = [];
@@ -129,8 +131,7 @@
         background:radial-gradient(circle at 50% 38%,rgba(48,14,8,.98),rgba(10,6,4,.98));
         border:2px solid var(--rtc);color:#fff;font:900 15px/1 ui-monospace,monospace;
         box-shadow:0 0 9px var(--rtc),inset 0 0 6px rgba(0,0,0,.7)}
-      .railThreat.urgent .rtDot{border-color:#ff2a1a;color:#fff;animation:railPulse .42s steps(2,end) infinite}
-      @keyframes railPulse{0%{transform:translate(-50%,-50%) scale(1)}50%{transform:translate(-50%,-50%) scale(1.22)}100%{transform:translate(-50%,-50%) scale(1)}}
+      .railThreat.urgent .rtDot{border-color:#ff2a1a;color:#fff;animation:railPulse .42s steps(2,end) infinite}      @keyframes railPulse{0%{transform:translate(-50%,-50%) scale(1)}50%{transform:translate(-50%,-50%) scale(1.22)}100%{transform:translate(-50%,-50%) scale(1)}}
       #railRadio{position:fixed;left:50%;bottom:max(18px,env(safe-area-inset-bottom));transform:translateX(-50%) translateY(16px);z-index:46;
         width:min(680px,calc(100% - 28px));pointer-events:none;opacity:0;transition:opacity .22s ease,transform .22s ease;
         border:2px solid rgba(160,206,120,.55);border-radius:12px;padding:11px 14px 12px;
@@ -148,7 +149,27 @@
       .mgPop{position:fixed;z-index:42;pointer-events:none;transform:translate(-50%,-50%);font:900 20px/1 ui-monospace,monospace;color:#ffe14a;text-shadow:0 2px 0 #201a00,0 0 8px rgba(255,225,74,.5);animation:mgPopUp .8s ease-out forwards}
       .mgPop.bad{color:#ff7a66;text-shadow:0 2px 0 #2a0000,0 0 8px rgba(255,60,40,.5)}
       @keyframes mgPopUp{0%{opacity:0;transform:translate(-50%,-50%) scale(.7)}18%{opacity:1;transform:translate(-50%,-58%) scale(1.06)}100%{opacity:0;transform:translate(-50%,-118%) scale(1)}}
-      #railMark{position:fixed;z-index:43;width:18px;height:18px;margin:-9px 0 0 -9px;pointer-events:none;border:3px solid #ff3b3b;transform:rotate(45deg)}
+      .railHit{position:fixed;z-index:43;width:36px;height:36px;margin:-18px 0 0 -18px;pointer-events:none;animation:railHitPop .16s ease-out}
+      .railHit b{position:absolute;left:50%;top:50%;width:4px;height:13px;background:#f7f4ea;box-shadow:0 0 4px rgba(0,0,0,.8)}
+      .railHit b:nth-child(1){transform:translate(-50%,-50%) rotate(45deg) translateY(-11px)}
+      .railHit b:nth-child(2){transform:translate(-50%,-50%) rotate(45deg) translateY(11px)}
+      .railHit b:nth-child(3){transform:translate(-50%,-50%) rotate(-45deg) translateY(-11px)}
+      .railHit b:nth-child(4){transform:translate(-50%,-50%) rotate(-45deg) translateY(11px)}
+      .railHit.head{width:48px;height:48px;margin:-24px 0 0 -24px}
+      .railHit.head b{background:#ffd24a;width:6px;height:18px;box-shadow:0 0 10px rgba(255,214,90,.95),0 0 2px #3a2400}
+      .railHit.head:before{content:"";position:absolute;inset:4px;border:2px solid rgba(255,210,74,.9);border-radius:50%;box-shadow:0 0 12px rgba(255,210,74,.7);animation:railCritRing .26s ease-out forwards}
+      .railHit.head:after{content:"";position:absolute;inset:13px;border:3px solid rgba(255,246,214,.95);border-radius:50%}
+      .railHit.kill b{background:#ff6a58;width:5px;height:15px}
+      .railHit.head.kill b{background:#ff8a3a}
+      #railX.crit i{background:#ffd24a;box-shadow:0 0 8px rgba(255,214,90,.95),0 0 0 2px #3a2400}
+      #railX.crit b{border-color:#ffd24a;box-shadow:0 0 12px rgba(255,214,90,.9)}
+      #railX.crit{animation:railCritPulse .22s ease-out}
+      @keyframes railCritRing{0%{transform:scale(.5);opacity:1}100%{transform:scale(1.5);opacity:0}}
+      @keyframes railCritPulse{0%{transform:translate(-50%,-50%) scale(1)}40%{transform:translate(-50%,-50%) scale(1.5)}100%{transform:translate(-50%,-50%) scale(1)}}
+      .railHit.block b{background:#d6d2c6;width:3px;height:9px;opacity:.9}
+      .railHit.pickup b{background:#7ef0a0}
+      .railHit span{position:absolute;left:50%;top:-16px;transform:translateX(-50%);font:900 12px/1 ui-monospace,monospace;letter-spacing:.1em;color:#ffd24a;text-shadow:0 2px 0 #201a00,0 0 6px rgba(255,210,74,.6);white-space:nowrap}
+      @keyframes railHitPop{0%{transform:scale(.55);opacity:1}100%{transform:scale(1.12);opacity:.92}}
       #railX i{position:absolute;background:#ff2a2a;box-shadow:0 0 0 2px #1a0505}
       #railX i:nth-child(1){left:20px;top:0;width:6px;height:12px}
       #railX i:nth-child(2){left:20px;bottom:0;width:6px;height:12px}
@@ -315,7 +336,7 @@
   }
 
   function cloneMat(mat, rx, ry) {
-    if (!mat) return new T.MeshLambertMaterial({ color: 0x8d8880 });
+    if (!mat) return new T.MeshStandardMaterial({ color: 0x8d8880, roughness: 0.9 });
     const m = mat.clone();
     if (mat.map) {
       m.map = mat.map.clone();
@@ -342,6 +363,9 @@
      ========================================================= */
   const MT = {};
   const SOL = {};
+  /* the 2d canvas each cached texture was painted on, so a height (bump) map
+     and a roughness map can be derived from the very same grain */
+  const TXCV = {};
 
   /* Highest anisotropic filtering the GPU allows, capped at 8: floors and
      walls keep their grain at grazing angles instead of smearing to mush. */
@@ -364,13 +388,17 @@
     t.wrapS = t.wrapT = T.RepeatWrapping;
     t.anisotropy = Math.max(1, Math.min(8, MAXANISO));
     t.needsUpdate = true;
+    t.__key = key;
     MT[key] = t;
+    TXCV[key] = cv;
     try {
       if (!window.__texSizes) window.__texSizes = {};
       window.__texSizes[key] = [w, h, t.anisotropy];
       if (!window.__texCanvases) window.__texCanvases = {};
       window.__texCanvases[key] = cv;
       window.__texMs = +((window.__texMs || 0) + (performance.now() - t0)).toFixed(1);
+      if (!window.__texMsKey) window.__texMsKey = {};
+      window.__texMsKey[key] = +((window.__texMsKey[key] || 0) + (performance.now() - t0)).toFixed(1);
     } catch (e) {}
     return t;
   }
@@ -436,6 +464,22 @@
     }
   }
 
+  /* Per-pixel grain: the finest surface break a canvas can carry. A few
+     thousand rectangles read as tiles at 1024, one random step per pixel reads
+     as grit. */
+  function grain(g, w, h, amount, seed) {
+    const R = rng(seed || 7);
+    const img = g.getImageData(0, 0, w, h);
+    const d = img.data;
+    for (let i = 0; i < d.length; i += 4) {
+      const n = (R() - 0.5) * amount;
+      d[i] = Math.max(0, Math.min(255, d[i] + n));
+      d[i + 1] = Math.max(0, Math.min(255, d[i + 1] + n));
+      d[i + 2] = Math.max(0, Math.min(255, d[i + 2] + n));
+    }
+    g.putImageData(img, 0, 0);
+  }
+
   function speck(g, w, h, cols, seed, n, size) {
     const R = rng(seed);
     const s = size || Math.max(1, w / 256);
@@ -445,6 +489,91 @@
       g.fillRect((R() * w) | 0, (R() * h) | 0, s + ((R() * s * 2) | 0), s + ((R() * s) | 0));
     }
     g.globalAlpha = 1;
+  }
+
+  /* ---- surface relief ------------------------------------------------
+     A height map is what turns a painted canvas into a surface. It is read
+     off the colour map's own luminance (mortar is darker than stone, a door's
+     joint darker than its panel), box-blurred once so the noise reads as grain
+     instead of static, and pushed out by `gain`. Kept at 256 for memory: bump
+     only perturbs a normal, it carries no colour worth 4x the pixels. */
+  function bumpTex(key, src, opt) {
+    const k = key + "@bump";
+    if (MT[k]) return MT[k];
+    const o = opt || {};
+    const S = o.size || 256;
+    const cv = document.createElement("canvas");
+    cv.width = S;
+    cv.height = S;
+    const g = cv.getContext("2d");
+    g.fillStyle = "#808080";
+    g.fillRect(0, 0, S, S);
+    if (src) g.drawImage(src, 0, 0, S, S);
+    const img = g.getImageData(0, 0, S, S);
+    const d = img.data;
+    const n = S * S;
+    const lum = new Float32Array(n);
+    for (let i = 0, p = 0; p < n; p++, i += 4) lum[p] = d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114;
+    const blur = new Float32Array(n);
+    for (let y = 0; y < S; y++) {
+      const yr = ((y - 1 + S) % S) * S, y0 = y * S, yl = ((y + 1) % S) * S;
+      for (let x = 0; x < S; x++) {
+        const xl = (x - 1 + S) % S, xr = (x + 1) % S;
+        blur[y0 + x] = (lum[yr + xl] + lum[yr + x] + lum[yr + xr]
+                      + lum[y0 + xl] + lum[y0 + x] + lum[y0 + xr]
+                      + lum[yl + xl] + lum[yl + x] + lum[yl + xr]) / 9;
+      }
+    }
+    const gain = o.gain === undefined ? 2.2 : o.gain;
+    const lift = o.lift || 0;
+    for (let p = 0, i = 0; p < n; p++, i += 4) {
+      let v = 128 + (blur[p] - 128) * gain + lift;
+      if (o.invert) v = 255 - v;
+      d[i] = d[i + 1] = d[i + 2] = v < 0 ? 0 : v > 255 ? 255 : v;
+      d[i + 3] = 255;
+    }
+    g.putImageData(img, 0, 0);
+    const t = new T.CanvasTexture(cv);
+    t.wrapS = t.wrapT = T.RepeatWrapping;
+    t.magFilter = T.LinearFilter;
+    t.minFilter = T.LinearMipMapLinearFilter;
+    t.generateMipmaps = true;
+    t.anisotropy = Math.max(1, Math.min(8, MAXANISO));
+    t.needsUpdate = true;
+    MT[k] = t;
+    TXCV[k] = cv;
+    try {
+      if (!window.__texSizes) window.__texSizes = {};
+      window.__texSizes[k] = [S, S, t.anisotropy];
+    } catch (e) {}
+    return t;
+  }
+
+  /* A roughness map is where a surface differs in how it takes the sun: glass
+     mirror-smooth, its aluminium frame half-way, the spandrel rough. Black is
+     mirror, white is matte, exactly as three.js reads it. */
+  function roughTex(key, draw, opt) {
+    const k = key + "@rough";
+    if (MT[k]) return MT[k];
+    const o = opt || {};
+    const S = o.size || 256;
+    const cv = document.createElement("canvas");
+    cv.width = S;
+    cv.height = S;
+    const g = cv.getContext("2d");
+    g.fillStyle = o.base || "#d8d8d8";
+    g.fillRect(0, 0, S, S);
+    draw(g, S, S);
+    const t = new T.CanvasTexture(cv);
+    t.wrapS = t.wrapT = T.RepeatWrapping;
+    t.magFilter = T.LinearFilter;
+    t.minFilter = T.LinearMipMapLinearFilter;
+    t.generateMipmaps = true;
+    t.anisotropy = Math.max(1, Math.min(8, MAXANISO));
+    t.needsUpdate = true;
+    MT[k] = t;
+    TXCV[k] = cv;
+    return t;
   }
 
   /* ---- stone masonry ------------------------------------------------ */
@@ -493,7 +622,7 @@
             g.fillRect(x0 + bwid - 2.3 * u, y0b + 0.9 * u, 1.2 * u, bhei - 2.4 * u);
             // pitted stone face
             const pr = rng((seed + r * 97 + (x | 0)) | 0);
-            for (let i = 0; i < 26 * u * u; i++) {
+            for (let i = 0; i < 16 * u * u; i++) {
               g.globalAlpha = 0.06 + pr() * 0.16;
               g.fillStyle = pr() < 0.5 ? tint[(pr() * tint.length) | 0] : "#ffffff";
               g.fillRect(x0 + 1.5 * u + pr() * (bwid - 3 * u), y0b + 1.5 * u + pr() * (bhei - 3 * u),
@@ -600,6 +729,25 @@
           g.fillStyle = rg;
           g.beginPath(); g.arc(px, py, r, 0, 7); g.fill();
         });
+      }
+      // rain runoff down the face: what makes a concrete wall look old
+      for (let i = 0; i < 16; i++) {
+        const x = R() * w, wd = (2 + R() * 9) * u, y0 = R() * h * 0.45;
+        const lg = g.createLinearGradient(0, y0, 0, y0 + h * (0.3 + R() * 0.5));
+        lg.addColorStop(0, "rgba(64,60,50,.2)");
+        lg.addColorStop(0.7, "rgba(64,60,50,.1)");
+        lg.addColorStop(1, "rgba(64,60,50,0)");
+        g.fillStyle = lg;
+        g.fillRect(x, y0, wd, h * 0.8);
+      }
+      // and the white lime bloom that follows a wet season
+      for (let i = 0; i < 3; i++) {
+        const x = R() * w, y = h * (0.55 + R() * 0.4), r = (16 + R() * 40) * u;
+        const rg = g.createRadialGradient(x, y, 0, x, y, r);
+        rg.addColorStop(0, "rgba(238,236,226,.22)");
+        rg.addColorStop(1, "rgba(238,236,226,0)");
+        g.fillStyle = rg;
+        g.beginPath(); g.arc(x, y, r, 0, 7); g.fill();
       }
     });
   }
@@ -833,6 +981,37 @@
           g.beginPath(); g.arc(px, py, r, 0, 7); g.fill();
         });
       }
+    });
+  }
+
+  /* street-tree foliage: clumps of leaves in three greens over a dark interior,
+     so a clipped box of a tree reads as a bush instead of a green cube */
+  function folTex(key, seed) {
+    return ctex(key, 256, 256, (g, w, h) => {
+      const R = rng(seed || 5);
+      const u = w / 128;
+      g.fillStyle = "#22301b";
+      g.fillRect(0, 0, w, h);
+      const cols = ["#3f6b2c", "#4f7d33", "#5f8f3d", "#33602a", "#6da046", "#2b4a22"];
+      for (let i = 0; i < 1600; i++) {
+        const x = R() * w, y = R() * h;
+        const r = (1.6 + R() * 3.4) * u;
+        g.globalAlpha = 0.5 + R() * 0.5;
+        g.fillStyle = cols[(R() * cols.length) | 0];
+        wrapDraw(w, h, x, y, r * 2, (px, py) => {
+          g.beginPath();
+          g.ellipse(px, py, r, r * 0.62, R() * 3, 0, 7);
+          g.fill();
+        });
+      }
+      /* the shaded inside of the crown shows through the gaps */
+      for (let i = 0; i < 60; i++) {
+        const x = R() * w, y = R() * h, r = (3 + R() * 8) * u;
+        g.globalAlpha = 0.3;
+        g.fillStyle = "#16200f";
+        wrapDraw(w, h, x, y, r, (px, py) => { g.beginPath(); g.arc(px, py, r, 0, 7); g.fill(); });
+      }
+      g.globalAlpha = 1;
     });
   }
 
@@ -1121,6 +1300,66 @@
     });
   }
 
+  /* tyre tread: staggered blocks with a groove between them, so a wheel reads
+     as rubber and not as a black cylinder */
+  function treadTex(key, seed) {
+    return ctex(key, 128, 128, (g, w, h) => {
+      const R = rng(seed || 3);
+      g.fillStyle = "#8a8a8a";
+      g.fillRect(0, 0, w, h);
+      const cols = 4, rows = 8;
+      const cw = w / cols, rh = h / rows;
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const off = (r % 2) * cw * 0.5;
+          const x = c * cw + off + 2, y = r * rh + 2;
+          g.fillStyle = "#b4b4b4";
+          g.fillRect(x, y, cw - 5, rh - 5);
+          g.fillStyle = "rgba(255,255,255,.25)";
+          g.fillRect(x, y, cw - 5, 1.6);
+          g.fillStyle = "rgba(0,0,0,.3)";
+          g.fillRect(x, y + rh - 6.6, cw - 5, 1.6);
+        }
+      }
+      speck(g, w, h, ["#5f5f5f", "#c8c8c8"], seed + 2, 260, 1.2);
+    });
+  }
+
+  /* road paint: a laid film of white or yellow that has been driven over —
+     fine cracks, gravel showing through and the odd scuff */
+  function paintTex(key, base) {
+    return ctex(key, 256, 256, (g, w, h) => {
+      const R = rng(key.length * 977 + 13);
+      const u = w / 128;
+      g.fillStyle = base;
+      g.fillRect(0, 0, w, h);
+      for (let i = 0; i < 900; i++) {
+        g.globalAlpha = 0.04 + R() * 0.13;
+        g.fillStyle = R() < 0.55 ? shade(base, 0.72) : shade(base, 1.12);
+        const s = (0.6 + R() * 2.2) * u;
+        g.fillRect(R() * w, R() * h, s, s * (0.6 + R() * 0.8));
+      }
+      g.globalAlpha = 1;
+      for (let i = 0; i < 12; i++) {
+        g.strokeStyle = "rgba(40,40,40," + (0.1 + R() * 0.18).toFixed(2) + ")";
+        g.lineWidth = 0.8 * u;
+        let x = R() * w, y = R() * h;
+        g.beginPath(); g.moveTo(x, y);
+        for (let k = 0; k < 4; k++) { x += (R() - 0.5) * 22 * u; y += (R() - 0.5) * 22 * u; g.lineTo(x, y); }
+        g.stroke();
+      }
+      for (let i = 0; i < 5; i++) {
+        const x = R() * w, y = R() * h, r = (6 + R() * 16) * u;
+        wrapDraw(w, h, x, y, r, (px, py) => {
+          const rg = g.createRadialGradient(px, py, 0, px, py, r);
+          rg.addColorStop(0, "rgba(120,118,110,.22)");
+          rg.addColorStop(1, "rgba(120,118,110,0)");
+          g.fillStyle = rg; g.beginPath(); g.arc(px, py, r, 0, 7); g.fill();
+        });
+      }
+    });
+  }
+
   function groundTex(key, seed) {
     return ctex(key, 512, 512, (g, w, h) => {
       const R = rng(seed);
@@ -1153,6 +1392,544 @@
         g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l); g.stroke();
       }
       g.globalAlpha = 1;
+    });
+  }
+
+  /* ---- Seoul street surfaces --------------------------------------- */
+
+  /* asphalt: coarse aggregate in a dark bitumen base, tar seams sealed over,
+     hairline cracks, the pale tracks tyres polish into a lane and a patch of
+     newer tarmac cut into the old. Painted at 1024 because the road fills the
+     bottom half of the frame and its grain has to survive the perspective. */
+  function asphaltTex(key, seed, size) {
+    const SZ = size || 1024;
+    return ctex(key, SZ, SZ, (g, w, h) => {
+      const R = rng(seed);
+      const u = w / 128;
+      g.fillStyle = "#3a3a38";
+      g.fillRect(0, 0, w, h);
+      /* a newer patch of tarmac: same family, a shade darker, straight edges */
+      const px0 = w * 0.08, py0 = h * 0.52, pw = w * 0.46, ph = h * 0.3;
+      g.fillStyle = "#333330";
+      g.fillRect(px0, py0, pw, ph);
+      g.strokeStyle = "rgba(22,23,26,.55)";
+      g.lineWidth = 2.2 * u;
+      g.strokeRect(px0, py0, pw, ph);
+      for (let i = 0; i < 900; i++) {
+        g.globalAlpha = 0.05 + R() * 0.14;
+        g.fillStyle = ["#282b2f", "#3d4045", "#4a4e54", "#222428", "#565a60"][(R() * 5) | 0];
+        const s = (0.5 + R() * 1.8) * u;
+        g.fillRect(px0 + R() * pw, py0 + R() * ph, s, s * (0.7 + R() * 0.7));
+      }
+      g.globalAlpha = 1;
+      /* aggregate: fine chips of stone in the bitumen, small enough that a
+         tile of road never reads as a pattern of squares */
+      for (let i = 0; i < 11000; i++) {
+        g.globalAlpha = 0.05 + R() * 0.18;
+        g.fillStyle = ["#2b2c2c", "#45464a", "#55565a", "#202122", "#6a6b70", "#37383a", "#4d4a44"][(R() * 7) | 0];
+        const s = (0.25 + R() * 0.85) * u;
+        g.fillRect(R() * w, R() * h, s, s * (0.7 + R() * 0.7));
+      }
+      g.globalAlpha = 1;
+      grain(g, w, h, 26, seed + 11);
+      /* the two wheel tracks of a lane, polished lighter by traffic */
+      for (let i = 0; i < 2; i++) {
+        const cx = w * (0.26 + i * 0.44);
+        const lg = g.createLinearGradient(cx - 56 * u, 0, cx + 56 * u, 0);
+        lg.addColorStop(0, "rgba(180,186,194,0)");
+        lg.addColorStop(0.5, "rgba(180,186,194,.11)");
+        lg.addColorStop(1, "rgba(180,186,194,0)");
+        g.fillStyle = lg;
+        g.fillRect(cx - 56 * u, 0, 112 * u, h);
+      }
+      /* tar seams run with the road */
+      for (let i = 0; i < 3; i++) {
+        g.strokeStyle = "rgba(26,27,31,.34)";
+        g.lineWidth = (1.1 + R() * 1.1) * u;
+        g.beginPath();
+        let x = R() * w, y = 0;
+        g.moveTo(x, y);
+        while (y < h) { y += 20 * u; x += (R() - 0.5) * 14 * u; g.lineTo(x, y); }
+        g.stroke();
+      }
+      /* and hairline cracks, some of them branching */
+      for (let i = 0; i < 22; i++) {
+        g.strokeStyle = "rgba(22,23,26," + (0.2 + R() * 0.3).toFixed(2) + ")";
+        g.lineWidth = 0.7 * u;
+        let x = R() * w, y = R() * h;
+        g.beginPath(); g.moveTo(x, y);
+        const br = R() < 0.4;
+        for (let k = 0; k < 6; k++) {
+          x += (R() - 0.5) * 20 * u; y += (R() - 0.3) * 15 * u;
+          g.lineTo(x, y);
+          if (br && k === 3) {
+            g.moveTo(x, y);
+            g.lineTo(x + (R() - 0.5) * 26 * u, y + R() * 22 * u);
+            g.moveTo(x, y);
+          }
+        }
+        g.stroke();
+      }
+      /* oil stains and the sheen patches */
+      for (let i = 0; i < 10; i++) {
+        const x = R() * w, y = R() * h, r = (24 + R() * 44) * u;
+        wrapDraw(w, h, x, y, r, (qx, qy) => {
+          const rg = g.createRadialGradient(qx, qy, 0, qx, qy, r);
+          rg.addColorStop(0, i % 3 ? "rgba(158,164,172,.07)" : "rgba(16,16,19,.3)");
+          rg.addColorStop(1, "rgba(158,164,172,0)");
+          g.fillStyle = rg; g.beginPath(); g.arc(qx, qy, r, 0, 7); g.fill();
+        });
+      }
+    });
+  }
+
+  /* sidewalk pavers: four 0.75 m blocks across, staggered joints packed with
+     grit and a little moss, chipped corners, rain-dark blotches and chewing gum
+     pressed into the face */
+  function paveTex(key, seed) {
+    return ctex(key, 512, 512, (g, w, h) => {
+      const R = rng(seed);
+      const n = 4, s = w / n;
+      g.fillStyle = "#5d5d59";
+      g.fillRect(0, 0, w, h);
+      for (let row = 0; row < n; row++) {
+        for (let col = -1; col < n + 1; col++) {
+          const off = row % 2 ? s / 2 : 0;
+          const x = col * s + off + 3.5, y = row * s + 3.5;
+          const bw = s - 7, bh = s - 7;
+          const tone = 0.88 + R() * 0.22;
+          g.fillStyle = shade("#b3b3ad", tone);
+          rr(g, x, y, bw, bh, 2.2);
+          g.fill();
+          /* bevel: light on the top-left edge, shade bottom-right */
+          g.fillStyle = "rgba(255,255,255,.22)";
+          g.fillRect(x + 1, y + 1, bw - 2, 1.8);
+          g.fillRect(x + 1, y + 1, 1.8, bh - 2);
+          g.fillStyle = "rgba(30,30,28,.22)";
+          g.fillRect(x + 1, y + bh - 2.8, bw - 2, 2);
+          g.fillRect(x + bw - 2.8, y + 1, 2, bh - 2);
+          /* grit and the aggregate showing through the finish */
+          for (let k = 0; k < 40; k++) {
+            g.globalAlpha = 0.05 + R() * 0.15;
+            g.fillStyle = R() < 0.5 ? "#8d8d88" : "#d4d4ce";
+            const gs = 0.8 + R() * 1.6;
+            g.fillRect(x + R() * (bw - 4), y + R() * (bh - 4), gs, gs);
+          }
+          g.globalAlpha = 1;
+          /* a chipped corner */
+          if (R() < 0.28) {
+            const cw = 4 + R() * 7, cx = R() < 0.5 ? x : x + bw - cw, cy = R() < 0.5 ? y : y + bh - cw;
+            g.fillStyle = "rgba(70,68,63,.4)";
+            g.beginPath();
+            g.moveTo(cx, cy + cw); g.lineTo(cx + cw * 0.4, cy + cw * 0.3); g.lineTo(cx + cw, cy);
+            g.lineTo(cx + cw, cy + cw); g.closePath(); g.fill();
+          }
+          /* dirt that gathers along the joints */
+          const dj = g.createLinearGradient(x, y, x, y + bh);
+          dj.addColorStop(0, "rgba(58,55,48,.16)");
+          dj.addColorStop(0.25, "rgba(58,55,48,0)");
+          dj.addColorStop(0.8, "rgba(58,55,48,0)");
+          dj.addColorStop(1, "rgba(58,55,48,.2)");
+          g.fillStyle = dj;
+          g.fillRect(x, y, bw, bh);
+          /* moss and rain darkening in a few blocks only */
+          if (R() < 0.18) {
+            const mx = x + R() * bw * 0.6, my = y + R() * bh * 0.6;
+            const rg = g.createRadialGradient(mx, my, 0, mx, my, s * 0.4);
+            rg.addColorStop(0, "rgba(58,66,44,.2)");
+            rg.addColorStop(1, "rgba(58,66,44,0)");
+            g.fillStyle = rg;
+            g.fillRect(x, y, bw, bh);
+          }
+        }
+      }
+      for (let i = 0; i < 7; i++) {
+        g.fillStyle = "rgba(34,32,28,.55)";
+        g.beginPath(); g.arc(R() * w, R() * h, 1.4 + R() * 2.6, 0, 7); g.fill();
+      }
+      speck(g, w, h, ["#6f6f69", "#c3c3bc", "#8f8f88"], seed + 5, 520, 1.4);
+    });
+  }
+
+  /* a city facade tile: two floors of glazing over spandrel bands, mullions,
+     sills, a few lit rooms, lowered blinds and a plant or a desk behind the
+     glass. One tile is 6 m wide and 6.4 m tall, so a wall repeats it by its own
+     size. The tile also carries its own roughness map: the glass is nearly a
+     mirror, its frame half-way, the spandrel and the wall matte. */
+  function facadeTex(key, o, seed) {
+    const P = o || {};
+    const wall = P.wall || "#c2c6cb";
+    const glassTop = P.glassTop || "#bfe2f8";
+    const glassBot = P.glassBot || "#41637d";
+    const sd = seed || 5;
+    const t = ctex(key, 512, 512, (g, w, h) => {
+      const R = rng(sd);
+      const u = w / 384;
+      g.fillStyle = wall;
+      g.fillRect(0, 0, w, h);
+      speck(g, w, h, [shade(wall, 0.93), shade(wall, 1.05), shade(wall, 0.86)], sd + 2, 700 * u * u, 2.4 * u);
+      const bays = 3, floors = 2;
+      const bw = w / bays, fh = h / floors;
+      for (let f = 0; f < floors; f++) {
+        const y0 = f * fh;
+        /* the floor slab: a band of stone under a sharp shadow line */
+        g.fillStyle = shade(wall, 0.84);
+        g.fillRect(0, y0 + fh - fh * 0.19, w, fh * 0.19);
+        g.fillStyle = "rgba(255,255,255,.3)";
+        g.fillRect(0, y0 + fh - fh * 0.19, w, 2.2 * u);
+        g.fillStyle = "rgba(18,22,26,.3)";
+        g.fillRect(0, y0 + fh - fh * 0.19 + 2.2 * u, w, 3 * u);
+        for (let b = 0; b < bays; b++) {
+          const x0 = b * bw;
+          const gx = x0 + bw * 0.085, gy = y0 + fh * 0.085;
+          const gw = bw * 0.83, gh = fh * 0.62;
+          /* the reveal: dark inset plus a bright lip on the sun side, which is
+             what makes a window read as a hole instead of a poster */
+          g.fillStyle = "rgba(20,24,28,.5)";
+          g.fillRect(gx - 6 * u, gy - 6 * u, gw + 12 * u, gh + 12 * u);
+          g.fillStyle = shade(wall, 0.72);
+          g.fillRect(gx - 4 * u, gy - 4 * u, gw + 8 * u, gh + 8 * u);
+          g.fillStyle = "rgba(255,255,255,.42)";
+          g.fillRect(gx - 4 * u, gy - 4 * u, gw + 8 * u, 1.6 * u);
+          g.fillRect(gx - 4 * u, gy - 4 * u, 1.6 * u, gh + 8 * u);
+          const lit = R() < 0.11;
+          const blinds = !lit && R() < 0.3;
+          if (lit) {
+            /* an office with its lights on: warm ceiling strip, a desk edge */
+            const lgw = g.createLinearGradient(gx, gy, gx, gy + gh);
+            lgw.addColorStop(0, "#fbf0cf");
+            lgw.addColorStop(0.5, "#efdcb0");
+            lgw.addColorStop(1, "#c9ae82");
+            g.fillStyle = lgw;
+            g.fillRect(gx, gy, gw, gh);
+            g.fillStyle = "rgba(255,255,255,.85)";
+            g.fillRect(gx + gw * 0.08, gy + gh * 0.08, gw * 0.84, gh * 0.06);
+            g.fillStyle = "rgba(96,78,54,.35)";
+            g.fillRect(gx + gw * 0.12, gy + gh * 0.62, gw * 0.6, gh * 0.07);
+            g.fillRect(gx + gw * 0.76, gy + gh * 0.18, gw * 0.1, gh * 0.5);
+          } else {
+            /* the sky, reflected: bright at the top, the city deep at the base,
+               with a slanted band of glare and a darker band of the block
+               across the street */
+            const lg = g.createLinearGradient(gx, gy, gx + gw * 0.25, gy + gh);
+            lg.addColorStop(0, glassTop);
+            lg.addColorStop(0.42, shade(glassTop, 0.9));
+            lg.addColorStop(0.62, shade(glassBot, 1.55));
+            lg.addColorStop(1, glassBot);
+            g.fillStyle = lg;
+            g.fillRect(gx, gy, gw, gh);
+            g.save();
+            g.beginPath();
+            g.rect(gx, gy, gw, gh);
+            g.clip();
+            g.globalAlpha = 0.55;
+            g.fillStyle = "#eef8ff";
+            g.beginPath();
+            g.moveTo(gx, gy + gh * 0.1);
+            g.lineTo(gx + gw * 0.42, gy);
+            g.lineTo(gx + gw * 0.68, gy);
+            g.lineTo(gx, gy + gh * 0.46);
+            g.closePath();
+            g.fill();
+            g.globalAlpha = 0.32;
+            g.fillStyle = shade(glassBot, 0.7);
+            g.fillRect(gx + gw * 0.55, gy, gw * 0.45, gh);
+            g.globalAlpha = 0.4;
+            g.fillStyle = "#dfeef8";
+            g.fillRect(gx, gy + gh * 0.5, gw, 2 * u);
+            /* what is behind the glass: a ceiling line, a desk, a plant */
+            g.globalAlpha = 0.22;
+            g.fillStyle = "#1b232b";
+            g.fillRect(gx, gy, gw, gh * 0.07);
+            if (R() < 0.5) {
+              g.globalAlpha = 0.18;
+              g.fillStyle = "#10161b";
+              g.fillRect(gx + gw * (0.1 + R() * 0.3), gy + gh * 0.66, gw * 0.42, gh * 0.08);
+            }
+            if (R() < 0.35) {
+              g.globalAlpha = 0.24;
+              g.fillStyle = "#2c4a2a";
+              g.beginPath();
+              g.arc(gx + gw * 0.78, gy + gh * 0.72, gh * 0.1, 0, 7);
+              g.fill();
+            }
+            g.restore();
+            g.globalAlpha = 1;
+            /* blinds pulled down over the top part */
+            if (blinds) {
+              const bh2 = gh * (0.35 + R() * 0.4);
+              g.fillStyle = "rgba(240,236,220,.9)";
+              g.fillRect(gx, gy, gw, bh2);
+              g.fillStyle = "rgba(140,136,120,.45)";
+              for (let s2 = 1; s2 < 9; s2++) g.fillRect(gx, gy + (bh2 / 9) * s2, gw, 1.5 * u);
+              g.fillStyle = "rgba(0,0,0,.16)";
+              g.fillRect(gx, gy + bh2 - 3 * u, gw, 3 * u);
+              g.fillStyle = "rgba(255,255,255,.35)";
+              g.fillRect(gx, gy + bh2 * 0.06, gw, gh * 0.05);
+            }
+          }
+          /* the centre mullion, with a lit edge */
+          g.fillStyle = shade(wall, 0.5);
+          g.fillRect(gx + gw * 0.485, gy, 2.6 * u, gh);
+          g.fillStyle = "rgba(255,255,255,.3)";
+          g.fillRect(gx + gw * 0.485, gy, 0.9 * u, gh);
+          /* the sill: a bright ledge with a hard shadow under it */
+          g.fillStyle = shade(wall, 1.12);
+          g.fillRect(gx - 6 * u, gy + gh + 4 * u, gw + 12 * u, 4.5 * u);
+          g.fillStyle = "rgba(20,24,28,.32)";
+          g.fillRect(gx - 6 * u, gy + gh + 8.5 * u, gw + 12 * u, 3.5 * u);
+        }
+      }
+      /* pilasters between the bays, lit on one side */
+      for (let b = 0; b <= bays; b++) {
+        const px = b * bw - 3.4 * u;
+        g.fillStyle = shade(wall, 0.86);
+        g.fillRect(px, 0, 6.8 * u, h);
+        g.fillStyle = "rgba(255,255,255,.16)";
+        g.fillRect(px, 0, 1.6 * u, h);
+        g.fillStyle = "rgba(16,20,24,.14)";
+        g.fillRect(px + 5.2 * u, 0, 1.6 * u, h);
+      }
+      /* the shadow the parapet throws on the top course */
+      const par = g.createLinearGradient(0, 0, 0, h * 0.09);
+      par.addColorStop(0, "rgba(20,24,28,.34)");
+      par.addColorStop(1, "rgba(20,24,28,0)");
+      g.fillStyle = par;
+      g.fillRect(0, 0, w, h * 0.09);
+      g.fillStyle = "rgba(255,255,255,.12)";
+      g.fillRect(0, h - 4 * u, w, 4 * u);
+    });
+    t.__rough = roughTex(key, (g, w, h) => {
+      const bays = 3, floors = 2;
+      const bw = w / bays, fh = h / floors;
+      for (let f = 0; f < floors; f++) {
+        const y0 = f * fh;
+        for (let b = 0; b < bays; b++) {
+          const x0 = b * bw;
+          /* glass: near-mirror in the middle, a little rougher at the edges
+             where the frame and the dirt are */
+          const lg = g.createLinearGradient(x0 + bw * 0.085, y0, x0 + bw * 0.9, y0 + fh * 0.7);
+          lg.addColorStop(0, "#2a2a2a");
+          lg.addColorStop(1, "#4a4a4a");
+          g.fillStyle = lg;
+          g.fillRect(x0 + bw * 0.085, y0 + fh * 0.085, bw * 0.83, fh * 0.62);
+          g.fillStyle = "#7a7a7a";
+          g.fillRect(x0 + bw * 0.485, y0 + fh * 0.085, 2, fh * 0.62);
+        }
+      }
+    }, { size: 128, base: "#dcdcdc" });
+    return t;
+  }
+
+  /* shopfront glazing: dark interior, warm strip lights, poster tape */
+  function shopTex(key, seed) {
+    return ctex(key, 256, 256, (g, w, h) => {
+      const R = rng(seed || 3);
+      const lg = g.createLinearGradient(0, 0, 0, h);
+      lg.addColorStop(0, "#33424c");
+      lg.addColorStop(0.55, "#55676f");
+      lg.addColorStop(1, "#78888e");
+      g.fillStyle = lg;
+      g.fillRect(0, 0, w, h);
+      for (let i = 0; i < 5; i++) {
+        g.fillStyle = "rgba(255,238,190,.55)";
+        g.fillRect(10 + i * 48, 8, 30, 4);
+      }
+      for (let i = 0; i < 12; i++) {
+        g.globalAlpha = 0.15 + R() * 0.25;
+        g.fillStyle = ["#c9b487", "#7fa2b8", "#b06f5e", "#8ca87a"][(R() * 4) | 0];
+        g.fillRect(R() * w, h * 0.45 + R() * h * 0.4, 14 + R() * 24, 10 + R() * 18);
+      }
+      g.globalAlpha = 1;
+      g.fillStyle = "rgba(255,255,255,.18)";
+      g.beginPath(); g.moveTo(0, h); g.lineTo(w * 0.55, 0); g.lineTo(w * 0.75, 0); g.lineTo(0, h * 0.6); g.closePath(); g.fill();
+      /* mullions */
+      g.fillStyle = "#20272c";
+      for (let x = 0; x < w; x += 64) g.fillRect(x, 0, 5, h);
+      g.fillRect(0, 0, w, 5);
+      g.fillRect(0, h - 6, w, 6);
+    });
+  }
+
+  /* Korean army digital pixel camouflage: 8 px blocks of olive, sand and
+     charcoal over a khaki ground, with a printed-cloth weave underneath */
+  function digiCamoTex(key, seed) {
+    return ctex(key, 128, 128, (g, w, h) => {
+      const R = rng(seed || 5);
+      const cols = ["#6e7358", "#565b42", "#82866a", "#3f4331", "#94896b", "#4b4f39"];
+      g.fillStyle = cols[0];
+      g.fillRect(0, 0, w, h);
+      const cell = 4;
+      for (let i = 0; i < 260; i++) {
+        const n = 1 + ((R() * 3) | 0);
+        const m = 1 + ((R() * 3) | 0);
+        const x = ((R() * (w / cell)) | 0) * cell;
+        const y = ((R() * (h / cell)) | 0) * cell;
+        const col = cols[1 + ((R() * (cols.length - 1)) | 0)];
+        g.fillStyle = col;
+        for (let iy = 0; iy < m; iy++) {
+          for (let ix = 0; ix < n; ix++) {
+            if (R() < 0.18) continue;
+            g.fillRect((x + ix * cell) % w, (y + iy * cell) % h, cell, cell);
+          }
+        }
+      }
+      g.globalAlpha = 0.09;
+      g.fillStyle = "#000";
+      for (let y = 0; y < h; y += 2) g.fillRect(0, y, w, 0.6);
+      g.globalAlpha = 1;
+      for (let i = 0; i < 3; i++) {
+        const y = R() * h, th = 5 + R() * 10;
+        const lg = g.createLinearGradient(0, y - th, 0, y + th);
+        lg.addColorStop(0, "rgba(255,255,255,.05)");
+        lg.addColorStop(0.5, "rgba(0,0,0,.09)");
+        lg.addColorStop(1, "rgba(255,255,255,.03)");
+        g.fillStyle = lg;
+        g.fillRect(0, y - th, w, th * 2);
+      }
+    });
+  }
+
+  /* Korean roof tiles: dark ridged eave courses seen from below */
+  function roofTileTex(key) {
+    return ctex(key, 256, 256, (g, w, h) => {
+      g.fillStyle = "#54595f";
+      g.fillRect(0, 0, w, h);
+      for (let x = 0; x < w; x += 16) {
+        const lg = g.createLinearGradient(x, 0, x + 16, 0);
+        lg.addColorStop(0, "#3d4249");
+        lg.addColorStop(0.45, "#6d747c");
+        lg.addColorStop(0.6, "#7c848c");
+        lg.addColorStop(1, "#34383e");
+        g.fillStyle = lg;
+        g.fillRect(x, 0, 15, h);
+        g.fillStyle = "rgba(255,255,255,.08)";
+        g.fillRect(x + 7, 0, 1.4, h);
+      }
+      for (let y = 0; y < h; y += 42) {
+        g.fillStyle = "rgba(0,0,0,.28)";
+        g.fillRect(0, y, w, 3);
+      }
+    });
+  }
+
+  /* painted signboard with Korean lettering (system Korean font, whatever the
+     device has: Malgun Gothic, Apple SD Gothic Neo or Noto) */
+  function signTex(key, text, bg, fg, sub) {
+    return ctex(key, 320, 88, (g, w, h) => {
+      g.fillStyle = bg;
+      g.fillRect(0, 0, w, h);
+      g.strokeStyle = "rgba(0,0,0,.35)";
+      g.lineWidth = 4;
+      g.strokeRect(2, 2, w - 4, h - 4);
+      g.fillStyle = "rgba(255,255,255,.14)";
+      g.fillRect(0, 0, w, h * 0.32);
+      g.fillStyle = fg;
+      g.textAlign = "center";
+      g.textBaseline = "middle";
+      g.font = '900 ' + (sub ? 40 : 50) + 'px "Noto Sans CJK KR","Noto Sans KR","Malgun Gothic","Apple SD Gothic Neo","Nanum Gothic",sans-serif';
+      g.fillText(text, w / 2, sub ? h * 0.42 : h * 0.52);
+      if (sub) {
+        g.font = '700 18px "Noto Sans CJK KR","Malgun Gothic",sans-serif';
+        g.globalAlpha = 0.8;
+        g.fillText(sub, w / 2, h * 0.78);
+        g.globalAlpha = 1;
+      }
+      lightenNoise(g, w, h, 3, 0.03);
+    });
+  }
+
+  /* green Korean expressway / city direction plate */
+  function roadSignTex(key, ko, en, arrow) {
+    return ctex(key, 384, 192, (g, w, h) => {
+      g.fillStyle = "#1b6b46";
+      rr(g, 4, 4, w - 8, h - 8, 14);
+      g.fill();
+      g.strokeStyle = "#f4f7f2";
+      g.lineWidth = 6;
+      rr(g, 12, 12, w - 24, h - 24, 10);
+      g.stroke();
+      g.fillStyle = "#ffffff";
+      g.textAlign = "left";
+      g.textBaseline = "middle";
+      g.font = '900 62px "Noto Sans CJK KR","Noto Sans KR","Malgun Gothic","Apple SD Gothic Neo",sans-serif';
+      g.fillText(ko, 30, h * 0.42);
+      g.font = '700 30px "Noto Sans CJK KR","Malgun Gothic",sans-serif';
+      g.fillText(en, 32, h * 0.76);
+      /* arrow: straight up or a 45° turn */
+      g.save();
+      g.translate(w - 74, h * 0.5);
+      if (arrow === "right") g.rotate(Math.PI / 4);
+      g.fillStyle = "#ffffff";
+      g.beginPath();
+      g.moveTo(0, -46); g.lineTo(26, -8); g.lineTo(10, -8); g.lineTo(10, 44); g.lineTo(-10, 44);
+      g.lineTo(-10, -8); g.lineTo(-26, -8); g.closePath();
+      g.fill();
+      g.restore();
+    });
+  }
+
+  /* the LED billboard on the corner tower */
+  function ledTex(key) {
+    return ctex(key, 512, 256, (g, w, h) => {
+      const lg = g.createLinearGradient(0, 0, w, h);
+      lg.addColorStop(0, "#2a1b4d");
+      lg.addColorStop(0.35, "#6b2a7a");
+      lg.addColorStop(0.7, "#b6396d");
+      lg.addColorStop(1, "#e2643f");
+      g.fillStyle = lg;
+      g.fillRect(0, 0, w, h);
+      /* a crowd silhouette along the bottom */
+      g.fillStyle = "rgba(24,12,32,.62)";
+      for (let i = 0; i < 26; i++) {
+        const x = (i / 26) * w + ((i * 37) % 9);
+        const hh = 22 + ((i * 53) % 30);
+        g.fillRect(x, h - hh, 20, hh);
+        g.beginPath(); g.arc(x + 10, h - hh, 9, 0, 7); g.fill();
+      }
+      /* the slogan */
+      g.textAlign = "center";
+      g.textBaseline = "middle";
+      g.font = '900 74px "Noto Sans CJK KR","Noto Sans KR","Malgun Gothic","Apple SD Gothic Neo",sans-serif';
+      g.fillStyle = "rgba(255,255,255,.25)";
+      g.fillText("대한민국", w / 2 + 3, h * 0.33 + 3);
+      g.fillText("힘내라!", w / 2 + 3, h * 0.62 + 3);
+      g.fillStyle = "#ffffff";
+      g.fillText("대한민국", w / 2, h * 0.33);
+      g.fillText("힘내라!", w / 2, h * 0.62);
+      /* LED pixel grid */
+      g.fillStyle = "rgba(0,0,0,.22)";
+      for (let x = 0; x < w; x += 4) g.fillRect(x, 0, 1, h);
+      for (let y = 0; y < h; y += 4) g.fillRect(0, y, w, 1);
+      g.fillStyle = "rgba(255,255,255,.05)";
+      g.fillRect(0, 0, w, 6);
+    });
+  }
+
+  /* white paint markings laid over the asphalt (transparent outside them) */
+  function laneTex(key, kind) {
+    return ctex(key, 64, 256, (g, w, h) => {
+      g.clearRect(0, 0, w, h);
+      g.fillStyle = "rgba(238,238,232,.92)";
+      if (kind === "dash") {
+        g.fillRect(w * 0.36, 0, w * 0.28, h * 0.42);
+      } else if (kind === "edge") {
+        g.fillRect(w * 0.12, 0, w * 0.16, h);
+        g.fillRect(w * 0.72, 0, w * 0.16, h);
+      } else if (kind === "cross") {
+        for (let i = 0; i < 6; i++) g.fillRect(0, i * (h / 6) + 2, w, h / 12);
+      } else if (kind === "stop") {
+        g.fillRect(0, h * 0.34, w, h * 0.3);
+      }
+      /* worn paint */
+      const R = rng(9);
+      g.globalCompositeOperation = "destination-out";
+      for (let i = 0; i < 90; i++) {
+        g.globalAlpha = 0.15 + R() * 0.5;
+        g.fillRect(R() * w, R() * h, 1 + R() * 4, 1 + R() * 6);
+      }
+      g.globalAlpha = 1;
+      g.globalCompositeOperation = "source-over";
     });
   }
 
@@ -1614,7 +2391,7 @@
     if (!SOL.faces) SOL.faces = {};
     if (SOL.faces[key]) return SOL.faces[key];
     const t = ctex("face" + key, 256, 256, (g, w, h) => paintFace(g, w, h, o));
-    SOL.faces[key] = new T.MeshLambertMaterial({ map: t });
+    SOL.faces[key] = new T.MeshStandardMaterial({ map: t, roughness: 0.68, metalness: 0.0, envMapIntensity: 0.18 });
     return SOL.faces[key];
   }
 
@@ -1633,35 +2410,51 @@
   function makeSol() {
     if (SOL.ready) return;
     SOL.ready = 1;
-    const L = (tex, opt) => new T.MeshLambertMaterial(Object.assign({ map: tex }, opt || {}));
-    SOL.stone = L(blockTex("stone", "#bdb6a6", "#5e584c", ["#d6cfbe", "#a9a190", "#948c7c"], 5));
-    SOL.stoneDark = L(blockTex("stoneD", "#9a958a", "#46423a", ["#b3aea2", "#807a70", "#6c665c"], 9));
-    SOL.concrete = L(concreteTex("conc", "#b9b7ad", 13));
-    SOL.sand = L(burlapTex("sand", "#a08a5e", 21));
-    SOL.wood = L(woodTex("wood", "#8a6034", "#4e3413", "#c79a58", 4));
-    SOL.woodDark = L(woodTex("woodD", "#6f4b23", "#38230d", "#a3763c", 8));
-    SOL.camo = L(camoTex("camo", ["#5c6b3c", "#47542e", "#6f7d4a", "#3b4527", "#7d7048"], 31));
-    SOL.camoDark = L(camoTex("camoD", ["#424d2c", "#333d22", "#4f5a36", "#2a321c", "#5c5334"], 37));
-    SOL.camoBoss = L(camoTex("camoBoss", ["#4a4a30", "#33331f", "#5c5c3c", "#262616"], 41));
+    /* MeshStandard over the old Lambert: with roughness and metalness in the
+       shader, sunlight breaks off painted steel, wet glass and worn concrete
+       the way it does outside, and the scene environment map gives the curtain
+       walls and the pistol something to reflect. Everything a player can walk
+       into keeps its silhouette — only the surface changed. */
+    const L = (tex, opt) => new T.MeshStandardMaterial(Object.assign({ map: tex, envMapIntensity: 0.18 }, opt || {}));
+    /* a height map read off the colour canvas the texture was painted on */
+    const BM = (key, gain) => bumpTex(key, TXCV[key], { gain: gain });
+    SOL.stone = L(blockTex("stone", "#bdb6a6", "#5e584c", ["#d6cfbe", "#a9a190", "#948c7c"], 5, { size: 384 }),
+      { roughness: 0.84, metalness: 0.0, bumpMap: BM("stone", 2.6), bumpScale: 0.045 });
+    SOL.stoneDark = L(blockTex("stoneD", "#9a958a", "#46423a", ["#b3aea2", "#807a70", "#6c665c"], 9, { size: 384 }),
+      { roughness: 0.86, metalness: 0.0, bumpMap: BM("stoneD", 2.6), bumpScale: 0.045 });
+    SOL.concrete = L(concreteTex("conc", "#b9b7ad", 13),
+      { roughness: 0.93, metalness: 0.0, bumpMap: BM("conc", 2.0), bumpScale: 0.03 });
+    SOL.sand = L(burlapTex("sand", "#a08a5e", 21), { roughness: 0.95, bumpMap: BM("sand", 2.4), bumpScale: 0.035 });
+    SOL.wood = L(woodTex("wood", "#8a6034", "#4e3413", "#c79a58", 4),
+      { roughness: 0.8, metalness: 0.03, bumpMap: BM("wood", 1.8), bumpScale: 0.02 });
+    SOL.woodDark = L(woodTex("woodD", "#6f4b23", "#38230d", "#a3763c", 8),
+      { roughness: 0.84, metalness: 0.03, bumpMap: BM("woodD", 1.8), bumpScale: 0.02 });
+    SOL.camo = L(camoTex("camo", ["#5c6b3c", "#47542e", "#6f7d4a", "#3b4527", "#7d7048"], 31),
+      { roughness: 0.93, bumpMap: BM("camo", 3.0), bumpScale: 0.012 });
+    SOL.camoDark = L(camoTex("camoD", ["#424d2c", "#333d22", "#4f5a36", "#2a321c", "#5c5334"], 37),
+      { roughness: 0.93, bumpMap: BM("camoD", 3.0), bumpScale: 0.012 });
+    SOL.camoBoss = L(camoTex("camoBoss", ["#4a4a30", "#33331f", "#5c5c3c", "#262616"], 41),
+      { roughness: 0.9, bumpMap: BM("camoBoss", 3.0), bumpScale: 0.012 });
     const weave = weaveTex("weave", "#d2d2d2", 3);
     const weaveFine = weaveTex("weaveF", "#cfcfcf", 7, 1.5);
-    SOL.steel = L(metalTex("steel", 12), { color: 0x7c848e });
-    SOL.helm = L(camoTex("helm", ["#4d5a33", "#3a4526", "#5c6b40", "#2f3820"], 43, 128));
-    SOL.belt = L(leatherTex("belt", "#3a3226", 77), { color: 0x8d8578 });
-    SOL.boot = L(leatherTex("boot", "#2b2319", 4));
-    SOL.skin = L(null, { color: 0xe8b48c });
-    SOL.black = L(polymerTex("poly", 6), { color: 0x1e1e21 });
-    SOL.gunmetal = L(metalTex("gunmetal", 18, { base: "#dfe3e7" }), { color: 0x3d4246 });
-    SOL.red = L(null, { color: 0xc0281f });
-    SOL.gold = L(null, { color: 0xd8a83c });
-    SOL.white = L(weaveFine, { color: 0xf3efe2 });
-    SOL.civil = L(weave, { color: 0xece4d0 });
-    SOL.civilPant = L(weaveFine, { color: 0x3d4a63 });
-    SOL.hair = L(null, { color: 0x241a12 });
-    SOL.olive = L(weave, { color: 0x5c6438 });
-    SOL.oliveDark = L(weave, { color: 0x434a26 });
-    SOL.tire = L(null, { color: 0x22242a });
-    SOL.barrel = L(barrelTex("barrel", 77));
+    SOL.steel = L(metalTex("steel", 12), { color: 0x7c848e, roughness: 0.34, metalness: 0.88, bumpMap: BM("steel", 2.0), bumpScale: 0.008 });
+    SOL.helm = L(camoTex("helm", ["#4d5a33", "#3a4526", "#5c6b40", "#2f3820"], 43, 128),
+      { roughness: 0.44, metalness: 0.18, bumpMap: BM("helm", 3.0), bumpScale: 0.02 });
+    SOL.belt = L(leatherTex("belt", "#3a3226", 77), { color: 0x8d8578, roughness: 0.56, metalness: 0.06, bumpMap: BM("belt", 2.2), bumpScale: 0.02 });
+    SOL.boot = L(leatherTex("boot", "#2b2319", 4), { roughness: 0.7, metalness: 0.04, bumpMap: BM("boot", 2.2), bumpScale: 0.02 });
+    SOL.skin = L(null, { color: 0xe8b48c, roughness: 0.72, metalness: 0.0 });
+    SOL.black = L(polymerTex("poly", 6), { color: 0x1e1e21, roughness: 0.5, metalness: 0.06, bumpMap: BM("poly", 2.4), bumpScale: 0.012 });
+    SOL.gunmetal = L(metalTex("gunmetal", 18, { base: "#dfe3e7" }), { color: 0x3d4246, roughness: 0.3, metalness: 0.9, bumpMap: BM("gunmetal", 2.0), bumpScale: 0.008 });
+    SOL.red = L(null, { color: 0xc0281f, roughness: 0.55, metalness: 0.05 });
+    SOL.gold = L(null, { color: 0xd8a83c, roughness: 0.32, metalness: 0.85 });
+    SOL.white = L(weaveFine, { color: 0xf3efe2, roughness: 0.9 });
+    SOL.civil = L(weave, { color: 0xece4d0, roughness: 0.92 });
+    SOL.civilPant = L(weaveFine, { color: 0x3d4a63, roughness: 0.92 });
+    SOL.hair = L(null, { color: 0x241a12, roughness: 0.86 });
+    SOL.olive = L(weave, { color: 0x5c6438, roughness: 0.93 });
+    SOL.oliveDark = L(weave, { color: 0x434a26, roughness: 0.93 });
+    SOL.tire = L(treadTex("tire", 6), { color: 0x22242a, roughness: 0.95, metalness: 0.02, bumpMap: BM("tire", 3.4), bumpScale: 0.03 });
+    SOL.barrel = L(barrelTex("barrel", 77), { roughness: 0.58, metalness: 0.32, bumpMap: BM("barrel", 2.0), bumpScale: 0.012 });
     SOL.star = new T.MeshBasicMaterial({
       map: ctex("star", 128, 128, (g, w, h) => {
         g.clearRect(0, 0, w, h);
@@ -1674,24 +2467,162 @@
       }),
       transparent: true
     });
-    SOL.flagKR = L(flagKR(), { side: T.DoubleSide });
-    SOL.flagKP = L(flagKP(), { side: T.DoubleSide });
-    SOL.street = L(cobbleTex("street", "#9b9587", 91));
-    SOL.grass = L(null, { color: 0x6d8a3f });
-    SOL.tan = L(camoTex("tan", ["#ddcda8", "#cdbb94", "#e8dcc0", "#b9a681", "#f0e6cc"], 71));
-    SOL.tanDark = L(camoTex("tanD", ["#8e8062", "#7a6d52", "#9d8f6e", "#6b5f47"], 73));
-    SOL.vest = L(weave, { color: 0x2b3036 });
-    SOL.enemyCloth = L(weave, { color: 0x5c6b39 });
-    SOL.enemyDark = L(weave, { color: 0x49562c });
-    SOL.enemyBelt = L(weaveFine, { color: 0x6d4a28 });
-    SOL.enemyCap = L(weave, { color: 0x53612f });
-    SOL.helmAlly = L(null, { color: 0x4b5145 });
-    SOL.plate = L(weave, { color: 0x333829 });
-    SOL.strap = L(weaveFine, { color: 0x2b2c27 });
-    SOL.rubber = L(null, { color: 0x1b1c1a });
-    SOL.lens = new T.MeshLambertMaterial({ color: 0x24343c, emissive: 0x0a1216 });
-    SOL.bandW = L(weaveFine, { color: 0xe8e6dc });
-    SOL.bandB = L(weaveFine, { color: 0x22407c });
+    SOL.flagKR = L(flagKR(), { side: T.FrontSide, roughness: 0.88, metalness: 0.0 });
+    SOL.flagKP = L(flagKP(), { side: T.FrontSide, roughness: 0.88, metalness: 0.0 });
+    SOL.street = L(cobbleTex("street", "#9b9587", 91),
+      { roughness: 0.9, metalness: 0.0, bumpMap: BM("street", 2.6), bumpScale: 0.04 });
+    SOL.grass = L(null, { color: 0x6d8a3f, roughness: 0.96 });
+    SOL.tan = L(camoTex("tan", ["#ddcda8", "#cdbb94", "#e8dcc0", "#b9a681", "#f0e6cc"], 71),
+      { roughness: 0.93, bumpMap: BM("tan", 3.0), bumpScale: 0.012 });
+    SOL.tanDark = L(camoTex("tanD", ["#8e8062", "#7a6d52", "#9d8f6e", "#6b5f47"], 73),
+      { roughness: 0.93, bumpMap: BM("tanD", 3.0), bumpScale: 0.012 });
+    SOL.vest = L(weave, { color: 0x2b3036, roughness: 0.9 });
+    SOL.enemyCloth = L(weave, { color: 0x5c6b39, roughness: 0.93 });
+    SOL.enemyDark = L(weave, { color: 0x49562c, roughness: 0.93 });
+    SOL.enemyBelt = L(weaveFine, { color: 0x6d4a28, roughness: 0.88 });
+    SOL.enemyCap = L(weave, { color: 0x53612f, roughness: 0.92 });
+    SOL.helmAlly = L(null, { color: 0x4b5145, roughness: 0.5, metalness: 0.15 });
+    SOL.plate = L(weave, { color: 0x333829, roughness: 0.9 });
+    SOL.strap = L(weaveFine, { color: 0x2b2c27, roughness: 0.9 });
+    SOL.rubber = L(null, { color: 0x1b1c1a, roughness: 0.95 });
+    SOL.lens = L(null, { color: 0x24343c, emissive: 0x0a1216, roughness: 0.12, metalness: 0.45 });
+    SOL.bandW = L(weaveFine, { color: 0xe8e6dc, roughness: 0.9 });
+    SOL.bandB = L(weaveFine, { color: 0x22407c, roughness: 0.9 });
+    /* ---- Seoul set materials ---- */
+    SOL.pave = L(paveTex("pave", 21),
+      { roughness: 0.86, metalness: 0.0, bumpMap: BM("pave", 2.6), bumpScale: 0.05 });
+    SOL.facA = L(facadeTex("facA", { wall: "#c2c8cf", glassTop: "#b6dcf4", glassBot: "#2c445a" }, 5),
+      { roughness: 0.55, metalness: 0.22, envMapIntensity: 0.6, bumpMap: BM("facA", 2.0), bumpScale: 0.02 });
+    SOL.facB = L(facadeTex("facB", { wall: "#cdc6b7", glassTop: "#cde8f4", glassBot: "#37545f" }, 7),
+      { roughness: 0.55, metalness: 0.22, envMapIntensity: 0.6, bumpMap: BM("facB", 2.0), bumpScale: 0.02 });
+    SOL.facC = L(facadeTex("facC", { wall: "#848d96", glassTop: "#9cc6de", glassBot: "#22384a" }, 9),
+      { roughness: 0.55, metalness: 0.22, envMapIntensity: 0.6, bumpMap: BM("facC", 2.0), bumpScale: 0.02 });
+    SOL.facA.roughnessMap = MT["facA@rough"] || null;
+    SOL.facB.roughnessMap = MT["facB@rough"] || null;
+    SOL.facC.roughnessMap = MT["facC@rough"] || null;
+    SOL.shopGlass = L(shopTex("shopGlass", 3), { roughness: 0.22, metalness: 0.4, envMapIntensity: 0.7 });
+    SOL.shopFascia = L(null, { color: 0x24282d, roughness: 0.62, metalness: 0.2 });
+    SOL.awnA = L(weave, { color: 0x2f6f4e, roughness: 0.78 });
+    SOL.awnB = L(weave, { color: 0xb8342c, roughness: 0.78 });
+    SOL.doorDark = L(null, { color: 0x15181b, roughness: 0.45, metalness: 0.15 });
+    SOL.curb = L(null, { color: 0x9a9a94, roughness: 0.82 });
+    SOL.roofDeck = L(concreteTex("roofDeck", "#a9a9a2", 27),
+      { roughness: 0.95, bumpMap: BM("roofDeck", 2.0), bumpScale: 0.028 });
+    SOL.concLight = L(concreteTex("concLight", "#c6c6be", 29),
+      { roughness: 0.92, bumpMap: BM("concLight", 2.0), bumpScale: 0.028 });
+    SOL.archLit = L(concreteTex("archLit", "#d9cfba", 31),
+      { emissive: 0x4a4030, roughness: 0.9, bumpMap: BM("archLit", 2.0), bumpScale: 0.024 });
+    SOL.tankBlue = L(null, { color: 0x6f8fa4, roughness: 0.55, metalness: 0.2 });
+    SOL.acUnit = L(null, { color: 0xc9cbc6, roughness: 0.62, metalness: 0.22 });
+    SOL.metalDark = L(null, { color: 0x3a3e44, roughness: 0.42, metalness: 0.7 });
+    SOL.poleGray = L(null, { color: 0x8e949a, roughness: 0.46, metalness: 0.55 });
+    SOL.ledFrame = L(null, { color: 0x1b1d21, roughness: 0.5, metalness: 0.35 });
+    SOL.ledScreen = new T.MeshBasicMaterial({ map: ledTex("led") });
+    SOL.gateStone = L(blockTex("gateStone", "#cdc7b8", "#7a7466", ["#e2dccd", "#b8b1a2", "#a29b8d"], 61, { size: 512 }),
+      { roughness: 0.8, metalness: 0.0, bumpMap: BM("gateStone", 2.8), bumpScale: 0.05 });
+    SOL.woodRed = L(woodTex("woodRed", "#a45332", "#6d2a17", "#cf8557", 12),
+      { roughness: 0.52, metalness: 0.05, bumpMap: BM("woodRed", 1.8), bumpScale: 0.02 });
+    SOL.dancheongG = L(null, { color: 0x2f6b4f, roughness: 0.55, metalness: 0.08 });
+    SOL.dancheongR = L(null, { color: 0xb23a2c, roughness: 0.55, metalness: 0.08 });
+    SOL.roofTile = L(roofTileTex("roofTile"),
+      { emissive: 0x1b1f24, roughness: 0.46, metalness: 0.14, bumpMap: BM("roofTile", 2.4), bumpScale: 0.04 });
+    SOL.roofRidge = L(null, { color: 0x8a9099, roughness: 0.4, metalness: 0.6 });
+    SOL.rafter = L(woodTex("rafter", "#6b4b2c", "#432c15", "#8f6b45", 23),
+      { roughness: 0.82, bumpMap: BM("rafter", 1.8), bumpScale: 0.018 });
+    SOL.gateSign = new T.MeshBasicMaterial({
+      map: ctex("gateSign", 320, 104, (g, w, h) => {
+        g.fillStyle = "#1b2230";
+        g.fillRect(0, 0, w, h);
+        g.strokeStyle = "#c8a94a";
+        g.lineWidth = 7;
+        g.strokeRect(8, 8, w - 16, h - 16);
+        g.fillStyle = "#f2e6c2";
+        g.textAlign = "center";
+        g.textBaseline = "middle";
+        g.font = '900 62px "Noto Sans CJK KR","Noto Sans KR","Malgun Gothic","Apple SD Gothic Neo",sans-serif';
+        g.fillText("서울", w / 2, h / 2 + 2);
+      })
+    });
+    SOL.concPole = L(concreteTex("concPole", "#a9a9a3", 33),
+      { roughness: 0.9, bumpMap: BM("concPole", 2.0), bumpScale: 0.026 });
+    SOL.coneOrange = L(null, { color: 0xe2622a, roughness: 0.52, metalness: 0.04 });
+    SOL.paintWhite = L(paintTex("paintW", "#eeece2"), { roughness: 0.62, metalness: 0.02 });
+    SOL.paintYellow = L(paintTex("paintY", "#d3ad30"), { roughness: 0.62, metalness: 0.02 });
+    SOL.hydrant = L(null, { color: 0xc03a2c, roughness: 0.44, metalness: 0.22 });
+    SOL.scaffPlank = L(woodTex("plank", "#9a7440", "#6a4a22", "#c49a60", 19),
+      { roughness: 0.82, bumpMap: BM("plank", 1.8), bumpScale: 0.018 });
+    SOL.scaffPole = L(null, { color: 0x7d838a, roughness: 0.4, metalness: 0.62 });
+    SOL.scaffNet = new T.MeshStandardMaterial({ color: 0x2f7a45, roughness: 0.9, transparent: true, opacity: 0.55, side: T.DoubleSide, envMapIntensity: 0.18 });
+    SOL.planter = L(null, { color: 0x8d8b84, roughness: 0.85 });
+    SOL.soil = L(null, { color: 0x3a2f22, roughness: 0.98 });
+    SOL.hedge = L(folTex("fol", 3), { roughness: 0.9, bumpMap: BM("fol", 3.2), bumpScale: 0.05 });
+    SOL.policeWhite = L(null, { color: 0xf1f4f6, roughness: 0.3, metalness: 0.12, envMapIntensity: 0.5 });
+    SOL.policeBlue = L(null, { color: 0x20438f, roughness: 0.34, metalness: 0.15 });
+    SOL.policeText = new T.MeshBasicMaterial({ map: signTex("policeText", "POLICE", "#ffffff", "#1b3f8f") });
+    SOL.carGlass = L(null, { color: 0x22333f, emissive: 0x060c10, roughness: 0.07, metalness: 0.55, envMapIntensity: 0.9 });
+    SOL.hubCap = L(null, { color: 0xb9bdc2, roughness: 0.24, metalness: 0.95 });
+    SOL.lampRed = new T.MeshBasicMaterial({ color: 0xd52a20 });
+    SOL.lampBlue = new T.MeshBasicMaterial({ color: 0x2a6df0 });
+    SOL.lampWarm = new T.MeshBasicMaterial({ color: 0xffe6a8 });
+    SOL.drumOrange = L(null, { color: 0xe4692a, roughness: 0.58, metalness: 0.28 });
+    SOL.drumDark = L(null, { color: 0x9c3f16, roughness: 0.62, metalness: 0.26 });
+    SOL.busGreen = L(null, { color: 0x2f8f5b, roughness: 0.32, metalness: 0.18, envMapIntensity: 0.5 });
+    SOL.busDark = L(null, { color: 0x1c5f3c, roughness: 0.38, metalness: 0.16 });
+    SOL.busRoute = new T.MeshBasicMaterial({ map: signTex("busRoute", "143", "#1c5f3c", "#ffffff") });
+    SOL.busBoard = new T.MeshBasicMaterial({ map: signTex("busBoard", "143  서울역", "#101314", "#e8e2c8") });
+    SOL.armyOlive = L(weave, { color: 0x4d5a34, roughness: 0.78, metalness: 0.12 });
+    SOL.armyDark = L(weave, { color: 0x3a4426, roughness: 0.8, metalness: 0.1 });
+    SOL.truckWhite = L(null, { color: 0xe9ecee, roughness: 0.32, metalness: 0.18 });
+    SOL.truckBlue = L(null, { color: 0x3f6f9e, roughness: 0.36, metalness: 0.18 });
+    SOL.barrier = L(concreteTex("barrierConc", "#cfcdc4", 41),
+      { roughness: 0.9, metalness: 0.0, bumpMap: BM("barrierConc", 2.0), bumpScale: 0.032 });
+    SOL.concBlock = L(concreteTex("concBlock", "#bab8ae", 43),
+      { roughness: 0.91, bumpMap: BM("concBlock", 2.0), bumpScale: 0.03 });
+    SOL.siteWall = L(null, { color: 0xc2c6c4, roughness: 0.72, metalness: 0.08 });
+    SOL.siteWallCap = L(null, { color: 0x7d838a, roughness: 0.5, metalness: 0.45 });
+    SOL.workSign = new T.MeshBasicMaterial({ map: signTex("workSign", "공사중", "#f2c230", "#1a1a1a") });
+    SOL.strapY = L(null, { color: 0xd8c23a, roughness: 0.7 });
+    SOL.barricadePanel = new T.MeshStandardMaterial({
+      map: ctex("barPanel", 192, 48, (g, w, h) => {
+        g.fillStyle = "#e8e6df";
+        g.fillRect(0, 0, w, h);
+        g.fillStyle = "#d33a2c";
+        for (let x = -h; x < w; x += 36) {
+          g.beginPath();
+          g.moveTo(x, h); g.lineTo(x + h, 0); g.lineTo(x + h + 18, 0); g.lineTo(x + 18, h);
+          g.closePath(); g.fill();
+        }
+        g.fillStyle = "rgba(0,0,0,.18)";
+        g.fillRect(0, h - 4, w, 4);
+      }),
+      roughness: 0.55, metalness: 0.1, envMapIntensity: 0.2
+    });
+    SOL.towerWhite = L(null, { color: 0xe8ecef, roughness: 0.6, metalness: 0.1 });
+    SOL.towerGlass = L(null, { color: 0x5d7f97, roughness: 0.12, metalness: 0.5, envMapIntensity: 0.8 });
+    SOL.mountain = L(null, { color: 0x4f6e4a, roughness: 0.98, metalness: 0.0 });
+    SOL.rubbleChunk = L(concreteTex("rubble", "#b8b6ad", 47),
+      { roughness: 0.93, bumpMap: BM("rubble", 2.0), bumpScale: 0.028 });
+    SOL.digi = L(digiCamoTex("digi", 5), { roughness: 0.9, bumpMap: BM("digi", 3.0), bumpScale: 0.01 });
+    SOL.digiDark = L(digiCamoTex("digiD", 9), { roughness: 0.9, bumpMap: BM("digiD", 3.0), bumpScale: 0.01 });
+    SOL.helmDigi = L(digiCamoTex("helmDigi", 13), { roughness: 0.46, metalness: 0.16, bumpMap: BM("helmDigi", 3.0), bumpScale: 0.018 });
+    SOL.digiVest = L(weave, { color: 0x3f4a35, roughness: 0.9 });
+    SOL.flagPatch = L(flagKR(), { side: T.FrontSide, roughness: 0.85 });
+    SOL.brass = L(null, { color: 0xb8892f, roughness: 0.28, metalness: 0.92 });
+    SOL.glint = new T.MeshBasicMaterial({
+      map: ctex("glint", 64, 64, (g, w, h) => {
+        g.clearRect(0, 0, w, h);
+        const rg = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+        rg.addColorStop(0, "rgba(255,255,255,1)");
+        rg.addColorStop(0.25, "rgba(255,120,90,.95)");
+        rg.addColorStop(0.6, "rgba(255,40,20,.35)");
+        rg.addColorStop(1, "rgba(255,20,0,0)");
+        g.fillStyle = rg;
+        g.fillRect(0, 0, w, h);
+      }),
+      transparent: true,
+      blending: T.AdditiveBlending,
+      depthWrite: false
+    });
     Object.keys(SOL).forEach((k) => {
       const m = SOL[k];
       if (m && m.isMaterial && m.color && m.color.convertSRGBToLinear) m.color.convertSRGBToLinear();
@@ -1976,13 +2907,13 @@
     const mkLeg = (sx) => {
       const hip = new T.Group();
       hip.position.set(sx * 0.135, HIP, 0);
-      part(hip, 0.215, 0.34, 0.24, 0, -0.17, 0, SOL.tanDark);
+      part(hip, 0.215, 0.34, 0.24, 0, -0.17, 0, SOL.digiDark);
       D(hip, 0.185, 0.13, 0.08, 0, -0.235, 0.125, SOL.rubber);         // knee pad
-      D(hip, 0.085, 0.14, 0.055, sx * 0.115, -0.15, 0.085, SOL.tanDark);
+      D(hip, 0.085, 0.14, 0.055, sx * 0.115, -0.15, 0.085, SOL.digiDark);
       const shin = new T.Group();
       shin.position.set(0, -0.34, 0);
       hip.add(shin);
-      part(shin, 0.19, 0.23, 0.21, 0, -0.115, 0, SOL.tanDark);
+      part(shin, 0.19, 0.23, 0.21, 0, -0.115, 0, SOL.digiDark);
       part(shin, 0.22, 0.12, 0.30, 0, -0.28, 0.035, SOL.boot);
       D(shin, 0.23, 0.035, 0.32, 0, -0.335, 0.035, SOL.black);
       b.add(hip);
@@ -1991,23 +2922,23 @@
     const legL = mkLeg(-1), legR = mkLeg(1);
 
     /* torso, carrier, belt */
-    part(b, 0.42, 0.15, 0.30, 0, 0.745, 0, SOL.tanDark);
+    part(b, 0.42, 0.15, 0.30, 0, 0.745, 0, SOL.digiDark);
     part(b, 0.455, 0.075, 0.325, 0, 0.80, 0, SOL.belt);
     D(b, 0.085, 0.06, 0.03, 0, 0.80, 0.17, SOL.steel);
-    part(b, 0.54, 0.43, 0.34, 0, 1.02, 0, SOL.tan);
-    D(b, 0.42, 0.30, 0.075, 0, 1.05, 0.185, SOL.vest);                // front plate
-    D(b, 0.42, 0.29, 0.06, 0, 1.05, -0.185, SOL.vest);                // back plate
-    D(b, 0.05, 0.26, 0.29, -0.265, 1.06, 0, SOL.vest);
-    D(b, 0.05, 0.26, 0.29, 0.265, 1.06, 0, SOL.vest);
-    D(b, 0.095, 0.085, 0.30, -0.15, 1.235, 0.02, SOL.vest);
-    D(b, 0.095, 0.085, 0.30, 0.15, 1.235, 0.02, SOL.vest);
-    [-0.12, 0, 0.12].forEach((px) => D(b, 0.095, 0.125, 0.06, px, 0.965, 0.20, SOL.vest)); // pouches
+    part(b, 0.54, 0.43, 0.34, 0, 1.02, 0, SOL.digi);
+    D(b, 0.42, 0.30, 0.075, 0, 1.05, 0.185, SOL.digiVest);                // front plate
+    D(b, 0.42, 0.29, 0.06, 0, 1.05, -0.185, SOL.digiVest);                // back plate
+    D(b, 0.05, 0.26, 0.29, -0.265, 1.06, 0, SOL.digiVest);
+    D(b, 0.05, 0.26, 0.29, 0.265, 1.06, 0, SOL.digiVest);
+    D(b, 0.095, 0.085, 0.30, -0.15, 1.235, 0.02, SOL.digiVest);
+    D(b, 0.095, 0.085, 0.30, 0.15, 1.235, 0.02, SOL.digiVest);
+    [-0.12, 0, 0.12].forEach((px) => D(b, 0.095, 0.125, 0.06, px, 0.965, 0.20, SOL.digiVest)); // pouches
     D(b, 0.10, 0.06, 0.03, -0.10, 1.16, 0.228, SOL.bandW);            // name tape
     D(b, 0.10, 0.03, 0.032, -0.10, 1.16, 0.229, SOL.bandB);
     D(b, 0.13, 0.16, 0.09, -0.265, 0.90, -0.055, SOL.olive);
     D(b, 0.07, 0.10, 0.07, 0.215, 0.90, 0.135, SOL.oliveDark);
-    D(b, 0.16, 0.10, 0.25, -0.305, 1.185, 0, SOL.tan);
-    D(b, 0.16, 0.10, 0.25, 0.305, 1.185, 0, SOL.tan);
+    D(b, 0.16, 0.10, 0.25, -0.305, 1.185, 0, SOL.digi);
+    D(b, 0.16, 0.10, 0.25, 0.305, 1.185, 0, SOL.digi);
 
     /* head + helmet */
     const headG = new T.Group();
@@ -2021,13 +2952,14 @@
     headG.add(head);
     D(headG, 0.05, 0.11, 0.10, -0.225, 0.20, 0.01, SOL.skin);
     D(headG, 0.05, 0.11, 0.10, 0.225, 0.20, 0.01, SOL.skin);
-    D(headG, 0.51, 0.055, 0.545, 0, 0.365, 0, SOL.helmAlly);
-    D(headG, 0.47, 0.135, 0.50, 0, 0.425, -0.005, SOL.helmAlly);
-    D(headG, 0.34, 0.06, 0.36, 0, 0.475, -0.01, SOL.helmAlly);
-    D(headG, 0.52, 0.045, 0.13, 0, 0.372, 0.255, SOL.helmAlly);
-    D(headG, 0.17, 0.12, 0.035, 0, 0.44, 0.265, SOL.white);           // ally patch
-    D(headG, 0.09, 0.07, 0.038, -0.032, 0.445, 0.267, SOL.red);
-    D(headG, 0.09, 0.07, 0.038, 0.032, 0.44, 0.267, SOL.bandB);
+    D(headG, 0.51, 0.055, 0.545, 0, 0.365, 0, SOL.helmDigi);
+    D(headG, 0.47, 0.135, 0.50, 0, 0.425, -0.005, SOL.helmDigi);
+    D(headG, 0.34, 0.06, 0.36, 0, 0.475, -0.01, SOL.helmDigi);
+    D(headG, 0.52, 0.045, 0.13, 0, 0.372, 0.255, SOL.helmDigi);
+    const hp = new T.Mesh(new T.PlaneGeometry(0.17, 0.113), SOL.flagPatch);
+    hp.position.set(0, 0.435, 0.262);
+    headG.add(hp);
+    D(headG, 0.20, 0.05, 0.03, 0, 0.478, 0.243, SOL.digiDark);        // helmet band
     D(headG, 0.505, 0.055, 0.515, 0, 0.352, 0, SOL.strap);            // goggle strap
     D(headG, 0.135, 0.085, 0.045, -0.10, 0.345, 0.245, SOL.lens);
     D(headG, 0.135, 0.085, 0.045, 0.10, 0.345, 0.245, SOL.lens);
@@ -2039,9 +2971,9 @@
     const mkArm = (sx) => {
       const arm = new T.Group();
       arm.position.set(sx * 0.335, 1.155, 0);
-      part(arm, 0.165, 0.28, 0.19, 0, -0.145, 0, SOL.tan);
+      part(arm, 0.165, 0.28, 0.19, 0, -0.145, 0, SOL.digi);
       D(arm, 0.115, 0.065, 0.115, 0, -0.272, 0.055, SOL.rubber);
-      part(arm, 0.15, 0.24, 0.17, 0, -0.42, 0.02, SOL.tan);
+      part(arm, 0.15, 0.24, 0.17, 0, -0.42, 0.02, SOL.digi);
       D(arm, 0.16, 0.11, 0.18, 0, -0.565, 0.03, SOL.black);
       b.add(arm);
       return arm;
@@ -2049,6 +2981,15 @@
     const armL = mkArm(-1), armR = mkArm(1);
     D(armL, 0.185, 0.075, 0.20, 0, -0.10, 0, SOL.bandW);
     D(armL, 0.19, 0.04, 0.205, 0, -0.145, 0, SOL.bandB);
+    /* 태극기 shoulder patch, the way the ROK Army wears it */
+    const patchL = new T.Mesh(new T.PlaneGeometry(0.115, 0.077), SOL.flagPatch);
+    patchL.position.set(-0.086, -0.15, 0.012);
+    patchL.rotation.y = -Math.PI / 2;
+    armL.add(patchL);
+    const patchR = new T.Mesh(new T.PlaneGeometry(0.13, 0.087), SOL.flagPatch);
+    patchR.position.set(0.086, -0.15, 0.012);
+    patchR.rotation.y = Math.PI / 2;
+    armR.add(patchR);
 
     /* the rifle rides in both hands, pointing the way he faces (+z) */
     const rifle = makeRifle();
@@ -2074,119 +3015,34 @@
     return g;
   }
 
+  /* a Seoul roadworks drum: orange plastic, two reflective bands. It still
+     goes up when a round finds it. */
   function makeBarrel(x, z, y) {
     makeSol();
     const g = new T.Group();
-    const c = new T.Mesh(new T.CylinderGeometry(0.33, 0.33, 0.92, 10, 1), SOL.barrel);
+    const c = new T.Mesh(new T.CylinderGeometry(0.33, 0.36, 0.92, 12, 1), SOL.drumOrange);
     c.position.y = 0.46;
     c.castShadow = true;
     c.receiveShadow = true;
     g.add(c);
-    [0.1, 0.82].forEach((yy) => {
-      const r = new T.Mesh(new T.CylinderGeometry(0.355, 0.355, 0.09, 10, 1), SOL.steel);
+    [0.28, 0.66].forEach((yy) => {
+      const r = new T.Mesh(new T.CylinderGeometry(0.345, 0.352, 0.13, 12, 1), SOL.paintWhite);
       r.position.y = yy;
       g.add(r);
     });
-    const band = new T.Mesh(new T.CylinderGeometry(0.345, 0.345, 0.06, 10, 1), SOL.stoneDark);
-    band.position.y = 0.46;
-    g.add(band);
-    const top = new T.Mesh(new T.CylinderGeometry(0.31, 0.31, 0.05, 10, 1), SOL.oliveDark);
-    top.position.y = 0.94;
+    [-0.04, 0.92].forEach((yy) => {
+      const lip = new T.Mesh(new T.CylinderGeometry(0.37, 0.37, 0.07, 12), SOL.drumDark);
+      lip.position.y = yy;
+      g.add(lip);
+    });
+    const top = new T.Mesh(new T.CylinderGeometry(0.29, 0.31, 0.05, 12), SOL.drumDark);
+    top.position.y = 0.95;
     g.add(top);
-    const starBg = new T.Mesh(new T.PlaneGeometry(0.46, 0.46), new T.MeshBasicMaterial({ color: 0x63120f }));
-    starBg.position.set(0, 0.5, 0.343);
-    g.add(starBg);
-    const star = new T.Mesh(new T.PlaneGeometry(0.42, 0.42), SOL.star);
-    star.position.set(0, 0.5, 0.352);
-    g.add(star);
+    const warn = new T.Mesh(new T.PlaneGeometry(0.42, 0.24), SOL.workSign);
+    warn.position.set(0, 0.47, 0.365);
+    g.add(warn);
     g.position.set(x, y === undefined ? 0.3 : y, z);
     g.userData.h = 1.0;
-    return g;
-  }
-
-  function makeCrate(x, z, s, y) {
-    makeSol();
-    const g = new T.Group();
-    part(g, s, s, s, 0, s / 2, 0, SOL.wood);
-    part(g, s * 1.02, s * 0.1, s * 1.02, 0, s * 0.1, 0, SOL.woodDark);
-    part(g, s * 1.02, s * 0.1, s * 1.02, 0, s * 0.9, 0, SOL.woodDark);
-    part(g, s * 0.12, s * 1.02, s * 1.02, -s * 0.42, s * 0.5, 0, SOL.woodDark);
-    part(g, s * 0.12, s * 1.02, s * 1.02, s * 0.42, s * 0.5, 0, SOL.woodDark);
-    [-1, 1].forEach((sx) => [-1, 1].forEach((sz) => {
-      part(g, s * 0.1, s * 0.1, s * 0.1, sx * s * 0.46, s * 0.06, sz * s * 0.46, SOL.steel);
-      part(g, s * 0.1, s * 0.1, s * 0.1, sx * s * 0.46, s * 0.94, sz * s * 0.46, SOL.steel);
-    }));
-    g.position.set(x, y === undefined ? 0.3 : y, z);
-    g.rotation.y = (Math.random() - 0.5) * 0.5;
-    return g;
-  }
-
-  function makeSandbags(x, z, w, rows) {
-    makeSol();
-    const g = new T.Group();
-    const bw = 0.52, bh = 0.26, bd = 0.36;
-    for (let r = 0; r < rows; r++) {
-      const n = Math.max(1, Math.round(w / bw) - (r % 2 ? 1 : 0));
-      for (let i = 0; i < n; i++) {
-        const m = part(g, bw * 0.94, bh, bd, -w / 2 + bw / 2 + i * bw + (r % 2 ? bw / 2 : 0), bh / 2 + r * bh * 0.94, 0, SOL.sand);
-        m.rotation.y = (Math.random() - 0.5) * 0.18;
-        m.rotation.z = (Math.random() - 0.5) * 0.06;
-      }
-    }
-    g.position.set(x, 0.3, z);
-    return g;
-  }
-
-  function makeBarrier(x, z) {
-    makeSol();
-    const g = new T.Group();
-    part(g, 1.7, 0.62, 0.4, 0, 0.31, 0, SOL.concrete);
-    part(g, 1.5, 0.16, 0.34, 0, 0.7, 0, SOL.concrete);
-    part(g, 0.3, 0.2, 0.42, -0.6, 0.42, 0, SOL.stoneDark);
-    g.position.set(x, 0.3, z);
-    g.rotation.y = (Math.random() - 0.5) * 0.12;
-    return g;
-  }
-
-  function makeTruck(x, z) {
-    makeSol();
-    const g = new T.Group();
-    part(g, 3.0, 0.2, 1.5, 0, 0.66, 0, SOL.oliveDark);
-    part(g, 1.5, 0.62, 1.4, -1.05, 1.06, 0, SOL.oliveDark);
-    part(g, 0.5, 0.5, 1.36, -1.6, 1.1, 0, SOL.olive);
-    part(g, 0.12, 0.36, 1.2, -1.86, 1.08, 0, SOL.glass || SOL.oliveDark);
-    part(g, 1.7, 0.7, 1.46, 0.75, 1.1, 0, SOL.olive);
-    part(g, 1.8, 0.08, 1.5, 0.75, 1.46, 0, SOL.oliveDark);
-    [-1.0, 0.4, 1.1].forEach((wx) => {
-      [-0.76, 0.76].forEach((wz) => {
-        const w = new T.Mesh(new T.CylinderGeometry(0.36, 0.36, 0.24, 10), SOL.tire);
-        w.rotation.x = Math.PI / 2;
-        w.position.set(wx, 0.66, wz);
-        w.castShadow = true;
-        g.add(w);
-      });
-    });
-    g.position.set(x, 0.3, z);
-    g.rotation.y = -0.08;
-    return g;
-  }
-
-  function makeTower(x, z, h) {
-    makeSol();
-    const g = new T.Group();
-    const w = 1.0;
-    [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sz]) => {
-      part(g, 0.14, h, 0.14, (sx * w) / 2, h / 2, (sz * w) / 2, SOL.woodDark);
-    });
-    part(g, w + 0.5, 0.14, w + 0.5, 0, h, 0, SOL.wood);
-    part(g, w + 0.3, 0.5, w + 0.3, 0, h + 0.34, 0, SOL.stoneDark);
-    const roof = new T.Mesh(new T.ConeGeometry(1.05, 0.6, 4), SOL.woodDark);
-    roof.rotation.y = Math.PI / 4;
-    roof.position.y = h + 0.9;
-    roof.castShadow = true;
-    g.add(roof);
-    part(g, 0.08, 0.9, 0.08, 0, h + 0.42, 0.42, SOL.black);
-    g.position.set(x, 0.3, z);
     return g;
   }
 
@@ -2194,10 +3050,10 @@
     makeSol();
     const g = new T.Group();
     const mat = new T.MeshLambertMaterial({ color: 0xffffff, emissive: 0x9fc4e0, emissiveIntensity: 0.35 });
-    const n = 4 + ((Math.random() * 3) | 0);
+    const n = 3;
     for (let i = 0; i < n; i++) {
-      const w = s * (0.7 + Math.random() * 0.9);
-      part(g, w, s * (0.35 + Math.random() * 0.3), s * 0.7, (i - n / 2) * s * 0.7, Math.random() * s * 0.2, (Math.random() - 0.5) * s * 0.4, mat);
+      const w = s * (0.8 + Math.random() * 0.9);
+      part(g, w, s * (0.35 + Math.random() * 0.25), s * 0.7, (i - n / 2) * s * 0.7, Math.random() * s * 0.2, (Math.random() - 0.5) * s * 0.3, mat);
     }
     g.position.set(x, y, z);
     return g;
@@ -2233,18 +3089,27 @@
     return m;
   }
 
+  /* Two cloth faces back to back, each single-sided: whichever way the camera
+     stands, the flag reads the right way round. A turned plane is a rotation,
+     not a mirror, so 건 stays top-left and 곤 bottom-right on both faces. */
   function makeFlag(kind, x, y, z, w, h) {
     makeSol();
     const g = new T.Group();
-    const pole = new T.Mesh(new T.CylinderGeometry(0.045, 0.045, h + 0.6, 6), SOL.woodDark);
+    const pole = new T.Mesh(new T.CylinderGeometry(0.045, 0.045, h + 0.6, 6), SOL.poleGray);
     pole.position.set(-w / 2 - 0.06, 0.1, 0);
     pole.castShadow = true;
     g.add(pole);
-    const cloth = new T.Mesh(new T.PlaneGeometry(w, h), kind === "kp" ? SOL.flagKP : SOL.flagKR);
-    cloth.position.set(0, 0, 0.01);
+    const mat = kind === "kp" ? SOL.flagKP : SOL.flagKR;
+    const cloth = new T.Mesh(new T.PlaneGeometry(w, h), mat);
+    cloth.position.set(0, 0, 0.012);
     g.add(cloth);
+    const cloth2 = new T.Mesh(new T.PlaneGeometry(w, h), mat);
+    cloth2.position.set(0, 0, -0.012);
+    cloth2.rotation.y = Math.PI;
+    g.add(cloth2);
     g.position.set(x, y, z);
     g.userData.cloth = cloth;
+    g.userData.cloth2 = cloth2;
     g.userData.ph = Math.random() * 6;
     return g;
   }
@@ -2292,6 +3157,933 @@
     return g;
   }
 
+  /* ---------------- Seoul set dressing ---------------- */
+
+  /* per-face material with its own repeat: brick, glass and pavement tiles
+     must not stretch into streaks on a wall much larger than one tile */
+  const REPMAT = {};
+  function repMat(mat, rx, ry) {
+    if (!mat || !mat.map) return mat;
+    const a = Math.max(1, Math.round(rx)), b = Math.max(1, Math.round(ry));
+    const k = mat.uuid + "|" + a + "x" + b;
+    if (REPMAT[k]) return REPMAT[k];
+    const m = cloneMat(mat, a, b);
+    m.color.copy(mat.color);
+    REPMAT[k] = m;
+    return m;
+  }
+
+  /* a Seoul city block: glazed facade, a shop band at street level with
+     Korean signs and an awning, a parapet and a roof full of water tanks,
+     air handlers and aerials. `side` names the face that meets the street. */
+  const SIGN_LIST = [
+    ["서울상회", "#f4f4ee", "#1d1d1d", "GENERAL STORE"],
+    ["김밥천국", "#f6e05e", "#231f20", "KIMBAP"],
+    ["24시 편의점", "#2a7f4f", "#ffffff", "24H MART"],
+    ["치킨 · 호프", "#c8392f", "#ffe9b0", "CHICKEN"],
+    ["부동산", "#1f4f8f", "#ffffff", "REALTY"],
+    ["약국", "#ffffff", "#1f7a3f", "PHARMACY"],
+    ["분식", "#f08a24", "#ffffff", "SNACKS"],
+    ["노래방", "#5b2a8f", "#ffd9f0", "NORAE"]
+  ];
+
+  function signMat(i) {
+    const s = SIGN_LIST[i % SIGN_LIST.length];
+    const key = "sign" + (i % SIGN_LIST.length);
+    if (!SOL[key]) SOL[key] = new T.MeshStandardMaterial({ map: signTex(key, s[0], s[1], s[2], s[3]), roughness: 0.42, metalness: 0.08, envMapIntensity: 0.2 });
+    return SOL[key];
+  }
+
+  /* shop band + signage + awning on one face of a block. (ax, az) is the
+     outward normal of that face in metres. */
+  function streetFront(S, opt) {
+    const o = opt || {};
+    const len = o.len, k = o.k || 0;
+    const ax = o.ax || 0, az = o.az || 1;
+    const x = o.x, y = o.y, z = o.z;
+    const rotY = Math.atan2(ax, az);
+    const g = new T.Group();
+    /* glazed shopfront */
+    const glass = new T.Mesh(new T.PlaneGeometry(len, 3.0), repMat(SOL.shopGlass, len / 4, 1));
+    glass.position.set(0, 1.5, 0.02);
+    g.add(glass);
+    /* fascia band with two signs over it */
+    const fascia = new T.Mesh(new T.BoxGeometry(len, 0.9, 0.16), SOL.shopFascia);
+    fascia.position.set(0, 3.5, 0.1);
+    g.add(fascia);
+    const n = len > 9 ? 2 : 1;
+    for (let i = 0; i < n; i++) {
+      const w = Math.min(3.4, (len - 1.4) / n - 0.4);
+      const sm = new T.Mesh(new T.PlaneGeometry(w, w * 0.275), signMat(k + i));
+      sm.position.set((i - (n - 1) / 2) * (w + 0.5), 3.5, 0.2);
+      g.add(sm);
+    }
+    /* awning over the glass */
+    const aw = new T.Mesh(new T.BoxGeometry(len - 0.6, 0.1, 1.15), k % 2 ? SOL.awnA : SOL.awnB);
+    aw.position.set(0, 3.02, 0.62);
+    aw.rotation.x = 0.13;
+    aw.castShadow = true;
+    g.add(aw);
+    const lip = new T.Mesh(new T.BoxGeometry(len - 0.6, 0.24, 0.06), k % 2 ? SOL.awnB : SOL.awnA);
+    lip.position.set(0, 2.9, 1.16);
+    g.add(lip);
+    /* door recess with a step */
+    const door = new T.Mesh(new T.BoxGeometry(1.55, 2.3, 0.14), SOL.shopGlass);
+    door.position.set(len * 0.22, 1.15, 0.05);
+    g.add(door);
+    const frame = new T.Mesh(new T.BoxGeometry(1.75, 0.12, 0.2), SOL.metalDark);
+    frame.position.set(len * 0.22, 2.34, 0.08);
+    g.add(frame);
+    const jamb = new T.Mesh(new T.BoxGeometry(0.08, 2.3, 0.16), SOL.metalDark);
+    jamb.position.set(len * 0.22, 1.15, 0.08);
+    g.add(jamb);
+    const warm = new T.Mesh(new T.PlaneGeometry(1.3, 0.16), SOL.lampWarm);
+    warm.position.set(len * 0.22, 2.28, 0.13);
+    g.add(warm);
+    const step = new T.Mesh(new T.BoxGeometry(1.9, 0.16, 0.6), SOL.curb);
+    step.position.set(len * 0.22, 0.08, 0.35);
+    g.add(step);
+    /* an air conditioner and a small wall sign up on the first floor */
+    const ac = new T.Mesh(new T.BoxGeometry(0.9, 0.62, 0.5), SOL.acUnit);
+    ac.position.set(-len * 0.3, 4.6, 0.28);
+    ac.castShadow = true;
+    g.add(ac);
+    const vsign = new T.Mesh(new T.PlaneGeometry(0.62, 1.9), signMat(k + 2));
+    vsign.position.set(len * 0.42, 5.2, 0.2);
+    g.add(vsign);
+    g.position.set(x, y, z);
+    g.rotation.y = rotY;
+    S.add(g);
+    return g;
+  }
+
+  /* one city block. Faces: the `side` face carries the shop band. */
+  function makeBlock(S, x0, x1, z0, z1, h, opt) {
+    makeSol();
+    const o = opt || {};
+    const w = Math.abs(x1 - x0), d = Math.abs(z1 - z0);
+    const cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
+    const mat = o.mat || SOL.facA;
+    const body = new T.Mesh(new T.BoxGeometry(w, h, d), repMat(mat, Math.max(w, d) / 6, h / 6.4));
+    body.position.set(cx, 0.3 + h / 2, cz);
+    body.castShadow = true;
+    body.receiveShadow = true;
+    body.userData.wall = 1;
+    S.add(body);
+    /* roof deck, parapet and the clutter of a Seoul rooftop */
+    const roof = new T.Mesh(new T.BoxGeometry(w + 0.3, 0.35, d + 0.3), SOL.roofDeck);
+    roof.position.set(cx, 0.3 + h + 0.1, cz);
+    roof.receiveShadow = true;
+    S.add(roof);
+    const par = new T.Mesh(new T.BoxGeometry(w + 0.5, 0.55, d + 0.5), SOL.concLight);
+    par.position.set(cx, 0.3 + h + 0.5, cz);
+    S.add(par);
+    const R = rng(((x0 * 31 + z0 * 17) | 0) + 7);
+    const top = 0.3 + h + 0.78;
+    const tank = new T.Mesh(new T.CylinderGeometry(1.05, 1.05, 1.7, 10), SOL.tankBlue);
+    tank.position.set(cx - w * 0.22 + R() * 1.4, top + 0.85, cz - d * 0.18 + R() * 1.2);
+    tank.castShadow = true;
+    S.add(tank);
+    for (let i = 0; i < 2; i++) {
+      const ac = new T.Mesh(new T.BoxGeometry(1.1 + R() * 0.6, 0.7, 0.9 + R() * 0.4), SOL.acUnit);
+      ac.position.set(cx + (R() - 0.5) * w * 0.6, top + 0.35, cz + (R() - 0.5) * d * 0.6);
+      ac.castShadow = true;
+      S.add(ac);
+    }
+    const mast = new T.Mesh(new T.CylinderGeometry(0.05, 0.07, 3.2, 5), SOL.metalDark);
+    mast.position.set(cx + w * 0.3, top + 1.6, cz + d * 0.28);
+    S.add(mast);
+    /* the shop band, on the face that meets the street */
+    if (o.shop) {
+      const side = o.shop;
+      const y = 0.3;
+      if (side === "e") streetFront(S, { x: x1 + 0.04, y, z: cz, len: d - 0.6, ax: 1, az: 0, k: o.k || 0 });
+      else if (side === "w") streetFront(S, { x: x0 - 0.04, y, z: cz, len: d - 0.6, ax: -1, az: 0, k: o.k || 0 });
+      else if (side === "s") streetFront(S, { x: cx, y, z: z0 - 0.04, len: w - 0.6, ax: 0, az: -1, k: o.k || 0 });
+      else streetFront(S, { x: cx, y, z: z1 + 0.04, len: w - 0.6, ax: 0, az: 1, k: o.k || 0 });
+    }
+    return body;
+  }
+
+  /* ---- landmarks ---- */
+
+  /* A flag hung on two sides so it reads the right way round from either
+     face: a plane turned over is a rotation, not a mirror, so the trigrams
+     stay where the law puts them. */
+  function makeFlagPlane(S, kind, x, y, z, w, h, rotY, pole) {
+    const g = new T.Group();
+    const mat = kind === "kp" ? SOL.flagKP : SOL.flagKR;
+    const front = new T.Mesh(new T.PlaneGeometry(w, h), mat);
+    g.add(front);
+    const back = new T.Mesh(new T.PlaneGeometry(w, h), mat);
+    back.rotation.y = Math.PI;
+    back.position.z = -0.012;
+    g.add(back);
+    if (pole) {
+      const p = new T.Mesh(new T.CylinderGeometry(0.06, 0.07, h + 1.4, 6), SOL.poleGray);
+      p.position.set(-w / 2 - 0.1, 0.2, -0.02);
+      p.castShadow = true;
+      g.add(p);
+      const cap = new T.Mesh(new T.SphereGeometry(0.11, 7, 6), SOL.gold);
+      cap.position.set(-w / 2 - 0.1, h / 2 + 0.9, -0.02);
+      g.add(cap);
+    }
+    g.position.set(x, y, z);
+    g.rotation.y = rotY || 0;
+    g.userData.cloth = front;
+    g.userData.cloth2 = back;
+    g.userData.ph = Math.random() * 6;
+    S.add(g);
+    return g;
+  }
+
+  /* green direction gantry over the road: 서울역 straight on, 남산 to the right */
+  function makeRoadSign(S, x, z, rotY) {
+    const g = new T.Group();
+    const post = new T.Mesh(new T.CylinderGeometry(0.12, 0.15, 6.2, 8), SOL.poleGray);
+    post.position.set(-2.4, 3.1, 0);
+    post.castShadow = true;
+    g.add(post);
+    const arm = new T.Mesh(new T.BoxGeometry(5.0, 0.16, 0.16), SOL.poleGray);
+    arm.position.set(0, 5.5, 0);
+    g.add(arm);
+    const a = new T.Mesh(new T.PlaneGeometry(2.2, 1.1), new T.MeshStandardMaterial({ map: roadSignTex("signSeoul", "서울역", "Seoul Station", "up"), roughness: 0.4, metalness: 0.12 }));
+    a.position.set(-0.95, 4.75, 0.02);
+    g.add(a);
+    const b = new T.Mesh(new T.PlaneGeometry(2.2, 1.1), new T.MeshStandardMaterial({ map: roadSignTex("signNamsan", "남산", "Namsan", "right"), roughness: 0.4, metalness: 0.12 }));
+    b.position.set(1.45, 4.75, 0.02);
+    g.add(b);
+    const backA = new T.Mesh(new T.BoxGeometry(4.6, 1.2, 0.08), SOL.metalDark);
+    backA.position.set(0.25, 4.75, -0.06);
+    g.add(backA);
+    g.position.set(x, 0.3, z);
+    g.rotation.y = rotY || 0;
+    S.add(g);
+    return g;
+  }
+
+  /* the corner LED screen */
+  function makeBillboard(S, x, y, z, w, h, rotY) {
+    const g = new T.Group();
+    const frame = new T.Mesh(new T.BoxGeometry(w + 0.6, h + 0.6, 0.4), SOL.ledFrame);
+    frame.position.set(0, 0, 0);
+    g.add(frame);
+    const led = new T.Mesh(new T.PlaneGeometry(w, h), SOL.ledScreen);
+    led.position.set(0, 0, 0.22);
+    g.add(led);
+    const bar = new T.Mesh(new T.BoxGeometry(w + 2.2, 0.18, 0.3), SOL.metalDark);
+    bar.position.set(0, -h / 2 - 0.4, -0.1);
+    g.add(bar);
+    g.position.set(x, y, z);
+    g.rotation.y = rotY || 0;
+    S.add(g);
+    return g;
+  }
+
+  /* a Korean gate: stone base with a lit passage, a timber pavilion above,
+     tiled hip roofs and dancheong colour bands. No black hole: the passage
+     has a floor, lamps and a sunlit wall at the far end. */
+  function makeKoreanGate(S, cx, cz, opt) {
+    makeSol();
+    const o = opt || {};
+    const W = o.w || 17.6, D = o.d || 5.4, BASE = o.h || 5.6;
+    const g = new T.Group();
+    const OPEN = o.open || 5.2;
+    const stone = (w, h) => repMat(SOL.gateStone, w / 4.8, h / 4.8);
+    const HALF = OPEN / 2;
+    const piers = [[-W / 2, -HALF], [HALF, W / 2]];
+    piers.forEach(([a, b]) => {
+      const w = b - a;
+      const p = new T.Mesh(new T.BoxGeometry(w, BASE, D), stone(w, BASE));
+      p.position.set(cx + (a + b) / 2, 0.3 + BASE / 2, cz);
+      p.castShadow = true;
+      p.receiveShadow = true;
+      p.userData.wall = 1;
+      S.add(p);
+      /* sloped stone footing */
+      const foot = new T.Mesh(new T.BoxGeometry(w + 0.5, 0.7, D + 0.7), stone(w + 0.5, 0.7));
+      foot.position.set(cx + (a + b) / 2, 0.65, cz);
+      S.add(foot);
+    });
+    /* lintel band over the opening */
+    const top = new T.Mesh(new T.BoxGeometry(OPEN + 0.6, BASE - OPEN * 0.72, D), stone(OPEN, BASE - OPEN * 0.72));
+    top.position.set(cx, 0.3 + OPEN * 0.72 + (BASE - OPEN * 0.72) / 2, cz);
+    top.userData.wall = 1;
+    S.add(top);
+    /* the passage: stone floor, three warm lamps, a sunlit back wall */
+    const pass = new T.Group();
+    const floor = new T.Mesh(new T.BoxGeometry(OPEN - 0.2, 0.1, D + 5.2), SOL.concLight);
+    floor.position.set(0, 0.06, 1.8);
+    pass.add(floor);
+    const back = new T.Mesh(new T.BoxGeometry(OPEN - 0.2, BASE - 0.4, 0.2), SOL.concLight);
+    back.position.set(0, (BASE - 0.4) / 2, D + 4.2);
+    pass.add(back);
+    for (let i = -1; i <= 1; i++) {
+      const lamp = new T.Mesh(new T.SphereGeometry(0.13, 7, 6), SOL.lampWarm);
+      lamp.position.set(i * 1.3, BASE - 0.9, D * 0.5);
+      pass.add(lamp);
+    }
+    const ceil = new T.Mesh(new T.BoxGeometry(OPEN - 0.2, 0.16, D + 5.2), SOL.concLight);
+    ceil.position.set(0, BASE - 0.35, 1.8);
+    pass.add(ceil);
+    pass.position.set(cx, 0.3, cz);
+    S.add(pass);
+    /* timber pavilion */
+    const py = 0.3 + BASE;
+    const PW = W * 0.72, PD = D * 0.86;
+    const slab = new T.Mesh(new T.BoxGeometry(PW + 0.8, 0.4, PD + 0.6), SOL.woodDark);
+    slab.position.set(cx, py + 0.2, cz);
+    S.add(slab);
+    for (let i = -2; i <= 2; i++) {
+      [-1, 1].forEach((sz) => {
+        const col = new T.Mesh(new T.BoxGeometry(0.42, 2.9, 0.42), SOL.woodRed);
+        col.position.set(cx + (i * PW) / 5, py + 1.85, cz + (sz * PD) / 2);
+        col.castShadow = true;
+        S.add(col);
+      });
+    }
+    /* dancheong beams: green under red under green */
+    [[SOL.dancheongG, 0.44], [SOL.dancheongR, 0.28], [SOL.dancheongG, 0.2]].forEach(([m, hh], i) => {
+      const beam = new T.Mesh(new T.BoxGeometry(PW + 1.0, hh, PD + 0.9), m);
+      beam.position.set(cx, py + 3.35 + i * 0.36, cz);
+      S.add(beam);
+    });
+    /* two tiled hip roofs, each a slab with a frustum on top */
+    const roof = (w, d, yy, hi) => {
+      /* exposed rafter soffit under a wide tiled eave */
+      const soffit = new T.Mesh(new T.BoxGeometry(w * 0.96, 0.24, d * 0.96), SOL.rafter);
+      soffit.position.set(cx, yy - 0.16, cz);
+      S.add(soffit);
+      const eave = new T.Mesh(new T.BoxGeometry(w, 0.3, d), SOL.roofTile);
+      eave.position.set(cx, yy, cz);
+      eave.castShadow = true;
+      S.add(eave);
+      const frust = new T.Mesh(new T.CylinderGeometry(w * 0.13, w * 0.52, hi, 4, 1), SOL.roofTile);
+      frust.rotation.y = Math.PI / 4;
+      frust.scale.z = (d / w) * 1.06;
+      frust.position.set(cx, yy + hi / 2 + 0.12, cz);
+      frust.castShadow = true;
+      S.add(frust);
+      const ridge = new T.Mesh(new T.BoxGeometry(w * 0.34, 0.22, 0.34), SOL.roofRidge);
+      ridge.position.set(cx, yy + hi + 0.18, cz);
+      S.add(ridge);
+      [-1, 1].forEach((sx) => {
+        const cap = new T.Mesh(new T.BoxGeometry(w * 0.045, 0.5, 0.4), SOL.roofRidge);
+        cap.position.set(cx + (sx * w) * 0.17, yy + hi + 0.22, cz);
+        S.add(cap);
+      });
+      /* upturned eave tips at the four corners */
+      [-1, 1].forEach((sx) => {
+        [-1, 1].forEach((sz) => {
+          const tip = new T.Mesh(new T.BoxGeometry(w * 0.2, 0.2, d * 0.28), SOL.roofTile);
+          tip.position.set(cx + (sx * w) / 2.08, yy + 0.2, cz + (sz * d) / 2.3);
+          tip.rotation.z = -sx * 0.2;
+          tip.rotation.x = sz * 0.12;
+          S.add(tip);
+        });
+      });
+    };
+    roof(W * 1.04, D * 1.34, py + 1.15, 2.6);
+    roof(W * 0.9, D * 1.18, py + 4.15, 2.2);
+    /* a hanging signboard under the upper eave */
+    const plate = new T.Mesh(new T.PlaneGeometry(1.5, 0.49), SOL.gateSign);
+    plate.position.set(cx, py + 2.75, cz + D * 0.46);
+    S.add(plate);
+    const f1 = makeFlagPlane(S, "kr", cx - W * 0.36, py + 5.4, cz - 0.2, 1.9, 1.3, Math.PI);
+    const f2 = makeFlagPlane(S, "kr", cx + W * 0.36, py + 5.4, cz - 0.2, 1.9, 1.3, Math.PI);
+    g.userData.flags = [f1, f2];
+    return [f1, f2];
+  }
+
+  /* the far silhouette down the boulevard: Sungnyemun on its stone base */
+  function makeSungnyemunFar(S, cx, cz, s) {
+    makeSol();
+    const W = 26 * s, D = 9 * s, BASE = 8.4 * s;
+    const g = new T.Group();
+    const stone = repMat(SOL.gateStone, W / 6, BASE / 6);
+    const base = new T.Mesh(new T.BoxGeometry(W, BASE, D), stone);
+    base.position.set(cx, BASE / 2, cz);
+    S.add(base);
+    const OPEN = 6.4 * s, HALF = OPEN / 2;
+    [[-W / 2, -HALF], [HALF, W / 2]].forEach(([a, b]) => {
+      const w = b - a;
+      const p = new T.Mesh(new T.BoxGeometry(w, BASE * 0.62, D), stone);
+      p.position.set(cx + (a + b) / 2, BASE * 0.31, cz);
+      S.add(p);
+    });
+    const tunnel = new T.Mesh(new T.BoxGeometry(OPEN, BASE * 0.55, D * 0.9), SOL.archLit);
+    tunnel.position.set(cx, BASE * 0.3, cz);
+    S.add(tunnel);
+    const py = BASE;
+    const pav = new T.Mesh(new T.BoxGeometry(W * 0.62, 3.4 * s, D * 0.74), SOL.woodRed);
+    pav.position.set(cx, py + 1.7 * s, cz);
+    S.add(pav);
+    for (let i = 0; i < 2; i++) {
+      const w = W * (1.06 - i * 0.14), d = D * (1.32 - i * 0.1);
+      const eave = new T.Mesh(new T.BoxGeometry(w, 0.4 * s, d), SOL.roofTile);
+      eave.position.set(cx, py + (3.2 + i * 3.0) * s, cz);
+      S.add(eave);
+      const frust = new T.Mesh(new T.CylinderGeometry(w * 0.2, w * 0.62, 2.2 * s, 4, 1), SOL.roofTile);
+      frust.rotation.y = Math.PI / 4;
+      frust.scale.z = d / w;
+      frust.position.set(cx, py + (4.3 + i * 3.0) * s, cz);
+      S.add(frust);
+    }
+    return g;
+  }
+
+  /* Namsan: the ridge, the tower and its aerial farm, far up the valley */
+  function makeNamsan(S, cx, cz) {
+    makeSol();
+    const R = rng(404);
+    const tones = [0x5c7a55, 0x4c6a48, 0x6b8a60, 0x40593d];
+    /* one ridge behind the gate, flanked by the shoulders of the mountain */
+    const ridge = [
+      [0, 14, 96], [-34, 4, 84], [34, 2, 80], [-64, 18, 66], [66, 16, 62],
+      [-96, 30, 54], [98, 34, 50], [-20, 46, 70], [24, 48, 66]
+    ];
+    ridge.forEach(([dx, dz, hh], i) => {
+      const m = new T.Mesh(new T.ConeGeometry(hh * 1.25, hh, 7, 1), new T.MeshLambertMaterial({ color: tones[i % tones.length] }));
+      m.position.set(cx + dx, hh / 2 - 12, cz + dz);
+      m.rotation.y = i * 0.6;
+      S.add(m);
+    });
+    const peak = 62;
+    const g = new T.Group();
+    const base = new T.Mesh(new T.CylinderGeometry(3.4, 5.4, 10, 10), SOL.towerWhite);
+    base.position.y = 5;
+    g.add(base);
+    const shaft = new T.Mesh(new T.CylinderGeometry(1.5, 2.2, 40, 10), SOL.towerWhite);
+    shaft.position.y = 30;
+    g.add(shaft);
+    const deck = new T.Mesh(new T.CylinderGeometry(3.5, 3.0, 3.2, 12), SOL.towerWhite);
+    deck.position.y = 52;
+    g.add(deck);
+    const deck2 = new T.Mesh(new T.CylinderGeometry(2.8, 2.8, 1.8, 12), SOL.towerGlass);
+    deck2.position.y = 56.5;
+    g.add(deck2);
+    const upper = new T.Mesh(new T.CylinderGeometry(0.9, 1.5, 9, 10), SOL.towerWhite);
+    upper.position.y = 62;
+    g.add(upper);
+    const mast = new T.Mesh(new T.CylinderGeometry(0.16, 0.36, 16, 6), SOL.metalDark);
+    mast.position.y = 74;
+    g.add(mast);
+    for (let i = 0; i < 3; i++) {
+      const arm = new T.Mesh(new T.BoxGeometry(2.2, 0.12, 0.12), SOL.metalDark);
+      arm.position.y = 66 + i * 3;
+      arm.rotation.y = i * 0.7;
+      g.add(arm);
+    }
+    const lamp = new T.Mesh(new T.SphereGeometry(0.4, 6, 5), SOL.lampRed);
+    lamp.position.y = 82;
+    g.add(lamp);
+    g.position.set(cx, peak, cz);
+    S.add(g);
+    return g;
+  }
+
+  /* ---- street furniture and vehicles ---- */
+
+  function makeStreetLamp(S, x, z, rotY) {
+    const g = new T.Group();
+    const post = new T.Mesh(new T.CylinderGeometry(0.09, 0.13, 6.4, 7), SOL.poleGray);
+    post.position.y = 3.2;
+    post.castShadow = true;
+    g.add(post);
+    const arm = new T.Mesh(new T.BoxGeometry(1.8, 0.1, 0.1), SOL.poleGray);
+    arm.position.set(0.85, 6.3, 0);
+    g.add(arm);
+    const head = new T.Mesh(new T.BoxGeometry(0.9, 0.16, 0.34), SOL.metalDark);
+    head.position.set(1.65, 6.2, 0);
+    g.add(head);
+    g.position.set(x, 0.3, z);
+    g.rotation.y = rotY || 0;
+    S.add(g);
+    return g;
+  }
+
+  function makeTrafficLight(S, x, z, rotY) {
+    const g = new T.Group();
+    const post = new T.Mesh(new T.CylinderGeometry(0.1, 0.14, 5.6, 7), SOL.poleGray);
+    post.position.y = 2.8;
+    g.add(post);
+    const arm = new T.Mesh(new T.BoxGeometry(2.6, 0.12, 0.12), SOL.poleGray);
+    arm.position.set(1.3, 5.4, 0);
+    g.add(arm);
+    const box = new T.Mesh(new T.BoxGeometry(0.9, 0.34, 0.3), SOL.ledFrame);
+    box.position.set(2.4, 5.15, 0);
+    g.add(box);
+    [[0xff3b30, -0.28], [0xffcc00, 0], [0x2fd36b, 0.28]].forEach(([c, dx], i) => {
+      const l = new T.Mesh(new T.CircleGeometry(0.1, 10), new T.MeshBasicMaterial({ color: i === 2 ? c : 0x2a2a2a }));
+      l.position.set(2.4 + dx, 5.15, 0.17);
+      g.add(l);
+    });
+    g.position.set(x, 0.3, z);
+    g.rotation.y = rotY || 0;
+    S.add(g);
+    return g;
+  }
+
+  function makeUtilityPole(S, x, z) {
+    const g = new T.Group();
+    const p = new T.Mesh(new T.CylinderGeometry(0.12, 0.2, 8.4, 7), SOL.concPole);
+    p.position.y = 4.2;
+    p.castShadow = true;
+    g.add(p);
+    for (let i = 0; i < 2; i++) {
+      const arm = new T.Mesh(new T.BoxGeometry(2.0, 0.1, 0.1), SOL.woodDark);
+      arm.position.set(0, 7.2 - i * 0.7, 0);
+      g.add(arm);
+    }
+    const tx = new T.Mesh(new T.BoxGeometry(0.7, 0.9, 0.6), SOL.metalDark);
+    tx.position.set(0.1, 6.0, 0.1);
+    g.add(tx);
+    g.position.set(x, 0.3, z);
+    S.add(g);
+    return g;
+  }
+
+  function makeCone(S, x, z) {
+    const g = new T.Group();
+    const c = new T.Mesh(new T.ConeGeometry(0.26, 0.75, 8), SOL.coneOrange);
+    c.position.y = 0.38;
+    c.castShadow = true;
+    g.add(c);
+    const band = new T.Mesh(new T.CylinderGeometry(0.17, 0.2, 0.12, 8), SOL.paintWhite);
+    band.position.y = 0.44;
+    g.add(band);
+    const base = new T.Mesh(new T.BoxGeometry(0.5, 0.06, 0.5), SOL.coneOrange);
+    base.position.y = 0.03;
+    g.add(base);
+    g.position.set(x, 0.3, z);
+    S.add(g);
+    return g;
+  }
+
+  function makeHydrant(S, x, z) {
+    const g = new T.Group();
+    const b = new T.Mesh(new T.CylinderGeometry(0.17, 0.2, 0.7, 8), SOL.hydrant);
+    b.position.y = 0.35;
+    g.add(b);
+    const cap = new T.Mesh(new T.SphereGeometry(0.19, 8, 6), SOL.hydrant);
+    cap.position.y = 0.72;
+    g.add(cap);
+    [-1, 1].forEach((s) => {
+      const n = new T.Mesh(new T.CylinderGeometry(0.07, 0.07, 0.16, 6), SOL.hydrant);
+      n.rotation.z = Math.PI / 2;
+      n.position.set(s * 0.2, 0.5, 0);
+      g.add(n);
+    });
+    g.position.set(x, 0.3, z);
+    S.add(g);
+    return g;
+  }
+
+  /* a street scaffold: a plank deck on steel poles with a toe board, the
+     platform the alley's elevated rifleman stands on */
+  function makeScaffold(S, x0, x1, zWall, zEdge, y) {
+    makeSol();
+    const w = Math.abs(x1 - x0), d = Math.abs(zEdge - zWall);
+    const cx = (x0 + x1) / 2, cz = (zWall + zEdge) / 2;
+    const deck = new T.Mesh(new T.BoxGeometry(w, 0.16, d), SOL.scaffPlank);
+    deck.position.set(cx, y, cz);
+    deck.castShadow = true;
+    deck.receiveShadow = true;
+    S.add(deck);
+    const toe = new T.Mesh(new T.BoxGeometry(w, 0.95, 0.12), SOL.siteWall);
+    toe.position.set(cx, y + 0.55, zEdge);
+    toe.userData.wall = 1;
+    S.add(toe);
+    const rail = new T.Mesh(new T.BoxGeometry(w, 0.07, 0.07), SOL.scaffPole);
+    rail.position.set(cx, y + 1.05, zEdge);
+    S.add(rail);
+    for (let x = x0 + 0.6; x <= x1 - 0.4; x += 2.0) {
+      [zWall + 0.2, zEdge - 0.2].forEach((pz) => {
+        const pole = new T.Mesh(new T.CylinderGeometry(0.05, 0.05, y, 6), SOL.scaffPole);
+        pole.position.set(x, y / 2, pz);
+        S.add(pole);
+      });
+      const brace = new T.Mesh(new T.BoxGeometry(0.05, 0.05, d * 1.1), SOL.scaffPole);
+      brace.position.set(x, y - 0.35, cz);
+      S.add(brace);
+    }
+    const mesh = new T.Mesh(new T.PlaneGeometry(w, y - 0.3), SOL.scaffNet);
+    mesh.position.set(cx, y / 2, zEdge + 0.02);
+    S.add(mesh);
+    return deck;
+  }
+
+  function makePlanter(S, x, z, w) {
+    const g = new T.Group();
+    const L = w || 1.6;
+    const box = new T.Mesh(new T.BoxGeometry(L, 0.55, 0.8), SOL.planter);
+    box.position.y = 0.28;
+    box.castShadow = true;
+    g.add(box);
+    const soil = new T.Mesh(new T.BoxGeometry(L - 0.2, 0.08, 0.62), SOL.soil);
+    soil.position.y = 0.58;
+    g.add(soil);
+    const R = rng(((x * 13 + z * 7) | 0) + 3);
+    for (let i = 0; i < 3; i++) {
+      const bush = new T.Mesh(new T.BoxGeometry(0.5 + R() * 0.3, 0.42 + R() * 0.3, 0.5), SOL.hedge);
+      bush.position.set((i - 1) * (L / 3.4), 0.8, (R() - 0.5) * 0.2);
+      g.add(bush);
+    }
+    g.position.set(x, 0.3, z);
+    S.add(g);
+    return g;
+  }
+
+  function makePoliceCar(S, x, z, rotY) {
+    makeSol();
+    const g = new T.Group();
+    const body = new T.Mesh(new T.BoxGeometry(1.92, 0.62, 4.5), SOL.policeWhite);
+    body.position.y = 0.84;
+    body.castShadow = true;
+    body.userData.wall = 1;
+    g.add(body);
+    const skirt = new T.Mesh(new T.BoxGeometry(1.96, 0.3, 4.4), SOL.policeWhite);
+    skirt.position.y = 0.5;
+    g.add(skirt);
+    const cabin = new T.Mesh(new T.BoxGeometry(1.8, 0.62, 2.3), SOL.policeWhite);
+    cabin.position.set(0, 1.42, -0.1);
+    cabin.castShadow = true;
+    cabin.userData.wall = 1;
+    g.add(cabin);
+    const hood = new T.Mesh(new T.BoxGeometry(1.86, 0.16, 1.2), SOL.policeWhite);
+    hood.position.set(0, 1.16, 1.55);
+    g.add(hood);
+    const windshield = new T.Mesh(new T.BoxGeometry(1.7, 0.5, 0.1), SOL.carGlass);
+    windshield.position.set(0, 1.44, 1.06);
+    windshield.rotation.x = 0.34;
+    g.add(windshield);
+    const rear = new T.Mesh(new T.BoxGeometry(1.7, 0.46, 0.1), SOL.carGlass);
+    rear.position.set(0, 1.44, -1.26);
+    rear.rotation.x = -0.3;
+    g.add(rear);
+    [-1, 1].forEach((s) => {
+      const win = new T.Mesh(new T.BoxGeometry(0.04, 0.42, 2.0), SOL.carGlass);
+      win.position.set(s * 0.91, 1.44, -0.1);
+      g.add(win);
+      const stripe = new T.Mesh(new T.BoxGeometry(0.03, 0.2, 4.3), SOL.policeBlue);
+      stripe.position.set(s * 0.97, 0.86, 0);
+      g.add(stripe);
+      const txt = new T.Mesh(new T.PlaneGeometry(1.2, 0.3), SOL.policeText);
+      txt.position.set(s * 0.995, 0.62, 0.2);
+      txt.rotation.y = s * Math.PI / 2;
+      g.add(txt);
+    });
+    const bar = new T.Mesh(new T.BoxGeometry(0.96, 0.14, 0.3), SOL.metalDark);
+    bar.position.set(0, 1.78, -0.1);
+    g.add(bar);
+    [-1, 1].forEach((s, i) => {
+      const l = new T.Mesh(new T.BoxGeometry(0.42, 0.16, 0.28), i ? SOL.lampBlue : SOL.lampRed);
+      l.position.set(s * 0.24, 1.88, -0.1);
+      g.add(l);
+    });
+    [-1.45, 1.45].forEach((wz) => {
+      [-1, 1].forEach((sx) => {
+        const w = new T.Mesh(new T.CylinderGeometry(0.36, 0.36, 0.24, 10), SOL.tire);
+        w.rotation.z = Math.PI / 2;
+        w.position.set(sx * 0.88, 0.36, wz);
+        w.castShadow = true;
+        g.add(w);
+        const hub = new T.Mesh(new T.CylinderGeometry(0.17, 0.17, 0.26, 8), SOL.hubCap);
+        hub.rotation.z = Math.PI / 2;
+        hub.position.set(sx * 0.9, 0.36, wz);
+        g.add(hub);
+      });
+    });
+    [-0.65, 0.65].forEach((sx) => {
+      const hl = new T.Mesh(new T.BoxGeometry(0.42, 0.16, 0.06), SOL.lampWarm);
+      hl.position.set(sx, 0.92, 2.26);
+      g.add(hl);
+      const tl = new T.Mesh(new T.BoxGeometry(0.4, 0.16, 0.06), SOL.lampRed);
+      tl.position.set(sx, 0.92, -2.26);
+      g.add(tl);
+    });
+    g.position.set(x, 0.3, z);
+    g.rotation.y = rotY || 0;
+    S.add(g);
+    return g;
+  }
+
+  function makeCityBus(S, x, z, rotY, route) {
+    makeSol();
+    const g = new T.Group();
+    const L = 10.6, W = 2.5, H = 2.9;
+    const body = new T.Mesh(new T.BoxGeometry(W, H, L), SOL.busGreen);
+    body.position.y = 1.05 + H / 2;
+    body.castShadow = true;
+    body.receiveShadow = true;
+    body.userData.wall = 1;
+    g.add(body);
+    const skirt = new T.Mesh(new T.BoxGeometry(W + 0.02, 0.55, L - 0.1), SOL.busDark);
+    skirt.position.y = 0.92;
+    g.add(skirt);
+    /* window band down both sides */
+    [-1, 1].forEach((s) => {
+      const win = new T.Mesh(new T.BoxGeometry(0.04, 1.05, L - 1.6), SOL.carGlass);
+      win.position.set(s * (W / 2 + 0.01), 2.85, -0.2);
+      g.add(win);
+      for (let i = 0; i < 6; i++) {
+        const mull = new T.Mesh(new T.BoxGeometry(0.06, 1.05, 0.09), SOL.busDark);
+        mull.position.set(s * (W / 2 + 0.03), 2.85, -4.2 + i * 1.55);
+        g.add(mull);
+      }
+      const band = new T.Mesh(new T.BoxGeometry(0.03, 0.12, L - 1.0), SOL.paintWhite);
+      band.position.set(s * (W / 2 + 0.02), 2.16, 0);
+      g.add(band);
+      const num = new T.Mesh(new T.PlaneGeometry(0.9, 0.3), SOL.busRoute);
+      num.position.set(s * (W / 2 + 0.03), 3.55, 3.4);
+      num.rotation.y = s * Math.PI / 2;
+      g.add(num);
+    });
+    /* front: windscreen, destination board, lights */
+    const front = new T.Mesh(new T.BoxGeometry(W - 0.14, 1.25, 0.06), SOL.carGlass);
+    front.position.set(0, 2.86, L / 2 + 0.01);
+    g.add(front);
+    const board = new T.Mesh(new T.PlaneGeometry(1.7, 0.34), SOL.busBoard);
+    board.position.set(0, 3.72, L / 2 + 0.04);
+    g.add(board);
+    const bumper = new T.Mesh(new T.BoxGeometry(W, 0.34, 0.2), SOL.metalDark);
+    bumper.position.set(0, 0.88, L / 2 + 0.04);
+    g.add(bumper);
+    [-0.8, 0.8].forEach((sx) => {
+      const hl = new T.Mesh(new T.BoxGeometry(0.34, 0.22, 0.06), SOL.lampWarm);
+      hl.position.set(sx, 1.24, L / 2 + 0.05);
+      g.add(hl);
+      const tl = new T.Mesh(new T.BoxGeometry(0.3, 0.5, 0.06), SOL.lampRed);
+      tl.position.set(sx, 1.35, -L / 2 - 0.05);
+      g.add(tl);
+    });
+    /* the rear destination window and engine grille */
+    const rear = new T.Mesh(new T.BoxGeometry(W - 0.2, 0.9, 0.06), SOL.carGlass);
+    rear.position.set(0, 3.0, -L / 2 - 0.01);
+    g.add(rear);
+    const grille = new T.Mesh(new T.BoxGeometry(W - 0.5, 0.6, 0.08), SOL.metalDark);
+    grille.position.set(0, 1.5, -L / 2 - 0.02);
+    g.add(grille);
+    /* door on the near side */
+    [-1, 1].forEach((s, i) => {
+      const door = new T.Mesh(new T.BoxGeometry(0.06, 2.05, 1.1), SOL.carGlass);
+      door.position.set(s * (W / 2 + 0.02), 1.88, i ? 0.9 : 2.9);
+      g.add(door);
+    });
+    [-3.4, 2.9].forEach((wz) => {
+      [-1, 1].forEach((sx) => {
+        const w = new T.Mesh(new T.CylinderGeometry(0.52, 0.52, 0.36, 12), SOL.tire);
+        w.rotation.z = Math.PI / 2;
+        w.position.set(sx * (W / 2 - 0.12), 0.52, wz);
+        w.castShadow = true;
+        g.add(w);
+        const hub = new T.Mesh(new T.CylinderGeometry(0.24, 0.24, 0.38, 8), SOL.hubCap);
+        hub.rotation.z = Math.PI / 2;
+        hub.position.set(sx * (W / 2 - 0.1), 0.52, wz);
+        g.add(hub);
+      });
+    });
+    g.position.set(x, 0.3, z);
+    g.rotation.y = rotY || 0;
+    S.add(g);
+    return g;
+  }
+
+  /* ---- cover props in Seoul materials: concrete, not sandbags ---- */
+
+  function makeJersey(x, z, len) {
+    makeSol();
+    const g = new T.Group();
+    const L = Math.max(1.2, len || 2.2);
+    part(g, L, 0.34, 0.7, 0, 0.17, 0, SOL.barrier);
+    part(g, L, 0.4, 0.5, 0, 0.54, 0, SOL.barrier);
+    part(g, L, 0.24, 0.32, 0, 0.86, 0, SOL.barrier);
+    [-1, 1].forEach((s) => {
+      const cap = new T.Mesh(new T.BoxGeometry(0.16, 0.5, 0.42), SOL.barrier);
+      cap.position.set((s * L) / 2, 0.6, 0);
+      g.add(cap);
+    });
+    for (let i = -1; i <= 1; i++) {
+      const refl = new T.Mesh(new T.BoxGeometry(0.22, 0.12, 0.34), i === 0 ? SOL.paintWhite : SOL.lampRed);
+      refl.position.set(i * (L / 3.4), 0.9, 0);
+      g.add(refl);
+    }
+    g.position.set(x, 0, z);
+    return g;
+  }
+
+  function makeSiteWall(x, z, len, h) {
+    makeSol();
+    const g = new T.Group();
+    const L = Math.max(1.6, len || 2.4), H = h || 1.45;
+    const wall = new T.Mesh(new T.BoxGeometry(L, H, 0.28), SOL.siteWall);
+    wall.position.y = H / 2;
+    wall.castShadow = true;
+    g.add(wall);
+    const cap = new T.Mesh(new T.BoxGeometry(L + 0.1, 0.1, 0.34), SOL.siteWallCap);
+    cap.position.y = H + 0.05;
+    g.add(cap);
+    [-1, 1].forEach((s) => {
+      const foot = new T.Mesh(new T.BoxGeometry(0.26, 0.2, 0.62), SOL.metalDark);
+      foot.position.set((s * L) / 2, 0.1, 0);
+      g.add(foot);
+    });
+    const plate = new T.Mesh(new T.PlaneGeometry(Math.min(2.2, L * 0.8), Math.min(0.7, H * 0.5)), SOL.workSign);
+    plate.position.set(0, H * 0.55, 0.16);
+    g.add(plate);
+    g.position.set(x, 0, z);
+    return g;
+  }
+
+  function makeConcreteStack(x, z, len) {
+    makeSol();
+    const g = new T.Group();
+    const L = Math.max(1.0, len || 1.1);
+    part(g, L, 0.34, 0.68, 0, 0.17, 0, SOL.barrier);
+    part(g, L, 0.4, 0.5, 0, 0.54, 0, SOL.barrier);
+    part(g, L * 0.94, 0.36, 0.52, 0.04, 0.92, 0, SOL.barrier);
+    part(g, L * 0.8, 0.34, 0.48, -0.06, 1.27, 0, SOL.concBlock);
+    const strap = new T.Mesh(new T.BoxGeometry(L * 0.86, 0.06, 0.56), SOL.strapY);
+    strap.position.set(-0.04, 1.1, 0);
+    g.add(strap);
+    g.position.set(x, 0, z);
+    return g;
+  }
+
+  function makeBarricade(x, z, len) {
+    makeSol();
+    const g = new T.Group();
+    const L = Math.max(1.2, len || 1.9);
+    [-1, 1].forEach((s) => {
+      const leg = new T.Mesh(new T.BoxGeometry(0.1, 1.0, 0.7), SOL.metalDark);
+      leg.position.set((s * L) / 2.2, 0.5, 0);
+      g.add(leg);
+      const foot = new T.Mesh(new T.BoxGeometry(0.14, 0.08, 0.9), SOL.metalDark);
+      foot.position.set((s * L) / 2.2, 0.04, 0);
+      g.add(foot);
+    });
+    const panel = new T.Mesh(new T.BoxGeometry(L, 0.42, 0.08), SOL.barricadePanel);
+    panel.position.y = 0.82;
+    g.add(panel);
+    const rail = new T.Mesh(new T.BoxGeometry(L, 0.09, 0.09), SOL.metalDark);
+    rail.position.y = 0.38;
+    g.add(rail);
+    g.position.set(x, 0, z);
+    return g;
+  }
+
+  /* an open-bed army truck: cab, canvas tilt over the cab only, and a cargo
+     bed low enough that the rifleman standing in it can be seen and shot
+     from the chest up. The whole thing is a wall, so rounds stop on it. */
+  function makeArmyTruck(S, x, z, rotY) {
+    makeSol();
+    const g = new T.Group();
+    const olive = SOL.armyOlive, dark = SOL.armyDark;
+    const cab = new T.Mesh(new T.BoxGeometry(2.3, 1.5, 2.0), olive);
+    cab.position.set(0, 1.35, 1.9);
+    cab.castShadow = true;
+    cab.userData.wall = 1;
+    g.add(cab);
+    const roof = new T.Mesh(new T.BoxGeometry(2.36, 0.14, 2.1), dark);
+    roof.position.set(0, 2.14, 1.88);
+    g.add(roof);
+    const glass = new T.Mesh(new T.BoxGeometry(2.1, 0.6, 0.08), SOL.carGlass);
+    glass.position.set(0, 1.62, 2.92);
+    glass.rotation.x = 0.14;
+    g.add(glass);
+    [-1, 1].forEach((sx) => {
+      const side = new T.Mesh(new T.BoxGeometry(0.06, 0.55, 1.5), SOL.carGlass);
+      side.position.set(sx * 1.14, 1.6, 1.95);
+      g.add(side);
+    });
+    /* cargo bed: floor at 1.28, side boards up to 1.62 */
+    const bed = new T.Mesh(new T.BoxGeometry(2.3, 0.18, 3.6), dark);
+    bed.position.set(0, 1.19, -1.0);
+    bed.userData.wall = 1;
+    g.add(bed);
+    [-1, 1].forEach((sx) => {
+      const board = new T.Mesh(new T.BoxGeometry(0.14, 0.42, 3.6), olive);
+      board.position.set(sx * 1.08, 1.5, -1.0);
+      board.userData.wall = 1;
+      g.add(board);
+      for (let i = -1; i <= 1; i++) {
+        const rib = new T.Mesh(new T.BoxGeometry(0.16, 0.44, 0.1), dark);
+        rib.position.set(sx * 1.09, 1.5, -1.0 + i * 1.2);
+        g.add(rib);
+      }
+    });
+    const tail = new T.Mesh(new T.BoxGeometry(2.3, 0.42, 0.12), olive);
+    tail.position.set(0, 1.5, -2.79);
+    tail.userData.wall = 1;
+    g.add(tail);
+    const chassis = new T.Mesh(new T.BoxGeometry(2.1, 0.32, 5.4), SOL.metalDark);
+    chassis.position.set(0, 1.0, 0);
+    g.add(chassis);
+    [[-1.9, 0.52], [1.7, 0.52], [1.7, -0.52], [-1.9, -0.52]].forEach(([wz, sx]) => {
+      const w = new T.Mesh(new T.CylinderGeometry(0.52, 0.52, 0.32, 10), SOL.tire);
+      w.rotation.z = Math.PI / 2;
+      w.position.set(sx, 0.52, wz);
+      w.castShadow = true;
+      g.add(w);
+    });
+    const cage = new T.Mesh(new T.BoxGeometry(2.2, 0.5, 1.1), dark);
+    cage.position.set(0, 1.72, 0.95);
+    g.add(cage);
+    [-0.7, 0.7].forEach((sx) => {
+      const hl = new T.Mesh(new T.BoxGeometry(0.34, 0.24, 0.06), SOL.lampWarm);
+      hl.position.set(sx, 1.1, 2.96);
+      g.add(hl);
+    });
+    g.position.set(x, 0.3, z);
+    g.rotation.y = rotY || 0;
+    S.add(g);
+    return g;
+  }
+
+  /* a small delivery truck, the kind parked all over Seoul. Its bed sits at
+     the height the elevated posts have always stood at. */
+  function makePorterTruck(S, x, z, rotY) {
+    makeSol();
+    const g = new T.Group();
+    const cab = new T.Mesh(new T.BoxGeometry(1.9, 1.15, 1.9), SOL.truckWhite);
+    cab.position.set(0, 1.0, 1.35);
+    cab.castShadow = true;
+    cab.userData.wall = 1;
+    g.add(cab);
+    const glass = new T.Mesh(new T.BoxGeometry(1.78, 0.5, 0.08), SOL.carGlass);
+    glass.position.set(0, 1.3, 2.3);
+    glass.rotation.x = 0.16;
+    g.add(glass);
+    const bed = new T.Mesh(new T.BoxGeometry(2.0, 0.22, 3.2), SOL.truckBlue);
+    bed.position.set(0, 1.22, -0.95);
+    g.add(bed);
+    [-1, 1].forEach((s) => {
+      const side = new T.Mesh(new T.BoxGeometry(0.12, 0.5, 3.2), SOL.truckBlue);
+      side.position.set(s * 0.95, 1.55, -0.95);
+      side.userData.wall = 1;
+      g.add(side);
+    });
+    const tail = new T.Mesh(new T.BoxGeometry(2.0, 0.5, 0.12), SOL.truckBlue);
+    tail.position.set(0, 1.55, -2.55);
+    g.add(tail);
+    const chassis = new T.Mesh(new T.BoxGeometry(1.9, 0.3, 4.4), SOL.metalDark);
+    chassis.position.set(0, 0.72, 0);
+    g.add(chassis);
+    [-1.3, 1.35].forEach((wz) => {
+      [-1, 1].forEach((sx) => {
+        const w = new T.Mesh(new T.CylinderGeometry(0.38, 0.38, 0.26, 10), SOL.tire);
+        w.rotation.z = Math.PI / 2;
+        w.position.set(sx * 0.9, 0.38, wz);
+        g.add(w);
+      });
+    });
+    g.position.set(x, 0.3, z);
+    g.rotation.y = rotY || 0;
+    S.add(g);
+    return g;
+  }
+
+
   let dress = null;
 
 
@@ -2310,7 +4102,7 @@
 
   let CLOCK0 = 200;
   const CAM_Y = 1.68;
-  const GATE_Z = 57.6;
+  const GATE_Z = 60.2;
   const YARD_MID = -39;
 
   /* camera rail: platform -> corner -> alley -> corner -> courtyard -> gate */
@@ -2330,8 +4122,10 @@
         { role: "weak", lat: -9.4, dep: 9.8, cover: "sandbag" },
         { role: "tough", lat: -5.2, dep: 12.2, cover: "barrier" },
         { role: "weak", lat: -0.6, dep: 10.6, cover: "crate" },
-        { role: "throw", lat: 3.4, dep: 13.4, cover: "crate" },
-        { role: "weak", lat: 8.2, dep: 10.3, elev: 1.05, cover: "truckbed" },
+        { role: "throw", lat: 3.4, dep: 13.4, cover: "crate",
+          run: { from: [3.0, 26.2], dur: 4.2, delay: 1.8 } },
+        { role: "weak", lat: 8.2, dep: 10.3, elev: 1.05, cover: "truckbed",
+          car: { path: [[0.6, 44], [0.9, 31], [2.6, 26.2], [7.0, 23.6]], speed: 5.4, delay: 0.4 } },
         { role: "hostage", lat: 5.4, dep: 15.2 }
       ]
     },
@@ -2361,7 +4155,7 @@
       ]
     },
     {
-      id: 4, name: "gate", hold: [YARD_MID, 45.5], yaw: 0, look: [YARD_MID, 1.6, 55.5], time: 30,
+      id: 4, name: "gate", hold: [YARD_MID, 45.5], yaw: 0, look: [YARD_MID, 3.6, 55.5], time: 30,
       picks: [[-4.2, 5.4, "supply"], [4.4, 5.8, "life"]],
       members: [
         { role: "tough", lat: -7.4, dep: 4.6, cover: "barrier" },
@@ -2554,12 +4348,24 @@
     const body = new T.Group();
     g.add(aim);
     g.add(body);
-    const mk = (hex) => { const m = new T.MeshLambertMaterial({ color: hex }); m.color.convertSRGBToLinear(); return m; };
+    /* The viewmodel fills the lower third of the frame, so its materials are
+       the ones a player actually inspects: the slide is blued steel with a
+       brushed grain and a hard highlight, the frame is moulded polymer, the
+       butt is checkered rubber, and the sights glow. Everything here is a
+       Standard material with its own roughness so the sun leaves a hot streak
+       along the top of the slide and nothing on the grip. */
+    const mk = (hex, opt) => {
+      const m = new T.MeshStandardMaterial(Object.assign({ color: hex, roughness: 0.72, metalness: 0.0, envMapIntensity: 0.18 }, opt || {}));
+      m.color.convertSRGBToLinear();
+      return m;
+    };
     // brushed steel body parts share one map so the grain lines up
     const smetal = metalTex("pistolSteel", 23);
     const mpoly = polymerTex("pistolPoly", 29);
-    const mm = (hex, tex, rx, ry) => {
-      const m = new T.MeshLambertMaterial({ color: hex, map: tex || null });
+    const sBump = bumpTex("pistolSteel", TXCV["pistolSteel"], { gain: 1.8 });
+    const pBump = bumpTex("pistolPoly", TXCV["pistolPoly"], { gain: 2.6 });
+    const mm = (hex, tex, rx, ry, opt) => {
+      const m = new T.MeshStandardMaterial(Object.assign({ color: hex, map: tex || null, roughness: 0.3, metalness: 0.9, envMapIntensity: 0.7 }, opt || {}));
       if (tex) {
         const t = tex.clone();
         t.wrapS = t.wrapT = T.RepeatWrapping;
@@ -2571,15 +4377,20 @@
       m.color.convertSRGBToLinear();
       return m;
     };
-    const slide = mm(0x49525f, smetal, 1, 1.6);
-    const slideDark = mm(0x333a45, smetal, 1, 1.6);
-    const slideTop = mm(0x59636f, smetal, 1, 1.6);
-    const poly = mm(0x22262c, mpoly, 2, 2);
-    const bore = mk(0x07090b);
-    const steel = mm(0x7f8792, smetal, 1, 1);
-    const skin = mk(0xc08a5e);
-    const gripMat = new T.MeshLambertMaterial({
+    const slide = mm(0x4b5563, smetal, 1, 1.6, { roughness: 0.26, metalness: 0.92, bumpMap: sBump, bumpScale: 0.0025 });
+    const slideDark = mm(0x323945, smetal, 1, 1.6, { roughness: 0.34, metalness: 0.9, bumpMap: sBump, bumpScale: 0.0025 });
+    const slideTop = mm(0x606b78, smetal, 1, 1.6, { roughness: 0.2, metalness: 0.95, bumpMap: sBump, bumpScale: 0.002 });
+    const poly = mm(0x22262c, mpoly, 2, 2, { roughness: 0.5, metalness: 0.05, bumpMap: pBump, bumpScale: 0.0035 });
+    const bore = mk(0x07090b, { roughness: 0.45, metalness: 0.35 });
+    const steel = mm(0x828a95, smetal, 1, 1, { roughness: 0.24, metalness: 0.96 });
+    const skin = mk(0xc08a5e, { roughness: 0.75 });
+    const gripMat = new T.MeshStandardMaterial({
       color: 0xffffff,
+      roughness: 0.62,
+      metalness: 0.03,
+      envMapIntensity: 0.2,
+      bumpMap: bumpTex("grip", TXCV["grip"], { gain: 2.8 }),
+      bumpScale: 0.0035,
       map: (() => {
         const t = gripTex();
         const c2 = t.clone();
@@ -2628,11 +4439,14 @@
     // rear U-notch sight with white dots
     add(0.032, 0.036, 0.03, -0.034, 0.128, -0.335, slideDark);
     add(0.032, 0.036, 0.03, 0.034, 0.128, -0.335, slideDark);
-    add(0.012, 0.012, 0.006, -0.034, 0.132, -0.318, mk(0xf2f6f2));
-    add(0.012, 0.012, 0.006, 0.034, 0.132, -0.318, mk(0xf2f6f2));
+    /* tritium dots: white lamps that keep a little light of their own, so the
+       sight still reads when the pistol is in the shade of a building */
+    const lamp = (hex) => mk(hex, { emissive: hex, emissiveIntensity: 0.9, roughness: 0.35 });
+    add(0.012, 0.012, 0.006, -0.034, 0.132, -0.318, lamp(0xf6faf4));
+    add(0.012, 0.012, 0.006, 0.034, 0.132, -0.318, lamp(0xf6faf4));
     // front blade with a green dot
     add(0.024, 0.038, 0.028, 0, 0.132, -0.34, slideDark);
-    add(0.014, 0.014, 0.006, 0, 0.136, -0.324, mk(0x9ad24a));
+    add(0.014, 0.014, 0.006, 0, 0.136, -0.324, mk(0x9ad24a, { emissive: 0x9ad24a, emissiveIntensity: 1.1, roughness: 0.3 }));
     // muzzle and bore
     add(0.062, 0.058, 0.03, 0, 0.062, -0.372, slideDark);
     add(0.028, 0.028, 0.02, 0, 0.062, -0.386, bore);
@@ -2667,7 +4481,10 @@
       t.repeat.set(Math.max(1, Math.round(w / 0.2)), Math.max(1, Math.round(len / 0.2)));
       t.anisotropy = Math.max(1, Math.min(8, MAXANISO));
       t.needsUpdate = true;
-      const m = new T.MeshLambertMaterial({ color: tint || 0xffffff, map: t });
+      const m = new T.MeshStandardMaterial({
+        color: tint || 0xffffff, map: t, roughness: 0.92, metalness: 0.02, envMapIntensity: 0.18,
+        bumpMap: tex.__key ? bumpTex(tex.__key, TXCV[tex.__key], { gain: 3.0 }) : null, bumpScale: 0.004
+      });
       m.color.convertSRGBToLinear();
       return m;
     };
@@ -2728,6 +4545,45 @@
     f.visible = false;
     const halo = add(0.1, 0.1, 0.02, 0, 0.062, -0.42, new T.MeshBasicMaterial({ color: 0xffc14a, transparent: true, opacity: 0.8, depthWrite: false }));
     halo.visible = false;
+    /* a four-point star of flame on two crossed cards: the box core alone read
+       as a yellow cube, this gives the flash a burning shape */
+    const starTex = ctex("muzzleStar", 128, 128, (g, w, h) => {
+      g.clearRect(0, 0, w, h);
+      const c = 64;
+      const rg = g.createRadialGradient(c, c, 0, c, c, 60);
+      rg.addColorStop(0, "rgba(255,252,232,1)");
+      rg.addColorStop(0.18, "rgba(255,228,150,.95)");
+      rg.addColorStop(0.45, "rgba(255,158,60,.55)");
+      rg.addColorStop(1, "rgba(255,110,20,0)");
+      g.fillStyle = rg;
+      g.beginPath(); g.arc(c, c, 60, 0, 7); g.fill();
+      g.save();
+      g.translate(c, c);
+      for (let i = 0; i < 4; i++) {
+        g.rotate(Math.PI / 2);
+        const lg = g.createLinearGradient(0, 0, 0, -60);
+        lg.addColorStop(0, "rgba(255,236,176,.9)");
+        lg.addColorStop(1, "rgba(255,140,40,0)");
+        g.fillStyle = lg;
+        g.beginPath();
+        g.moveTo(-7, 0); g.lineTo(0, -60); g.lineTo(7, 0);
+        g.closePath(); g.fill();
+      }
+      g.restore();
+    });
+    const starMat = new T.MeshBasicMaterial({
+      map: starTex, transparent: true, blending: T.AdditiveBlending,
+      depthWrite: false, depthTest: false, side: T.DoubleSide, opacity: 0.95
+    });
+    const star = new T.Group();
+    for (let i = 0; i < 2; i++) {
+      const card = new T.Mesh(new T.PlaneGeometry(0.72, 0.72), starMat);
+      card.rotation.y = i * Math.PI / 2;
+      star.add(card);
+    }
+    star.position.set(0, 0.062, -0.44);
+    star.visible = false;
+    aim.add(star);
     const flashLight = new T.PointLight(0xffc878, 0, 6, 2);
     flashLight.position.set(0, 0.06, -0.42);
     aim.add(flashLight);
@@ -2741,7 +4597,7 @@
     aim.rotation.order = "YXZ";
     aim.rotation.set(0, 0, 0);
     camera.add(g);
-    return { g, aim, body, upperL, flash: f, halo, light: flashLight };
+    return { g, aim, body, upperL, flash: f, halo, star, light: flashLight };
   }
 
   function roleTag(el) {
@@ -2749,16 +4605,18 @@
     d.className = "railThreat";
     d.innerHTML = "<i class='rtArc'></i><b class='rtDot'>!</b>";
     d.style.setProperty("--rtp", "0");
-    d.style.setProperty("--rtc", "#3ee06a");
-    document.body.appendChild(d);
+    d.style.setProperty("--rtc", "#3ee06a");    document.body.appendChild(d);
     el._tag = d;
+    el._tagStage = -1;
+    el._tagP = -1;
+    el._tagDia = 0;
     return d;
   }
 
   /* ---------------- course dressing ---------------- */
 
   function darkMat(col) {
-    const m = new T.MeshLambertMaterial({ color: col === undefined ? 0x14161a : col });
+    const m = new T.MeshStandardMaterial({ color: col === undefined ? 0x14161a : col, roughness: 0.88, metalness: 0.06, envMapIntensity: 0.18 });
     m.color.convertSRGBToLinear();
     return m;
   }
@@ -2864,59 +4722,75 @@
     return g;
   }
 
-  function makeGate(S) {
-    const g = new T.Group();
-    const stoneMat = (w, h) => new T.MeshLambertMaterial({
-      map: cloneMat(SOL.stone, Math.max(1, Math.round(w / 2.4)), Math.max(1, Math.round(h / 2.4))).map
-    });
-    const OPEN = 5.2, HALF = OPEN / 2;
-    // two piers and a lintel, so the arch is a real opening you can see through
-    [[-8.8, -HALF], [HALF, 8.8]].forEach(([a, b]) => {
-      const w = b - a;
-      const pier = new T.Mesh(new T.BoxGeometry(w, 9.2, 1.8), stoneMat(w, 9.2));
-      pier.position.set(YARD_MID + (a + b) / 2, 0.3 + 4.6, GATE_Z);
-      pier.castShadow = true;
-      pier.receiveShadow = true;
-      pier.userData.wall = 1;
-      g.add(pier);
-    });
-    const top = new T.Mesh(new T.BoxGeometry(OPEN, 3.8, 1.8), stoneMat(OPEN, 3.8));
-    top.position.set(YARD_MID, 0.3 + 5.4 + 1.9, GATE_Z);
-    g.add(top);
-    // dark tunnel behind the opening
-    const tunnel = new T.Mesh(new T.BoxGeometry(OPEN - 0.3, 5.4, 4.0), darkMat(0x0e1012));
-    tunnel.position.set(YARD_MID, 0.3 + 2.7, GATE_Z + 2.1);
-    g.add(tunnel);
-    const lintel = new T.Mesh(new T.BoxGeometry(OPEN + 1.0, 0.5, 2.1), SOL.stoneDark);
-    lintel.position.set(YARD_MID, 0.3 + 5.65, GATE_Z - 0.1);
-    g.add(lintel);
-    // crenellations along the top
-    for (let i = -8; i <= 8; i++) {
-      const c = new T.Mesh(new T.BoxGeometry(0.8, 0.8, 2.0), SOL.stoneDark);
-      c.position.set(YARD_MID + i * 1.15, 0.3 + 9.6, GATE_Z);
-      g.add(c);
+  /* The scene environment: a painted sky-and-street panorama run through
+     PMREM, so every glass pane, hubcap and pistol slide has the same sky and
+     city to reflect. One 512x256 equirect and one prefilter pass at boot; no
+     cube camera, no per-frame cost. */
+  function buildSceneEnv(ctx) {
+    if (!ctx || !ctx.renderer || !T.PMREMGenerator) return null;
+    if (window.__mgEnv) return window.__mgEnv;
+    try {
+      const eq = ctex("envEQ", 512, 256, (g, w, h) => {
+        const sk = g.createLinearGradient(0, 0, 0, h * 0.52);
+        sk.addColorStop(0, "#2b6fc4");
+        sk.addColorStop(0.55, "#79b4e4");
+        sk.addColorStop(0.86, "#c8e2f4");
+        sk.addColorStop(1, "#eaf4fb");
+        g.fillStyle = sk;
+        g.fillRect(0, 0, w, h * 0.52);
+        /* the sun and its flare, up and to the left */
+        const sx = w * 0.18, sy = h * 0.16;
+        const sun = g.createRadialGradient(sx, sy, 0, sx, sy, h * 0.2);
+        sun.addColorStop(0, "rgba(255,252,236,1)");
+        sun.addColorStop(0.12, "rgba(255,244,214,.92)");
+        sun.addColorStop(0.5, "rgba(255,232,186,.28)");
+        sun.addColorStop(1, "rgba(255,232,186,0)");
+        g.fillStyle = sun;
+        g.fillRect(sx - h * 0.2, sy - h * 0.2, h * 0.4, h * 0.4);
+        /* a few soft clouds */
+        const R = rng(31);
+        for (let c = 0; c < 14; c++) {
+          const cx = R() * w, cy = h * (0.08 + R() * 0.3), sc = 6 + R() * 20;
+          g.fillStyle = "rgba(255,255,255," + (0.18 + R() * 0.35).toFixed(2) + ")";
+          for (let i = 0; i < 5; i++) g.fillRect(cx + (R() - 0.5) * sc * 4, cy + (R() - 0.5) * sc, sc * (1 + R()), sc * 0.45);
+        }
+        /* the city: a ragged skyline just under the horizon, with the far
+           blocks of the boulevard in front of it */
+        const R2 = rng(77);
+        for (let pass = 0; pass < 2; pass++) {
+          const base = h * (pass ? 0.545 : 0.515);
+          g.fillStyle = pass ? "rgba(86,104,122,.95)" : "rgba(150,178,200,.9)";
+          let x = 0;
+          while (x < w) {
+            const bw = 8 + R2() * 34, bh = (pass ? 10 : 26) + R2() * (pass ? 16 : 40);
+            g.fillRect(x, base - bh, bw, bh);
+            if (R2() < 0.35) {
+              g.fillStyle = "rgba(255,240,196,.5)";
+              for (let ry = 0; ry < bh; ry += 4) g.fillRect(x + 2, base - bh + ry, 2, 1.5);
+              g.fillStyle = pass ? "rgba(86,104,122,.95)" : "rgba(150,178,200,.9)";
+            }
+            x += bw + 1 + R2() * 5;
+          }
+        }
+        /* the street the player stands on, dark and warm from the stone */
+        const gr = g.createLinearGradient(0, h * 0.53, 0, h);
+        gr.addColorStop(0, "#8b8f95");
+        gr.addColorStop(0.35, "#5c6066");
+        gr.addColorStop(1, "#3b3e42");
+        g.fillStyle = gr;
+        g.fillRect(0, h * 0.53, w, h * 0.47);
+      });
+      eq.mapping = T.EquirectangularReflectionMapping;
+      const pm = new T.PMREMGenerator(ctx.renderer);
+      const rt = pm.fromEquirectangular(eq);
+      pm.dispose();
+      window.__mgEnv = rt.texture;
+      window.__mgEnvMs = 1;
+      return rt.texture;
+    } catch (e) {
+      window.__mgEnvErr = String(e && e.stack || e);
+      return null;
     }
-    // corner towers
-    [-8.6, 8.6].forEach((dx) => {
-      const t = new T.Mesh(new T.BoxGeometry(3.2, 11.4, 3.4), stoneMat(3.4, 11.4));
-      t.position.set(YARD_MID + dx, 0.3 + 5.7, GATE_Z - 0.2);
-      t.castShadow = true;
-      g.add(t);
-      for (let i = -1; i <= 1; i++) {
-        const c = new T.Mesh(new T.BoxGeometry(0.9, 0.7, 3.5), SOL.stoneDark);
-        c.position.set(YARD_MID + dx + i * 1.05, 0.3 + 11.6, GATE_Z - 0.2);
-        g.add(c);
-      }
-    });
-    const bigStar = new T.Mesh(new T.PlaneGeometry(3.0, 3.0), SOL.star);
-    bigStar.position.set(YARD_MID, 0.3 + 7.6, GATE_Z - 0.95);
-    g.add(bigStar);
-    S.add(g);
-    const f1 = makeFlag("kp", YARD_MID - 5.4, 6.6, GATE_Z - 1.2, 2.2, 1.5);
-    S.add(f1);
-    const f2 = makeFlag("kr", YARD_MID + 3.6, 8.7, GATE_Z - 1.2, 2.2, 1.5);
-    S.add(f2);
-    return [f1, f2];
   }
 
   /* the course dressing belongs to the stage: the city of stage 1, or the
@@ -2931,173 +4805,242 @@
     S.name = "battlefield";
     ctx.scene.add(S);
 
-    // bright day sky, haze and sun
+    /* a bright Seoul morning: high blue sky, thin haze over the far end of
+       the boulevard and warm sun from the south-west */
     const sky = makeSkyDome();
     sky.geometry.dispose();
-    sky.geometry = new T.SphereGeometry(150, 24, 16);
+    sky.geometry = new T.SphereGeometry(300, 24, 16);
     sky.position.set(0, 0, 10);
     S.add(sky);
-    ctx.scene.background = new T.Color(0x8ec7ee).convertSRGBToLinear();
-    ctx.scene.fog = new T.Fog(0xbcd9ee, 95, 235);
+    ctx.scene.background = new T.Color(0x9ed2f5).convertSRGBToLinear();
+    /* haze that closes the far end of the boulevard: Sungnyemun and Namsan sit
+       in it, so they read as distance instead of painted cardboard */
+    ctx.scene.fog = new T.Fog(0xd6e6f2, 130, 460);
     if (ctx.scene.fog.color && ctx.scene.fog.color.convertSRGBToLinear) ctx.scene.fog.color.convertSRGBToLinear();
+    buildSceneEnv(ctx);
+    if (window.__mgEnv) ctx.scene.environment = window.__mgEnv;
     if (ctx.LT) {
       const LT = ctx.LT;
-      if (LT.hemi) { LT.hemi.intensity = 0.52; LT.hemi.color.setHex(0xdcefff); LT.hemi.groundColor && LT.hemi.groundColor.setHex(0x7d7154); }
-      if (LT.amb) { LT.amb.intensity = 0.24; LT.amb.color && LT.amb.color.setHex(0xb9d2e8); }
-      if (LT.key) { LT.key.intensity = 1.05; LT.key.color.setHex(0xfff0c8); }
+      /* a hard low-winter sun with a cool sky dome over it, a warm bounce off
+         the asphalt from the right, and almost nothing from the north: enough
+         contrast for shadows to read as shapes, not as grey smears */
+      if (LT.hemi) { LT.hemi.intensity = 0.26; LT.hemi.color.setHex(0xd8e9fb); LT.hemi.groundColor && LT.hemi.groundColor.setHex(0xa89a80); }
+      if (LT.amb) { LT.amb.intensity = 0.05; LT.amb.color && LT.amb.color.setHex(0xbfd6ea); }
+      if (LT.key) { LT.key.intensity = 2.35; LT.key.color.setHex(0xffeecd); }
       if (LT.moon) { LT.moon.intensity = 0.1; LT.moon.color && LT.moon.color.setHex(0xa8c4e6); }
-      if (LT.rim) { LT.rim.intensity = 0.34; LT.rim.color && LT.rim.color.setHex(0xffc79a); }
+      if (LT.rim) { LT.rim.intensity = 0.5; LT.rim.color && LT.rim.color.setHex(0xffd7ab); }
     }
-    if (ctx.renderer) ctx.renderer.toneMappingExposure = 0.96;
+    if (ctx.renderer) ctx.renderer.toneMappingExposure = 1.12;
     try {
       const caps = ctx.renderer && ctx.renderer.capabilities;
       if (caps && caps.getMaxAnisotropy) MAXANISO = Math.min(8, caps.getMaxAnisotropy() || 4);
       applyAniso();
     } catch (e) {}
 
-    // ---- ground: one big pad so no hole ever shows ----
-    const tex = groundTex("dirt", 13);
+    /* ---- ground: asphalt everywhere, so no hole can ever show ---- */
+    const tex = asphaltTex("asphaltG", 17, 768);
     tex.needsUpdate = true;
     tex.wrapS = tex.wrapT = T.RepeatWrapping;
-    tex.repeat.set(26, 26);
-    const ground = new T.Mesh(new T.PlaneGeometry(260, 260), new T.MeshLambertMaterial({ map: tex }));
+    tex.repeat.set(36, 36);
+    const ground = new T.Mesh(new T.PlaneGeometry(300, 300), new T.MeshStandardMaterial({
+      map: tex, roughness: 0.84, metalness: 0.02, envMapIntensity: 0.1,
+      bumpMap: bumpTex("asphaltG", TXCV["asphaltG"], { gain: 2.0 }), bumpScale: 0.055
+    }));
     ground.rotation.x = -Math.PI / 2;
-    ground.position.set(-18, 0.24, 22);
+    ground.position.set(-18, 0.24, 30);
     ground.receiveShadow = true;
     S.add(ground);
 
-    const pave = (w, d, x, z, tint, rx, ry) => {
-      const m = new T.Mesh(new T.PlaneGeometry(w, d), new T.MeshLambertMaterial({ map: cloneMat(SOL.street, rx, ry).map, color: tint || 0xffffff }));
-      m.rotation.x = -Math.PI / 2;
-      m.position.set(x, 0.3, z);
+    /* sidewalks: 10 cm of raised pavers with a granite curb, along every
+       frontage. They are only paint and kerb, so nothing to shoot through. */
+    const walk = (x0, x1, z0, z1) => {
+      const w = Math.abs(x1 - x0), d = Math.abs(z1 - z0);
+      const m = new T.Mesh(new T.BoxGeometry(w, 0.1, d), repMat(SOL.pave, w / 3.2, d / 3.2));
+      m.position.set((x0 + x1) / 2, 0.35, (z0 + z1) / 2);
       m.receiveShadow = true;
       S.add(m);
       return m;
     };
-    pave(26.4, 35, 0, 3.2, 0xffffff, 8, 11);
-    pave(15.6, 9.0, -5.4, 24.0, 0xf2eee4, 5, 3);
-    pave(17.4, 7.4, -21.6, 24, 0xd2d0cc, 5, 2.4);
-    pave(18.4, 40.4, YARD_MID, 38, 0xf0eadd, 6, 12);
+    const curb = (x0, x1, z0, z1) => {
+      const w = Math.abs(x1 - x0), d = Math.abs(z1 - z0);
+      const m = new T.Mesh(new T.BoxGeometry(w, 0.13, d), SOL.curb);
+      m.position.set((x0 + x1) / 2, 0.37, (z0 + z1) / 2);
+      S.add(m);
+    };
+    /* the boulevard's two sidewalks, then the alley's, then the yard's */
+    walk(-13.6, -9.7, -22, 20.4);
+    walk(9.7, 13.6, -22, 22);
+    curb(-9.7, -9.45, -22, 20.4);
+    curb(9.45, 9.7, -22, 22);
+    walk(-30, -13, 20.4, 21.3);
+    walk(-30, -13, 26.7, 27.6);
+    curb(-30, -13, 21.3, 21.55);
+    curb(-30, -13, 26.45, 26.7);
+    walk(-46.6, -30, 30.6, 32.2);
+    walk(-48, -46.6, 32.2, 18);
+    walk(-48, -46.6, 32.2, 58);
+    walk(-46.6, -30, 56.6, 58);
+    walk(-30, -46.6, 32.2, 33.4);
 
-    // ---- street furniture shared by the zones ----
-    const darkHole = darkMat(0x111316);
-
-    // ================= PLAZA =================
-    // west block (runs the whole west side and south of the alley)
-    blockAt(S, -30, -13, -14, 20.4, 7.6, SOL.stone);
-    roofCap(S, -30, -13, -14, 20.4, 7.6);
-    winRun(S, "x", -12.94, -12, 18.4, 3.0, 6.6, 11);
-    // east block
-    blockAt(S, 13, 24, -14, 22, 9.0, SOL.stone);
-    roofCap(S, 13, 24, -14, 22, 9.0);
-    winRun(S, "x", 12.94, -12, 20.4, 3.0, 8.2, 17);
-    // north block: the wall the rail turns around
-    blockAt(S, 1.5, 14, 21.5, 33, 6.6, SOL.stoneDark);
-    roofCap(S, 1.5, 14, 21.5, 33, 6.6);
-    winRun(S, "z", 21.44, 2.4, 13.4, 2.8, 5.8, 23);
-    winRun(S, "x", 1.44, 22.2, 32.4, 2.8, 5.8, 29);
-    // north-west block closes the corner alcove so the sky never shows through
-    blockAt(S, -13, 1.5, 25.6, 40, 7.4, SOL.stone);
-    roofCap(S, -13, 1.5, 25.6, 40, 7.4);
-    winRun(S, "z", 25.54, -12, 0.4, 3.0, 6.4, 61);
-    const cornerBanner = makeFlag("kp", -4.2, 3.1, 25.5, 2.6, 1.7);
-    S.add(cornerBanner);
-    // south block closes the start
-    blockAt(S, -14, 24, -22, -14, 8.4, SOL.stone);
-    roofCap(S, -14, 24, -22, -14, 8.4);
-
-    // plaza kerbs and clutter
-    blockAt(S, -13, -12.4, -14, 20.4, 0.28, SOL.concrete, 0.3);
-    blockAt(S, 12.4, 13, -14, 20.4, 0.28, SOL.concrete, 0.3);
-    [15, -3, -9].forEach((z) => {
-      S.add(makeFlag(z % 2 ? "kr" : "kp", -12.55, 2.9, z, 2.2, 1.5));
-      S.add(makeFlag(z % 2 ? "kp" : "kr", 12.55, 2.9, z + 5, 2.2, 1.5));
+    /* ---- road paint ---- */
+    const paintBar = (x, z, w, d, mat) => {
+      const m = new T.Mesh(new T.PlaneGeometry(w, d), mat);
+      m.rotation.x = -Math.PI / 2;
+      m.position.set(x, 0.312, z);
+      S.add(m);
+      return m;
+    };
+    /* double yellow centre line, white lane dashes out at ±4.8 m */
+    paintBar(-0.18, -2.2, 0.13, 38, SOL.paintYellow);
+    paintBar(0.18, -2.2, 0.13, 38, SOL.paintYellow);
+    [-4.8, 4.8].forEach((lx) => {
+      for (let z = -20; z < 15; z += 6) paintBar(lx, z, 0.16, 3.2, SOL.paintWhite);
     });
-    S.add(makeTower(-11.4, 17.2, 5.2));
-    S.add(makeTower(11.2, 19.0, 6.0));
-    S.add(makeCrate(-11.6, 6.2, 0.8));
-    S.add(makeCrate(-10.9, 7.0, 0.62));
-    S.add(makeSandbags(-11.5, 12.2, 2.0, 3));
-    S.add(makeRubble(-10.4, 4.0, 6));
-    S.add(makeRubble(10.8, 9.5, 5));
-    S.add(makeCrate(10.8, 3.4, 0.9));
-    [[-6, 1], [4, -6], [8, 12]].forEach(([x, z]) => {
+    /* the crosswalk the player stands on at the start */
+    for (let i = 0; i < 9; i++) paintBar(-8 + i * 2.0, 1.6, 0.55, 3.4, SOL.paintWhite);
+    paintBar(0, -0.7, 18.8, 0.32, SOL.paintWhite);
+    /* crosswalk just before the junction, and a stop line behind it */
+    for (let i = 0; i < 9; i++) paintBar(-8 + i * 2.0, 18.0, 0.55, 3.6, SOL.paintWhite);
+    paintBar(0, 15.9, 18.8, 0.35, SOL.paintWhite);
+    /* crosswalk over the alley mouth */
+    for (let i = 0; i < 6; i++) paintBar(-11.2, 21.6 + i * 1.0, 3.4, 0.5, SOL.paintWhite);
+    paintBar(-13.9, 24.0, 0.35, 7.2, SOL.paintWhite);
+    /* yard markings: a turning circle and bay lines */
+    for (let i = 0; i < 4; i++) paintBar(-45.6 + i * 4.6, 34.4, 0.18, 3.4, SOL.paintWhite);
+
+    /* ================= THE BOULEVARD (wave 1) ================= */
+    /* west frontage: three buildings, the middle one carrying the flag */
+    makeBlock(S, -30, -13, -22, -6, 11.5, { mat: SOL.facC, shop: "e", k: 0 });
+    makeBlock(S, -30, -13, -6, 7, 8.6, { mat: SOL.facB, shop: "e", k: 2 });
+    makeBlock(S, -30, -13, 7, 20.4, 10.2, { mat: SOL.facA, shop: "e", k: 4 });
+    /* the alley face of that last block */
+    streetFront(S, { x: -21.5, y: 0.3, z: 20.44, len: 16.4, ax: 0, az: 1, k: 6 });
+    /* east frontage: a low block, the tower with the LED screen, another low one */
+    makeBlock(S, 13, 24, -22, -7, 9.4, { mat: SOL.facB, shop: "w", k: 1 });
+    makeBlock(S, 13, 24, -7, 9, 14.0, { mat: SOL.facC, shop: "w", k: 3 });
+    makeBlock(S, 13, 24, 9, 22, 8.2, { mat: SOL.facA, shop: "w", k: 5 });
+    /* what closes the street behind the player at the start */
+    makeBlock(S, -14, 24, -26, -22, 9.0, { mat: SOL.facB });
+
+    /* north side of the junction: two blocks with a boulevard between them
+       that runs away to Sungnyemun */
+    makeBlock(S, -13, -5, 27.6, 40, 10.6, { mat: SOL.facB, shop: "s", k: 2 });
+    makeBlock(S, 5, 14, 27.6, 40, 8.4, { mat: SOL.facA, shop: "s", k: 7 });
+
+    /* ================= THE ALLEY (wave 2) ================= */
+    makeBlock(S, -30, -13, 27.6, 40, 8.8, { mat: SOL.facB, shop: "s", k: 1 });
+    /* the scaffold the alley's elevated rifleman stands on */
+    makeScaffold(S, -26.4, -19.8, 20.45, 22.15, 3.3);
+    makeUtilityPole(S, -15.2, 21.0);
+    makeUtilityPole(S, -27.0, 26.9);
+    makeCone(S, -16.2, 22.4);
+    makeCone(S, -24.4, 26.0);
+
+    /* ================= THE YARD (waves 3-4) ================= */
+    makeBlock(S, -30, -16, 40, 58, 9.6, { mat: SOL.facA, shop: "w", k: 3 });
+    makeBlock(S, -58, -48, 22, 58, 8.8, { mat: SOL.facC, shop: "e", k: 0 });
+    makeBlock(S, -48, -30, 8, 18, 6.4, { mat: SOL.facB, shop: "n", k: 5 });
+    makeBlock(S, -48, -41, 18, 33, 7.4, { mat: SOL.facB, shop: "e", k: 6 });
+    /* behind the gate, so the sky never shows through the arch either */
+    makeBlock(S, -52, -26, 62, 76, 10.5, { mat: SOL.facB });
+
+    /* ================= VISTA: the boulevard to Sungnyemun ================= */
+    /* far city blocks line the road; they are only seen down the gap */
+    [[7, 20, 41, 62, 12.5, SOL.facC], [-20, -7, 41, 64, 14.5, SOL.facB],
+     [7, 22, 68, 86, 13.0, SOL.facB], [-22, -7, 68, 88, 12.0, SOL.facA],
+     [10, 26, 94, 112, 16.0, SOL.facC], [-26, -9, 92, 112, 15.0, SOL.facB],
+     [12, 30, 118, 136, 14.0, SOL.facA], [-30, -10, 116, 138, 12.0, SOL.facB]
+    ].forEach(([x0, x1, z0, z1, h, mat]) => {
+      const w = Math.abs(x1 - x0), d = Math.abs(z1 - z0);
+      const b = new T.Mesh(new T.BoxGeometry(w, h, d), repMat(mat, Math.max(w, d) / 6, h / 6.4));
+      b.position.set((x0 + x1) / 2, 0.3 + h / 2, (z0 + z1) / 2);
+      S.add(b);
+    });
+    /* the boulevard keep going: kerbs and a centre line to the gate */
+    walk(5.0, 6.6, 28, 76);
+    walk(-6.6, -5.0, 28, 76);
+    for (let z = 30; z < 74; z += 7) paintBar(0, z, 0.22, 3.6, SOL.paintWhite);
+    makeSungnyemunFar(S, 0, 80, 1.15);
+    makeNamsan(S, 14, 176);
+
+    /* ================= LANDMARKS ================= */
+    /* the big flag on the west block, hung 6.5 m up and facing the road */
+    const bigFlag = makeFlagPlane(S, "kr", 11.9, 6.0, 23.4, 4.6, 3.05, -2.55);
+    bigFlag.name = "bigFlag";
+    const fpole = new T.Mesh(new T.CylinderGeometry(0.07, 0.07, 4.4, 6), SOL.poleGray);
+    fpole.position.set(11.9, 7.7, 23.4);
+    fpole.rotation.z = Math.PI / 2;
+    S.add(fpole);
+    const fbase = new T.Mesh(new T.BoxGeometry(0.3, 0.9, 0.3), SOL.metalDark);
+    fbase.position.set(13.0, 7.9, 23.4);
+    S.add(fbase);
+    /* a second, smaller one on the far block, across the junction */
+    makeFlagPlane(S, "kr", -12.9, 7.6, 14.0, 4.2, 2.8, Math.PI / 2).name = "towerFlag";
+
+    makeRoadSign(S, 4.6, 20.4, Math.PI).name = "roadSign";
+    makeBillboard(S, -9.4, 7.3, 27.45, 7.0, 3.5, Math.PI).name = "billboard";
+
+    /* street furniture along the boulevard */
+    makeStreetLamp(S, -12.6, 3.0, 0);
+    makeStreetLamp(S, 12.6, -4.0, Math.PI);
+    makeStreetLamp(S, -12.6, 16.0, 0);
+    makeTrafficLight(S, -10.6, 19.4, Math.PI / 2);
+    /* this one stands a little further from the flag and reaches over the
+       road instead of across the cloth, so the taegeukgi is never in front
+       of a signal head */
+    makeTrafficLight(S, 10.6, 17.4, Math.PI);
+    makePlanter(S, -12.4, 9.0, 1.8);
+    makePlanter(S, 12.4, -9.0, 1.8);
+    makeHydrant(S, -12.2, 6.2);
+    makeCone(S, 3.4, 13.2);
+    makeCone(S, -2.6, 11.0);
+
+    /* trees on both sidewalks */
+    [[-12.6, -8.0], [-12.6, 13.6], [12.6, 6.2], [12.6, 17.4], [-12.6, 22.4]].forEach(([x, z]) => {
       const tree = new T.Group();
-      part(tree, 0.34, 2.0, 0.34, 0, 1.0, 0, SOL.woodDark);
-      const leaf = new T.Mesh(new T.BoxGeometry(1.9, 1.3, 1.9), SOL.grass);
-      leaf.position.y = 2.5;
+      part(tree, 0.34, 2.4, 0.34, 0, 1.2, 0, SOL.woodDark);
+      const leaf = new T.Mesh(new T.BoxGeometry(2.2, 1.5, 2.2), SOL.hedge);
+      leaf.position.y = 3.0;
       leaf.castShadow = true;
       tree.add(leaf);
+      const leaf2 = new T.Mesh(new T.BoxGeometry(1.5, 1.1, 1.5), SOL.hedge);
+      leaf2.position.set(0.2, 3.9, -0.15);
+      tree.add(leaf2);
       tree.position.set(x, 0.3, z);
       S.add(tree);
     });
 
-    // ================= ALLEY =================
-    // south side: shopfronts with doorways
-    blockAt(S, -30, -13, 8, 20.4, 6.4, SOL.stone);
-    roofCap(S, -30, -13, 8, 20.4, 6.4);
-    winRun(S, "z", 20.34, -29, -14, 3.4, 5.6, 31);
-    doorway(S, -17.2, 20.36, 0, 1.5, 2.3);
-    doorway(S, -22.2, 20.36, 0, 1.5, 2.3);
-    doorway(S, -27.0, 20.36, 0, 1.4, 2.2);
-    // north side
-    blockAt(S, -30, -13, 27.6, 40, 6.8, SOL.stoneDark);
-    roofCap(S, -30, -13, 27.6, 40, 6.8);
-    winRun(S, "z", 27.54, -29, -14, 3.2, 6.0, 37);
-    doorway(S, -18.6, 27.58, Math.PI, 1.4, 2.2);
-    doorway(S, -24.4, 27.58, Math.PI, 1.4, 2.2);
-    // upper walkway with a solid parapet on the south wall
-    balcony(S, -27.2, -19.4, 21.95, 20.4, 3.0);
-    // awnings and clutter so the alley reads as a street, not a tunnel
-    [[-16.4, "s"], [-20.6, "n"], [-25.2, "s"]].forEach(([x, side], i) => {
-      const aw = new T.Mesh(new T.BoxGeometry(2.4, 0.14, 1.1), i % 2 ? SOL.enemyCloth : SOL.stoneDark);
-      aw.position.set(x, 2.5, side === "s" ? 20.9 : 27.1);
-      aw.rotation.x = side === "s" ? -0.16 : 0.16;
-      aw.castShadow = true;
-      S.add(aw);
-    });
-    S.add(makeCrate(-15.2, 21.2, 0.75));
-    S.add(makeCrate(-14.6, 21.4, 0.55, 1.02));
-    S.add(makeCrate(-26.2, 26.6, 0.8));
-    S.add(makeSandbags(-19.0, 26.4, 1.8, 2));
-    S.add(makeRubble(-16.0, 22.6, 5));
-    S.add(makeRubble(-28.2, 25.4, 4));
-    S.add(makeBarrel(-28.6, 21.6, 0.3));
-    S.add(makeBarrel(-28.6, 22.7, 0.3));
-    // hanging banners over the alley
-    S.add(makeFlag("kp", -18.2, 4.3, 20.6, 1.8, 1.2));
-    S.add(makeFlag("kr", -23.6, 4.3, 27.4, 1.8, 1.2));
+    /* the parked bus and police car that frame the first firefight */
+    makeCityBus(S, -11.6, 15.4, Math.PI / 2, "143").name = "bus143";
+    makePoliceCar(S, 11.5, 9.4, -Math.PI / 2 + 0.03).name = "policeCar";
+    makePoliceCar(S, -33.4, 50.6, Math.PI / 2 + 0.06);
 
-    // ================= COURTYARD =================
-    blockAt(S, -30, -14, 40, 58, 7.2, SOL.stone);
-    roofCap(S, -30, -14, 40, 58, 7.2);
-    winRun(S, "x", -30.06, 41, 57, 3.2, 6.4, 43);
-    blockAt(S, -58, -48, 12, 58, 8.6, SOL.stoneDark);
-    roofCap(S, -58, -48, 12, 58, 8.6);
-    winRun(S, "x", -47.94, 14, 57, 3.0, 7.6, 47);
-    blockAt(S, -48, -30, 8, 18, 6.2, SOL.stone);
-    roofCap(S, -48, -30, 8, 18, 6.2);
-    winRun(S, "z", 18.06, -47, -31, 3.0, 5.4, 53);
-    // yard perimeter kerb + gate
-    const gateFlags = makeGate(S);
+    /* concrete barriers and cones dressing the kerbs */
+    S.add(makeJersey(-9.1, 8.2, 2.4));
+    S.add(makeJersey(-8.9, 21.0, 2.2));
+    S.add(makeBarricade(9.1, 3.0, 2.0));
+    S.add(makeSiteWall(-18.4, 21.9, 2.6, 1.45));
+    makeCone(S, -9.0, 6.6);
 
-    // sandbag bunkers, drums and armour in the yard
-    S.add(makeTruck(-45.2, 26.2));
-    S.add(makeTruck(-33.0, 53.4));
-    S.add(makeSandbags(-45.6, 24.0, 3.2, 3));
-    S.add(makeSandbags(-33.2, 21.2, 2.6, 3));
-    S.add(makeTower(-46.4, 21.6, 5.4));
-    S.add(makeTower(-31.6, 50.8, 6.2));
-    S.add(makeBarrier(-44.6, 44.0));
-    S.add(makeRubble(-42.0, 27.0, 7));
-    S.add(makeRubble(-33.4, 43.0, 6));
-    S.add(makeCrate(-46.0, 41.2, 0.9));
-    S.add(makeCrate(-45.2, 41.6, 0.62, 1.18));
-    const yardFlagA = makeFlag("kp", -30.4, 3.4, 33.4, 2.2, 1.5);
-    const yardFlagB = makeFlag("kr", -30.4, 3.4, 46.6, 2.2, 1.5);
-    S.add(yardFlagA, yardFlagB);
+    /* the gate the whole push is aimed at */
+    const gateFlags = makeKoreanGate(S, YARD_MID, GATE_Z, { w: 17.6, h: 5.6, open: 5.2, d: 5.4 });
 
-    // exploding drums in every zone
+    /* a flagpole in the middle of the yard */
+    const pole = new T.Mesh(new T.CylinderGeometry(0.09, 0.12, 9.0, 7), SOL.poleGray);
+    pole.position.set(-43.4, 4.8, 36.0);
+    pole.castShadow = true;
+    S.add(pole);
+    makeFlagPlane(S, "kr", -42.4, 8.4, 36.0, 2.4, 1.6, 0.5, false);
+
+    /* the truck wave 1 stands on, and the one in the yard */
+
+    if (waves && waves[2]) {
+      const w = waves[2];
+      const t = waveXY(w, -5.0, 11.5);
+      makePorterTruck(S, t.x, t.z, w.yaw + 0.28);
+    }
+
+    /* exploding road drums, in every zone */
     const barrels = [];
     const drum = (x, z) => {
       const b = makeBarrel(x, z, 0.3);
@@ -3108,31 +5051,16 @@
     drum(-22.4, 26.6); drum(-34.6, 39.4); drum(-43.4, 33.0);
     drum(-32.6, 47.6);
 
-    // park the truck that wave 1 uses as elevated cover
-    if (waves && waves[0]) {
-      const w = waves[0];
-      const t = waveXY(w, 8.2, 10.2);
-      const truck = makeTruck(t.x, t.z);
-      truck.rotation.y = w.yaw + 0.04;
-      S.add(truck);
-    }
-    if (waves && waves[2]) {
-      const w = waves[2];
-      const t = waveXY(w, -5.0, 11.5);
-      const truck = makeTruck(t.x, t.z);
-      truck.rotation.y = w.yaw + 0.28;
-      S.add(truck);
-    }
-
-    // clouds follow the rail
+    /* clouds follow the rail */
     const clouds = [];
     for (let i = 0; i < 8; i++) {
-      const c = makeCloud(-40 + i * 14 + Math.random() * 6, 10.5 + Math.random() * 4, 8 + (i % 3) * 9 + Math.random() * 4, 2.8 + Math.random() * 1.6);
+      const c = makeCloud(-130 + i * 36 + Math.random() * 10, 54 + Math.random() * 18, 100 + (i % 3) * 36 + Math.random() * 22, 5.5 + Math.random() * 2.4);
+      c.scale.y = 0.34;
       S.add(c);
       clouds.push(c);
     }
 
-    // our rifleman, kneeling on the near left of the rail
+    /* our rifleman, in Korean digital pixel camouflage */
     const ally = makeAlly();
     ally.position.set(-2.0, 0.3, 5.0);
     ally.rotation.y = 0.4;
@@ -3144,7 +5072,7 @@
 
     dress = {
       root: S, sky, flags, clouds, barrels, ally,
-      truck1: waves && waves[0] ? waveXY(waves[0], 8.2, 10.2) : null
+      truck1: null
     };
     return dress;
   }
@@ -3198,45 +5126,36 @@
     const wide = Math.min(1.5, (p.scale || 1.28) / 1.28);
     let g = null;
     switch (p.cover) {
-      case "sandbag": g = makeSandbags(cx, cz, 2.1 * wide, 4); break;
-      case "crate": g = makeCrate(cx, cz, 1.05 * wide); break;
-      case "crates": {
-        g = new T.Group();
-        g.add(makeCrate(0, 0, 1.02, 0.3));
-        g.add(makeCrate(0.62, -0.2, 0.78, 0.3));
-        const up = makeCrate(-0.1, 0.02, 0.72);
-        up.position.y = 1.32;
-        g.add(up);
-        g.position.set(cx, baseY, cz);
-        break;
-      }
-      case "barrier": g = makeBarrier(cx, cz); break;
+      case "sandbag": g = makeJersey(cx, cz, 2.2 * wide); break;
+      case "crate": g = makeBarricade(cx, cz, 1.9 * wide); break;
+      case "crates": g = makeConcreteStack(cx, cz, 1.15 * wide); break;
+      case "barrier": g = makeJersey(cx, cz, 1.7 * wide); break;
       case "bunker": {
         g = new T.Group();
-        g.add(makeSandbags(0, 0, 3.2, 4));
-        g.add(makeCrate(1.9, 0.4, 0.8, 0.3));
+        g.add(makeJersey(0, 0, 3.2 * wide));
+        g.add(makeConcreteStack(1.05, 0.18, 1.0 * wide));
+        const extra = makeJersey(-1.2, 0.05, 1.2);
+        extra.rotation.y = 0.08;
+        g.add(extra);
         g.position.set(cx, baseY, cz);
         break;
       }
-      case "door": {
-        g = new T.Group();
-        part(g, 1.05, 1.5, 0.5, 0, 0.75, 0, SOL.concrete);
-        part(g, 1.25, 0.18, 0.62, 0, 1.56, 0, SOL.stoneDark);
-        part(g, 0.16, 1.3, 0.54, -0.62, 0.65, 0, SOL.stone);
-        g.position.set(cx, baseY, cz);
-        break;
-      }
-      case "truckbed": g = makeSandbags(cx, cz, 1.9 * wide, 4); break;
+      case "door": g = makeSiteWall(cx, cz, 2.6 * wide, 1.45); break;
+      case "truckbed": g = makeJersey(cx, cz, 1.9 * wide); break;
       case "heavy": {
         g = new T.Group();
-        part(g, 2.6, 1.15, 0.6, 0, 0.575, 0, SOL.concrete);
-        part(g, 2.7, 0.2, 0.72, 0, 1.2, 0, SOL.stoneDark);
-        g.add(makeSandbags(0, 0.1, 2.6, 1));
+        part(g, 2.7, 1.0, 0.56, 0, 0.5, 0, SOL.barrier);
+        part(g, 2.8, 0.16, 0.64, 0, 1.06, 0, SOL.siteWallCap);
+        [-0.9, 0.9].forEach((px) => {
+          const b = new T.Mesh(new T.CylinderGeometry(0.11, 0.11, 0.9, 8), SOL.metalDark);
+          b.position.set(px, 0.45, 0.4);
+          g.add(b);
+        });
         g.position.set(cx, baseY, cz);
         break;
       }
       case "rail": return null;
-      default: g = makeSandbags(cx, cz, 2.0, 3); break;
+      default: g = makeJersey(cx, cz, 2.2 * wide); break;
     }
     if (!g) return null;
     g.position.y = baseY;
@@ -3262,7 +5181,7 @@
       coverRoot.add(w.coverGroup);
       coverTarget = w.coverGroup;
       w.covers = w.def.members.map((m, i) => {
-        if (roleOf(m.role) === "hostage" || !m.cover) return null;
+        if (roleOf(m.role) === "hostage" || !m.cover || m.car) return null;
         let g = null;
         try { g = buildCover(coverPlace(w, m, i), w); } catch (e) { window.__coverErr = String(e && e.stack || e); }
         return g;
@@ -3338,6 +5257,7 @@
 
   function tagOff(p) {
     if (p.e && p.e._tag) { p.e._tag.remove(); p.e._tag = null; }
+    if (p.glint) { p.glint.parent && p.glint.parent.remove(p.glint); p.glint = null; }
   }
 
   function clearStage(ctx) {
@@ -3358,6 +5278,8 @@
     sparks = [];
     smokes.forEach((s) => s.parent && s.parent.remove(s));
     smokes = [];
+    shells.forEach((s) => s.parent && s.parent.remove(s));
+    shells = [];
     if (dress && dress.root) {
       dress.root.parent && dress.root.parent.remove(dress.root);
       disposeGeo(dress.root);
@@ -3416,6 +5338,7 @@
     pistolBase = { x: rig.g.position.x, y: rig.g.position.y, z: rig.g.position.z };
     flash = rig.flash;
     flashHalo = rig.halo;
+    flashStar = rig.star;
     flashLight = rig.light;
     window.__pistol = pistol;
     /* model factory hooks (handy for eyeballing the cast without playing) */
@@ -3448,7 +5371,8 @@
         if (e.ctrlKey || e.metaKey || e.altKey) return;
         const tag = (e.target && e.target.tagName) || "";
         if (tag === "INPUT" || tag === "TEXTAREA" || (e.target && e.target.isContentEditable)) return;
-        const isR = e.code === "KeyR" || (e.key || "").toLowerCase() === "r" || e.key === "ㄱ";
+        const isR = e.code === "KeyR" || (e.key || "").toLowerCase() === "r" || e.key === "ㄱ"
+          || e.code === "Space" || e.key === " " || e.key === "Spacebar";
         if (!isR) return;
         /* hold-R repeats are one reload, and R must not reach the browser's
            own shortcuts (Ctrl+R is filtered above; this keeps the page still) */
@@ -3487,6 +5411,7 @@
     try {
       if (dress && dress.root) dress.root.traverse((o) => { if (o.isMesh && o.userData && o.userData.wall) wallList.push(o); });
     } catch (e) {}
+    try { rebuildWallBoxes(); } catch (err) { window.__wallErr = String(err && err.stack || err); }
     try { stageWave(waves[0]); } catch (err) { window.__stageErr = String(err && err.stack || err); }
     const cam = ctx.camera;
     cam.near = 0.06; cam.fov = viewFov(); cam.far = 320;
@@ -3558,10 +5483,19 @@
     if (m.air === "para") return makeParaPost(w, m, i);
     const p = waveXY(w, m.lat || 0, m.dep || 8);
     const sc = roleScale(role);
+    let sx = p.x, sz = p.z;
+    if (wallBoxes.length) {
+      const free = pushOutOfWalls(sx, sz, 0.4);
+      if (free.x !== sx || free.z !== sz) {
+        window.__postWallNudge = (window.__postWallNudge || 0) + 1;
+        sz = free.z;
+        sx = free.x;
+      }
+    }
     const post = {
       e: { kind: role, mesh: new T.Object3D(), alive: true, hp: roleHp(role), h: 1.4 * sc, _tag: null },
       role, i,
-      x: p.x, z: p.z, y: (m.elev || 0) + 0.3,
+      x: sx, z: sz, y: (m.elev || 0) + 0.3,
       elev: m.elev || 0,
       cover: m.cover || "sandbag",
       coverSide: i % 2 ? 1 : -1,
@@ -3576,7 +5510,7 @@
       hideMin: 0.55 + Math.random() * 0.7,
       nextThrow: 0.8,
       bob: Math.random() * 6, breath: Math.random() * 6,
-      knock: 0, recoil: 0, armK: 0, shotT: 0, burstN: 0,
+      knock: 0, recoil: 0, armK: 0, shotT: 0, burstN: 0, glint: null,
       hideFrac: 0.4, peekX: 0
     };
     if (m.run && m.route) {
@@ -3622,6 +5556,16 @@
         try { g = buildCover(coverPlace(w, m, i), w); } catch (e) {}
         post.coverG = g;
       }
+      /* if he had to be nudged off a wall, his cover goes with him */
+      const ndx = sx - p.x, ndz = sz - p.z;
+      if (post.coverG && (ndx || ndz)) {
+        post.coverG.position.x += ndx;
+        post.coverG.position.z += ndz;
+        if (post.coverG.userData.centerX !== undefined) {
+          post.coverG.userData.centerX += ndx;
+          post.coverG.userData.centerZ += ndz;
+        }
+      }
       if (post.coverG && post.coverG.userData.topY !== undefined) {
         post.coverTop = post.coverG.userData.topY;
         post.coverCX = post.coverG.userData.centerX;
@@ -3634,6 +5578,29 @@
       }
       roleTag(post.e);
       if (post.e._tag) post.e._tag.style.display = "none";
+    }
+    post.coverTopSaved = post.coverTop;
+    if (m.car) {
+      try {
+        const c0 = m.car;
+        const truck = makeArmyTruck(SCENE, c0.path[0][0], c0.path[0][1], 0);
+        truck.traverse((o) => { if (o.isMesh && o.userData && o.userData.wall) wallList.push(o); });
+        post.car = { g: truck, path: c0.path, speed: c0.speed || 5, delay: c0.delay || 0, seg: 0, t: 0, moving: true };
+        post.y = 1.38;
+        post.coverTop = 1.66;
+        post.coverCX = c0.path[0][0];
+        post.coverCZ = c0.path[0][1];
+        post.x = c0.path[0][0];
+        post.z = c0.path[0][1] - 1.0;
+        post.mesh.position.set(post.x, post.y, post.z);
+      } catch (err) { window.__carErr = String(err && err.stack || err); }
+    }
+    /* stage 1's charger uses `run: { from, dur }`; stage 2's uses
+       `run: true, route: [...]` and is driven by post.runner above */
+    if (m.run && m.run.from) {
+      post.run = { from: m.run.from, dest: [post.x, post.z], dur: m.run.dur || 3.5, delay: m.run.delay || 0 };
+      post.runT = -(m.run.delay || 0);
+      post.runPhase = 0;
     }
     posePost(post, { x: (w && w.hold && w.hold.x) || 0, y: CAM_Y, z: (w && w.hold && w.hold.z) || 0 }, 0);
     return post;
@@ -3742,6 +5709,66 @@
     return out;
   }
 
+  /* ---- walking colliders: nobody may walk through a wall or a barrier ----
+     Every tagged wall mesh plus every cover prop is reduced to a world AABB
+     once per stage build. A character is pushed out of any box that stands in
+     his way (waist-high or taller), along the shallowest axis, which reads as
+     sliding along the wall instead of passing through it. */
+  let wallBoxes = [];
+  function rebuildWallBoxes() {
+    wallBoxes = [];
+    const roots = [];
+    if (coverRoot) roots.push(coverRoot);
+    for (let i = 0; i < wallList.length; i++) roots.push(wallList[i]);
+    roots.forEach((root) => {
+      try { root.updateMatrixWorld(true); } catch (e) {}
+      root.traverse((o) => {
+        if (!o.isMesh || !o.geometry) return;
+        let bb = null;
+        try { bb = new T.Box3().setFromObject(o); } catch (e) { return; }
+        if (!isFinite(bb.min.x) || !isFinite(bb.max.x)) return;
+        const sx = bb.max.x - bb.min.x, sy = bb.max.y - bb.min.y, sz = bb.max.z - bb.min.z;
+        if (sy < 0.45) return;                         // kerbs, paint, road sheets
+        if (sx < 0.12 && sz < 0.12) return;            // thin poles, aerials
+        if (sx > 60 || sz > 60) return;                // whole-block backdrops
+        wallBoxes.push(bb);
+      });
+    });
+    window.__wallBoxes = wallBoxes.length;
+  }
+
+  /* push a standing character out of every wall he overlaps */
+  function pushOutOfWalls(x, z, r) {
+    for (let k = 0; k < 3; k++) {
+      let moved = false;
+      for (let i = 0; i < wallBoxes.length; i++) {
+        const b = wallBoxes[i];
+        if (b.max.y < 0.5 || b.min.y > 2.1) continue;
+        if (x < b.min.x - r || x > b.max.x + r || z < b.min.z - r || z > b.max.z + r) continue;
+        const dxl = x - (b.min.x - r), dxr = (b.max.x + r) - x;
+        const dzl = z - (b.min.z - r), dzr = (b.max.z + r) - z;
+        const m = Math.min(dxl, dxr, dzl, dzr);
+        if (m === dxl) x = b.min.x - r - 0.02;
+        else if (m === dxr) x = b.max.x + r + 0.02;
+        else if (m === dzl) z = b.min.z - r - 0.02;
+        else z = b.max.z + r + 0.02;
+        moved = true;
+      }
+      if (!moved) break;
+    }
+    return { x, z };
+  }
+
+  /* is a point inside any wall box? (verification hook) */
+  function insideWall(x, z, r) {
+    for (let i = 0; i < wallBoxes.length; i++) {
+      const b = wallBoxes[i];
+      if (b.max.y < 0.5 || b.min.y > 2.1) continue;
+      if (x > b.min.x - r && x < b.max.x + r && z > b.min.z - r && z < b.max.z + r) return true;
+    }
+    return false;
+  }
+
   /* was this point hidden behind cover or wall from the camera? */
   function blockedFromCamera(pt, cam) {
     const dir = new T.Vector3().subVectors(pt, cam);
@@ -3784,7 +5811,7 @@
   }
 
   function hurtPlayer(ctx, dmg) {
-    if (ended) return;
+    if (ended || window.__railGod) return;
     hp -= dmg;
     shake = 0.7;
     flashScreen(0.6, "radial-gradient(circle at 50% 50%,rgba(255,90,70,.75),rgba(180,20,20,.35) 60%,rgba(120,0,0,0) 85%)");
@@ -3867,13 +5894,73 @@
     }
   }
 
-  function mark(x, y) {
+  /* the crosshair answers every shot: a white × for a body hit, a gold one
+     with HEAD over it for a skull hit, red when the man goes down, grey when
+     the round stopped in concrete, green for a pickup */
+  function hitMark(kind, sx, sy, head, label) {
     const d = document.createElement("div");
-    d.id = "railMark";
-    d.style.left = x + "px";
-    d.style.top = y + "px";
+    d.className = "railHit " + (kind || "foe") + (head ? " head" : "");
+    d.style.left = sx + "px";
+    d.style.top = sy + "px";
+    for (let i = 0; i < 4; i++) d.appendChild(document.createElement("b"));
+    if (label) {
+      const sp = document.createElement("span");
+      sp.textContent = label;
+      d.appendChild(sp);
+    }
     document.body.appendChild(d);
-    setTimeout(() => d.remove(), 160);
+    setTimeout(() => d.remove(), head ? 320 : 200);
+  }
+
+  function screenOf(pt, cam) {
+    const v = pt.clone().project(cam);
+    return { x: (v.x * 0.5 + 0.5) * innerWidth, y: (-v.y * 0.5 + 0.5) * innerHeight, z: v.z };
+  }
+
+  /* chips and dust: concrete throws pale grit and a grey puff, flesh throws
+     red, so "stopped by the wall" and "hit the man" never read the same */
+  function impactBurst(scene, at, kind) {
+    const conc = kind === "concrete";
+    const skull = kind === "head";
+    const chips = conc ? [0xe6e2d6, 0xc4c0b4, 0xf2efe6, 0xa9a597]
+      : skull ? [0xffe27a, 0xfff3c4, 0xc0392b, 0xffb347]
+      : [0x8e2b24, 0xb03a2c, 0x631a14];
+    for (let i = 0; i < (conc ? 8 : skull ? 11 : 5); i++) {
+      const sz = 0.045 + Math.random() * 0.055;
+      const m = new T.Mesh(new T.BoxGeometry(sz, sz, sz), new T.MeshBasicMaterial({ color: chips[i % chips.length] }));
+      m.position.copy(at);
+      m.userData.v = new T.Vector3((Math.random() - 0.5) * 4.0, Math.random() * 2.8 + 0.6, (Math.random() - 0.5) * 4.0);
+      m.userData.life = 0.3 + Math.random() * 0.22;
+      scene.add(m);
+      sparks.push(m);
+    }
+    for (let i = 0; i < (conc ? 3 : 1); i++) {
+      const p = new T.Mesh(new T.SphereGeometry(0.09 + Math.random() * 0.08, 6, 5),
+        new T.MeshBasicMaterial({ color: conc ? 0xd9d5c9 : 0x6e1a13, transparent: true, opacity: 0.55, depthWrite: false }));
+      p.position.copy(at);
+      p.userData.v = new T.Vector3((Math.random() - 0.5) * 0.5, 0.45 + Math.random() * 0.4, (Math.random() - 0.5) * 0.5 + 0.5);
+      p.userData.life = 0.42 + Math.random() * 0.3;
+      p.userData.smoke = 1;
+      scene.add(p);
+      smokes.push(p);
+    }
+    const fl = new T.Mesh(new T.SphereGeometry(conc ? 0.1 : skull ? 0.12 : 0.07, 6, 5),
+      new T.MeshBasicMaterial({ color: conc ? 0xfff8e6 : skull ? 0xffe08a : 0xffb6a8, transparent: true, opacity: 0.95, depthWrite: false }));
+    fl.position.copy(at);
+    scene.add(fl);
+    tracers.push({ mesh: fl, life: skull ? 0.12 : 0.07, grow: 1 });
+  }
+
+  /* the crosshair itself flashes gold for a beat on a skull hit */
+  let critT = 0;
+  function critCross() {
+    const xh = document.getElementById("railX");
+    if (!xh) return;
+    xh.classList.remove("crit");
+    void xh.offsetWidth;
+    xh.classList.add("crit");
+    clearTimeout(critT);
+    critT = setTimeout(() => xh.classList.remove("crit"), 240);
   }
 
   function gun(name) {
@@ -3891,6 +5978,33 @@
       window.__grunts = (window.__grunts || 0) + 1;
       if (fatal) window.__gruntsFatal = (window.__gruntsFatal || 0) + 1;
     } catch (e) { window.__gruntErr = String(e && e.stack || e); }
+  }
+
+  /* a spent case: brass, thrown out of the ejection port, spinning, bouncing
+     off the asphalt once and gone. One shared geometry and material, at most a
+     dozen in the air, so the effect costs a handful of draw calls. */
+  let SHELL_GEO = null;
+  function ejectShell(ctx) {
+    if (!ctx || !pistol || !SOL.brass) return;
+    if (shells.length > 10) return;
+    if (!SHELL_GEO) SHELL_GEO = new T.BoxGeometry(0.017, 0.017, 0.04);
+    pistol.updateMatrixWorld(true);
+    const p = new T.Vector3(0.06, 0.085, -0.11);
+    pistol.localToWorld(p);
+    const m = new T.Mesh(SHELL_GEO, SOL.brass);
+    m.position.copy(p);
+    m.rotation.set(Math.random() * 3, Math.random() * 3, Math.random() * 3);
+    const q = ctx.camera.quaternion;
+    const right = new T.Vector3(1, 0, 0).applyQuaternion(q);
+    const up = new T.Vector3(0, 1, 0).applyQuaternion(q);
+    const fwd = new T.Vector3(0, 0, -1).applyQuaternion(q);
+    m.userData.v = right.multiplyScalar(1.5 + Math.random() * 0.8)
+      .addScaledVector(up, 1.3 + Math.random() * 0.5)
+      .addScaledVector(fwd, 0.3);
+    m.userData.spin = new T.Vector3(14 + Math.random() * 10, 12 + Math.random() * 10, 10 + Math.random() * 10);
+    m.userData.life = 1.5;
+    ctx.scene.add(m);
+    shells.push(m);
   }
 
   function spawnSmoke(camera) {
@@ -4048,7 +6162,14 @@
     recoil = 1;
     if (flash) { flash.visible = true; flash.scale.setScalar(1); }
     if (flashHalo) { flashHalo.visible = true; flashHalo.scale.setScalar(1); }
+    if (flashStar) {
+      flashStar.visible = true;
+      flashStar.scale.setScalar(0.72);
+      flashStar.rotation.z = 0;
+      if (flashStar.children[0] && flashStar.children[0].material) flashStar.children[0].material.opacity = 0.95;
+    }
     spawnSmoke(ctx.camera);
+    ejectShell(ctx);
     gun("shot");
     ctx.camera.updateMatrixWorld(true);
     ctx.scene.updateMatrixWorld(true);
@@ -4090,7 +6211,6 @@
     window.__lastBlocked = blocked ? { x: +blocked.point.x.toFixed(2), y: +blocked.point.y.toFixed(2) } : null;
     const cx = (aimN.x * 0.5 + 0.5) * innerWidth;
     const cy = (-aimN.y * 0.5 + 0.5) * innerHeight;
-    mark(cx, cy);
     if (!hit) {
       let bestPx = 9999;
       const near = [];
@@ -4127,7 +6247,9 @@
       combo = 0;
       window.__lastShot = { sort: "miss", blocked: !!blocked };
       if (blocked) {
-        burst(ctx.scene, blocked.point.x, blocked.point.y, blocked.point.z, false);
+        const sp = screenOf(blocked.point, ctx.camera);
+        hitMark("block", sp.x, sp.y);
+        impactBurst(ctx.scene, blocked.point, "concrete");
         gun("dry");
       }
       return;
@@ -4149,10 +6271,12 @@
     aimSnapAt = now;
     shotsHit++;
     window.__lastHitPx = { x: (hit.at.clone().project(ctx.camera).x * 0.5 + 0.5) * innerWidth, y: (-hit.at.clone().project(ctx.camera).y * 0.5 + 0.5) * innerHeight };
-    if (hit.sort === "barrel") { boomBarrel(ctx, hit.extra); return; }
+    if (hit.sort === "barrel") { hitMark("kill", window.__lastHitPx.x, window.__lastHitPx.y); boomBarrel(ctx, hit.extra); return; }
     if (hit.sort === "shot") {
       hit.extra.mesh.parent && hit.extra.mesh.parent.remove(hit.extra.mesh);
       shots3 = shots3.filter((s) => s !== hit.extra);
+      hitMark("pickup", window.__lastHitPx.x, window.__lastHitPx.y);
+      impactBurst(ctx.scene, hit.at, "concrete");
       addPts(ctx, 50);
       gun("hit");
       return;
@@ -4167,6 +6291,7 @@
         addPts(ctx, 120);
         bullets = Math.min(30, bullets + 2);
       }
+      hitMark("pickup", window.__lastHitPx.x, window.__lastHitPx.y);
       gun("hit");
       return;
     }
@@ -4187,13 +6312,22 @@
       return;
     }
     try { ctx.hitFlash && ctx.hitFlash(p.e); } catch (e) {}
-    burst(ctx.scene, hit.at.x, hit.at.y, hit.at.z, (p.e.hp || 1) <= 1);
+    if (head) {
+      hitMark("head", window.__lastHitPx.x, window.__lastHitPx.y, true, "HEADSHOT!");
+      impactBurst(ctx.scene, hit.at, "head");
+      critCross();
+      hitStop = Math.max(hitStop, 0.05);
+      gun("crit");
+      addPts(ctx, 75);
+    } else {
+      hitMark("foe", window.__lastHitPx.x, window.__lastHitPx.y);
+      impactBurst(ctx.scene, hit.at, "flesh");
+    }
     p.hitFlash = 0.09;
     p.knock = 0.16;
     /* head shot pays twice, and three times on the boss */
     const dmg = head ? (p.role === "boss" ? 3 : 2) : 1;
-    window.__lastDmg = { role: p.role, head: head, dmg: dmg };
-    p.e.hp = (p.e.hp || 1) - dmg;
+    window.__lastDmg = { role: p.role, head: head, dmg: dmg };    p.e.hp = (p.e.hp || 1) - dmg;
     if (p.e.hp > 0) {
       // suppressed: he drops back behind cover instead of standing there
       p.state = "duck";
@@ -4203,8 +6337,9 @@
       gun("hit");
       return;
     }
+    hitMark("kill", window.__lastHitPx.x, window.__lastHitPx.y, head, head ? "HEADSHOT!" : null);
     let pts = 100 + ((combo + 1) > 1 ? (combo + 1) * 40 : 0);
-    if (head) pts += 150;
+    if (head) pts += 250;
     if (quick) pts += 100;
     killPost(ctx, p, pts);
     gun(p.role === "boss" ? "boom" : "hit");
@@ -4296,6 +6431,69 @@
       return;
     }
 
+    /* ---- riding: the truck drives its path, the man stays down until it
+       has stopped, then the ordinary cover state machine takes over ---- */
+    if (p.car) {
+      const c = p.car;
+      if (c.moving) {
+        if (c.delay > 0) c.delay -= dt;
+        else {
+          const a = c.path[c.seg], b = c.path[c.seg + 1];
+          if (b) {
+            const dx = b[0] - a[0], dz = b[1] - a[1];
+            const len = Math.hypot(dx, dz) || 1;
+            c.t += (dt * c.speed) / len;
+            const k = Math.min(1, c.t);
+            const gx = a[0] + dx * k, gz = a[1] + dz * k;
+            c.g.position.set(gx, 0.3, gz);
+            c.g.rotation.y = Math.atan2(dx, dz);
+            if (k >= 1) { c.seg++; c.t = 0; }
+          } else {
+            c.moving = false;
+            p.state = "hidden";
+            p.stateT = 0.45;
+            p.expose = 0;
+          }
+        }
+      }
+      const gy = c.g.rotation.y;
+      p.x = c.g.position.x - Math.sin(gy) * 1.0;
+      p.z = c.g.position.z - Math.cos(gy) * 1.0;
+      p.y = 1.38;
+      p.coverTop = 1.66;
+      p.coverCX = p.x;
+      p.coverCZ = p.z;
+      if (c.moving) { p.expose = 0; posePost(p, cam, dt); return; }
+    }
+
+    /* ---- running to a new firing position across the open ---- */
+    if (p.run && p.run.from && p.runT < p.run.dur) {
+      p.runT += dt;
+      if (p.runT >= 0) {
+        const kk = Math.min(1, p.runT / p.run.dur);
+        const e = kk * kk * (3 - 2 * kk);
+        const fx = p.run.dest[0] - p.run.from[0], fz = p.run.dest[1] - p.run.from[1];
+        p.x = p.run.from[0] + fx * e;
+        p.z = p.run.from[1] + fz * e;
+        p.y = 0.3;
+        p.expose = 1;
+        p.runPhase += dt * 11;
+        p.coverTop = undefined;
+        posePost(p, cam, dt);
+        applyRunGait(p, Math.atan2(fx, fz));
+        return;
+      }
+    } else if (p.run && p.run.from && p.runT < 1e9) {
+      /* arrived: take up the cover he ran to */
+      if (p.runT < p.run.dur + 0.001) {
+        p.runT = p.run.dur + 1;
+        p.coverTop = p.coverTopSaved;
+        p.state = "hidden";
+        p.stateT = 0.4;
+        p.expose = 0;
+      }
+    }
+
     p.breath += dt * 1.7;
     p.bob += dt * 2.4;
 
@@ -4366,7 +6564,8 @@
           p.spotI = (p.spotI + 1 + ((Math.random() * 2) | 0)) % BOSS_DEF.spots.length;
           const s = BOSS_DEF.spots[p.spotI];
           const np = waveXY({ yaw: 0, hold: bossHold }, s[0], s[1]);
-          p.x = np.x; p.z = np.z;
+          const fr = wallBoxes.length ? pushOutOfWalls(np.x, np.z, 0.4) : np;
+          p.x = fr.x; p.z = fr.z;
           const g = bossCovers[p.spotI];
           if (g && g.userData.topY !== undefined) {
             p.coverG = g;
@@ -4386,12 +6585,72 @@
       p.nextThrow -= dt;
       if (p.nextThrow <= 0) { p.nextThrow = 1.4; throwShot(ctx, p); }
     }
+    /* the glint that runs the last half second before his burst */
+    const warm = p.state === "fire" && p.burstN === 0 && p.aim > 0 && p.aim < 0.55;
+    if (warm) {
+      if (!p.glint) { p.glint = makeGlint(); ctx.scene.add(p.glint); }
+      const u2 = p.mesh.userData;
+      const from = new T.Vector3(p.mesh.position.x, p.y + 1.2, p.mesh.position.z);
+      if (u2 && u2.muzzle) { u2.muzzle.updateWorldMatrix(true, false); u2.muzzle.getWorldPosition(from); }
+      const toCam = new T.Vector3(cam.x - from.x, cam.y - from.y, cam.z - from.z);
+      const dCam = toCam.length() || 1;
+      toCam.multiplyScalar(0.14 / dCam);
+      p.glint.position.copy(from).add(toCam);
+      p.glint.quaternion.copy(ctx.camera.quaternion);
+      const k = 1 - p.aim / 0.55;
+      const puls = 0.72 + 0.28 * Math.sin(performance.now() / 48);
+      p.glint.visible = true;
+      p.glint.scale.setScalar(0.65 + k * 1.15);
+      const pm = p.glint.children[0].material;
+      pm.opacity = (0.35 + 0.6 * k) * puls;
+      const bm = p.glint.children[1].material;
+      bm.opacity = 0.18 + 0.42 * k;
+    } else if (p.glint && p.glint.visible) {
+      p.glint.visible = false;
+    }
+
     /* `!` over his head: green as he starts to come out, orange as the aim
        closes, red and pulsing on the last beat, with a ring that runs down */
     const aiming = p.state === "fire" || p.state === "peek";
     const prog = p.state === "fire" ? Math.max(0, Math.min(1, 1 - p.aim / Math.max(0.001, p.aimMax))) : 0;
     placeTag(p, ctx, prog, aiming);
   }
+
+  /* a running soldier: strides from the hip, shins folding, arms pumping,
+     rifle carried low, and he faces where he is going */
+  function applyRunGait(p, faceYaw) {
+    const u = p.mesh.userData;
+    const ph = p.runPhase;
+    const sw = Math.sin(ph), swB = Math.sin(ph + Math.PI);
+    if (u.legL) u.legL.rotation.x = sw * 0.8;
+    if (u.legR) u.legR.rotation.x = -sw * 0.8;
+    if (u.shinL) u.shinL.rotation.x = Math.max(0, -Math.sin(ph - 0.4)) * 1.2;
+    if (u.shinR) u.shinR.rotation.x = Math.max(0, -Math.sin(ph + Math.PI - 0.4)) * 1.2;
+    if (u.armL) u.armL.rotation.set(-0.4 + swB * 0.8, 0, 0.5);
+    if (u.armR) u.armR.rotation.set(-0.5 + sw * 0.75, 0, -0.28);
+    if (u.rifle) { u.rifle.position.set(-0.02, 0.95, 0.26); u.rifle.rotation.set(0.55, Math.PI, -0.5); }
+    if (u.body) {
+      u.body.position.y = Math.abs(Math.sin(ph)) * 0.06;
+      u.body.rotation.z = Math.sin(ph) * 0.05;
+      u.body.scale.y = 1;
+    }
+    if (u.headG) u.headG.rotation.x = 0.05;
+    p.mesh.rotation.y = faceYaw;
+  }
+
+  /* half a second before a burst, a red glint sits on his muzzle with a stub
+     of aiming laser: the tell that says "cut him off now" */
+  const GLINT_GEO = { p: null, b: null };
+  function makeGlint() {
+    const g = new T.Group();
+    const plane = new T.Mesh(GLINT_GEO.p || (GLINT_GEO.p = new T.PlaneGeometry(0.36, 0.36)), SOL.glint.clone());
+    plane.renderOrder = 6;
+    g.add(plane);
+    const beam = new T.Mesh(GLINT_GEO.b || (GLINT_GEO.b = new T.BoxGeometry(0.024, 0.024, 1.8)), new T.MeshBasicMaterial({ color: 0xff3a20, transparent: true, opacity: 0.5, depthWrite: false }));
+    beam.position.set(0, 0, 0.9);
+    g.add(beam);
+    g.visible = false;
+    return g;  }
 
   /* an enemy round: muzzle flash at his barrel, a tracer back at the camera,
      a kick of the rifle, and the damage when this round is the one that counts */
@@ -4446,13 +6705,41 @@
     const cam = ctx.camera;
     const right = new T.Vector3().setFromMatrixColumn(cam.matrixWorld, 0);
     const fwd = new T.Vector3().setFromMatrixColumn(cam.matrixWorld, 2).negate();
-    const tx = cam.position.x - right.x * 3.3 + fwd.x * 5.0;
-    const tz = cam.position.z - right.z * 3.3 + fwd.z * 5.0;
+    /* Anchor him in frame rather than in metres: a portrait phone has a much
+       narrower horizontal cone, so a fixed 3.3 m to the side put him across a
+       third of the screen. He keeps the lower-left corner on any aspect. */
+    const asp = innerWidth / Math.max(1, innerHeight);
+    const tanH = Math.tan((viewFov() * Math.PI) / 360) * asp;
+    const ndc = asp < 0.9 ? -0.7 : -0.58;
+    const dist = asp < 0.9 ? 6.6 : 6.9;
+    const lat = ndc * dist * tanH;
+    let tx = cam.position.x + fwd.x * dist + right.x * lat;
+    let tz = cam.position.z + fwd.z * dist + right.z * lat;
+    /* if that anchor lands inside a building, step back toward the road until
+       it is free, so he never walks into a shopfront or a barrier */
+    if (wallBoxes.length && insideWall(tx, tz, 0.42)) {
+      for (let k = 1; k <= 6; k++) {
+        const f = 1 - k * 0.14;
+        const cx2 = cam.position.x + (tx - cam.position.x) * f;
+        const cz2 = cam.position.z + (tz - cam.position.z) * f;
+        if (!insideWall(cx2, cz2, 0.42)) { tx = cx2; tz = cz2; break; }
+      }
+    }
     const px = a.position.x, pz = a.position.z;
     const k = Math.min(1, dt * 4.2);
     a.position.x += (tx - a.position.x) * k;
     a.position.z += (tz - a.position.z) * k;
+    if (wallBoxes.length) {
+      const free = pushOutOfWalls(a.position.x, a.position.z, 0.42);
+      if (free.x !== a.position.x || free.z !== a.position.z) {
+        a.position.x = free.x;
+        a.position.z = free.z;
+        window.__allyWallNudges = (window.__allyWallNudges || 0) + 1;
+      }
+    }
     a.position.y = 0.3;
+    const wantScale = asp < 0.9 ? 0.98 : 1.06;
+    if (Math.abs(a.scale.x - wantScale) > 0.01) a.scale.setScalar(wantScale);
     const moved = Math.hypot(a.position.x - px, a.position.z - pz);
     const speed = dt > 0 ? moved / dt : 0;
     const u = a.userData;
@@ -4662,7 +6949,9 @@
     if (dress) {
       if (dress.sky) { dress.sky.position.set(cam.position.x, 0, cam.position.z + 20); }
       dress.flags.forEach((f) => {
-        if (f.userData.cloth) f.userData.cloth.rotation.y = Math.sin(nowMs / 540 + f.userData.ph) * 0.09;
+        const wv = Math.sin(nowMs / 540 + f.userData.ph) * 0.09;
+        if (f.userData.cloth) f.userData.cloth.rotation.y = wv;
+        if (f.userData.cloth2) f.userData.cloth2.rotation.y = Math.PI + wv;
       });
       dress.clouds.forEach((c) => {
         c.position.x += dt * 0.3;
@@ -4784,6 +7073,10 @@
         kick: +kick.toFixed(3), dip: +dip.toFixed(3), aimD: +aimD.toFixed(1) };
     }
     window.__gunAim = gunAim;
+    window.__fxCount = () => ({ sparks: sparks.length, smokes: smokes.length, tracers: tracers.length });
+    window.__insideWall = insideWall;
+    window.__wallStats = () => ({ boxes: wallBoxes.length, allyNudges: window.__allyWallNudges || 0, postNudges: window.__postWallNudge || 0 });
+    window.__allyObj = () => dress && dress.ally;
     window.__posts = posts;
     window.__aimN = aimN;
     if (flash) { flash.visible = since < 70; flash.scale.setScalar(1 + (1 - Math.min(1, since / 70)) * 1.4); }
@@ -4793,6 +7086,37 @@
       const k = Math.min(1, since / 90);
       flashHalo.scale.setScalar(1 + k * 2.2);
       if (flashHalo.material) flashHalo.material.opacity = 0.8 * (1 - k);
+    }
+    if (flashStar) {
+      const k = Math.min(1, since / 80);
+      flashStar.visible = since < 80;
+      flashStar.scale.setScalar(0.72 + k * 1.05);
+      flashStar.rotation.z = k * 0.7;
+      if (flashStar.children[0] && flashStar.children[0].material) {
+        flashStar.children[0].material.opacity = 0.95 * (1 - k);
+      }
+    }
+    for (let i = shells.length - 1; i >= 0; i--) {
+      const sh = shells[i];
+      sh.userData.life -= dt;
+      sh.userData.v.y -= 9.4 * dt;
+      sh.position.addScaledVector(sh.userData.v, dt);
+      sh.rotation.x += sh.userData.spin.x * dt;
+      sh.rotation.y += sh.userData.spin.y * dt;
+      sh.rotation.z += sh.userData.spin.z * dt;
+      const floor = 0.33;
+      if (sh.position.y < floor) {
+        sh.position.y = floor;
+        sh.userData.v.y = Math.abs(sh.userData.v.y) * 0.34;
+        sh.userData.v.x *= 0.55;
+        sh.userData.v.z *= 0.55;
+        sh.userData.spin.multiplyScalar(0.55);
+        if (sh.userData.v.y < 0.35) sh.userData.v.y = 0;
+      }
+      if (sh.userData.life <= 0 || !sh.parent) {
+        if (sh.parent) sh.parent.remove(sh);
+        shells.splice(i, 1);
+      }
     }
     for (let i = smokes.length - 1; i >= 0; i--) {
       const s = smokes[i];
@@ -5039,7 +7363,7 @@
 
   /* ---------------- materials for the DMZ / JSA set ---------------- */
 
-  function bumpTex(key, size, seed, amp) {
+  function bumpNoise(key, size, seed, amp) {
     return ctex(key, size, size, (g, w, h) => {
       const R = rng(seed);
       g.fillStyle = "#7f7f7f";
@@ -5157,10 +7481,10 @@
     const ph = (o) => { const m = new T.MeshPhongMaterial(o); if (m.color && m.color.convertSRGBToLinear) m.color.convertSRGBToLinear(); return m; };
     SOL.glassP = ph({ color: 0x1b2c37, shininess: 130, specular: new T.Color(0x9dc4d8), emissive: new T.Color(0x0a1418) });
     SOL.lightP = new T.MeshPhongMaterial({ color: 0xfff3c4, emissive: new T.Color(0xffe9a0), emissiveIntensity: 0.9 });
-    SOL.blueP = surf(bluePanelTex(), 1, 1, { shine: 26, spec: 0x33454e, bump: bumpTex("bpBump", 128, 87, 0.5), bumpScale: 0.06 });
+    SOL.blueP = surf(bluePanelTex(), 1, 1, { shine: 26, spec: 0x33454e, bump: bumpNoise("bpBump", 128, 87, 0.5), bumpScale: 0.06 });
     SOL.whiteP = ph({ color: 0xe8e6dc, shininess: 30, specular: new T.Color(0x555048) });
-    SOL.stoneP = surf(blockTex("stone2", "#c3bcac", "#5e584c", ["#ddd6c5", "#aca492", "#948c7c"], 15), 2, 2, { shine: 6, spec: 0x22221e, bump: bumpTex("stBump", 128, 17, 0.7), bumpScale: 0.14 });
-    SOL.steelP = ph({ color: 0x8b939c, shininess: 70, specular: new T.Color(0xcfd6dc), bumpMap: bumpTex("mtBump", 128, 23, 0.5), bumpScale: 0.03 });
+    SOL.stoneP = surf(blockTex("stone2", "#c3bcac", "#5e584c", ["#ddd6c5", "#aca492", "#948c7c"], 15), 2, 2, { shine: 6, spec: 0x22221e, bump: bumpNoise("stBump", 128, 17, 0.7), bumpScale: 0.14 });
+    SOL.steelP = ph({ color: 0x8b939c, shininess: 70, specular: new T.Color(0xcfd6dc), bumpMap: bumpNoise("mtBump", 128, 23, 0.5), bumpScale: 0.03 });
     SOL.camoP = ph({ color: 0x4a5730, shininess: 8, specular: new T.Color(0x24261c), map: ctex("helipaint", 128, 128, (g, w, h) => {
       const R = rng(93);
       g.fillStyle = "#4a5730";
@@ -5170,7 +7494,7 @@
         g.fillRect(R() * w, R() * h, 10 + R() * 22, 8 + R() * 16);
       }
     }) });
-    SOL.sandP = ph({ color: 0xcfc19c, shininess: 2, specular: new T.Color(0x1b1810), map: SOL.sand && SOL.sand.map ? SOL.sand.map : null, bumpMap: bumpTex("sbBump", 128, 29, 0.8), bumpScale: 0.16 });
+    SOL.sandP = ph({ color: 0xcfc19c, shininess: 2, specular: new T.Color(0x1b1810), map: SOL.sand && SOL.sand.map ? SOL.sand.map : null, bumpMap: bumpNoise("sbBump", 128, 29, 0.8), bumpScale: 0.16 });
   }
 
   /* ---------------- small set pieces ---------------- */
@@ -5388,7 +7712,7 @@
     makeSol();
     stage2Mats();
     const g = new T.Group();
-    const wall = new T.Mesh(new T.BoxGeometry(bw, bh, bd), surf(bluePanelTex(), Math.max(1, Math.round(bw / 2.4)), Math.max(1, Math.round(bh / 2.4)), { shine: 30, spec: 0x3a4c58, bump: bumpTex("bpBump", 128, 87, 0.5), bumpScale: 0.05 }));
+    const wall = new T.Mesh(new T.BoxGeometry(bw, bh, bd), surf(bluePanelTex(), Math.max(1, Math.round(bw / 2.4)), Math.max(1, Math.round(bh / 2.4)), { shine: 30, spec: 0x3a4c58, bump: bumpNoise("bpBump", 128, 87, 0.5), bumpScale: 0.05 }));
     wall.position.y = bh / 2;
     wall.castShadow = true;
     wall.receiveShadow = true;
@@ -5595,27 +7919,27 @@
     }
 
     /* ---- ground: dirt everywhere, the tactical road on top ---- */
-    const dirt = surf(soilTex(), 30, 30, { shine: 1, spec: 0x120f0a, bump: bumpTex("soilB", 256, 61, 0.9), bumpScale: 0.16 });
+    const dirt = surf(soilTex(), 30, 30, { shine: 1, spec: 0x120f0a, bump: bumpNoise("soilB", 256, 61, 0.9), bumpScale: 0.16 });
     const ground = new T.Mesh(new T.PlaneGeometry(300, 300), dirt);
     ground.rotation.x = -Math.PI / 2;
     ground.position.set(0, 0.24, 34);
     ground.receiveShadow = true;
     S.add(ground);
 
-    const roadMat = surf(soilTex(), 1, 6, { shine: 2, spec: 0x1a160f, bump: bumpTex("soilB", 256, 61, 0.9), bumpScale: 0.2 });
+    const roadMat = surf(soilTex(), 1, 6, { shine: 2, spec: 0x1a160f, bump: bumpNoise("soilB", 256, 61, 0.9), bumpScale: 0.2 });
     const road1 = new T.Mesh(new T.PlaneGeometry(8.6, 50), roadMat);
     road1.rotation.x = -Math.PI / 2;
     road1.position.set(0, 0.28, 8);
     road1.receiveShadow = true;
     S.add(road1);
-    const road2 = new T.Mesh(new T.PlaneGeometry(9.0, 20), surf(soilTex(), 1, 3, { shine: 2, spec: 0x1a160f, bump: bumpTex("soilB", 256, 61, 0.9), bumpScale: 0.2 }));
+    const road2 = new T.Mesh(new T.PlaneGeometry(9.0, 20), surf(soilTex(), 1, 3, { shine: 2, spec: 0x1a160f, bump: bumpNoise("soilB", 256, 61, 0.9), bumpScale: 0.2 }));
     road2.rotation.x = -Math.PI / 2;
     road2.rotation.z = -0.62;
     road2.position.set(-9.6, 0.281, 32);
     road2.receiveShadow = true;
     S.add(road2);
     /* the JSA concrete apron */
-    const conc = surf(concreteTex("conc2", "#b9b7ad", 31), 9, 8, { shine: 10, spec: 0x2a2924, color: 0xd9d5c7, bump: bumpTex("cnBump", 256, 71, 0.6), bumpScale: 0.1 });
+    const conc = surf(concreteTex("conc2", "#b9b7ad", 31), 9, 8, { shine: 10, spec: 0x2a2924, color: 0xd9d5c7, bump: bumpNoise("cnBump", 256, 71, 0.6), bumpScale: 0.1 });
     const plaza = new T.Mesh(new T.PlaneGeometry(46, 42), conc);
     plaza.rotation.x = -Math.PI / 2;
     plaza.position.set(-18, 0.30, 61);

@@ -229,6 +229,20 @@
     ping(c, t + 0.008, 1200, 0.05, 0.05, bus);
   }
 
+  /* a headshot: a bright, short metallic tink two octaves above the hit
+     thud, so a skull hit is heard before it is read on the screen */
+  function crit() {
+    if (muted()) return;
+    const c = ac();
+    const t = c.currentTime;
+    const v = 0.98 + Math.random() * 0.05;
+    band(c, t, 0.03, "highpass", 6200 * v, 0.9, 0.42, 0.0006, 0.018, bus);
+    ping(c, t, 1760 * v, 0.075, 0.12, bus);
+    ping(c, t + 0.045, 2640 * v, 0.11, 0.1, bus);
+    ping(c, t + 0.085, 3520 * v, 0.09, 0.055, bus);
+    thump(c, t, 640, 240, 0.06, 0.14, bus, "triangle");
+  }
+
   /* ------------------------------------------------------------------
      Voice: hit and death grunts — "윽!" when a soldier is only winged,
      a falling "으악!" when the round puts him down.
@@ -553,6 +567,7 @@
     dry: dryFire,
     reload,
     hit,
+    crit,
     boom,
     playHitGrunt,
     grunt: playHitGrunt,

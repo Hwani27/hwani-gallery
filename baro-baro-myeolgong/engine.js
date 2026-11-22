@@ -63,12 +63,13 @@
   }
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
   if (T.sRGBEncoding) renderer.outputEncoding = T.sRGBEncoding;
+  /* filmic tone mapping: the sky keeps its colour instead of clipping to white
+     and the shadows under the barriers, cars and men go deep without the
+     asphalt turning to soup */
+  if (T.ACESFilmicToneMapping !== undefined) renderer.toneMapping = T.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.12;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = T.PCFSoftShadowMap;
-  if (T.ACESFilmicToneMapping !== undefined) {
-    renderer.toneMapping = T.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.12;
-  }
   renderer.setClearColor(0x8ec7ee, 1);
 
   const scene = new T.Scene();
@@ -78,22 +79,31 @@
   camera.lookAt(15, 1.35, 1.1);
   scene.add(camera);
 
-  const hemi = new T.HemisphereLight(0xdcefff, 0x7d7154, 0.52);
-  const amb = new T.AmbientLight(0xb9d2e8, 0.24);
-  const key = new T.DirectionalLight(0xfff0c8, 1.05);
-  key.position.set(34, 46, 30);
+  const hemi = new T.HemisphereLight(0xdcefff, 0x7d7154, 0.62);
+  const amb = new T.AmbientLight(0xb9d2e8, 0.16);
+  const key = new T.DirectionalLight(0xfff2d0, 2.05);
+  key.position.set(32, 22, 14);
   key.castShadow = true;
-  key.shadow.mapSize.set(1024, 1024);
+  /* 2048 keeps a barrier's edge and a man's helmet crisp on the road; the
+     frustum is pulled in tight around the fight so the pixels are not spent on
+     the far city */
+  key.shadow.mapSize.set(2048, 2048);
   key.shadow.camera.near = 1;
-  key.shadow.camera.far = 150;
-  key.shadow.camera.left = -36;
-  key.shadow.camera.right = 36;
-  key.shadow.camera.top = 40;
-  key.shadow.camera.bottom = -30;
-  key.shadow.bias = -0.0009;
-  const moon = new T.DirectionalLight(0xa8c4e6, 0.1);
+  key.shadow.camera.far = 190;
+  key.shadow.camera.left = -46;
+  key.shadow.camera.right = 46;
+  key.shadow.camera.top = 52;
+  key.shadow.camera.bottom = -40;
+  key.shadow.bias = -0.0004;
+  if ("normalBias" in key.shadow) key.shadow.normalBias = 0.03;
+  /* the frustum numbers above only take effect through a fresh projection */
+  key.shadow.camera.updateProjectionMatrix();
+  /* where the sun sits relative to the player: low enough to throw long
+     shadows down the street, high enough to light a man's face */
+  const SUN = [32, 22, 14];
+  const moon = new T.DirectionalLight(0xa8c4e6, 0.14);
   moon.position.set(-18, 22, -20);
-  const rim = new T.DirectionalLight(0xffc79a, 0.34);
+  const rim = new T.DirectionalLight(0xffc79a, 0.5);
   rim.position.set(-8, 10, -26);
   scene.add(hemi, amb, key, key.target, moon, rim);
 
@@ -152,8 +162,11 @@
     requestAnimationFrame(tick);
     if (state.mode === "play" && window.RAIL && window.RAIL.active) {
       try { window.RAIL.frame(ctx); } catch (err) { if (!window.__frameErr) window.__frameErr = String(err && err.stack || err); }
-      key.position.set(camera.position.x + 26, 46, camera.position.z + 26);
-      key.target.position.set(camera.position.x, 0, camera.position.z + 8);
+      /* a low winter sun from the right-front: long building shadows rake
+         across the road instead of a flat noon wash */
+      const sun = window.__mgSun || SUN;
+      key.position.set(camera.position.x + sun[0], sun[1], camera.position.z + sun[2]);
+      key.target.position.set(camera.position.x, 0, camera.position.z + 10);
       key.target.updateMatrixWorld();
       rim.position.set(camera.position.x - 6, 10, camera.position.z - 26);
     }
