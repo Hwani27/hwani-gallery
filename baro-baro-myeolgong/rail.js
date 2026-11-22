@@ -514,9 +514,9 @@
     sg.putImageData(id, 0, 0);
     /* (v21) keep the block luminances: the relief (normal) map is built from them */
     try {
-      const lum = new Float32Array(sw * sh);
-      for (let k = 0; k < sw * sh; k++) lum[k] = (d[k * 4] * 0.299 + d[k * 4 + 1] * 0.587 + d[k * 4 + 2] * 0.114) / 255;
-      VOXLUM[key] = { sw: sw, sh: sh, lum: lum };
+      const lum = new Float32Array(sw * sh), blu = new Float32Array(sw * sh);
+      for (let k = 0; k < sw * sh; k++) { lum[k] = (d[k * 4] * 0.299 + d[k * 4 + 1] * 0.587 + d[k * 4 + 2] * 0.114) / 255; blu[k] = (d[k * 4 + 2] - d[k * 4]) / 255; }
+      VOXLUM[key] = { sw: sw, sh: sh, lum: lum, blu: blu };
     } catch (e) {}
     const g = cv.getContext("2d");
     g.save();
@@ -574,6 +574,38 @@
     t.needsUpdate = true;
     return (NMAP[key] = t);
   }
+  /* (v24) a roughness map per texture: on facades the blue-ish texels are
+     glass and go glossy; on asphalt and paving a few clusters of cells are
+     wet patches; everything else stays matte */
+  const RMAP = {};
+  function roughFor(key) {
+    if (RMAP[key] !== undefined) return RMAP[key];
+    const V = VOXLUM[key];
+    const facade = /^fac|shop|glass|window/i.test(key), wet = /asph|road|pave|plaza|walk/i.test(key);
+    if (!V || !(facade || wet)) return (RMAP[key] = null);
+    const cv = document.createElement("canvas");
+    cv.width = V.sw; cv.height = V.sh;
+    const g = cv.getContext("2d");
+    const im = g.createImageData(V.sw, V.sh), o = im.data;
+    for (let y = 0; y < V.sh; y++) for (let x = 0; x < V.sw; x++) {
+      const k = y * V.sw + x;
+      let r = 0.86;
+      if (facade && V.blu[k] > 0.07) r = 0.1 + (1 - V.lum[k]) * 0.12;
+      if (wet) {
+        const n = Math.sin(x * 0.37 + Math.sin(y * 0.21) * 2.1) * Math.sin(y * 0.29 + Math.cos(x * 0.17) * 1.7);
+        r = n > 0.82 ? 0.16 : n > 0.7 ? 0.5 : 0.84 + (V.lum[k] - 0.5) * 0.2;
+      }
+      const v = Math.max(0, Math.min(255, r * 255));
+      o[k * 4] = v; o[k * 4 + 1] = v; o[k * 4 + 2] = v; o[k * 4 + 3] = 255;
+    }
+    g.putImageData(im, 0, 0);
+    const t = new T.CanvasTexture(cv);
+    t.wrapS = t.wrapT = T.RepeatWrapping;
+    t.magFilter = T.NearestFilter;
+    t.minFilter = T.LinearMipMapLinearFilter;
+    t.needsUpdate = true;
+    return (RMAP[key] = { t: t, facade: facade });
+  }
   function applyRelief(root) {
     if (window.__noRelief) return 0;
     let n = 0;
@@ -594,6 +626,14 @@
         m.normalMap = nm;
         const k = /rock|cliff|stone|wall|brick|bark|trunk/i.test(key) ? 0.8 : /leaf|grass|tree|pine|hill/i.test(key) ? 0.6 : /road|asph|lane|tar/i.test(key) ? 0.22 : /ground|snow|plaza|pave|trail|dirt|walk|side/i.test(key) ? 0.45 : 0.4;
         m.normalScale = new T.Vector2(k, k);
+        const rf = roughFor(key);
+        if (rf && !m.roughnessMap) {
+          const rm = rf.t.clone(); rm.needsUpdate = true;
+          rm.repeat.copy(m.map.repeat); rm.offset.copy(m.map.offset);
+          m.roughnessMap = rm;
+          m.roughness = 1;
+          m.envMapIntensity = Math.max(m.envMapIntensity || 0, rf.facade ? 0.9 : 0.5);
+        }
         m.needsUpdate = true;
         n++;
       });
@@ -7261,6 +7301,7 @@
     if (boatRig) boatRig.visible = false;
     debris.forEach((m) => m.parent && m.parent.remove(m));
     debris.length = 0;
+    WATER.length = 0;
     MONU = null;
     shots3.forEach((s) => { if (s.mesh && s.mesh.parent) s.mesh.parent.remove(s.mesh); });
     shots3 = [];
@@ -8086,6 +8127,7 @@
   function hurtPlayer(ctx, dmg) {
     if (ended || contOpen || window.__railGod) return;
     hp -= Math.max(1, Math.round(dmg * (DIFF.dmg || 1)));
+    try { window.MGPost && window.MGPost.hurt && window.MGPost.hurt(Math.min(1, 0.35 + dmg / 30)); } catch (e) {}
     shake = 0.7;
     flashScreen(0.6, "radial-gradient(circle at 50% 50%,rgba(255,90,70,.75),rgba(180,20,20,.35) 60%,rgba(120,0,0,0) 85%)");
     waveClean = false;
@@ -10272,6 +10314,8 @@
     stepCrashed(ctx, dt);
     if (debris.length) stepDebris(dt);
     if (dress && dress.fires && dress.fires.length) stepFires(dt);
+    stepBoomLight(dt);
+    if (WATER.length) stepWater(dt);
     if (dress && dress.anims && dress.anims.length) { dress.animT += dt; dress.anims.forEach((f) => { try { f(dress.animT); } catch (e) {} }); }
     if (!ended) { try { stepEngines(ctx); } catch (e) {} }
     stepNades(ctx, dt);
@@ -11436,7 +11480,7 @@
       const r = 0.6 + R() * 1.6;
       VR.cube(vm.rock, x, -1.6 + r * 0.3, z, r * 1.6, r, r * 1.3, [0xffffff, 0xe4e4dc][i % 2], R() * 3);
     }
-    const water = new T.Mesh(new T.PlaneGeometry(400, 26), new T.MeshBasicMaterial({ color: 0x2f6f90 }));
+    const water = new T.Mesh(new T.PlaneGeometry(400, 26), waterMat(0x2a6a8c, 40, 0.03));
     water.rotation.x = -Math.PI / 2; water.position.set(0, -1.7, 20); water.userData.noBlock = 1;
     S.add(water);
     /* foam streaks */
@@ -12483,6 +12527,63 @@
     S.add(g);
     return g;
   }
+  /* (v24) water: a tiling wave normal map scrolled in two directions, a
+     glossy surface that picks up the sky, and foam that breathes on the
+     shoreline */
+  let WAVE_N = null;
+  const WATER = [];
+  function waveNormal() {
+    if (WAVE_N) return WAVE_N;
+    const N = 256, cv = document.createElement("canvas");
+    cv.width = cv.height = N;
+    const g = cv.getContext("2d"), im = g.createImageData(N, N), o = im.data;
+    const H = (x, y) => {
+      const a = (x / N) * Math.PI * 2, b = (y / N) * Math.PI * 2;
+      return Math.sin(a * 3 + Math.sin(b * 2) * 0.8) * 0.5 + Math.sin(b * 5 + a * 2) * 0.3 + Math.sin(a * 9 - b * 7) * 0.12 + Math.sin(a * 14 + b * 11) * 0.06;
+    };
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      const dx = (H(x + 1, y) - H(x - 1, y)) * 6, dy = (H(x, y + 1) - H(x, y - 1)) * 6;
+      const l = Math.hypot(dx, dy, 1), i = (y * N + x) * 4;
+      o[i] = (-dx / l * 0.5 + 0.5) * 255; o[i + 1] = (dy / l * 0.5 + 0.5) * 255; o[i + 2] = (1 / l * 0.5 + 0.5) * 255; o[i + 3] = 255;
+    }
+    g.putImageData(im, 0, 0);
+    const t = new T.CanvasTexture(cv);
+    t.wrapS = t.wrapT = T.RepeatWrapping;
+    t.needsUpdate = true;
+    return (WAVE_N = t);
+  }
+  function waterMat(col, rep, speed) {
+    const nm = waveNormal().clone();
+    nm.needsUpdate = true;
+    nm.repeat.set(rep || 20, rep || 20);
+    const m = new T.MeshStandardMaterial({ color: new T.Color(col).convertSRGBToLinear(), roughness: 0.16, metalness: 0.05, envMapIntensity: 0.75, normalMap: nm, normalScale: new T.Vector2(0.55, 0.55) });
+    WATER.push({ m: m, sp: speed || 0.012 });
+    return m;
+  }
+  function foamStrip(S, x, z, w, d, ry) {
+    const t = ctex("foamTex", 256, 64, (g, W, H) => {
+      const r = rng(5);
+      g.clearRect(0, 0, W, H);
+      for (let i = 0; i < 500; i++) { g.fillStyle = "rgba(255,255,255," + (0.3 + r() * 0.6) + ")"; const y = Math.pow(r(), 1.8) * H; g.fillRect((r() * W) | 0, y, 3 + r() * 10, 2 + r() * 3); }
+    }, { smooth: true });
+    const tm = t.clone(); tm.needsUpdate = true; tm.wrapS = T.RepeatWrapping; tm.repeat.set(Math.max(1, w / 8), 1);
+    const m = new T.MeshBasicMaterial({ map: tm, transparent: true, opacity: 0.8, depthWrite: false });
+    const p = new T.Mesh(new T.PlaneGeometry(w, d), m);
+    p.rotation.x = -Math.PI / 2; p.rotation.z = ry || 0;
+    p.position.set(x, 0.06, z);
+    p.userData.noBlock = 1;
+    S.add(p);
+    WATER.push({ foam: m, ph: Math.random() * 6 });
+    return p;
+  }
+  function stepWater(dt) {
+    const t = performance.now() / 1000;
+    WATER.forEach((w) => {
+      if (w.m) { w.m.normalMap.offset.x += dt * w.sp; w.m.normalMap.offset.y += dt * w.sp * 0.6; }
+      if (w.foam) { w.foam.opacity = 0.45 + 0.4 * Math.sin(t * 0.9 + w.ph); w.foam.map.offset.x += dt * 0.01; }
+    });
+  }
+
   /* ---- v23: signature street elements, one or two per city ---- */
   /* 대전: an elevated maglev guideway over the west lane, with a car on it */
   function lmMonorail(S, x, zA, zB) {
@@ -12504,7 +12605,7 @@
   function lmFountain(S, x, z, r, anims, steam) {
     bx(S, 0.01, 0.01, 0.01, x, 0, z, cmat(0x000000, 1));
     cyl(S, r, r + 0.3, 0.9, x, 0.75, z, cmat(0xc0b8a8, 0.9), 24);
-    const water = cyl(S, r - 0.25, r - 0.25, 0.1, x, 1.12, z, new T.MeshStandardMaterial({ color: new T.Color(0x5aa0c8).convertSRGBToLinear(), roughness: 0.15, metalness: 0.2 }), 24);
+    const water = cyl(S, r - 0.25, r - 0.25, 0.1, x, 1.12, z, waterMat(0x3a86b0, 2, 0.05), 24);
     water.castShadow = false;
     const jm = new T.MeshBasicMaterial({ color: 0xe8f4fc, transparent: true, opacity: 0.75, depthWrite: false });
     const jets = [];
@@ -12611,6 +12712,19 @@
   }
   function stepFires(dt) {
     if (!dress || !dress.fires) return;
+    const cam = window.__railCtx && window.__railCtx.camera;
+    if (cam && dress.root) {
+      if (!dress.fireLights) {
+        dress.fireLights = [0, 1].map(() => { const l = new T.PointLight(0xff7a2a, 0, 18, 1.5); dress.root.add(l); return l; });
+      }
+      const near = dress.fires.map((f) => ({ f, d: Math.hypot(f.g.position.x - cam.position.x, f.g.position.z - cam.position.z) })).sort((a, b) => a.d - b.d).slice(0, 2);
+      dress.fireLights.forEach((l, i) => {
+        const n = near[i];
+        if (!n) { l.intensity = 0; return; }
+        l.position.set(n.f.g.position.x, n.f.g.position.y + 1.5 * n.f.s, n.f.g.position.z);
+        l.intensity = (2.4 + Math.sin(n.f.t * 17) * 0.5 + Math.sin(n.f.t * 41) * 0.3) * Math.min(1.5, n.f.s);
+      });
+    }
     dress.fires.forEach((f) => {
       f.t += dt;
       f.g.children.forEach((c, i) => {
@@ -12675,13 +12789,16 @@
         for (let i = 0; i < 900; i++) { g.fillStyle = cols[(r() * 5) | 0]; g.fillRect((r() * 32 | 0) * 8, (r() * 32 | 0) * 8, 8 + (r() < 0.2 ? 8 : 0), 8); }
       });
       const wtx = wt.clone(); wtx.needsUpdate = true; wtx.wrapS = wtx.wrapT = T.RepeatWrapping; wtx.repeat.set(60, 60);
-      const sea = new T.Mesh(new T.PlaneGeometry(600, 600), new T.MeshStandardMaterial({ map: wtx, roughness: 0.55, metalness: 0.0, envMapIntensity: 0.2, color: new T.Color(0x7a9cc0).convertSRGBToLinear() }));
+      void wtx;
+      const sea = new T.Mesh(new T.PlaneGeometry(600, 600), waterMat(0x2a5a80, 90, 0.008));
       sea.rotation.x = -Math.PI / 2;
       sea.position.set(C.seaSide ? 300 + 12 : 0, 0.02, C.sea ? -230 - 70 + 300 - 300 : 0);
       if (C.sea) { sea.geometry.dispose(); sea.geometry = new T.PlaneGeometry(600, 300); sea.position.set(0, 0.02, -70 - 150); }
       sea.userData.noBlock = 1;
       S.add(sea);
       dress0.sea = sea;
+      if (C.sea) foamStrip(S, 0, -70.5, 260, 3, 0);
+      if (C.seaSide) foamStrip(S, 17.4, 0, 3, 200, 0);
     }
     /* road paint and kerbs */
     const paint = (x, z, w, d, m) => { const p = new T.Mesh(new T.PlaneGeometry(w, d), m); p.rotation.x = -Math.PI / 2; p.position.set(x, 0.312, z); p.userData.noBlock = 1; S.add(p); };
@@ -13098,7 +13215,22 @@
     smokes.push(m);
   }
 
+  /* (v24) explosions light the street: one pooled point light that pops
+     and dies away, so the count of lights (and the shaders) never changes */
+  let boomLight = null, boomK = 0;
+  function boomFlash(ctx, x, y, z, k) {
+    if (!boomLight) { boomLight = new T.PointLight(0xffa040, 0, 22, 1.6); ctx.scene.add(boomLight); }
+    if (boomLight.parent !== ctx.scene) ctx.scene.add(boomLight);
+    boomLight.position.set(x, y + 1.2, z);
+    boomK = Math.max(boomK, k || 1);
+  }
+  function stepBoomLight(dt) {
+    if (!boomLight) return;
+    boomK = Math.max(0, boomK - dt * 3.2);
+    boomLight.intensity = boomK * boomK * 9 * (0.85 + Math.random() * 0.3);
+  }
   function boomAt(ctx, x, y, z) {
+    boomFlash(ctx, x, y, z, 1);
     for (let i = 0; i < 10; i++) {
       const m = new T.Mesh(new T.BoxGeometry(0.09 + Math.random() * 0.1, 0.09 + Math.random() * 0.1, 0.09 + Math.random() * 0.1), new T.MeshBasicMaterial({ color: i % 3 ? 0xffa12a : 0xfff2b0 }));
       m.position.set(x, y, z);

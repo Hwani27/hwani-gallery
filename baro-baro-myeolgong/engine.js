@@ -200,6 +200,7 @@
          across the road instead of a flat noon wash */
       const sun = window.__mgSun || SUN;
       key.position.set(camera.position.x + sun[0], sun[1], camera.position.z + sun[2]);
+      { const L = Math.hypot(sun[0], sun[1], sun[2]) || 1; window.__mgSunDir = { x: sun[0] / L, y: sun[1] / L, z: sun[2] / L }; }
       key.target.position.set(camera.position.x, 0, camera.position.z + 10);
       key.target.updateMatrixWorld();
       rim.position.set(camera.position.x - 6, 10, camera.position.z - 26);
