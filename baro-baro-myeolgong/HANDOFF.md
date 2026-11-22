@@ -1,4 +1,4 @@
-# 지금 바로 멸공 — 공동작업 인수인계 (v6, 2026-11-22)
+# 지금 바로 멸공 — 공동작업 인수인계 (v9, 2026-11-22)
 
 > 이 문서 하나로 다른 에이전트(Cursor · Claude Code · Codex 등)가 `main`에서 바로 이어받을 수 있게 쓴 문서다.
 > 코드를 고쳤으면 **같은 커밋에서 이 문서도 같이 갱신**한다.
@@ -12,10 +12,10 @@
 | 영어 페이지 | https://hwani27.github.io/hwani-gallery/baro-baro-myeolgong/en.html |
 | 갤러리 카드 | `index.html`의 `baro-baro-myeolgong/` 카드 → `thumb.png` |
 | 폴더 | `work/hwani-gallery/baro-baro-myeolgong/` (완전 독립 빌드) |
-| 현재 버전 | **v7** (v7.1: 점사 피해량 15/22 복원, `?v=8`) — 엄폐 일치(보이는 만큼만 맞는다) · 적 사격 모션 · 아군 걷기 · 캐릭터 디테일 · 태극기 |
+| 현재 버전 | **v9** (Stage 1 서울 시가지 리뉴얼 + 전투/조작 디벨롭, `?v=9`) — 서울 배경 · 히트마커/파편 · 글린트 · 우클릭/스페이스 재장전 · 세로 아군 보정 · 헤드샷 차별화 · 벽 관통 방지 · 버추어캅식 `!` 카운트다운 링 · 움직이는 적(트럭 탑승/돌격) |
 | v7 브랜치 | `fix/myeolgong-v6-combat-polish` → PR (아래 3절) |
 | v6 커밋 | `3df8b62` — full 1st-person arms/torso, adaptive portrait FOV, barrel tracks the aim point |
-| 캐시 버스터 | `?v=8` (index.html·en.html 세 줄) |
+| 캐시 버스터 | `?v=9` (index.html·en.html 세 줄) |
 | 로컬 실행 | `cd work/hwani-gallery && python3 -m http.server 8133` → `http://127.0.0.1:8133/baro-baro-myeolgong/index.html` |
 
 **코드를 고치면 반드시**: `index.html`·`en.html`의 `engine.js?v=`, `gun-sfx.js?v=`, `rail.js?v=` 세 줄을 **한꺼번에** 한 단계 올린다. 안 올리면 아이폰 Safari가 옛 파일을 계속 쓴다(캐시).
@@ -43,6 +43,88 @@
 - HD 절차적 텍스처 35종(바닥·석조 512, 천·위장·금속·가죽 256, 헬멧·폴리머 128), 이방성 8.
 - 쓰러짐 4방향(뒤·앞·좌·우), 피격 육성/비명 SFX, 기름통 폭발, 픽업(탄약·보급·목숨).
 - PC: 마우스 조준·좌클릭 발사·`R`(또는 `r`) 재장전 / 모바일: 탭 지점 발사·우하단 `R` 버튼.
+
+## 2. 이번 라운드 (v9) — Stage 1 서울 시가지 리뉴얼 + 전투/조작 디벨롭
+
+v7 위에 얹은 리뉴얼. 사용자 지시: *"서울 시가지 테마로 리뉴얼"*, *"히트마커/파편으로 명중·방어 직관 피드백"*, *"사격 직전 위협 예고"*, *"우클릭/스페이스 재장전"*, *"세로 화면 아군 보정"*, *"헤드샷 데미지·연출 차별화"*, *"벽 뚫는 캐릭터 수정"*, *"`!` 색 변화 + 카운트다운 링"*, *"움직이는 적(차량 위/달리는)"*, *"헬기·낙하산은 Stage 2 이후용 준비만"*.
+
+### 8-1. 서울 시가지 테마 (`dressBattlefield` 전면 교체)
+- **바닥**: `asphaltTex`(아스팔트, 타르 시입·균열·타이어 광), `paveTex`(보도블록 4분할) 보도 + `curb` 커브스톤. 노면 표시는 `paintBar`(중앙 황색 복선, 차선 백색 점선, 횡단보도 줄무늬, 정지선) — 전부 0.312에 깔린 평면이라 레이캐스트와 무관.
+- **건물**: `makeBlock` = 유리 커튼월 파사드(`facadeTex` 3종, 베이 3×플로어 2, 블라인드·야간조명 변주) + 옥상 물탱크/에어컨/안테나 + `streetFront`(상층부: `shopTex` 유리, 간판 `signTex` 8종 — 서울상회/김밥천국/24시 편의점/치킨·호프/부동산/약국/분식/노래방, 지붕천, 출입문, 벽걸이 간판). 벽 본체·상층 유리 뒤 벽은 `userData.wall = 1`.
+- **랜드마크**: 대형 태극기(빌딩 돌출 깃대, 4.4×2.95 m), `makeRoadSign`(초록 도로표지 `서울역↑ / 남산↗`, 한/영 병기), `makeBillboard`(`대한민국 힘내라!` LED 전광판, 무리 실루엣), `makeKoreanGate`(성문: 돌 기단 + 통로 내부 조명/바닥/후면 벽으로 검은 구멍 제거 + 단청 3단 + 기와 지붕 2단(서까래 소조포, 용마루·귀서), `서울` 현판), `makeSungnyemunFar`(원경 숭례문), `makeNamsan`(능선 9개 + 남산타워: 기단/타워/전망동/안테나/항공장애등).
+- **소품**: `makeCityBus`(초록 시내버스 143번, 측면 창밴드·앞 전광판·노선 표기), `makePoliceCar`(경찰차: 흰 차체/청색 스트라이프/POLICE 문양/경광등), `makeArmyTruck`(군용 트럭, 아래 8-7), `makeStreetLamp`/`makeTrafficLight`/`makeUtilityPole`/`makePlanter`/`makeHydrant`/`makeCone`, `makeJersey`(방호벽), `makeBarricade`(공사 바리케이드 적색 사선), `makeSiteWall`(공사장 담장 + `공사중` 표지), `makeConcreteStack`, 드럼은 `makeBarrel`이 주황 공사 드럼으로 리스킨(폭발 로직 동일).
+- **하늘**: `makeSkyDome` 반경 300, 구름은 높이 46~70·flat 스케일, 안개 120~420으로 원경 빌딩 라인 살림.
+
+### 8-2. 태극기 좌우 반전 수정 (핵심 버그)
+- 원인: `SOL.flagKR`이 `side: DoubleSide`라 뒷면에서 텍스처가 **미러링**되어 4괘가 좌우 반전으로 보였다.
+- 수정: `FrontSide`로 바꾸고 `makeFlag`/`makeFlagPlane`이 **두 장의 옷을 등지게** 붙인다(뒷면 장은 `rotation.y = Math.PI` — 회전이라 미러가 아니다). 어느 쪽에서 봐도 건(좌상)·곤(우하)·감(우상)·리(좌하)·태극(위 빨강/아래 파랑)이 정방향. 흔들림 애니도 두 장 함께(`cloth`/`cloth2`).
+
+### 8-3. 히트마커 + 파편 (`hitMark`, `impactBurst`)
+- `fire()`가 히트 좌표를 `screenOf`로 화면에 투영해 `.railHit` 마커를 심는다: 몸샷 흰 ×, 헤드샷 금색 굵은 × + 이중 링 + `HEADSHOT!` 라벨, 킬 적색, 벽 회색, 픽업 녹색.
+- `impactBurst(scene, at, kind)`: `concrete`(회백 칩 8 + 먼지 구름 3 + 섬광) / `flesh`(적색 칩 5) / `head`(금·적 칩 11 + 큰 섬광). 기존 `burst()`는 폭발·킬에 그대로.
+- 가려진 사격은 `__lastBlocked` 좌표에 벽 마커 + 콘크리트 파편.
+
+### 8-4. 사격 직전 글린트 (`makeGlint`, stepPost의 `warm` 블록)
+- `state === "fire" && burstN === 0 && aim < 0.55` 동안 총구에 붉은 글린트(`SOL.glint`, 가산 혼합) + 카메라를 향한 짧은 조준 레이저. aim이 0으로 갈수록 커지고 밝아지고 맥동.
+- 총구 위치는 `userData.muzzle` 월드 좌표, 카메라 쪽으로 0.14 m 당겨서 렌더(가리지 않게). `tagOff`/포스트 정리 시 제거.
+
+### 8-5. PC 재장전 확장
+- 키보드: `R` + **`Space`**(스페이스바) 모두 재장전. 마우스 **우클릭**은 기존 `shootAt`의 `button === 2` 분기 그대로(컨텍스트 메뉴 방지 유지). `railReload` 버튼 동일.
+
+### 8-6. 세로 화면 아군 보정 (`stepAlly` 앵커)
+- 고정 3.3 m 오프셋 대신 **화면 앵커**: `ndc = -0.66(세로)/-0.58(가로)`, `dist` 6.6/6.9 m를 `tanH = tan(vfov/2)·aspect`로 월드 오프셋으로 환산. 390×844에서 아군 NDC x ≈ −0.67, 스케일 0.98 — 조준선(중앙)을 안 가린다.
+- 벽 회피는 8-8의 `insideWall`로 앵커가 건물 안에 들어가면 도로 쪽으로 후퇴해 배치.
+
+### 8-7. 움직이는 적 (wave 1)
+- **트럭 탑승 사수**: 멤버에 `car: { path, speed, delay }`. `prebuildCovers`가 커버를 만들지 않고, `makePost`가 `makeArmyTruck`을 만들어 벽 목록에 등록. `stepPost` 초반에 트럭이 경로를 따라 주행(세그먼트 보간, 회전 = 진행 방향), 도착하면 `moving = false` + 커버 상태머신 개시. 탑승자는 `y = 1.38`, `coverTop = 1.66`(상반신 노출), 트럭 이동 중엔 `expose = 0`으로 무적.
+- **돌격병**: 멤버에 `run: { from, dur, delay }`. `stepPost`의 `run` 블록이 스무스스텝으로 from→dest(원래 커버 자리)를 달리고 `applyRunGait`(아군과 같은 관절 보행: 고관절 스윙·정강이 접힘·팔 펌프·소총 하단 캐리)로 애니. 도착 후 `coverTopSaved` 복원 + 엄폐 상태머신 개시. 달리는 동안 `expose = 1`(몸이 노출 — 맞을 수 있다).
+- 두 패턴 모두 명중 판정은 기존 `fire()` 레이캐스트 그대로(움직인 `p.mesh`의 실제 Box3).
+
+### 8-8. 벽 관통 방지 (`rebuildWallBoxes`/`pushOutOfWalls`/`insideWall`)
+- `begin()`이 스테이지를 다 지은 뒤 `wallList` + 커버 프롭을 **월드 AABB 배열**로 한 번 정리(77개, 허리 높이 0.45 m 미만 커브/폴/얇은 기둥/전체 블록 배경은 제외).
+- `pushOutOfWalls(x, z, r)`: 겹침축 중 가장 얕은 축으로 밀어내기 ×3 반복 — 벽을 따라 미끄러지듯 빠져나온다.
+- 아군: 앵커가 벽 안이면 카메라 쪽으로 후퇴해 자리 잡고, 이동 중에도 매 프레임 푸시아웃(`__allyWallNudges`).
+- 적: `makePost` 스폰 좌표와 보스 점프 착지 좌표에 동일 적용(커버 프롭도 함께 이동). `__insideWall`로 검증.
+
+### 8-9. 헤드샷 차별화
+- **데미지**: 헤드 = 2배(보스 3배). tough(3hp)는 헤드 2발, 보스(8hp)는 헤드 3발 + 몸샷 조합. 점수: 헤드 히트 +75 즉시, 킬 시 +250.
+- **연출**: 금색 굵은 × + 팽창 링 + `HEADSHOT!` 라벨 + 금색 파편 + 크로스헤어 금섬광(`#railX.crit`, 0.24 s) + 히트스톱 0.05 s + `GunSFX.crit()`(1,760→3,520 Hz 트라이앵글 팅).
+- 판정은 기존 그대로: 명중 y가 히트박스 상단 26% 위면 헤드.
+
+### 8-10. 버추어캅식 `!` 카운트다운 링 (`roleTag`/stepPost 태그 블록)
+- `.railThreat`가 적 몸통 중심에 그려지는 **원형 링**: 지름은 화면에서 본 적 키의 1.55배(44~260 px 클램프).
+- `conic-gradient(--p)`가 남은 시간, `--c`가 3단계: 초록(peek/사격 초반, 여유) → 주황(k 0.35~0.72) → 빨강 점멸 + 스케일 펄스(0.72~1.0, 발사 직전). 링 위 눈금(ticks)과 남은 시각 위치에 빨간 삼각형 화살표가 링을 따라 회전.
+- 태그 안쪽 `b`가 기존 `!` 뱃지(색은 단계 따라감). glint(8-4)와 함께 "언제 쏘는지"가 두 겺로 보인다.
+
+### 8-11. 성능 (1280×720, headless SwiftShader 측정 — 실기기 GPU와는 무관)
+- draw call **약 1,050**(세로 390×844 약 800), 삼각형 **약 13,700**(세로 약 10,200), 텍스처 83장, 지오메트리 약 1,330. v7 대비 +140 call(서울 소품/간판 분) — 삼각형 자체는 가볍고(1.4만) 실기기 GPU에서 여유. 구름 박스 3개로 축소, 옥상 에어컨 2개로 축소.
+- **프레임 측정 주의**: headless SwiftShader는 소프트웨어 렌더라 FPS 수치(가로 약 2.4, 세로 약 5.8)는 의미가 없다. 삼각형·드로우콜 수치로 판단할 것.
+
+### 8-12. Stage 2+ 확장 메모 (헬기·낙하산 공중 적 — 이번 PR 미포함, 사용자 확정)
+- `WAVE_DEFS` 멤버에 `air: { kind: "heli"|"chute", ... }`를 허용하도록 `roleOf`/`makePost`를 넓히면 된다. `makePost`는 `elev`로 이미 고도를 지원하고, `posePost`/`fire()` 판정은 `p.mesh` Box3라 공중 표적도 그대로 동작.
+- 헬기: `makeArmyTruck`처럼 독립 빌더로 로터(회전 애니는 프레임 루프의 `dress.flags`처럼 `dress.air` 배열에 넣어 갱신) + 측면 사수(`car`과 같은 "탑승 중 expose 0 → 정지 후 전투" 패턴 재사용, 경로만 3D).
+- 낙하산: 낙하 상태머신(`descend`)을 `stepPost` 상태 앞에 하나 더 얹고, 낙하산 본체+사수를 한 그룹으로 `userData.wall`(낙하산)과 적 히트박스로 분리. 지면 접촉 시 `run` 패턴으로 착지 처리.
+- `rebuildWallBoxes`는 공중 물체를 `b.min.y > 2.1`로 자동 제외하므로 지상 이동 규칙과 충돌하지 않는다.
+
+### 8-13. v9 검증 (headless Chromium + SwiftShader)
+| 시나리오 | 결과 |
+|---|---|
+| index.html 1280×720 / 390×844 진입 | 오류 0, `__railErrs` 0, `dressErr` null |
+| en.html 1280×720 | `fight` 진입, 오류 0 |
+| 태극기 | 두 면 모두 정방향(뒷면 회전 방식), 확대 육안 확인 |
+| 히트마커 | 몸샷 `railHit foe` / 헤드 `railHit head head|HEADSHOT!` / 벽 `railHit block` 확인 |
+| 파편 | 벽 hit 시 sparks 8+·smoke, 육신 hit 시 적색 칩 (`__fxCount`) |
+| 헤드샷 데미지 | tough 몸샷 3→2 (1 발), 헤드 3→1 (2발치 1방) / 보스 헤드 8→5→2 (3배) |
+| 크로스헤어 크리티컬 | `#railX.crit` 0.24 s 부여 확인 |
+| 글린트 | `state=fire && aim<0.55`에서 glint.visible + scale/opacity 상승 확인 |
+| 재장전 | `Space` 6발→20발, 우클릭 재장전, `R` 기존 동작 |
+| 세로 아군 | NDC x −0.67(화면 왼쪽 가장자리), 조준선 미가림 |
+| 벽 관통 | 전 웨이브 투어(속도 14배 포함)에서 아군/적 `insideWall` 위반 **0**, 벽 밀림 동작 확인 |
+| 움직이는 적 | 트럭 경로 주행→정차→교전, 돌격병 보행→도착→엄폐 개시, 둘 다 레이캐스트 명중 (`__lastShot = foe`) |
+| `!` 링 | st0 초록 → st1 주황 → st2 빨강 점멸, `--p`가 남은 시간 비율 추적 확인 |
+| 완주 | 4웨이브+보스 투어 `result` 진입, 오류 0 |
+
+스크린샷: `downloads/myeolgong_v9_landscape.png`, `myeolgong_v9_portrait.png`, `myeolgong_v9_headshot.png`, `myeolgong_v9_threat.png`.
 
 ## 3. 이번 라운드 (v7) — 보이는 만큼만 맞는다 · 적 사격 모션 · 아군 걷기 · 캐릭터 디테일 · 태극기
 
