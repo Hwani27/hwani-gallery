@@ -13,6 +13,7 @@
 | 갤러리 카드 | `index.html`의 `baro-baro-myeolgong/` 카드 → `thumb.png` |
 | 폴더 | `work/hwani-gallery/baro-baro-myeolgong/` (완전 독립 빌드) |
 | 현재 버전 | **v6** — 세로 화면 팔·몸통·화각 + 총구 3D 조준 추적 |
+| v6 커밋 | `3df8b62` — feat(myeolgong): full 1st-person arms/torso, adaptive portrait FOV, barrel tracks the aim point (v6) |
 | 캐시 버스터 | `?v=6` (index.html·en.html 세 줄) |
 | 로컬 실행 | `cd work/hwani-gallery && python3 -m http.server 8133` → `http://127.0.0.1:8133/baro-baro-myeolgong/index.html` |
 
