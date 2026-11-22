@@ -249,6 +249,82 @@
     o.start(t); o2.start(t); o.stop(t + 2.4); o2.stop(t + 2.4);
   }
 
+  /* (v21) looping engines: rotor thump for helicopters, a diesel growl for
+     tanks and APCs, a buzzing two-stroke for bikes, the jeep's own motor.
+     The game calls loop(id, kind, gain) every frame for every running
+     engine; one not refreshed for 0.4 s fades out by itself. */
+  const LOOPS = {};
+  let loopTimer = null;
+  function makeLoop(c, kind) {
+    const out = c.createGain();
+    out.gain.value = 0.0001;
+    out.connect(bus);
+    const nodes = [];
+    const osc = (type, f) => { const o = c.createOscillator(); o.type = type; o.frequency.value = f; o.start(); nodes.push(o); return o; };
+    const lp = (f, q) => { const b = c.createBiquadFilter(); b.type = "lowpass"; b.frequency.value = f; b.Q.value = q || 0.8; return b; };
+    if (kind === "rotor") {
+      /* blade slap: filtered noise chopped by an 11 Hz square, plus a low whine */
+      const src = c.createBufferSource(); src.buffer = noise(c, 2); src.loop = true; src.start(); nodes.push(src);
+      const bp = c.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = 380; bp.Q.value = 0.7;
+      const chop = c.createGain(); chop.gain.value = 0.5;
+      const lfo = osc("square", 11); const lfoG = c.createGain(); lfoG.gain.value = 0.5; lfo.connect(lfoG); lfoG.connect(chop.gain);
+      src.connect(bp); bp.connect(chop); chop.connect(out);
+      const wh = osc("sawtooth", 62); const wf = lp(240); const wg = c.createGain(); wg.gain.value = 0.35; wh.connect(wf); wf.connect(wg); wg.connect(out);
+    } else if (kind === "diesel") {
+      const a = osc("sawtooth", 38), b = osc("square", 19.5);
+      const f = lp(300, 2.4); const g = c.createGain(); g.gain.value = 0.7;
+      const lfo = osc("sine", 7); const lg = c.createGain(); lg.gain.value = 0.25; lfo.connect(lg); lg.connect(g.gain);
+      a.connect(f); b.connect(f); f.connect(g); g.connect(out);
+      const src = c.createBufferSource(); src.buffer = noise(c, 2); src.loop = true; src.start(); nodes.push(src);
+      const nf = lp(180); const ng = c.createGain(); ng.gain.value = 0.35; src.connect(nf); nf.connect(ng); ng.connect(out);
+    } else {
+      /* bike / jeep */
+      const base = kind === "jeep" ? 52 : 88;
+      const a = osc("sawtooth", base), b = osc("square", base / 2);
+      const f = lp(kind === "jeep" ? 620 : 1100, 3); const g = c.createGain(); g.gain.value = 0.6;
+      const lfo = osc("sine", kind === "jeep" ? 5 : 9); const lg = c.createGain(); lg.gain.value = base * 0.06; lfo.connect(lg); lg.connect(a.frequency);
+      a.connect(f); b.connect(f); f.connect(g); g.connect(out);
+    }
+    return { out, nodes, kind, seen: 0, a: nodes[0] };
+  }
+  function loopTick() {
+    const c = ctx;
+    if (!c) return;
+    const now = performance.now();
+    Object.keys(LOOPS).forEach((id) => {
+      const L = LOOPS[id];
+      if (now - L.seen > 400) {
+        try { L.out.gain.setTargetAtTime(0.0001, c.currentTime, 0.12); } catch (e) {}
+        if (now - L.seen > 1500) {
+          L.nodes.forEach((n) => { try { n.stop(); } catch (e) {} });
+          try { L.out.disconnect(); } catch (e) {}
+          delete LOOPS[id];
+        }
+      }
+    });
+    if (!Object.keys(LOOPS).length) { clearInterval(loopTimer); loopTimer = null; }
+  }
+  function loop(id, kind, gain, pitch) {
+    if (muted()) { stopLoops(); return; }
+    let c = null;
+    try { c = ac(); } catch (e) { return; }
+    let L = LOOPS[id];
+    if (!L) { L = LOOPS[id] = makeLoop(c, kind); }
+    L.seen = performance.now();
+    const gv = Math.max(0.0001, Math.min(0.5, gain || 0));
+    try { L.out.gain.setTargetAtTime(gv, c.currentTime, 0.08); } catch (e) {}
+    if (pitch && L.a && L.a.frequency && kind !== "rotor") { try { L.a.playbackRate || L.a.frequency.setTargetAtTime((kind === "jeep" ? 52 : kind === "diesel" ? 38 : 88) * pitch, c.currentTime, 0.1); } catch (e) {} }
+    if (!loopTimer) loopTimer = setInterval(loopTick, 200);
+  }
+  function stopLoops() {
+    Object.keys(LOOPS).forEach((id) => {
+      const L = LOOPS[id];
+      L.nodes.forEach((n) => { try { n.stop(); } catch (e) {} });
+      try { L.out.disconnect(); } catch (e) {}
+      delete LOOPS[id];
+    });
+  }
+
   function reload() {
     if (muted()) return;
     const c = ac();
@@ -470,6 +546,30 @@
   const LEAD_B = [72, null, 71, null, 67, null, 64, null, 66, null, 67, null, 71, null, 74, null];
   const BASS_HIT = [1, 0, 0, 1, 1, 0, 1, 0, 1, 0, 0, 1, 1, 0, 1, 0];
   const hz = (n) => 440 * Math.pow(2, (n - 69) / 12);
+  /* (v21) one theme per stage: tempo, four-bar root line, two lead phrases,
+     bass rhythm, kick pattern and the lead's timbre. `_` is a rest. */
+  const _ = null;
+  const SONGS = {
+    seoul: { bpm: 138, roots: ROOTS, a: LEAD_A, b: LEAD_B, bass: BASS_HIT, kick: [0, 6, 8, 14], lead: "sawtooth" },
+    fall: { bpm: 112, roots: [38, 34, 31, 33], a: [62, _, _, _, 65, _, 64, _, 62, _, _, _, 61, _, _, _], b: [69, _, _, _, 70, _, 69, _, 65, _, 64, _, 61, _, _, _],
+      bass: [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0], kick: [0, 8], lead: "triangle", pad: 1 },
+    retreat: { bpm: 132, roots: [45, 41, 48, 43], a: [69, _, 72, _, 71, _, 69, _, 67, _, 69, _, 64, _, _, _], b: [76, _, 74, _, 72, _, 71, _, 72, _, 74, _, 71, _, 67, _],
+      bass: [1, 0, 1, 1, 1, 0, 1, 0, 1, 0, 1, 1, 1, 0, 1, 0], kick: [0, 4, 8, 12], lead: "square" },
+    heritage: { bpm: 126, roots: [45, 43, 41, 43], a: [69, _, 72, _, 74, _, _, 76, 74, _, 72, _, 69, _, _, _], b: [76, _, 79, _, 76, _, 74, 72, 74, _, 72, _, 69, _, 67, _],
+      bass: [1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0], kick: [0, 7, 10], lead: "triangle", gong: 1 },
+    perimeter: { bpm: 146, roots: [36, 32, 39, 34], a: [72, _, 72, 75, _, 72, 70, _, 68, _, 67, _, 68, _, 70, _], b: [79, _, 77, _, 75, _, 74, _, 75, _, 77, _, 79, _, 80, _],
+      bass: [1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1], kick: [0, 3, 6, 8, 11, 14], lead: "sawtooth" },
+    landing: { bpm: 150, roots: [38, 36, 34, 36], a: [74, _, 74, 76, 78, _, 74, _, 81, _, 78, _, 76, _, 74, _], b: [81, _, 79, _, 78, _, 76, _, 78, _, 79, _, 81, _, 86, _],
+      bass: [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1], kick: [0, 4, 8, 12, 14], lead: "square", snareRoll: 1 },
+    dmz: { bpm: 128, roots: [47, 43, 50, 45], a: [71, _, _, 74, _, _, 78, _, 76, _, _, 74, _, _, 71, _], b: [79, _, _, 78, _, _, 74, _, 76, _, _, 78, _, _, 83, _],
+      bass: [1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0], kick: [0, 6, 10], lead: "sawtooth" },
+    summit: { bpm: 134, roots: [42, 38, 45, 40], a: [66, _, 69, _, 73, _, 71, _, 69, _, 66, _, 64, _, 66, _], b: [78, _, 76, _, 73, _, 71, _, 73, _, 76, _, 78, _, 81, _],
+      bass: [1, 0, 1, 0, 1, 0, 1, 1, 1, 0, 1, 0, 1, 0, 1, 1], kick: [0, 6, 8, 14], lead: "square" },
+    pyongyang: { bpm: 142, roots: [43, 39, 46, 41], a: [67, _, 70, _, 74, _, 72, 70, 69, _, 67, _, 65, _, 62, _], b: [79, _, 77, _, 75, _, 74, _, 75, _, 74, _, 72, _, 70, _],
+      bass: [1, 0, 1, 1, 1, 0, 1, 0, 1, 0, 1, 1, 1, 0, 1, 0], kick: [0, 3, 8, 11], lead: "sawtooth" },
+    paektu: { bpm: 148, roots: [40, 36, 38, 35], a: [64, _, 67, _, 71, _, _, _, 72, _, 71, _, 67, _, 64, _], b: [76, _, _, 79, _, _, 83, _, 81, _, 79, _, 78, _, 76, _],
+      bass: [1, 1, 0, 1, 1, 0, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1], kick: [0, 3, 6, 8, 11, 14], lead: "sawtooth", pad: 1 }
+  };
 
   function musicOk() {
     try { if (typeof BGM !== "undefined" && BGM.isOn && !BGM.isOn()) return false; } catch (e) {}
@@ -545,21 +645,25 @@
   function scheduleStep(step, t) {
     const bar = Math.floor(step / 16) % 4;
     const s = step % 16;
-    const root = ROOTS[bar];
+    const SG = SONGS[SEQ.song] || SONGS.seoul;
+    const root = SG.roots[bar];
     // bass: driving eighths with octave pops
-    if (BASS_HIT[s]) {
+    if (SG.bass[s]) {
       const up = s % 8 === 6 ? 12 : 0;
       seqTone(t, root + up, 0.13, "sawtooth", 0.3, 520, -6);
       seqTone(t, root - 12 + up, 0.16, "square", 0.12, 300, 4);
     }
     // lead: two-bar minor phrase, doubled an octave down for body
-    const lead = (bar % 2 ? LEAD_B : LEAD_A)[s];
+    const lead = (bar % 2 ? SG.b : SG.a)[s];
     if (lead != null) {
-      seqTone(t, lead, SEQ.boss ? 0.19 : 0.22, "sawtooth", 0.13, 2600, -4);
+      seqTone(t, lead, SEQ.boss ? 0.19 : (SG.pad ? 0.42 : 0.22), SG.lead || "sawtooth", 0.13, 2600, -4);
       seqTone(t, lead - 12, 0.2, "square", 0.05, 1400, 6);
     }
     // drums
-    const kickSteps = SEQ.boss ? [0, 3, 6, 8, 11, 14] : [0, 6, 8, 14];
+    const kickSteps = SEQ.boss ? [0, 3, 6, 8, 11, 14] : SG.kick;
+    if (SG.pad && s === 0) { seqTone(t, root + 12, 1.6, "triangle", 0.06, 900, -7); seqTone(t, root + 19, 1.6, "triangle", 0.04, 900, 7); }
+    if (SG.gong && s === 0 && bar % 2 === 0) seqTone(t, root - 12, 2.2, "sine", 0.16, 600, 3);
+    if (SG.snareRoll && s >= 12 && bar === 3) seqSnare(t, 0.1);
     if (kickSteps.indexOf(s) >= 0) seqKick(t, SEQ.boss && s === 0);
     if (s === 4 || s === 12) seqSnare(t, 0.22);
     if (SEQ.boss && (s === 15 || s === 7)) seqSnare(t, 0.13);
@@ -578,7 +682,8 @@
     if (!SEQ.on || !SEQ.ctx) return;
     const c = SEQ.ctx;
     if (c.state === "suspended") { c.resume().catch(() => {}); return; }
-    const spb = 60 / (SEQ.boss ? 152 : 138) / 4;
+    const SG = SONGS[SEQ.song] || SONGS.seoul;
+    const spb = 60 / (SEQ.boss ? SG.bpm + 14 : SG.bpm) / 4;
     while (SEQ.next < c.currentTime + 0.16) {
       scheduleStep(SEQ.step, SEQ.next);
       SEQ.next += spb;
@@ -637,6 +742,9 @@
     smg,
     clank,
     motor,
+    loop,
+    stopLoops,
+    song: (k) => { SEQ.song = k; },
     reload,
     hit,
     crit,

@@ -216,6 +216,10 @@
       #railRadio .rdBar{margin-top:8px;height:3px;background:rgba(120,180,100,.22);border-radius:2px;overflow:hidden}
       #railRadio .rdBar b{display:block;height:100%;width:0;background:linear-gradient(90deg,#7ce05a,#d8e86a)}
       .mgPop{position:fixed;z-index:42;pointer-events:none;transform:translate(-50%,-50%);font:900 20px/1 ui-monospace,monospace;color:#ffe14a;text-shadow:0 2px 0 #201a00,0 0 8px rgba(255,225,74,.5);animation:mgPopUp .8s ease-out forwards}
+      .railYell{position:fixed;z-index:43;pointer-events:none;transform:translate(-50%,-100%);padding:5px 10px;border-radius:12px;background:#fff;color:#c0281c;
+        font:900 15px/1 Pretendard,system-ui,sans-serif;white-space:nowrap;box-shadow:0 3px 0 rgba(0,0,0,.35);animation:railYell .9s ease-out forwards}
+      .railYell:after{content:"";position:absolute;left:50%;bottom:-6px;margin-left:-6px;border:6px solid transparent;border-top-color:#fff;border-bottom:0}
+      @keyframes railYell{0%{opacity:0;transform:translate(-50%,-80%) scale(.5) rotate(-8deg)}18%{opacity:1;transform:translate(-50%,-110%) scale(1.12) rotate(4deg)}70%{opacity:1}100%{opacity:0;transform:translate(-50%,-150%) scale(1)}}
       .mgPop.bad{color:#ff7a66;text-shadow:0 2px 0 #2a0000,0 0 8px rgba(255,60,40,.5)}
       @keyframes mgPopUp{0%{opacity:0;transform:translate(-50%,-50%) scale(.7)}18%{opacity:1;transform:translate(-50%,-58%) scale(1.06)}100%{opacity:0;transform:translate(-50%,-118%) scale(1)}}
       .railHit{position:fixed;z-index:43;width:36px;height:36px;margin:-18px 0 0 -18px;pointer-events:none;animation:railHitPop .16s ease-out}
@@ -508,12 +512,94 @@
       }
     }
     sg.putImageData(id, 0, 0);
+    /* (v21) keep the block luminances: the relief (normal) map is built from them */
+    try {
+      const lum = new Float32Array(sw * sh);
+      for (let k = 0; k < sw * sh; k++) lum[k] = (d[k * 4] * 0.299 + d[k * 4 + 1] * 0.587 + d[k * 4 + 2] * 0.114) / 255;
+      VOXLUM[key] = { sw: sw, sh: sh, lum: lum };
+    } catch (e) {}
     const g = cv.getContext("2d");
     g.save();
     g.imageSmoothingEnabled = false;
     g.clearRect(0, 0, w, h);
     g.drawImage(sc, 0, 0, w, h);
     g.restore();
+  }
+
+  /* (v21) block relief: every voxel texel becomes a little bevelled tile
+     whose face leans with the brightness of its neighbours. Built once per
+     texture from the voxel luminances and laid on every lit material that
+     uses it, so walls, roads, roofs, rock and leaves catch the sun on their
+     block edges instead of reading as flat paint. */
+  const VOXLUM = {}, NMAP = {};
+  function reliefFor(key) {
+    if (NMAP[key] !== undefined) return NMAP[key];
+    const V = VOXLUM[key];
+    if (!V) return (NMAP[key] = null);
+    const C = Math.max(4, Math.min(8, Math.floor(1024 / Math.max(V.sw, V.sh))));
+    const W = V.sw * C, H = V.sh * C;
+    const hgt = new Float32Array(W * H);
+    const L = (x, y) => V.lum[((y + V.sh) % V.sh) * V.sw + ((x + V.sw) % V.sw)];
+    for (let cy = 0; cy < V.sh; cy++) for (let cx = 0; cx < V.sw; cx++) {
+      const l = L(cx, cy);
+      const gx = (L(cx + 1, cy) - L(cx - 1, cy)) * 0.5, gy = (L(cx, cy + 1) - L(cx, cy - 1)) * 0.5;
+      for (let py = 0; py < C; py++) for (let px = 0; px < C; px++) {
+        const ex = Math.min(px + 0.5, C - px - 0.5), ey = Math.min(py + 0.5, C - py - 0.5);
+        const e = Math.min(ex, ey);
+        const bev = e < 1.2 ? (1.2 - e) * 0.55 : 0;
+        const u = (px + 0.5) / C - 0.5, v = (py + 0.5) / C - 0.5;
+        hgt[(cy * C + py) * W + cx * C + px] = l * 0.9 - bev - (u * gx + v * gy) * 0.6;
+      }
+    }
+    const cv = document.createElement("canvas");
+    cv.width = W; cv.height = H;
+    const g = cv.getContext("2d");
+    const im = g.createImageData(W, H), o = im.data;
+    const Hh = (x, y) => hgt[((y + H) % H) * W + ((x + W) % W)];
+    const str = 2.2;
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const dx = (Hh(x + 1, y) - Hh(x - 1, y)) * str, dy = (Hh(x, y + 1) - Hh(x, y - 1)) * str;
+      let nx = -dx, ny = dy, nz = 1;
+      const n = Math.hypot(nx, ny, nz);
+      nx /= n; ny /= n; nz /= n;
+      const i = (y * W + x) * 4;
+      o[i] = (nx * 0.5 + 0.5) * 255; o[i + 1] = (ny * 0.5 + 0.5) * 255; o[i + 2] = (nz * 0.5 + 0.5) * 255; o[i + 3] = 255;
+    }
+    g.putImageData(im, 0, 0);
+    const t = new T.CanvasTexture(cv);
+    t.wrapS = t.wrapT = T.RepeatWrapping;
+    t.magFilter = T.LinearFilter;
+    t.minFilter = T.LinearMipMapLinearFilter;
+    t.anisotropy = Math.max(1, Math.min(8, MAXANISO));
+    t.needsUpdate = true;
+    return (NMAP[key] = t);
+  }
+  function applyRelief(root) {
+    if (window.__noRelief) return 0;
+    let n = 0;
+    const done = new Set();
+    root.traverse((o) => {
+      if (!o.isMesh || !o.material) return;
+      (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => {
+        if (!m || done.has(m) || !m.isMeshStandardMaterial || !m.map || m.normalMap) return;
+        done.add(m);
+        const key = m.map.__key || (m.map.image && m.map.image.__key);
+        const base = key ? reliefFor(key) : null;
+        if (!base) return;
+        const nm = base.clone();
+        nm.needsUpdate = true;
+        nm.repeat.copy(m.map.repeat);
+        nm.offset.copy(m.map.offset);
+        nm.wrapS = m.map.wrapS; nm.wrapT = m.map.wrapT;
+        m.normalMap = nm;
+        const k = /rock|cliff|stone|wall|brick|bark|trunk/i.test(key) ? 0.8 : /leaf|grass|tree|pine|hill/i.test(key) ? 0.6 : /road|asph|lane|tar/i.test(key) ? 0.22 : /ground|snow|plaza|pave|trail|dirt|walk|side/i.test(key) ? 0.45 : 0.4;
+        m.normalScale = new T.Vector2(k, k);
+        m.needsUpdate = true;
+        n++;
+      });
+    });
+    window.__relief = n;
+    return n;
   }
 
   function ctex(key, w, h, draw, opt) {
@@ -536,6 +622,7 @@
     t.anisotropy = Math.max(1, Math.min(8, MAXANISO));
     t.needsUpdate = true;
     t.__key = key;
+    cv.__key = key;
     MT[key] = t;
     TXCV[key] = cv;
     try {
@@ -2531,6 +2618,21 @@
       g.fillStyle = "rgba(120,74,48,.12)";
       g.fillRect(0, H - 4, W, 4);
     }
+    if (o.dead) {
+      /* (v21) the cartoon death face: eyes squeezed into > <, mouth wide
+         open on a yell, a bead of sweat flying off */
+      g.fillStyle = o.mid || "#dda87e";
+      g.fillRect(9, 18.5, 20, 15); g.fillRect(35, 18.5, 20, 15);
+      g.fillRect(21, 44, 22, 13);
+      g.strokeStyle = "#1e120a"; g.lineWidth = 2.4; g.lineCap = "round"; g.lineJoin = "round";
+      g.beginPath(); g.moveTo(12.5, 21.5); g.lineTo(24.5, 26.5); g.lineTo(12.5, 31.5); g.stroke();
+      g.beginPath(); g.moveTo(51.5, 21.5); g.lineTo(39.5, 26.5); g.lineTo(51.5, 31.5); g.stroke();
+      g.fillStyle = "#3a0e0c"; g.beginPath(); g.ellipse(32, 50.6, 6.4, 5.6, 0, 0, 7); g.fill();
+      g.fillStyle = "#f4ece0"; g.fillRect(27.4, 45.6, 9.2, 1.8);
+      g.fillStyle = "#d8545a"; g.beginPath(); g.ellipse(32, 54, 3.8, 2.1, 0, 0, 7); g.fill();
+      g.fillStyle = "rgba(140,200,255,.9)"; g.beginPath(); g.moveTo(56, 8); g.quadraticCurveTo(60, 14, 56, 16); g.quadraticCurveTo(52, 14, 56, 8); g.fill();
+      g.fillStyle = "rgba(220,80,70,.22)"; g.beginPath(); g.ellipse(10, 42, 6, 3.6, 0, 0, 7); g.ellipse(54, 42, 6, 3.6, 0, 0, 7); g.fill();
+    }
     g.restore();
   }
 
@@ -2542,8 +2644,14 @@
     return SOL.faces[key];
   }
 
+  function deadFaceFor(kind) {
+    headFor(kind);
+    const P = HEAD_P[kind] || HEAD_P.grunt;
+    return faceMat(kind + "Dead", Object.assign({}, P, { dead: 1 }));
+  }
+  let HEAD_P = null;
   function headFor(kind) {
-    const P = {
+    const P = HEAD_P = HEAD_P || {
       ally: { seed: 11, smile: 1, top: "#f2c69e", mid: "#dea87c", bot: "#b8825a" },
       grunt: { seed: 21, stubble: 1, top: "#eec098", mid: "#d9a276", bot: "#b27c55" },
       thrower: { seed: 33, headband: "#b83a2e", angry: 1, stubble: 1 },
@@ -2552,6 +2660,32 @@
       hostage: { seed: 63, worried: 1, top: "#f4cba6", mid: "#e2ae86", bot: "#bf8a63" }
     };
     return faceMat(kind, P[kind] || P.grunt);
+  }
+  /* (v21) a man going down swaps to the yelling face, and a 으악! pops */
+  function deathFace(p) {
+    const u = p.mesh && p.mesh.userData;
+    if (!u || !u.head || !u.faceKey || p.deadFace) return;
+    p.deadFace = 1;
+    try {
+      const mats = Array.isArray(u.head.material) ? u.head.material.slice() : null;
+      if (mats) { mats[4] = deadFaceFor(u.faceKey); u.head.material = mats; }
+    } catch (e) {}
+    try {
+      const cam = window.__railCtx && window.__railCtx.camera;
+      if (!cam || !u.headG) return;
+      const v = new T.Vector3(); u.headG.getWorldPosition(v); v.y += 0.6;
+      const pj = v.project(cam);
+      if (pj.z > 1 || Math.abs(pj.x) > 1.1 || Math.abs(pj.y) > 1.1) return;
+      const d = document.createElement("div");
+      d.className = "railYell";
+      const ko = (document.documentElement.lang || "").startsWith("ko");
+      const L = ko ? ["으악!", "끄악!", "으아악~!", "크억!", "아이고!"] : ["ARGH!", "AAGH!", "UGH!", "NOOO!", "OOF!"];
+      d.textContent = L[(Math.random() * L.length) | 0] + " >_<";
+      d.style.left = ((pj.x * 0.5 + 0.5) * innerWidth) + "px";
+      d.style.top = ((-pj.y * 0.5 + 0.5) * innerHeight) + "px";
+      document.body.appendChild(d);
+      setTimeout(() => d.remove(), 900);
+    } catch (e) {}
   }
 
   function makeSol() {
@@ -2907,6 +3041,8 @@
        is not a bald block when he turns away */
     const head = new T.Mesh(new T.BoxGeometry(0.42, 0.42, 0.42), [SOL.skin, SOL.skin, SOL.hair, SOL.skin, headFor(faceKey), SOL.hair]);
     head.position.set(0, 0.21, 0);
+    g.userData.head = head;
+    g.userData.faceKey = faceKey;
     head.castShadow = true;
     head.receiveShadow = true;
     headG.add(head);
@@ -3962,24 +4098,73 @@
     return g;
   }
 
+  /* (v21) the cargo truck, rebuilt: bonneted cab with grille, windscreen
+     frame, doors and mirrors, flared fenders, a slatted wooden bed under a
+     canvas tilt on hoops, dual rear wheels with rims, tank and spare. */
+  let TRK = null;
   function makeTruck(x, z) {
     makeSol();
+    if (!TRK) {
+      const lin = (c) => new T.Color(c).convertSRGBToLinear();
+      TRK = {
+        paint: new T.MeshStandardMaterial({ color: lin(0x55603a), roughness: 0.78, metalness: 0.1 }),
+        paintD: new T.MeshStandardMaterial({ color: lin(0x3a4226), roughness: 0.82, metalness: 0.08 }),
+        canvas: new T.MeshStandardMaterial({ color: lin(0x6e6a48), roughness: 0.95 }),
+        wood: new T.MeshStandardMaterial({ color: lin(0x6a5236), roughness: 0.9 }),
+        black: new T.MeshStandardMaterial({ color: lin(0x141516), roughness: 0.7 }),
+        glass: new T.MeshStandardMaterial({ color: lin(0x22303a), roughness: 0.08, metalness: 0.6 }),
+        rim: new T.MeshStandardMaterial({ color: lin(0x4a4f3a), roughness: 0.6, metalness: 0.4 }),
+        lamp: new T.MeshBasicMaterial({ color: 0xfff0c8 })
+      };
+    }
+    const M = TRK;
     const g = new T.Group();
-    part(g, 3.0, 0.2, 1.5, 0, 0.66, 0, SOL.oliveDark);
-    part(g, 1.5, 0.62, 1.4, -1.05, 1.06, 0, SOL.oliveDark);
-    part(g, 0.5, 0.5, 1.36, -1.6, 1.1, 0, SOL.olive);
-    part(g, 0.12, 0.36, 1.2, -1.86, 1.08, 0, SOL.glass || SOL.oliveDark);
-    part(g, 1.7, 0.7, 1.46, 0.75, 1.1, 0, SOL.olive);
-    part(g, 1.8, 0.08, 1.5, 0.75, 1.46, 0, SOL.oliveDark);
-    [-1.0, 0.4, 1.1].forEach((wx) => {
-      [-0.76, 0.76].forEach((wz) => {
-        const w = new T.Mesh(new T.CylinderGeometry(0.36, 0.36, 0.24, 10), SOL.tire);
-        w.rotation.x = Math.PI / 2;
-        w.position.set(wx, 0.66, wz);
-        w.castShadow = true;
-        g.add(w);
-      });
+    const B = (w, h, d, px, py, pz, m, rz) => { const o = new T.Mesh(new T.BoxGeometry(w, h, d), m); o.position.set(px, py, pz); if (rz) o.rotation.z = rz; o.castShadow = true; o.receiveShadow = true; g.add(o); return o; };
+    /* chassis rails and bumper */
+    B(3.5, 0.16, 0.18, 0.1, 0.62, -0.42, M.black); B(3.5, 0.16, 0.18, 0.1, 0.62, 0.42, M.black);
+    B(0.14, 0.2, 1.7, -1.76, 0.66, 0, M.black);
+    /* bonnet, grille, lamps */
+    B(0.78, 0.46, 1.26, -1.3, 1.0, 0, M.paint);
+    B(0.06, 0.4, 0.9, -1.7, 0.98, 0, M.black);
+    for (let k = 0; k < 6; k++) B(0.03, 0.36, 0.04, -1.735, 0.98, -0.37 + k * 0.148, M.paintD);
+    [-0.56, 0.56].forEach((sz) => { B(0.05, 0.16, 0.16, -1.72, 1.08, sz, M.lamp); B(0.08, 0.2, 0.2, -1.7, 1.08, sz, M.black); });
+    /* fenders */
+    [-0.74, 0.74].forEach((sz) => { B(0.86, 0.08, 0.34, -1.25, 0.96, sz, M.paintD); B(0.86, 0.08, 0.36, 0.9, 0.98, sz, M.paintD); });
+    /* cab */
+    B(0.86, 0.86, 1.5, -0.5, 1.34, 0, M.paint);
+    B(0.06, 0.4, 1.3, -0.95, 1.52, 0, M.glass, -0.14);
+    [-1, 1].forEach((sd) => {
+      B(0.5, 0.32, 0.03, -0.5, 1.55, sd * 0.765, M.glass);
+      B(0.02, 0.62, 0.03, -0.18, 1.3, sd * 0.765, M.black);
+      B(0.12, 0.03, 0.04, -0.62, 1.22, sd * 0.77, M.black);
+      B(0.05, 0.22, 0.1, -0.98, 1.6, sd * 0.86, M.black);
+      B(0.03, 0.04, 0.16, -0.95, 1.5, sd * 0.8, M.black);
     });
+    B(0.92, 0.08, 1.56, -0.5, 1.8, 0, M.paintD);
+    /* bed: floor, slatted sides, tailgate, canvas tilt on hoops */
+    B(2.2, 0.12, 1.6, 0.85, 0.96, 0, M.wood);
+    [-1, 1].forEach((sd) => { for (let k = 0; k < 3; k++) B(2.2, 0.1, 0.05, 0.85, 1.1 + k * 0.16, sd * 0.78, M.wood); });
+    for (let k = 0; k < 3; k++) B(0.05, 0.1, 1.6, 1.94, 1.1 + k * 0.16, 0, M.wood);
+    const tilt = new T.Mesh(new T.CylinderGeometry(0.8, 0.8, 2.1, 12, 1, false, 0, Math.PI), M.canvas);
+    tilt.rotation.z = Math.PI / 2; tilt.rotation.y = Math.PI / 2;
+    tilt.rotation.set(0, 0, Math.PI / 2);
+    tilt.position.set(0.85, 1.5, 0);
+    tilt.scale.set(1, 1, 0.55);
+    g.add(tilt);
+    B(2.1, 0.5, 0.04, 0.85, 1.55, 0.79, M.canvas); B(2.1, 0.5, 0.04, 0.85, 1.55, -0.79, M.canvas);
+    [0, 0.7, 1.4].forEach((dx) => B(0.05, 0.06, 1.62, 0.15 + dx, 1.95, 0, M.paintD));
+    /* fuel tank, spare, star */
+    const tank = new T.Mesh(new T.CylinderGeometry(0.16, 0.16, 0.6, 10), M.paintD); tank.rotation.z = Math.PI / 2; tank.position.set(0.1, 0.78, 0.66); g.add(tank);
+    /* wheels: singles at the front, duals at the back */
+    const wheel = (wx, wz) => {
+      const w = new T.Mesh(new T.CylinderGeometry(0.38, 0.38, 0.26, 16), SOL.tire); w.rotation.x = Math.PI / 2; w.position.set(wx, 0.38 + 0.0, wz); w.castShadow = true; g.add(w);
+      const r = new T.Mesh(new T.CylinderGeometry(0.22, 0.22, 0.28, 10), M.rim); r.rotation.x = Math.PI / 2; r.position.set(wx, 0.38, wz); g.add(r);
+      const hb = new T.Mesh(new T.CylinderGeometry(0.08, 0.08, 0.3, 8), M.black); hb.rotation.x = Math.PI / 2; hb.position.set(wx, 0.38, wz); g.add(hb);
+    };
+    [-0.76, 0.76].forEach((wz) => { wheel(-1.25, wz); wheel(0.55, wz); wheel(1.3, wz); wheel(0.55, wz * 1.28); wheel(1.3, wz * 1.28); });
+    const star = new T.Mesh(new T.PlaneGeometry(0.34, 0.34), SOL.star || M.lamp);
+    star.position.set(-0.5, 1.3, 0.77); g.add(star);
+    const star2 = star.clone(); star2.position.z = -0.77; star2.rotation.y = Math.PI; g.add(star2);
     g.position.set(x, 0.3, z);
     g.rotation.y = -0.08;
     return g;
@@ -4817,21 +5002,40 @@
 
   /* ---- cover props in Seoul materials: concrete, not sandbags ---- */
 
+  /* (v21) a real New Jersey profile, extruded, with chamfered ends, lifting
+     slots and a drain notch, over the old stacked-box block */
+  const JSH = {};
+  function jerseyGeo(L) {
+    const k = L.toFixed(2);
+    if (JSH[k]) return JSH[k];
+    const sh = new T.Shape();
+    [[-0.35, 0], [0.35, 0], [0.35, 0.09], [0.24, 0.32], [0.11, 0.98], [-0.11, 0.98], [-0.24, 0.32], [-0.35, 0.09]].forEach((q, i) => (i ? sh.lineTo(q[0], q[1]) : sh.moveTo(q[0], q[1])));
+    const geo = new T.ExtrudeGeometry(sh, { depth: L - 0.06, bevelEnabled: true, bevelThickness: 0.03, bevelSize: 0.025, bevelSegments: 1 });
+    geo.translate(0, 0, -(L - 0.06) / 2);
+    geo.rotateY(Math.PI / 2);
+    /* box-project the uvs so the concrete texture is not smeared */
+    const pos = geo.attributes.position, uv = geo.attributes.uv, nrm = geo.attributes.normal;
+    for (let i = 0; i < pos.count; i++) {
+      const nx = Math.abs(nrm.getX(i)), ny = Math.abs(nrm.getY(i));
+      if (nx > 0.6) uv.setXY(i, pos.getZ(i) * 0.8, pos.getY(i) * 0.8);
+      else if (ny > 0.6) uv.setXY(i, pos.getX(i) * 0.8, pos.getZ(i) * 0.8);
+      else uv.setXY(i, pos.getX(i) * 0.8, pos.getY(i) * 0.8);
+    }
+    uv.needsUpdate = true;
+    return (JSH[k] = geo);
+  }
   function makeJersey(x, z, len) {
     makeSol();
     const g = new T.Group();
     const L = Math.max(1.2, len || 2.2);
-    part(g, L, 0.34, 0.7, 0, 0.17, 0, SOL.barrier);
-    part(g, L, 0.4, 0.5, 0, 0.54, 0, SOL.barrier);
-    part(g, L, 0.24, 0.32, 0, 0.86, 0, SOL.barrier);
-    [-1, 1].forEach((s) => {
-      const cap = new T.Mesh(new T.BoxGeometry(0.16, 0.5, 0.42), SOL.barrier);
-      cap.position.set((s * L) / 2, 0.6, 0);
-      g.add(cap);
-    });
+    const body = new T.Mesh(jerseyGeo(L), SOL.barrier);
+    body.castShadow = true; body.receiveShadow = true;
+    g.add(body);
+    [-1, 1].forEach((s) => { const slot = new T.Mesh(new T.BoxGeometry(0.22, 0.1, 0.72), SOL.metalDark || SOL.black); slot.position.set(s * L * 0.28, 0.05, 0); g.add(slot); });
+    const lift = new T.Mesh(new T.BoxGeometry(0.06, 0.08, 0.25), SOL.metalDark || SOL.black); lift.position.set(0, 0.99, 0); g.add(lift);
     for (let i = -1; i <= 1; i++) {
-      const refl = new T.Mesh(new T.BoxGeometry(0.22, 0.12, 0.34), i === 0 ? SOL.paintWhite : SOL.lampRed);
-      refl.position.set(i * (L / 3.4), 0.9, 0);
+      const refl = new T.Mesh(new T.BoxGeometry(0.2, 0.09, 0.24), i === 0 ? SOL.paintWhite : SOL.lampRed);
+      refl.position.set(i * (L / 3.4), 0.97, 0);
       g.add(refl);
     }
     g.position.set(x, 0, z);
@@ -5507,10 +5711,12 @@
       radio: "다리 위다, 엄폐물이 없다! 건너편 교두보를 빨리 쓸어라!",
       picks: [[-1.8, 4.0, "supply"], [1.8, 6.0, "grenade"]],
       members: [
-        { role: "weak", lat: -4.0, dep: 19.0, cover: "sandbag" },
-        { role: "tough", lat: 5.0, dep: 23.4, cover: "heavy" },
-        { role: "weak", lat: 4.8, dep: 19.6, cover: "sandbag" },
-        { role: "weak", lat: -5.2, dep: 23.0, cover: "crate", bike: true, run: { from: [-6.0, 46.0], dur: 2.6, delay: 1.8 } }
+        /* (v21) all on the far bank: nothing may stand off the deck over the
+           river, and the truss must not hide anyone */
+        { role: "weak", lat: -2.0, dep: 19.5, cover: "sandbag" },
+        { role: "weak", lat: 2.1, dep: 20.5, cover: "crate" },
+        { role: "tough", lat: 5.4, dep: 25.0, cover: "sandbag" },
+        { role: "weak", lat: -5.6, dep: 25.4, cover: "crate", bike: true, run: { from: [-12.0, 50.0], dur: 3.6, delay: 1.2 } }
       ]
     },
     {
@@ -5561,7 +5767,7 @@
 
   const STAGES = {
     1: {
-      id: 1, label: "STAGE 1-1", clock: 360, path: PATH1, waves: WAVES1, boss: BOSS1,
+      id: 1, music: "seoul", label: "STAGE 1-1", clock: 360, path: PATH1, waves: WAVES1, boss: BOSS1,
       dress: "city", bossKind: "man",
       introDur: 4.2,
       introCam: [[9.0, 11.5, -26.0, 0, 7.0, 40.0], [0, 1.68, -10.0, 0, 1.55, 3.5]],
@@ -5572,7 +5778,7 @@
       bossRadio: "적 지휘관 확인! 엄폐물 사이를 옮겨 다닌다, 머리를 노려라!"
     },
     3: {
-      id: 3, label: "STAGE 3-1", clock: 380, path: PATH_S, waves: WAVES_S, boss: BOSS_S,
+      id: 3, music: "summit", label: "STAGE 3-1", clock: 380, path: PATH_S, waves: WAVES_S, boss: BOSS_S,
       dress: "summit", bossKind: "heli", bossHp: 46,
       introDur: 4.0,
       introCam: [[7.0, 10.0, -60.0, 0, 5.0, -10.0], [0, 1.68, -44.0, 0, 1.55, -30.0]],
@@ -5583,7 +5789,7 @@
       bossRadio: "판문각 상공에 적 공격헬기! 기총 소사를 피해 기체를 집중 사격하라!"
     },
     5: {
-      id: 5, label: "STAGE 5-1", clock: 400, path: PATH5, waves: WAVES5, boss: BOSS5,
+      id: 5, music: "paektu", label: "STAGE 5-1", clock: 400, path: PATH5, waves: WAVES5, boss: BOSS5,
       dress: "paektu", bossKind: "commander", bossHp: 40, chase: true,
       introDur: 5.2,
       introCam: [[7.0, 9.0, -176.0, 0, 1.0, -128.0], [0, 1.68, -152.0, 0, 1.55, -138.0]],
@@ -5594,7 +5800,7 @@
       bossRadio: "천지 전망대에 적 총사령관 확인! 경호원을 쓰러뜨리고 사령관을 제압하라!"
     },
     4: {
-      id: 4, label: "STAGE 4-1", clock: 380, path: PATH3, waves: WAVES3, boss: BOSS3,
+      id: 4, music: "pyongyang", label: "STAGE 4-1", clock: 380, path: PATH3, waves: WAVES3, boss: BOSS3,
       dress: "pyongyang", bossKind: "apc", bossTank: true, bossHp: 110,
       introDur: 4.0,
       introCam: [[-8.0, 9.0, -58.0, 0, 6.0, -6.0], [0, 1.68, -44.0, 0, 1.55, -30.0]],
@@ -5605,7 +5811,7 @@
       bossRadio: "광장에 적 주력 전차! 포구를 막고 앞쪽 흡기구를 노려라!"
     },
     2: {
-      id: 2, label: "STAGE 2-1", clock: 360, path: PATH2, waves: WAVES2, boss: BOSS2,
+      id: 2, music: "dmz", label: "STAGE 2-1", clock: 360, path: PATH2, waves: WAVES2, boss: BOSS2,
       dress: "dmz", bossKind: "apc", bossHp: 60,
       bossRadio: "중장갑 차량 확인! 일반 탄은 튕긴다, 앞쪽 흡기구와 수류탄!",
       introDur: 3.8,
@@ -5690,7 +5896,8 @@
       const b = box(o);
       if (b.isEmpty()) return;
       const sz = new T.Vector3(); b.getSize(sz);
-      if (sz.x <= 1.6 && sz.z <= 1.6 && sz.y <= 1.8 && b.max.y < 2.2) smalls.push([o, b]);
+      /* (v21) site walls and barriers up to 3.2 m long count as props too */
+      if (sz.x <= 3.2 && sz.z <= 3.2 && sz.y <= 1.9 && b.max.y < 2.3) smalls.push([o, b]);
       else if (sz.x < 14 && sz.z < 14 && sz.y > 0.8) big.push(b);
     });
     let hidden = 0;
@@ -5703,6 +5910,20 @@
         hidden++;
       }
     });
+    /* (v21) two covers from different zones that ended up through each
+       other: the later one gives way (its man still ducks to his own top) */
+    if (coverRoot) {
+      const seen = [], drop = [];
+      coverRoot.children.forEach((wg) => wg.children.forEach((c) => {
+        if (!c.visible) return;
+        const b = box(c).expandByScalar(-0.08);
+        if (b.isEmpty()) return;
+        if (seen.some((B) => B.intersectsBox(b))) { drop.push(c); return; }
+        seen.push(b);
+      }));
+      /* removed, not hidden: a hidden prop would still stop bullets */
+      drop.forEach((c) => { c.parent && c.parent.remove(c); hidden++; });
+    }
     window.__declutter = hidden;
   }
   function buildRailBlockers(ctx) {
@@ -6371,6 +6592,7 @@
     DET.b = null;
     const out = STAGE && STAGE.dress === "dmz" ? dressStage2(ctx) : STAGE && STAGE.dress === "pyongyang" ? dressStage3(ctx) : STAGE && STAGE.dress === "summit" ? dressSummit(ctx) : STAGE && STAGE.dress === "paektu" ? dressPaektu(ctx) : dressStage1(ctx);
     try { flushDetail(null); } catch (e) { window.__detErr = String(e); }
+    try { applyRelief(ctx.scene); } catch (e) { window.__reliefErr = String(e && e.stack || e); }
     return out;
   }
 
@@ -7140,12 +7362,36 @@
     showHud(true);
     ensureHud(0);
     drawHud();
+    try { window.GunSFX && window.GunSFX.song && window.GunSFX.song(STAGE.music || "seoul"); } catch (e) {}
     try { window.GunSFX && window.GunSFX.bgm(true, false); } catch (e) {}
     window.__railPhase = phase;
     return true;
   }
 
+  /* (v21) engine noise for everything with a motor, by distance */
+  function stepEngines(ctx) {
+    const G = window.GunSFX;
+    if (!G || !G.loop) return;
+    const cam = ctx.camera.position;
+    const gainAt = (x, z, near, far, top) => { const d = Math.hypot(x - cam.x, z - cam.z); return d > far ? 0 : top * Math.min(1, Math.max(0.05, 1 - (d - near) / (far - near))); };
+    posts.forEach((p, i) => {
+      if (!p.mesh || p.e.alive === false && !(p.air === "heli" && p.mesh.visible)) return;
+      if (p.air === "heli") {
+        const g = gainAt(p.x, p.z, 8, 60, p.isBoss ? 0.34 : 0.24);
+        if (g > 0.003) G.loop("h" + (p.uid || (p.uid = Math.random().toString(36).slice(2))), "rotor", g);
+      } else if (p.air === "apc" && p.e.alive !== false) {
+        const g = gainAt(p.x, p.z, 6, 50, 0.3);
+        if (g > 0.003) G.loop("t" + (p.uid || (p.uid = Math.random().toString(36).slice(2))), "diesel", g);
+      } else if (p.bikeMesh && p.e.alive !== false && p.bikeMesh.parent === p.mesh && (p.chase || (p.run && p.runT >= 0 && p.runT < p.run.dur))) {
+        const g = gainAt(p.x, p.z, 4, 40, 0.2);
+        if (g > 0.003) G.loop("b" + (p.uid || (p.uid = Math.random().toString(36).slice(2))), "bike", g, p.chase ? 1.25 : 1.1);
+      }
+    });
+    if (chase) G.loop("jeep", "jeep", 0.12, 1 + Math.sin(chase.t * 0.7) * 0.08);
+  }
+
   function pause() {
+    try { window.GunSFX && window.GunSFX.stopLoops && window.GunSFX.stopLoops(); } catch (e) {}
     active = false;
     showHud(false);
     if (pistol) pistol.visible = false;
@@ -7699,8 +7945,8 @@
   let chase = null, jeepRig = null;
   function makeJeepRig() {
     const g = new T.Group();
-    const M = (c, r, m) => new T.MeshStandardMaterial({ color: c, roughness: r, metalness: m || 0, envMapIntensity: 0.15 });
-    const olive = M(0x1a220d, 0.9), oliveD = M(0x10160a, 0.95), black = M(0x0a0a0a, 0.7), steel = M(0x33383c, 0.5, 0.5);
+    const M = (c, r, m) => new T.MeshStandardMaterial({ color: new T.Color(c).convertSRGBToLinear(), roughness: r, metalness: m || 0, envMapIntensity: 0.3 });
+    const olive = M(0x56603a, 0.85), oliveD = M(0x3a4226, 0.9), black = M(0x161616, 0.7), steel = M(0x6a7076, 0.45, 0.5);
     const lamp = new T.MeshBasicMaterial({ color: 0xfff2c8 });
     const B = (w, h, d, x, y, z, m, rx) => { const o = new T.Mesh(new T.BoxGeometry(w, h, d), m); o.position.set(x, y, z); if (rx) o.rotation.x = rx; g.add(o); return o; };
     B(1.9, 0.2, 1.9, -0.45, -1.02, -2.25, olive, 0.04);             /* bonnet */
@@ -7922,7 +8168,7 @@
     posts.forEach((p) => tagOff(p));
     if (pistol) pistol.visible = false;
     showHud(false);
-    try { window.GunSFX && window.GunSFX.bgm(false); } catch (e) {}
+    try { window.GunSFX && window.GunSFX.bgm(false); window.GunSFX.stopLoops && window.GunSFX.stopLoops(); } catch (e) {}
     let n = 10;
     const num = box.querySelector(".num");
     const close = () => { clearInterval(iv); box.remove(); contOpen = false; };
@@ -7957,6 +8203,7 @@
   function finish(ctx, cleared) {
     if (ended) return;
     ended = true;
+    try { window.GunSFX && window.GunSFX.stopLoops && window.GunSFX.stopLoops(); } catch (e) {}
     active = false;
     try { window.GunSFX && window.GunSFX.bgm(false); } catch (e) {}
     phase = "result";
@@ -8325,6 +8572,7 @@
       yaw0: (p.mesh && p.mesh.rotation.y) || 0
     };
     grunt(true);
+    deathFace(p);
     p.e.x = p.x;
     p.e.y = p.y;
     let scored = false;
@@ -9013,10 +9261,12 @@
   function makeMotorbike() {
     makeSol();
     const g = new T.Group();
-    const olive = new T.MeshStandardMaterial({ color: 0x3e4c22, roughness: 0.7, metalness: 0.05 });
-    const oliveD = new T.MeshStandardMaterial({ color: 0x262e16, roughness: 0.75, metalness: 0.05 });
-    const steel = new T.MeshStandardMaterial({ color: 0x70767c, roughness: 0.4, metalness: 0.5 });
-    const black = new T.MeshStandardMaterial({ color: 0x141618, roughness: 0.7, metalness: 0.2 });
+    /* (v21) hex colours are sRGB: convert, or every dark paint washes out */
+    const lin = (c) => new T.Color(c).convertSRGBToLinear();
+    const olive = new T.MeshStandardMaterial({ color: lin(0x4e5a30), roughness: 0.7, metalness: 0.05 });
+    const oliveD = new T.MeshStandardMaterial({ color: lin(0x323a1e), roughness: 0.75, metalness: 0.05 });
+    const steel = new T.MeshStandardMaterial({ color: lin(0x8a9096), roughness: 0.4, metalness: 0.5 });
+    const black = new T.MeshStandardMaterial({ color: lin(0x1c1e20), roughness: 0.7, metalness: 0.2 });
     const tyre = SOL.tire || black;
     const B = (w, h, d, x, y, z, m, rx, ry, rz) => { const o = new T.Mesh(new T.BoxGeometry(w, h, d), m); o.position.set(x, y, z); o.rotation.set(rx || 0, ry || 0, rz || 0); o.castShadow = true; g.add(o); return o; };
     const C = (rt, rb, h, x, y, z, m, seg, rx, rz) => { const o = new T.Mesh(new T.CylinderGeometry(rt, rb, h, seg || 12), m); o.position.set(x, y, z); o.rotation.set(rx || 0, 0, rz || 0); o.castShadow = true; g.add(o); return o; };
@@ -9266,6 +9516,10 @@
     const a = dress && dress.ally;
     if (!a) return;
     const cam = ctx.camera;
+    /* (v21) on the Yalu bridge there is no ground beside the deck: he waits
+       out the crossing instead of hovering over the river */
+    if (STAGE.dress === "paektu" && cam.position.z > 1 && cam.position.z < 37) { a.visible = false; return; }
+    if (!chase) a.visible = true;
     const right = new T.Vector3().setFromMatrixColumn(cam.matrixWorld, 0);
     const fwd = new T.Vector3().setFromMatrixColumn(cam.matrixWorld, 2).negate();
     /* Anchor him in frame rather than in metres: a portrait phone has a much
@@ -9738,6 +9992,7 @@
     stepFallers(dt);
     stepCrashed(ctx, dt);
     if (debris.length) stepDebris(dt);
+    if (!ended) { try { stepEngines(ctx); } catch (e) {} }
     stepNades(ctx, dt);
     /* the SMG keeps firing while the trigger is held */
     if (holding && weapon === "smg" && active && !ended && phase !== "intro") fire(ctx);
