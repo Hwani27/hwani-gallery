@@ -1,17 +1,58 @@
 # 지금 바로 멸공 — 개발 인수인계
 
-## 현재 상태 (2026-11-22 · 독립 빌드 · v4 카메라/은폐/골목 개편)
+## 현재 상태 (2026-11-22 · 독립 빌드 · v5 HD 텍스처·쓰러짐 다양화·비명 SFX)
 - 플레이: https://hwani27.github.io/hwani-gallery/baro-baro-myeolgong/
 - 폴더: `baro-baro-myeolgong/`
-  - `index.html` (한국어) · `en.html` (영어) — 캔버스 + 타이틀 오버레이 + 스크립트 4줄 (`engine.js?v=4`, `rail.js?v=4`)
+  - `index.html` (한국어) · `en.html` (영어) — 캔버스 + 타이틀 오버레이 + 스크립트 4줄 (`engine.js?v=5`, `gun-sfx.js?v=5`, `rail.js?v=5`)
   - `three.min.js` — r128, `baro-baro-jump/index.html`에 인라인으로 박혀 있던 것을 그대로 발췌(수정 없음)
   - `engine.js` — 렌더러/씬/카메라/조명/프레임 루프/타이틀·사운드 토글/점수 팝업
   - `rail.js` — 코스(스플라인 레일)·병사·소품·4웨이브·보스·HUD·결과 화면 전부
-  - `gun-sfx.js` — 절차적 총성·재장전·폭발 + 내장 전투 BGM
-- **다른 게임을 부르지 않는다.** `fetch("../baro-baro-jump/index.html")`, `DOMParser`, `document.replaceChild`, 점프 엔진 전역 의존이 모두 0이다.
-- 원본 `baro-baro-jump/`, `fight-right-now/`, 개인정보 페이지는 이번에도 수정하지 않았다.
+  - `gun-sfx.js` — 절차적 총성·재장전·폭발·피격/사망 비명 + 내장 전투 BGM
 
-## 이번 라운드 (2026-11-22, 사용자 7개 지적 반영)
+## 이번 라운드 (2026-11-22, v5 — 세 가지 요청 마무리)
+앞선 서브에이전트가 `rail.js`에 절반만 넣어둔 HD 텍스처를 마저 끝내고, 쓰러지는 방향 다양화와 육성 피격음을 붙였다.
+
+### 1. 고해상도 절차적 텍스처 (`rail.js`)
+- **해상도 상향**: 바닥·석조·콘크리트·목재·조약돌 `512×512`(이전 128~256), 천(burlap/weave)·위장복·기름통·금속·가죽 `256×256`, 얼굴 `256`, 헬멧 `128`.
+- **권총 그립 `32×32` → `256×256`**: 다이아몬드 체커링(홈 + 반사 리지), 손이 닿는 부위의 광택 마모, 사출 자국, 나사 구멍까지 그림. 그립 박스가 0.10m×0.24m라 세로로 2.4배 늘어나므로 `repeat(1, 2.2)`로 체커링이 정사각으로 보이게 보정.
+- **브러시드 스틸 신규**(`metalTex`): 슬라이드·스틸·건메탈 파츠에 적용. 폴리머 프레임은 `polymerTex`, 부츠·벨트는 `leatherTex`.
+- **벽 타일 늘이지 않기**: 512 텍스처를 세로로 긴 벽에 1회만 매핑하면 돌줄이 늘어나 세로 줄무늬(널빤지)처럼 보였다. `tiledMat()`을 만들어 한 타일을 2.4m로 보고 벽 크기에 맞춰 반복시키고(같은 반복은 재질 공유), 성문 교각·탑도 실제 크기로 반복을 계산한다.
+- **이방성 필터링**: `MAXANISO = Math.min(8, renderer.capabilities.getMaxAnisotropy())`를 `boot`/`begin`에서 잡고, 그 전에 그려진 캐시 텍스처까지 `applyAniso()`로 다시 스탬프. 실측 전 텍스처 `anisotropy = 8`.
+- 노이즈·스크래치·크랙 세기는 해상도에 맞춰 다시 잡았다(콘크리트 골재는 밀도를 낮추고 입자를 키워 정전기 노이즈처럼 보이지 않게, 조약돌 크랙은 방향성 있는 헤어라인으로).
+
+### 2. 쓰러지는 방향 다양화 (`rail.js` `killPost` + 프레임 루프 `dying`)
+- 적마다 `back / fwd / left / right` 중 하나를 무작위로 골라 **축이 다르게** 넘어진다(뒤·앞은 `rotation.x`, 좌·우는 `rotation.z`). 보스는 항상 뒤로.
+- 킬마다 `spin`(최대 ±0.62rad), `lean`, `side`가 달라 같은 방향이어도 자세가 겹치지 않는다.
+- 총구 반대 방향으로 `push` 0.28~0.70m 밀려나며, 맞은 직후 42% 구간에서 빠르게 넘어지고 나머지에서 천천히 가라앉는 이징. 바닥에 파묻히지 않게 침하는 양은 0.1m 이하로 제한.
+- 실측(0.7배속 표본): `back` = rotation.x `-1.52` / rotation.z `-0.38`, `left` = rotation.z `-1.63` → 축이 실제로 갈린다.
+
+### 3. 피격·사망 육성 (`gun-sfx.js` `playHitGrunt(fatal)` + `rail.js`)
+- 샘플 없이 포먼트 합성: 톱니 글로털 소스 + 피치 엔벨로프 + 비브라토 → 3개 병렬 밴드패스 포먼트(으 `318/1265/2390` → 악 `790/1215/2520`), 여기에 숨소리 노이즈와 목울림.
+- **비치명타 `"윽!"`** 0.22~0.28초, 피치 0.88~1.15배로 매번 다르게, 어깨에 맞고 숨을 삼키는 짧은 소리.
+- **치명타 `"으악!"`** 0.62~0.74초. 피치가 1.26배까지 치솟았다가 0.42배로 떨어지고, 포먼트가 으→악으로 0.16초에 걸쳐 열린 뒤 바닥에서 목이 갈라지는 소리와 가슴 울림이 붙는다.
+- 45ms(비치명)/70ms(치명) 쿨다운, 동시 4개 제한 — 통폐발 폭발로 여럿이 한꺼번에 죽어도 소리가 뭉개지지 않는다.
+- 연결: 비치명 피격(`p.e.hp > 0`)과 `killPost()`(치명). `window.__grunts` / `__gruntsFatal` 카운터로 검증 가능.
+
+### 캐시 버스터
+- `index.html`·`en.html` 모두 `engine.js?v=5`, `gun-sfx.js?v=5`, `rail.js?v=5`.
+
+### 검증 (2026-11-22, headless Chromium + swiftshader, 1280×720)
+| 시나리오 | 결과 |
+|---|---|
+| 1판 완주(웨이브1→골목→안뜰→성문→보스) | `작전 성공`, 콘솔·페이지 오류 0, `__railErrs` 0, `__gruntErr` null |
+| 쓰러짐 방향 | 6회 이상 킬에서 `back`·`fwd`·`left`·`right` 네 방향 모두 관측. 축 분리 확인: `back` x `-1.52`, `left` z `-1.63` |
+| 육성 SFX | `playHitGrunt(false)` / `playHitGrunt(true)` 둘 다 `true` 반환(노드 그래프·예외 없음). 한 판에 `__grunts` 42회(치명 20회) |
+| 텍스처 | 35종 등록, 전부 `anisotropy = 8`. 512: dirt·street·stone·stoneD·conc·wood·woodD / 256: camo·weave·sand·barrel·steel·gunmetal·boot·belt·grip·faces |
+| 텍스처 생성 시간 | 첫 `begin()`에서 34종 총 **108ms**(그 후 캐시) |
+| `en.html` | 1280×720 보스전까지 정상, 오류 0, 쓰러짐 4방향 관측 |
+| 390×844 모바일 | 오류 0, HUD 잘림 없음, 512 텍스처·이방성 8 |
+
+스크린샷: `downloads/myeolgong_v5_hd.png`(골목, 주 화면), `downloads/myeolgong_v5_gate.png`(성문·보스), `downloads/myeolgong_v5_plaza.png`(광장), `downloads/myeolgong_v5_result.png`(작전 성공).
+
+## 이전 라운드 (2026-11-22, v4 — 사용자 7개 지적 반영)
+- **다른 게임을 부르지 않는다.** `fetch("../baro-baro-jump/index.html")`, `DOMParser`, `document.replaceChild`, 점프 엔진 전역 의존이 모두 0이다.
+- 원본 `baro-baro-jump/`, `fight-right-now/`, 개인정보 페이지는 수정하지 않았다.
+
 사용자가 `downloads/myeolgong_standalone_play.png`를 보며 지적한 7가지를 그대로 고쳤다.
 
 1. **1인칭 권총 정조준** — 뷰모델을 `position (0.2, -0.235, -0.66)` · `rotation (0.05, 0.085, 0.012)` · `scale 0.4`로 다시 앉히고, 총열(-Z)이 화면 중앙 조준선으로 수렴하게 했다. 실측: 총열을 3m 연장한 점의 화면 좌표 `(628, 367)` vs 중앙 `(640, 360)` → 오차 12px(1%). 조준점 추적은 매 프레임 `rotation.x/y`에 `aimN`을 소량 섞어(±0.05rad) 탭/클릭 방향으로 살짝 기운다. 세로 화면에서는 `fov 60`, 가로는 58로 총 크기·x위치를 화면비에 맞춰 계산한다.
@@ -35,7 +76,7 @@
 - 태양광/그림자/림 라이트가 카메라 z축도 따라가게 `engine.js` 수정.
 - 카메라 시계(CLOCK) 200초, 웨이브 제한 26/26/28/30초.
 
-## 검증 (2026-11-22, headless Chromium + swiftshader)
+## 검증 (v4 라운드, headless Chromium + swiftshader)
 | 시나리오 | 결과 |
 |---|---|
 | 1280×720, 1판 완주(웨이브1→골목→안뜰→성문→보스) | `작전 성공`, 콘솔·페이지 오류 0, `__railErrs` 0 |
@@ -54,6 +95,10 @@
 - 탄창 20발, 보급 탄약통 +10, 구급상자 목숨 +1, 붉은 별 기름통은 폭발(주변 적 3 데미지).
 
 ## 구조 메모 (다음에 손댈 때)
+- **텍스처**: `ctex(key, w, h, draw)`가 캐시. 해상도는 512(바닥·석조·목재·조약돌)·256(천·위장복·금속·가죽·얼굴)·128(헬멧·폴리머). 벽처럼 큰 박스에는 `tiledMat(SOL.stone, w, h)`를 써라(빈 타일 1장 = 2.4m). 그냥 재질을 붙이면 돌줄이 세로로 늘어난다.
+- **이방성**: `MAXANISO`는 `begin()`에서 GPU 값(최대 8)으로 잡히고 `applyAniso()`가 캐시 텍스처까지 다시 스탬프한다. 텍스처를 새로 만들 때 `ctex` 밖에서 직접 만들지 말고 반드시 `ctex`를 쓸 것.
+- **사망 연출**: `killPost()`가 `p.fall = {dir, spin, push, kx/kz, lean, side}`를 뽑고 프레임 루프 `---- dying ----` 블록이 소비한다. 새 방향을 넣으려면 그 블록에 분기를 추가.
+- **육성**: `GunSFX.playHitGrunt(fatal)` 하나만 호출하면 된다(`rail.js`의 `grunt(fatal)` 래퍼 경유). 쿨다운·동시발음 제한이 안에 있다.
 - 웨이브 정의는 `rail.js`의 `WAVE_DEFS`(hold/yaw/look/time/members/picks). 멤버는 `{role, lat, dep, elev, cover}`이고 `cover`는 `sandbag|crate|crates|barrier|bunker|door|truckbed|heavy|rail`.
 - 이동 경로는 `PATH_PTS`(x,z) 스플라인. 웨이브 정지점은 각 `hold`에 가장 가까운 경로점으로 스냅된다.
 - `RAIL.begin(ctx)`가 코스·웨이브·픽업·가림막을 전부 지우고 다시 짓는다(`clearStage` → `buildWaves`/`buildPickups`/`dressBattlefield`).

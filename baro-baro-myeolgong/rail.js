@@ -281,8 +281,14 @@
   const MT = {};
   const SOL = {};
 
-  function ctex(key, w, h, draw) {
+  /* Highest anisotropic filtering the GPU allows, capped at 8: floors and
+     walls keep their grain at grazing angles instead of smearing to mush. */
+  let MAXANISO = 4;
+
+  function ctex(key, w, h, draw, opt) {
     if (MT[key]) return MT[key];
+    const t0 = (typeof performance !== "undefined" ? performance.now() : 0);
+    const o = opt || {};
     const cv = document.createElement("canvas");
     cv.width = w;
     cv.height = h;
@@ -290,12 +296,31 @@
     draw(g, w, h);
     const t = new T.CanvasTexture(cv);
     if (T.sRGBEncoding !== undefined) t.encoding = T.sRGBEncoding;
-    t.magFilter = T.NearestFilter;
+    t.magFilter = T.LinearFilter;
     t.minFilter = T.LinearMipMapLinearFilter;
+    t.generateMipmaps = true;
     t.wrapS = t.wrapT = T.RepeatWrapping;
-    t.anisotropy = 4;
+    t.anisotropy = Math.max(1, Math.min(8, MAXANISO));
+    t.needsUpdate = true;
     MT[key] = t;
+    try {
+      if (!window.__texSizes) window.__texSizes = {};
+      window.__texSizes[key] = [w, h, t.anisotropy];
+      if (!window.__texCanvases) window.__texCanvases = {};
+      window.__texCanvases[key] = cv;
+      window.__texMs = +((window.__texMs || 0) + (performance.now() - t0)).toFixed(1);
+    } catch (e) {}
     return t;
+  }
+
+  /* Textures painted before the renderer exists only see the default limit,
+     so once the GPU answer is known every cached texture is re-stamped. */
+  function applyAniso() {
+    const a = Math.max(1, Math.min(8, MAXANISO));
+    Object.keys(MT).forEach((k) => {
+      const t = MT[k];
+      if (t && t.isTexture) { t.anisotropy = a; t.needsUpdate = true; }
+    });
   }
 
   function rng(seed) {
@@ -303,245 +328,1209 @@
     return () => ((s = (s * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
   }
 
-  function speck(g, w, h, cols, seed, n) {
+  function hex2rgb(hex) {
+    const n = parseInt(String(hex).replace("#", ""), 16);
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  }
+
+  /* multiply (k only) or blend (k toward the given hex) */
+  function shade(hex, k, towards) {
+    let [r, gg, b] = hex2rgb(hex);
+    if (towards) {
+      const [tr, tg, tb] = hex2rgb(towards);
+      r += (tr - r) * k; gg += (tg - gg) * k; b += (tb - b) * k;
+    } else {
+      r *= k; gg *= k; b *= k;
+    }
+    const c = (v) => Math.max(0, Math.min(255, Math.round(v)));
+    return "rgb(" + c(r) + "," + c(gg) + "," + c(b) + ")";
+  }
+
+  /* rounded rect path that works without ctx.roundRect */
+  function rr(g, x, y, w, h, r) {
+    const rad = Math.max(0, Math.min(r, w / 2, h / 2));
+    g.beginPath();
+    g.moveTo(x + rad, y);
+    g.lineTo(x + w - rad, y);
+    g.quadraticCurveTo(x + w, y, x + w, y + rad);
+    g.lineTo(x + w, y + h - rad);
+    g.quadraticCurveTo(x + w, y + h, x + w - rad, y + h);
+    g.lineTo(x + rad, y + h);
+    g.quadraticCurveTo(x, y + h, x, y + h - rad);
+    g.lineTo(x, y + rad);
+    g.quadraticCurveTo(x, y, x + rad, y);
+    g.closePath();
+  }
+
+  /* draw once plus its wrapped copies so anything crossing an edge meets
+     itself on the far side (all textures repeat) */
+  function wrapDraw(w, h, x, y, r, fn) {
+    for (let dx = -1; dx <= 1; dx++) {
+      for (let dy = -1; dy <= 1; dy++) {
+        const px = x + dx * w, py = y + dy * h;
+        if (px + r < 0 || px - r > w || py + r < 0 || py - r > h) continue;
+        fn(px, py);
+      }
+    }
+  }
+
+  function speck(g, w, h, cols, seed, n, size) {
     const R = rng(seed);
+    const s = size || Math.max(1, w / 256);
     for (let i = 0; i < n; i++) {
-      g.globalAlpha = 0.1 + R() * 0.22;
+      g.globalAlpha = 0.07 + R() * 0.2;
       g.fillStyle = cols[(R() * cols.length) | 0];
-      g.fillRect((R() * w) | 0, (R() * h) | 0, 1 + ((R() * 3) | 0), 1 + ((R() * 2) | 0));
+      g.fillRect((R() * w) | 0, (R() * h) | 0, s + ((R() * s * 2) | 0), s + ((R() * s) | 0));
     }
     g.globalAlpha = 1;
   }
 
-  function blockTex(key, base, mortar, tint, seed) {
-    return ctex(key, 64, 64, (g, w, h) => {
+  /* ---- stone masonry ------------------------------------------------ */
+
+  /* Ashlar courses: even rows of cut blocks with real mortar joints, a
+     bevel on every block, per-block tone, chipped corners and grime. */
+  function blockTex(key, base, mortar, tint, seed, opt) {
+    const o = opt || {};
+    const SZ = o.size || 512;
+    return ctex(key, SZ, SZ, (g, w, h) => {
+      const R = rng(seed);
+      const u = w / 256;
+      g.fillStyle = mortar;
+      g.fillRect(0, 0, w, h);
+      // mortar bed grain
+      speck(g, w, h, [shade(mortar, 1.25), shade(mortar, 0.72)], seed + 1, 900 * u * u, u);
+
+      const rows = o.rows || 8;
+      const rh = h / rows;
+      const joint = Math.max(1, 1.4 * u);
+      for (let r = 0; r < rows; r++) {
+        const y0 = r * rh;
+        let x = -R() * 48 * u;
+        while (x < w) {
+          const pick = R();
+          let bw = (pick < 0.45 ? 32 : pick < 0.8 ? 48 : 64) * u;
+          if (w - x < 16 * u) bw = w - x + 32 * u;
+          const bx = x + joint, bwid = bw - joint * 2, bhei = rh - joint * 2;
+          const by = y0 + joint;
+          const tone = 0.9 + R() * 0.2;
+          const col = shade(base, tone);
+          wrapDraw(w, h, bx + bwid / 2, by + bhei / 2, Math.max(bwid, bhei), (px, py) => {
+            const x0 = px - bwid / 2, y0b = py - bhei / 2;
+            // face
+            g.fillStyle = col;
+            rr(g, x0, y0b, bwid, bhei, 1.6 * u);
+            g.fill();
+            // top light + bottom shadow bevel
+            g.fillStyle = "rgba(255,252,240,.30)";
+            g.fillRect(x0 + 1.2 * u, y0b + 0.9 * u, bwid - 2.4 * u, 1.1 * u);
+            g.fillStyle = "rgba(255,252,240,.14)";
+            g.fillRect(x0 + 1.2 * u, y0b + 0.9 * u, 1.1 * u, bhei - 2.4 * u);
+            g.fillStyle = "rgba(24,20,14,.26)";
+            g.fillRect(x0 + 1.2 * u, y0b + bhei - 2 * u, bwid - 2.4 * u, 1.3 * u);
+            g.fillStyle = "rgba(24,20,14,.16)";
+            g.fillRect(x0 + bwid - 2.3 * u, y0b + 0.9 * u, 1.2 * u, bhei - 2.4 * u);
+            // pitted stone face
+            const pr = rng((seed + r * 97 + (x | 0)) | 0);
+            for (let i = 0; i < 26 * u * u; i++) {
+              g.globalAlpha = 0.06 + pr() * 0.16;
+              g.fillStyle = pr() < 0.5 ? tint[(pr() * tint.length) | 0] : "#ffffff";
+              g.fillRect(x0 + 1.5 * u + pr() * (bwid - 3 * u), y0b + 1.5 * u + pr() * (bhei - 3 * u),
+                0.8 * u + pr() * 1.6 * u, 0.8 * u + pr() * 1.4 * u);
+            }
+            g.globalAlpha = 1;
+            // a chipped corner here and there
+            if (pr() < 0.3) {
+              const cxp = pr() < 0.5 ? x0 + 2 * u : x0 + bwid - 7 * u;
+              const cyp = pr() < 0.5 ? y0b + 2 * u : y0b + bhei - 7 * u;
+              g.fillStyle = shade(base, 0.68);
+              g.beginPath();
+              g.moveTo(cxp, cyp);
+              g.lineTo(cxp + 5 * u, cyp + 1.4 * u);
+              g.lineTo(cxp + 1.4 * u, cyp + 5 * u);
+              g.closePath();
+              g.fill();
+            }
+            // block shadow onto the course below
+            g.fillStyle = "rgba(20,18,12,.16)";
+            g.fillRect(x0 - 0.4 * u, y0b + bhei, bwid + 0.8 * u, 1.4 * u);
+          });
+          x += bw;
+        }
+      }
+
+      // grime running down the wall + damp patches along the bottom
+      for (let i = 0; i < 9 + 6 * u; i++) {
+        const gx = R() * w, gyy = R() * h * 0.5, gh = 40 * u + R() * 130 * u, gw = 3 * u + R() * 9 * u;
+        wrapDraw(w, h, gx, gyy + gh / 2, gh, (px, py) => {
+          const lg = g.createLinearGradient(px, py - gh / 2, px, py + gh / 2);
+          lg.addColorStop(0, "rgba(48,44,34,.16)");
+          lg.addColorStop(1, "rgba(48,44,34,0)");
+          g.fillStyle = lg;
+          g.fillRect(px - gw / 2, py - gh / 2, gw, gh);
+        });
+      }
+      lightenNoise(g, w, h, seed + 5, 0.05);
+    });
+  }
+
+  /* cast concrete: aggregate, pour lines, form-board seams, hairline cracks */
+  function concreteTex(key, base, seed) {
+    return ctex(key, 512, 512, (g, w, h) => {
+      const R = rng(seed);
+      const u = w / 256;
       g.fillStyle = base;
       g.fillRect(0, 0, w, h);
-      speck(g, w, h, tint, seed, 1400);
-      g.strokeStyle = mortar;
-      g.lineWidth = 2;
-      for (let y = 0; y <= h; y += 16) {
+      // aggregate: few enough stones that the surface still reads as concrete
+      for (let i = 0; i < 1500; i++) {
+        g.globalAlpha = 0.03 + R() * 0.1;
+        g.fillStyle = ["#cfcdc2", "#8e8c82", "#a8a69b", "#e6e4d8", "#6f6d64"][(R() * 5) | 0];
+        const s = 0.9 * u + R() * 2.4 * u;
+        g.fillRect(R() * w, R() * h, s, s * (0.7 + R() * 0.6));
+      }
+      g.globalAlpha = 1;
+      // faint pore holes
+      for (let i = 0; i < 150; i++) {
+        const x = R() * w, y = R() * h, r = 0.8 * u + R() * 2 * u;
+        g.globalAlpha = 0.12 + R() * 0.16;
+        g.fillStyle = "rgba(58,56,50,1)";
+        g.beginPath(); g.arc(x, y, r, 0, 7); g.fill();
+        g.globalAlpha = 0.12;
+        g.fillStyle = "rgba(255,255,248,1)";
+        g.beginPath(); g.arc(x - r * 0.3, y - r * 0.45, r * 0.6, 0, 7); g.fill();
+      }
+      g.globalAlpha = 1;
+      // form-board seams (vertical panel joints, every quarter of the tile)
+      for (let i = 0; i < 4; i++) {
+        const x = i * (w / 4);
+        g.fillStyle = "rgba(60,58,52,.34)";
+        g.fillRect(x, 0, 1.6 * u, h);
+        g.fillStyle = "rgba(255,255,246,.22)";
+        g.fillRect(x + 1.6 * u, 0, 1.1 * u, h);
+      }
+      // pour line
+      g.fillStyle = "rgba(54,52,46,.3)";
+      g.fillRect(0, h * 0.5, w, 1.2 * u);
+      // hairline cracks
+      for (let c = 0; c < 5 + 4 * u; c++) {
+        let x = R() * w, y = R() * h;
+        g.strokeStyle = "rgba(46,44,40,.42)";
+        g.lineWidth = 0.8 * u;
         g.beginPath();
-        g.moveTo(0, y + 0.5);
-        g.lineTo(w, y + 0.5);
-        g.stroke();
-        const off = ((y / 16) | 0) % 2 ? 16 : 0;
-        for (let x = off; x <= w; x += 32) {
-          g.beginPath();
-          g.moveTo(x + 0.5, y);
-          g.lineTo(x + 0.5, y + 16);
-          g.stroke();
+        g.moveTo(x, y);
+        const steps = 8 + ((R() * 10) | 0);
+        for (let s = 0; s < steps; s++) {
+          x += (R() - 0.5) * 22 * u;
+          y += 6 * u + R() * 14 * u;
+          g.lineTo(x, y);
         }
+        g.stroke();
+        g.strokeStyle = "rgba(255,255,250,.2)";
+        g.lineWidth = 0.7 * u;
+        g.stroke();
+      }
+      // stains
+      for (let i = 0; i < 6; i++) {
+        const x = R() * w, y = R() * h, r = 14 * u + R() * 34 * u;
+        wrapDraw(w, h, x, y, r, (px, py) => {
+          const rg = g.createRadialGradient(px, py, 0, px, py, r);
+          rg.addColorStop(0, "rgba(86,82,70,.16)");
+          rg.addColorStop(1, "rgba(86,82,70,0)");
+          g.fillStyle = rg;
+          g.beginPath(); g.arc(px, py, r, 0, 7); g.fill();
+        });
       }
     });
   }
 
-  function camoTex(key, cols, seed) {
-    return ctex(key, 32, 32, (g, w, h) => {
+  /* cobblestone paving: laid stones, worn tops, mud in the joints */
+  function cobbleTex(key, base, seed) {
+    return ctex(key, 512, 512, (g, w, h) => {
       const R = rng(seed);
-      g.fillStyle = cols[0];
+      const u = w / 256;
+      g.fillStyle = "#4e4a41";
       g.fillRect(0, 0, w, h);
-      for (let i = 0; i < 26; i++) {
-        g.fillStyle = cols[1 + ((R() * (cols.length - 1)) | 0)];
-        g.fillRect((R() * w) | 0, (R() * h) | 0, 4 + ((R() * 9) | 0), 3 + ((R() * 7) | 0));
+      speck(g, w, h, ["#6a6456", "#3c3830"], seed + 2, 1400 * u * u, u);
+      const rows = 10, cols = 10;
+      const cw = w / cols, ch = h / rows;
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const off = (r % 2) * cw * 0.5;
+          const cx = c * cw + off;
+          const cy = r * ch;
+          const bw = cw - 2.4 * u + (R() - 0.5) * 4 * u;
+          const bh = ch - 2.4 * u + (R() - 0.5) * 3 * u;
+          const tone = 0.8 + R() * 0.36;
+          const col = shade(base, tone);
+          const midx = cx + (R() - 0.5) * 3 * u, midy = cy + (R() - 0.5) * 2 * u;
+          wrapDraw(w, h, midx, midy, Math.max(bw, bh), (px, py) => {
+            const x0 = px - bw / 2, y0 = py - bh / 2;
+            g.fillStyle = "rgba(18,16,12,.5)";
+            rr(g, x0 + 0.8 * u, y0 + 1.6 * u, bw, bh, 4 * u);
+            g.fill();
+            g.fillStyle = col;
+            rr(g, x0, y0, bw, bh, 3.4 * u);
+            g.fill();
+            // worn shape: lighter crown, darker rim
+            const rg = g.createRadialGradient(x0 + bw * 0.42, y0 + bh * 0.36, 0, x0 + bw / 2, y0 + bh / 2, bw * 0.72);
+            rg.addColorStop(0, "rgba(255,252,240,.16)");
+            rg.addColorStop(0.62, "rgba(255,252,240,0)");
+            rg.addColorStop(1, "rgba(30,26,20,.28)");
+            g.fillStyle = rg;
+            rr(g, x0, y0, bw, bh, 3.4 * u);
+            g.fill();
+            // speckle grit on the stone
+            const pr = rng((seed + r * 31 + c * 17) | 0);
+            for (let i = 0; i < 14 * u * u + 6; i++) {
+              g.globalAlpha = 0.06 + pr() * 0.14;
+              g.fillStyle = pr() < 0.5 ? "#ffffff" : "#3a352c";
+              g.fillRect(x0 + 2 * u + pr() * (bw - 4 * u), y0 + 2 * u + pr() * (bh - 4 * u), 1.4 * u, 1.1 * u);
+            }
+            g.globalAlpha = 1;
+          });
+        }
       }
-      speck(g, w, h, ["#000000", "#ffffff"], seed + 3, 220);
+      // muddy joints and worn patches
+      for (let i = 0; i < 10; i++) {
+        const x = R() * w, y = R() * h, r = 10 * u + R() * 26 * u;
+        wrapDraw(w, h, x, y, r, (px, py) => {
+          const rg = g.createRadialGradient(px, py, 0, px, py, r);
+          rg.addColorStop(0, "rgba(74,66,44,.2)");
+          rg.addColorStop(1, "rgba(74,66,44,0)");
+          g.fillStyle = rg;
+          g.beginPath(); g.arc(px, py, r, 0, 7); g.fill();
+        });
+      }
+      // a hairline crack running through a few stones
+      for (let k = 0; k < 2; k++) {
+        let x = R() * w, y = R() * h;
+        const dir = R() * 6.283;
+        let ang = dir;
+        const pts = [[x, y]];
+        for (let s = 0; s < 9; s++) {
+          ang += (R() - 0.5) * 0.5;
+          const len = (12 + R() * 26) * u;
+          x += Math.cos(ang) * len;
+          y += Math.sin(ang) * len;
+          pts.push([x, y]);
+        }
+        g.strokeStyle = "rgba(26,24,20,.32)";
+        g.lineWidth = 0.9 * u;
+        g.beginPath();
+        pts.forEach((p, i) => (i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1])));
+        g.stroke();
+        g.strokeStyle = "rgba(255,250,235,.18)";
+        g.lineWidth = 0.6 * u;
+        g.beginPath();
+        pts.forEach((p, i) => (i ? g.lineTo(p[0] + 1.1 * u, p[1] + 1.1 * u) : g.moveTo(p[0] + 1.1 * u, p[1] + 1.1 * u)));
+        g.stroke();
+      }
     });
   }
+
+  /* ---- fabric ------------------------------------------------------- */
+
+  /* digital camo: pixel-stepped clusters on a base tone + printed weave */
+  function camoTex(key, cols, seed, size) {
+    const SZ = size || 256;
+    return ctex(key, SZ, SZ, (g, w, h) => {
+      const R = rng(seed);
+      const cell = Math.max(2, w / 32);
+      g.fillStyle = cols[0];
+      g.fillRect(0, 0, w, h);
+      for (let i = 0; i < 44; i++) {
+        const bx = R() * w, by = R() * h;
+        const nx = 2 + ((R() * 4) | 0), ny = 2 + ((R() * 4) | 0);
+        const col = cols[1 + ((R() * (cols.length - 1)) | 0)];
+        g.fillStyle = col;
+        wrapDraw(w, h, bx, by, nx * cell, (px, py) => {
+          for (let iy = 0; iy < ny; iy++) {
+            for (let ix = 0; ix < nx; ix++) {
+              if ((iy === 0 || iy === ny - 1) && (ix === 0 || ix === nx - 1)) continue;
+              if ((iy === 1 || iy === ny - 2) && (ix === 0 || ix === nx - 1) && R() < 0.6) continue;
+              g.fillRect(px - (nx * cell) / 2 + ix * cell, py - (ny * cell) / 2 + iy * cell, cell + 0.4, cell + 0.4);
+            }
+          }
+        });
+      }
+      // printed fabric weave sitting under the pattern
+      g.globalAlpha = 0.1;
+      g.fillStyle = "#000000";
+      for (let y = 0; y < h; y += 2) g.fillRect(0, y, w, 0.7);
+      g.globalAlpha = 0.08;
+      g.fillStyle = "#ffffff";
+      for (let x = 0; x < w; x += 2) g.fillRect(x, 0, 0.7, h);
+      g.globalAlpha = 1;
+      speck(g, w, h, ["#1d2416", "#000000", "#4d5a33"], seed + 3, 500 * (SZ / 128) * (SZ / 128), 0.6 * (SZ / 128));
+      // soft folds so the blocks do not read as flat paper
+      for (let i = 0; i < 4; i++) {
+        const y = R() * h, th = 6 + R() * 16;
+        const lg = g.createLinearGradient(0, y - th, 0, y + th);
+        lg.addColorStop(0, "rgba(255,255,255,.05)");
+        lg.addColorStop(0.5, "rgba(0,0,0,.08)");
+        lg.addColorStop(1, "rgba(255,255,255,.03)");
+        g.fillStyle = lg;
+        g.fillRect(0, y - th, w, th * 2);
+      }
+    });
+  }
+
+  /* burlap: jute weave with fibers, dirt and stitched seams */
+  function burlapTex(key, base, seed) {
+    return ctex(key, 256, 256, (g, w, h) => {
+      const R = rng(seed);
+      const u = w / 128;
+      g.fillStyle = base;
+      g.fillRect(0, 0, w, h);
+      const step = 4 * u;
+      for (let y = 0; y < h; y += step) {
+        g.globalAlpha = 0.17;
+        g.fillStyle = "#6a5836";
+        g.fillRect(0, y, w, step * 0.42);
+        g.globalAlpha = 0.1;
+        g.fillStyle = "#f2e5c2";
+        g.fillRect(0, y + step * 0.55, w, step * 0.28);
+      }
+      for (let x = 0; x < w; x += step) {
+        g.globalAlpha = 0.13;
+        g.fillStyle = "#5c4a2a";
+        g.fillRect(x, 0, step * 0.4, h);
+        g.globalAlpha = 0.09;
+        g.fillStyle = "#f6ecc9";
+        g.fillRect(x + step * 0.58, 0, step * 0.28, h);
+      }
+      g.globalAlpha = 1;
+      // loose jute fibers
+      for (let i = 0; i < 190; i++) {
+        g.globalAlpha = 0.05 + R() * 0.13;
+        g.strokeStyle = R() < 0.5 ? "#57451f" : "#f0e3c0";
+        g.lineWidth = 0.8 * u;
+        const x = R() * w, y = R() * h, l = (3 + R() * 8) * u, a = (R() - 0.5) * 0.5;
+        g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l); g.stroke();
+      }
+      g.globalAlpha = 1;
+      // dust and sand trapped in the weave
+      for (let i = 0; i < 8; i++) {
+        const x = R() * w, y = R() * h, r = (10 + R() * 22) * u;
+        wrapDraw(w, h, x, y, r, (px, py) => {
+          const rg = g.createRadialGradient(px, py, 0, px, py, r);
+          rg.addColorStop(0, "rgba(86,68,38,.26)");
+          rg.addColorStop(1, "rgba(86,68,38,0)");
+          g.fillStyle = rg;
+          g.beginPath(); g.arc(px, py, r, 0, 7); g.fill();
+        });
+      }
+      // stitched seam along the top like a filled bag
+      g.strokeStyle = "rgba(58,46,26,.6)";
+      g.lineWidth = 1.4 * u;
+      g.setLineDash([4 * u, 3 * u]);
+      g.beginPath(); g.moveTo(0, 6 * u); g.lineTo(w, 6 * u); g.stroke();
+      g.setLineDash([]);
+    });
+  }
+
+  /* neutral weave multiplied by a material colour keeps uniforms from
+     reading as flat plastic */
+  function weaveTex(key, base, seed, step) {
+    return ctex(key, 256, 256, (g, w, h) => {
+      const R = rng(seed);
+      const u = w / 128;
+      const st = (step || 2) * u;
+      g.fillStyle = base;
+      g.fillRect(0, 0, w, h);
+      for (let y = 0; y < h; y += st) {
+        g.globalAlpha = 0.1;
+        g.fillStyle = "#000000";
+        g.fillRect(0, y, w, st * 0.45);
+        g.globalAlpha = 0.07;
+        g.fillStyle = "#ffffff";
+        g.fillRect(0, y + st * 0.55, w, st * 0.4);
+      }
+      for (let x = 0; x < w; x += st) {
+        g.globalAlpha = 0.075;
+        g.fillStyle = "#000000";
+        g.fillRect(x, 0, st * 0.45, h);
+        g.globalAlpha = 0.055;
+        g.fillStyle = "#ffffff";
+        g.fillRect(x + st * 0.55, 0, st * 0.4, h);
+      }
+      g.globalAlpha = 1;
+      // slubs and wear
+      for (let i = 0; i < 150; i++) {
+        g.globalAlpha = 0.04 + R() * 0.1;
+        g.fillStyle = R() < 0.55 ? "#000000" : "#ffffff";
+        g.fillRect(R() * w, R() * h, (1 + R() * 5) * u, (0.8 + R() * 2) * u);
+      }
+      g.globalAlpha = 1;
+      for (let i = 0; i < 5; i++) {
+        const x = R() * w, y = R() * h, r = (12 + R() * 26) * u;
+        wrapDraw(w, h, x, y, r, (px, py) => {
+          const rg = g.createRadialGradient(px, py, 0, px, py, r);
+          rg.addColorStop(0, "rgba(0,0,0,.09)");
+          rg.addColorStop(1, "rgba(0,0,0,0)");
+          g.fillStyle = rg;
+          g.beginPath(); g.arc(px, py, r, 0, 7); g.fill();
+        });
+      }
+    });
+  }
+
+  /* ---- timber ------------------------------------------------------- */
+
+  function woodTex(key, base, dark, light, seed) {
+    return ctex(key, 512, 512, (g, w, h) => {
+      const R = rng(seed);
+      const u = w / 256;
+      g.fillStyle = base;
+      g.fillRect(0, 0, w, h);
+      const planks = 4, ph = h / planks;
+      for (let p = 0; p < planks; p++) {
+        const y0 = p * ph;
+        g.fillStyle = shade(base, 0.88 + R() * 0.24);
+        g.fillRect(0, y0, w, ph);
+        // grain: sine lines that meet themselves at the tile seam
+        for (let i = 0; i < 44; i++) {
+          const gy = y0 + 3 * u + R() * (ph - 6 * u);
+          const freq = 1 + ((R() * 3) | 0);
+          const amp = (0.8 + R() * 2.2) * u;
+          const phase = R() * 6.28;
+          g.globalAlpha = 0.1 + R() * 0.26;
+          g.strokeStyle = R() < 0.55 ? dark : light;
+          g.lineWidth = (0.6 + R() * 1.2) * u;
+          g.beginPath();
+          for (let x = 0; x <= w; x += 8 * u) {
+            const yy = gy + Math.sin((x / w) * 6.283 * freq + phase) * amp
+                       + Math.sin((x / w) * 6.283 * (freq + 3) + phase) * amp * 0.35;
+            if (x === 0) g.moveTo(x, yy);
+            else g.lineTo(x, yy);
+          }
+          g.stroke();
+        }
+        g.globalAlpha = 1;
+        // knot
+        if (R() < 0.85) {
+          const kx = R() * w, ky = y0 + ph * (0.3 + R() * 0.4);
+          const kr = (5 + R() * 5) * u;
+          wrapDraw(w, h, kx, ky, kr * 2, (px, py) => {
+            for (let r = kr; r > 0; r -= kr / 4) {
+              g.strokeStyle = "rgba(54,32,12," + (0.12 + 0.08 * r / kr) + ")";
+              g.lineWidth = 1 * u;
+              g.beginPath();
+              g.ellipse(px, py, r * 1.5, r * 0.62, 0.4, 0, 7);
+              g.stroke();
+            }
+            g.fillStyle = "rgba(38,22,8,.55)";
+            g.beginPath(); g.ellipse(px, py, kr * 0.4, kr * 0.26, 0.4, 0, 7); g.fill();
+          });
+        }
+        // seam between boards
+        g.fillStyle = "rgba(26,16,6,.55)";
+        g.fillRect(0, y0, w, 2 * u);
+        g.fillStyle = "rgba(255,236,204,.16)";
+        g.fillRect(0, y0 + 2 * u, w, 1 * u);
+      }
+      // nail heads along the seams
+      for (let p = 0; p < planks; p++) {
+        for (let i = 0; i < 4; i++) {
+          const nx = (i + 0.5) * (w / 4) + (R() - 0.5) * 12 * u;
+          const ny = p * ph + 2.4 * u;
+          g.fillStyle = "rgba(40,40,44,.7)";
+          g.beginPath(); g.arc(nx, ny, 1.5 * u, 0, 7); g.fill();
+          g.fillStyle = "rgba(230,232,238,.35)";
+          g.beginPath(); g.arc(nx - 0.4 * u, ny - 0.4 * u, 0.6 * u, 0, 7); g.fill();
+        }
+      }
+      speck(g, w, h, [dark, light], seed + 9, 900 * (w / 256) * (h / 256), u);
+    });
+  }
+
+  /* ---- paint, metal, ground ---------------------------------------- */
+
+  function barrelTex(key, seed) {
+    return ctex(key, 256, 256, (g, w, h) => {
+      const R = rng(seed);
+      const u = w / 128;
+      g.fillStyle = "#b8302a";
+      g.fillRect(0, 0, w, h);
+      const lg = g.createLinearGradient(0, 0, w, 0);
+      lg.addColorStop(0, "rgba(0,0,0,.28)");
+      lg.addColorStop(0.35, "rgba(255,255,255,.14)");
+      lg.addColorStop(0.6, "rgba(255,255,255,.05)");
+      lg.addColorStop(1, "rgba(0,0,0,.34)");
+      g.fillStyle = lg;
+      g.fillRect(0, 0, w, h);
+      // rolling hoops
+      [0.16, 0.5, 0.84].forEach((f) => {
+        const y = f * h;
+        g.fillStyle = "rgba(72,20,16,.6)";
+        g.fillRect(0, y - 4 * u, w, 8 * u);
+        g.fillStyle = "rgba(255,220,200,.18)";
+        g.fillRect(0, y - 4 * u, w, 1.6 * u);
+        g.fillStyle = "rgba(0,0,0,.28)";
+        g.fillRect(0, y + 2.4 * u, w, 1.6 * u);
+      });
+      // rust, dents and scratched paint
+      for (let i = 0; i < 26; i++) {
+        const x = R() * w, y = R() * h, r = (2 + R() * 9) * u;
+        wrapDraw(w, h, x, y, r * 2, (px, py) => {
+          const rg = g.createRadialGradient(px, py, 0, px, py, r);
+          rg.addColorStop(0, "rgba(120,64,22,.55)");
+          rg.addColorStop(0.7, "rgba(88,42,16,.3)");
+          rg.addColorStop(1, "rgba(88,42,16,0)");
+          g.fillStyle = rg;
+          g.beginPath(); g.arc(px, py, r, 0, 7); g.fill();
+        });
+      }
+      for (let i = 0; i < 16; i++) {
+        g.globalAlpha = 0.3 + R() * 0.4;
+        g.strokeStyle = R() < 0.5 ? "rgba(240,220,200,.5)" : "rgba(60,16,12,.5)";
+        g.lineWidth = 0.8 * u;
+        const x = R() * w, y = R() * h;
+        g.beginPath(); g.moveTo(x, y); g.lineTo(x + (R() - 0.5) * 20 * u, y + (R() - 0.5) * 6 * u); g.stroke();
+      }
+      g.globalAlpha = 1;
+      speck(g, w, h, ["#e05a4a", "#7a1612"], seed + 4, 420, u);
+    });
+  }
+
+  /* machined steel: brushed streaks along the slide, polishing bands,
+     scratches and pits. Kept near white so it multiplies with the part
+     colour instead of replacing it. */
+  function metalTex(key, seed, opt) {
+    const o = opt || {};
+    const SZ = o.size || 256;
+    return ctex(key, SZ, SZ, (g, w, h) => {
+      const R = rng(seed);
+      const u = w / 256;
+      g.fillStyle = o.base || "#e6eaee";
+      g.fillRect(0, 0, w, h);
+      for (let i = 0; i < 2600 * u; i++) {
+        g.globalAlpha = 0.035 + R() * 0.11;
+        g.fillStyle = R() < 0.52 ? "#ffffff" : "#7d8794";
+        g.fillRect(R() * w, R() * h, (10 + R() * 90) * u, (0.5 + R() * 1.1) * u);
+      }
+      g.globalAlpha = 1;
+      for (let i = 0; i < 3; i++) {
+        const y = R() * h, th = (18 + R() * 44) * u;
+        const lg = g.createLinearGradient(0, y - th, 0, y + th);
+        lg.addColorStop(0, "rgba(255,255,255,0)");
+        lg.addColorStop(0.45, "rgba(255,255,255,.2)");
+        lg.addColorStop(1, "rgba(255,255,255,0)");
+        g.fillStyle = lg;
+        g.fillRect(0, y - th, w, th * 2);
+      }
+      for (let i = 0; i < 26; i++) {
+        g.globalAlpha = 0.09 + R() * 0.2;
+        g.strokeStyle = R() < 0.62 ? "#5b6470" : "#ffffff";
+        g.lineWidth = (0.5 + R() * 0.9) * u;
+        const x = R() * w, y = R() * h, a = (R() - 0.5) * 0.5, l = (6 + R() * 60) * u;
+        g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l); g.stroke();
+      }
+      g.globalAlpha = 1;
+      for (let i = 0; i < 30 * u; i++) {
+        g.globalAlpha = 0.07 + R() * 0.13;
+        g.fillStyle = "#4a525c";
+        g.beginPath(); g.arc(R() * w, R() * h, (0.5 + R() * 1.1) * u, 0, 7); g.fill();
+      }
+      g.globalAlpha = 1;
+    });
+  }
+
+  /* stippled polymer: moulded grain and mottling that still reads when the
+     material colour is almost black */
+  function polymerTex(key, seed) {
+    return ctex(key, 128, 128, (g, w, h) => {
+      const R = rng(seed);
+      const u = w / 128;
+      g.fillStyle = "#d8d8d8";
+      g.fillRect(0, 0, w, h);
+      for (let y = 0; y < h; y += 4 * u) {
+        for (let x = 0; x < w; x += 4 * u) {
+          const v = 0.82 + R() * 0.34;
+          const c = Math.max(0, Math.min(255, Math.round(216 * v)));
+          g.fillStyle = "rgb(" + c + "," + c + "," + c + ")";
+          g.fillRect(x + R() * 1.5 * u, y + R() * 1.5 * u, 2.4 * u, 2.2 * u);
+        }
+      }
+      for (let i = 0; i < 90; i++) {
+        g.globalAlpha = 0.05 + R() * 0.12;
+        g.fillStyle = R() < 0.5 ? "#ffffff" : "#8a8a8a";
+        g.fillRect(R() * w, R() * h, (1 + R() * 6) * u, (0.8 + R() * 2) * u);
+      }
+      g.globalAlpha = 1;
+    });
+  }
+
+  /* scuffed leather for boots, straps and holsters */
+  function leatherTex(key, base, seed) {
+    return ctex(key, 256, 256, (g, w, h) => {
+      const R = rng(seed);
+      const u = w / 256;
+      g.fillStyle = base;
+      g.fillRect(0, 0, w, h);
+      for (let i = 0; i < 420; i++) {
+        g.globalAlpha = 0.05 + R() * 0.14;
+        g.fillStyle = R() < 0.5 ? "#ffffff" : "#000000";
+        const s = (1 + R() * 5) * u;
+        g.fillRect(R() * w, R() * h, s, s * (0.5 + R() * 1.2));
+      }
+      g.globalAlpha = 1;
+      // creases across the flex lines
+      for (let i = 0; i < 16; i++) {
+        g.globalAlpha = 0.1 + R() * 0.16;
+        g.strokeStyle = R() < 0.6 ? "#000000" : "#ffffff";
+        g.lineWidth = (0.7 + R() * 1.3) * u;
+        const y = R() * h;
+        g.beginPath();
+        for (let x = 0; x <= w; x += 10 * u) {
+          const yy = y + Math.sin((x / w) * 6.283 * (1 + ((R() * 2) | 0))) * 3 * u;
+          if (x === 0) g.moveTo(x, yy); else g.lineTo(x, yy);
+        }
+        g.stroke();
+      }
+      g.globalAlpha = 1;
+      // polish patches where it rubs
+      for (let i = 0; i < 5; i++) {
+        const x = R() * w, y = R() * h, r = (14 + R() * 30) * u;
+        wrapDraw(w, h, x, y, r, (px, py) => {
+          const rg = g.createRadialGradient(px, py, 0, px, py, r);
+          rg.addColorStop(0, "rgba(255,246,226,.16)");
+          rg.addColorStop(1, "rgba(255,246,226,0)");
+          g.fillStyle = rg;
+          g.beginPath(); g.arc(px, py, r, 0, 7); g.fill();
+        });
+      }
+    });
+  }
+
+  /* pistol grip: diamond checkering cut into the side panels, a stippled
+     front strap, rubbed-smooth wear and a few moulding marks. */
+  function gripTex() {
+    return ctex("grip", 256, 256, (g, w, h) => {
+      const R = rng(17);
+      const u = w / 256;
+      g.fillStyle = "#2c343d";
+      g.fillRect(0, 0, w, h);
+      speck(g, w, h, ["#1a2027", "#3d4752", "#242b33"], 5, 2200, 0.9 * u);
+      // diamond checkering lattice
+      const step = 14 * u;
+      const span = w + h;
+      g.lineCap = "butt";
+      for (let i = -span; i < span * 2; i += step) {
+        g.strokeStyle = "rgba(5,8,11,.92)";
+        g.lineWidth = 2.8 * u;
+        g.beginPath(); g.moveTo(i, 0); g.lineTo(i + h, h); g.stroke();
+        g.beginPath(); g.moveTo(i, h); g.lineTo(i + h, 0); g.stroke();
+        // raised ridge catching light on the upper side of each groove
+        g.strokeStyle = "rgba(188,208,228,.46)";
+        g.lineWidth = 1.3 * u;
+        g.beginPath(); g.moveTo(i - 2 * u, 0); g.lineTo(i + h - 2 * u, h); g.stroke();
+        g.beginPath(); g.moveTo(i + 2 * u, h); g.lineTo(i + h + 2 * u, 0); g.stroke();
+      }
+      // stippled front-strap bands
+      for (let b = 0; b < 2; b++) {
+        const y0 = h * (0.16 + b * 0.52), y1 = y0 + h * 0.2;
+        for (let i = 0; i < 900; i++) {
+          const x = 6 * u + R() * (w - 12 * u), y = y0 + R() * (y1 - y0);
+          g.globalAlpha = 0.3 + R() * 0.5;
+          g.fillStyle = R() < 0.5 ? "rgba(8,11,14,.9)" : "rgba(120,140,164,.35)";
+          g.beginPath(); g.arc(x, y, (0.6 + R() * 1.1) * u, 0, 7); g.fill();
+        }
+      }
+      g.globalAlpha = 1;
+      // rubbed-smooth wear where the hand sits
+      for (let i = 0; i < 7; i++) {
+        const x = R() * w, y = R() * h, r = (16 + R() * 40) * u;
+        wrapDraw(w, h, x, y, r, (px, py) => {
+          const rg = g.createRadialGradient(px, py, 0, px, py, r);
+          rg.addColorStop(0, "rgba(150,166,184,.16)");
+          rg.addColorStop(1, "rgba(150,166,184,0)");
+          g.fillStyle = rg;
+          g.beginPath(); g.arc(px, py, r, 0, 7); g.fill();
+        });
+      }
+      // mould seams and a magazine-release notch
+      g.strokeStyle = "rgba(0,0,0,.5)";
+      g.lineWidth = 1.6 * u;
+      g.beginPath(); g.moveTo(0, h * 0.5); g.lineTo(w, h * 0.52); g.stroke();
+      g.fillStyle = "rgba(8,10,13,.85)";
+      g.beginPath(); g.arc(w * 0.5, h * 0.07, 5.5 * u, 0, 7); g.fill();
+      g.fillStyle = "rgba(170,186,204,.3)";
+      g.beginPath(); g.arc(w * 0.5 - 1.2 * u, h * 0.07 - 1.2 * u, 2.2 * u, 0, 7); g.fill();
+    });
+  }
+
+  function groundTex(key, seed) {
+    return ctex(key, 512, 512, (g, w, h) => {
+      const R = rng(seed);
+      const u = w / 128;
+      g.fillStyle = "#7d7a5e";
+      g.fillRect(0, 0, w, h);
+      for (let i = 0; i < 900 * 6; i++) {
+        g.globalAlpha = 0.08 + R() * 0.22;
+        g.fillStyle = ["#6a6748", "#8f8b6a", "#5c5a3f", "#9c9878", "#4e4c34"][(R() * 5) | 0];
+        const s = (0.8 + R() * 3) * u;
+        g.fillRect(R() * w, R() * h, s, s * (0.6 + R() * 0.9));
+      }
+      g.globalAlpha = 1;
+      // clods and pebbles
+      for (let i = 0; i < 26 * 8; i++) {
+        const x = R() * w, y = R() * h, r = (1.5 + R() * 4) * u;
+        wrapDraw(w, h, x, y, r * 2, (px, py) => {
+          g.fillStyle = "rgba(52,50,36,.35)";
+          g.beginPath(); g.arc(px + 0.5 * u, py + 0.7 * u, r, 0, 7); g.fill();
+          g.fillStyle = shade("#8a8568", 0.82 + R() * 0.4);
+          g.beginPath(); g.arc(px, py, r * 0.9, 0, 7); g.fill();
+        });
+      }
+      // scattered dry grass
+      for (let i = 0; i < 70 * 6; i++) {
+        g.globalAlpha = 0.12 + R() * 0.25;
+        g.strokeStyle = R() < 0.5 ? "#6f7b46" : "#8f8a58";
+        g.lineWidth = 0.8 * u;
+        const x = R() * w, y = R() * h, l = (2 + R() * 5) * u, a = -1.57 + (R() - 0.5) * 1.2;
+        g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l); g.stroke();
+      }
+      g.globalAlpha = 1;
+    });
+  }
+
+  /* slight per-pixel luminance noise so large flat areas breathe */
+  function lightenNoise(g, w, h, seed, alpha) {
+    const R = rng(seed);
+    const img = g.getImageData(0, 0, w, h);
+    const d = img.data;
+    for (let i = 0; i < d.length; i += 4) {
+      const n = (R() - 0.5) * 255 * (alpha || 0.06);
+      d[i] = Math.max(0, Math.min(255, d[i] + n));
+      d[i + 1] = Math.max(0, Math.min(255, d[i + 1] + n));
+      d[i + 2] = Math.max(0, Math.min(255, d[i + 2] + n));
+    }
+    g.putImageData(img, 0, 0);
+  }
+
+  /* ---- flags and insignia ------------------------------------------ */
 
   function starPath(g, cx, cy, r) {
     g.beginPath();
     for (let i = 0; i < 10; i++) {
       const a = -Math.PI / 2 + (i * Math.PI) / 5;
-      const rr = i % 2 ? r * 0.42 : r;
-      const x = cx + Math.cos(a) * rr;
-      const y = cy + Math.sin(a) * rr;
+      const rr2 = i % 2 ? r * 0.382 : r;
+      const x = cx + Math.cos(a) * rr2;
+      const y = cy + Math.sin(a) * rr2;
       if (i) g.lineTo(x, y);
       else g.moveTo(x, y);
     }
     g.closePath();
   }
 
+  function clothFlag(g, w, h) {
+    // printed flag cloth: faint weave + fold shading, kept subtle
+    g.globalAlpha = 0.06;
+    g.fillStyle = "#000000";
+    for (let y = 0; y < h; y += 2) g.fillRect(0, y, w, 0.8);
+    g.globalAlpha = 0.05;
+    g.fillStyle = "#ffffff";
+    for (let x = 0; x < w; x += 2) g.fillRect(x, 0, 0.8, h);
+    g.globalAlpha = 1;
+    const lg = g.createLinearGradient(0, 0, w, 0);
+    lg.addColorStop(0, "rgba(0,0,0,.10)");
+    lg.addColorStop(0.28, "rgba(255,255,255,.10)");
+    lg.addColorStop(0.62, "rgba(0,0,0,.07)");
+    lg.addColorStop(1, "rgba(255,255,255,.06)");
+    g.fillStyle = lg;
+    g.fillRect(0, 0, w, h);
+  }
+
   function flagKR() {
-    return ctex("flagKR", 96, 64, (g, w, h) => {
+    return ctex("flagKR", 256, 176, (g, w, h) => {
       g.fillStyle = "#f6f4ec";
       g.fillRect(0, 0, w, h);
-      const cx = w / 2, cy = h / 2, r = 13;
+      const cx = w / 2, cy = h / 2, r = h * 0.22;
       g.fillStyle = "#cd2e3a";
-      g.beginPath();
-      g.arc(cx, cy, r, 0, Math.PI * 2);
-      g.fill();
+      g.beginPath(); g.arc(cx, cy, r, Math.PI, Math.PI * 2); g.fill();
       g.fillStyle = "#0047a0";
-      g.beginPath();
-      g.arc(cx, cy, r, 0, Math.PI);
-      g.fill();
+      g.beginPath(); g.arc(cx, cy, r, 0, Math.PI); g.fill();
       g.fillStyle = "#cd2e3a";
-      g.beginPath();
-      g.arc(cx - r / 2, cy, r / 2, 0, Math.PI * 2);
-      g.fill();
+      g.beginPath(); g.arc(cx - r / 2, cy, r / 2, 0, Math.PI * 2); g.fill();
       g.fillStyle = "#0047a0";
-      g.beginPath();
-      g.arc(cx + r / 2, cy, r / 2, 0, Math.PI * 2);
-      g.fill();
-      g.fillStyle = "#141414";
-      const tri = [
-        [16, 12, -0.6, 0], [80, 12, 0.6, 0], [16, 52, 0.6, 0], [80, 52, -0.6, 0]
-      ];
-      tri.forEach(([px, py, rot]) => {
+      g.beginPath(); g.arc(cx + r / 2, cy, r / 2, 0, Math.PI * 2); g.fill();
+      // soft ink edge on the taegeuk
+      g.strokeStyle = "rgba(120,40,40,.12)";
+      g.lineWidth = 1;
+      g.beginPath(); g.arc(cx, cy, r, 0, Math.PI * 2); g.stroke();
+
+      // trigrams: three bars each, with the gap the flag uses
+      const bar = (px, py, ang, broken) => {
         g.save();
         g.translate(px, py);
-        g.rotate(rot);
-        for (let i = 0; i < 3; i++) g.fillRect(-7, -6 + i * 5, 14, 2.5);
+        g.rotate(ang);
+        g.fillStyle = "#141414";
+        const bw = h * 0.155, bh = h * 0.028;
+        for (let i = 0; i < 3; i++) {
+          const yy = (i - 1) * bh * 2.1;
+          if (broken && i === 1) {
+            g.fillRect(-bw / 2, yy, bw * 0.42, bh);
+            g.fillRect(bw * 0.08, yy, bw * 0.42, bh);
+          } else {
+            g.fillRect(-bw / 2, yy, bw, bh);
+          }
+        }
         g.restore();
-      });
-      g.strokeStyle = "rgba(120,110,90,.35)";
-      g.lineWidth = 2;
-      g.strokeRect(1, 1, w - 2, h - 2);
+      };
+      const off = h * 0.3;
+      bar(w * 0.5 - off, h * 0.5 - off * 0.62, -0.6, true);
+      bar(w * 0.5 + off, h * 0.5 - off * 0.62, 0.6, true);
+      bar(w * 0.5 - off, h * 0.5 + off * 0.62, 0.6, false);
+      bar(w * 0.5 + off, h * 0.5 + off * 0.62, -0.6, false);
+      clothFlag(g, w, h);
+      g.strokeStyle = "rgba(120,110,90,.3)";
+      g.lineWidth = 1;
+      g.strokeRect(0.5, 0.5, w - 1, h - 1);
     });
   }
 
   function flagKP() {
-    return ctex("flagKP", 96, 64, (g, w, h) => {
+    return ctex("flagKP", 256, 176, (g, w, h) => {
       g.fillStyle = "#0b4ea2";
       g.fillRect(0, 0, w, h);
+      const bandTop = h * 0.19, bandH = h * 0.62;
       g.fillStyle = "#ffffff";
-      g.fillRect(0, 12, w, 3);
-      g.fillRect(0, 49, w, 3);
+      g.fillRect(0, bandTop - h * 0.045, w, h * 0.045);
+      g.fillRect(0, bandTop + bandH, w, h * 0.045);
       g.fillStyle = "#c8102e";
-      g.fillRect(0, 15, w, 34);
+      g.fillRect(0, bandTop, w, bandH);
+      // emblem
+      const cx = w * 0.33, cy = h * 0.5, r = h * 0.19;
       g.fillStyle = "#ffffff";
-      g.beginPath();
-      g.arc(31, 32, 13, 0, Math.PI * 2);
-      g.fill();
+      g.beginPath(); g.arc(cx, cy, r, 0, Math.PI * 2); g.fill();
       g.fillStyle = "#c8102e";
-      starPath(g, 31, 32, 10);
+      starPath(g, cx, cy, r * 0.82);
       g.fill();
-      g.strokeStyle = "rgba(0,0,0,.25)";
-      g.lineWidth = 2;
-      g.strokeRect(1, 1, w - 2, h - 2);
+      // a hint of the emblem shadow
+      g.strokeStyle = "rgba(0,0,0,.1)";
+      g.lineWidth = 1;
+      g.beginPath(); g.arc(cx, cy, r, 0, Math.PI * 2); g.stroke();
+      clothFlag(g, w, h);
+      g.strokeStyle = "rgba(0,0,0,.22)";
+      g.lineWidth = 1.5;
+      g.strokeRect(0.5, 0.5, w - 1, h - 1);
     });
   }
 
-  /* Faces in the jump engine's style: sclera + iris + glint, brows,
-     nose shadow, mouth line, cheeks and stubble, painted at 64x64 so the
-     block head still reads as a character at combat distance. */
+  /* ---- faces ------------------------------------------------------- */
+
+  /* Painted at 256x256 in a 64-unit coordinate space: the same read as the
+     old 64px heads, but with real lids, iris gradients, lip and pore detail
+     so a soldier's face holds up when the camera pushes in. */
   function paintFace(g, w, h, o) {
-    const gr = g.createLinearGradient(0, 0, 0, h);
+    const S = w / 64;
+    g.save();
+    g.scale(S, S);
+    const W = 64, H = 64;
+
+    // skin base
+    const gr = g.createLinearGradient(0, 0, 0, H);
     gr.addColorStop(0, o.top || "#f0c49c");
     gr.addColorStop(0.55, o.mid || "#dda87e");
     gr.addColorStop(1, o.bot || "#b8825a");
     g.fillStyle = gr;
-    g.fillRect(0, 0, w, h);
-    speck(g, w, h, ["#ffffff", "#8a5a3a"], o.seed || 7, 130);
+    g.fillRect(0, 0, W, H);
 
-    // hair line and sideburns
+    const R = rng(o.seed || 7);
+    // pores and freckles
+    for (let i = 0; i < 260; i++) {
+      g.globalAlpha = 0.04 + R() * 0.08;
+      g.fillStyle = R() < 0.55 ? "#ffffff" : "#8a5a3a";
+      g.fillRect(R() * W, R() * H, 0.3, 0.3);
+    }
+    g.globalAlpha = 1;
+
+    // temple / side shading and jaw darkening
+    const tm = g.createLinearGradient(0, 0, W, 0);
+    tm.addColorStop(0, "rgba(96,60,36,.26)");
+    tm.addColorStop(0.16, "rgba(96,60,36,0)");
+    tm.addColorStop(0.84, "rgba(96,60,36,0)");
+    tm.addColorStop(1, "rgba(96,60,36,.26)");
+    g.fillStyle = tm;
+    g.fillRect(0, 0, W, H);
+    const jaw = g.createLinearGradient(0, H - 12, 0, H);
+    jaw.addColorStop(0, "rgba(110,64,38,0)");
+    jaw.addColorStop(1, "rgba(110,64,38,.34)");
+    g.fillStyle = jaw;
+    g.fillRect(0, H - 12, W, 12);
+
+    // hair line with individual strands
     g.fillStyle = o.hair || "#241a12";
-    g.fillRect(0, 0, w, 6);
-    g.fillRect(0, 0, 5, 16);
-    g.fillRect(w - 5, 0, 5, 16);
+    g.fillRect(0, 0, W, 6);
+    g.beginPath();
+    g.moveTo(0, 6);
+    for (let x = 0; x <= W; x += 2) g.lineTo(x, 5.4 + Math.sin(x * 0.8) * 0.5 + R() * 0.7);
+    g.lineTo(W, 0); g.lineTo(0, 0);
+    g.closePath();
+    g.fill();
+    for (let i = 0; i < 90; i++) {
+      g.globalAlpha = 0.18 + R() * 0.4;
+      g.strokeStyle = R() < 0.5 ? "#161009" : "#4a3524";
+      g.lineWidth = 0.3;
+      const x = R() * W;
+      g.beginPath(); g.moveTo(x, 0); g.lineTo(x + (R() - 0.5) * 1.2, 5.4 + R() * 1.8); g.stroke();
+    }
+    g.globalAlpha = 1;
+    // sideburns
+    g.fillStyle = o.hair || "#241a12";
+    g.fillRect(0, 0, 4.6, 16.5);
+    g.fillRect(W - 4.6, 0, 4.6, 16.5);
+    g.globalAlpha = 0.55;
+    for (let i = 0; i < 26; i++) {
+      g.fillStyle = "#150f09";
+      const yy = 12 + R() * 6;
+      g.fillRect(R() < 0.5 ? R() * 2 : W - 2 - R() * 2, yy, 0.5, 1.6);
+    }
+    g.globalAlpha = 1;
 
     // brows
-    g.fillStyle = o.brow || "#2b1d12";
-    if (o.angry) {
-      g.fillRect(9, 14, 19, 4);
-      g.fillRect(8, 18, 8, 3);
-      g.fillRect(36, 14, 19, 4);
-      g.fillRect(48, 18, 8, 3);
-    } else if (o.worried) {
-      g.fillRect(11, 15, 16, 3);
-      g.fillRect(17, 18, 9, 3);
-      g.fillRect(37, 15, 16, 3);
-      g.fillRect(38, 18, 9, 3);
-    } else {
-      g.fillRect(11, 16, 16, 4);
-      g.fillRect(37, 16, 16, 4);
-    }
-
-    // eyes: sclera, iris, pupil, glint
-    [18, 42].forEach((cx, i) => {
-      g.fillStyle = "#f6f1e6";
-      g.fillRect(cx - 7, 24, 14, 9);
-      g.fillStyle = "#8a5c3a";
-      g.fillRect(cx - 4, 25, 7, 8);
-      g.fillStyle = o.iris || "#2a1a10";
-      g.fillRect(cx - 3, 25, 5, 8);
-      g.fillStyle = "#0d0a08";
-      g.fillRect(cx - 2, 27, 3, 5);
-      g.fillStyle = "#ffffff";
-      g.fillRect(cx - 2, 26, 2, 2);
-      g.fillStyle = "rgba(40,24,14,.55)";
-      g.fillRect(cx - 7, 23, 14, 2);
-      if (o.tired) {
-        g.fillStyle = "rgba(120,80,60,.5)";
-        g.fillRect(cx - 7, 32, 14, 2);
+    const brow = (cx, dir) => {
+      g.fillStyle = o.brow || "#2b1d12";
+      const tilt = o.angry ? -1.5 : o.worried ? 1.6 : 0;
+      const y0 = o.worried ? 15.2 : 14.8;
+      for (let i = 0; i < 3; i++) {
+        const gx = cx - 8 + i * 0.4;
+        g.save();
+        g.beginPath();
+        g.moveTo(cx - 8, y0 + 2.2 * i + (dir > 0 ? tilt * 0.35 : -tilt * 0.35));
+        g.lineTo(cx + 8, y0 + 1.6 * i - (dir > 0 ? tilt * 0.35 : -tilt * 0.35));
+        g.lineWidth = 1.15;
+        g.strokeStyle = o.brow || "#2b1d12";
+        g.globalAlpha = 0.9 - i * 0.18;
+        g.stroke();
+        g.restore();
       }
+      g.globalAlpha = 1;
+      // brow hairs
+      for (let i = 0; i < 16; i++) {
+        g.globalAlpha = 0.35 + R() * 0.4;
+        g.strokeStyle = o.brow || "#2b1d12";
+        g.lineWidth = 0.28;
+        const x = cx - 7 + R() * 14;
+        const y = y0 + R() * 3;
+        g.beginPath(); g.moveTo(x, y); g.lineTo(x + 1.1, y - 0.9); g.stroke();
+      }
+      g.globalAlpha = 1;
+    };
+    brow(19, -1);
+    brow(45, 1);
+
+    // eyes
+    [18, 42].forEach((cx) => {
+      // socket shadow
+      const sg = g.createRadialGradient(cx, 28.6, 0.4, cx, 28.8, 9.2);
+      sg.addColorStop(0, "rgba(88,56,36,.26)");
+      sg.addColorStop(0.62, "rgba(88,56,36,.1)");
+      sg.addColorStop(1, "rgba(88,56,36,0)");
+      g.fillStyle = sg;
+      g.beginPath(); g.ellipse(cx, 28.6, 8.4, 6.2, 0, 0, 7); g.fill();
+      // sclera
+      g.fillStyle = "#f8f3e8";
+      g.beginPath(); g.ellipse(cx, 28.4, 6.3, 4, 0, 0, Math.PI * 2); g.fill();
+      // upper lid shadow across the eye
+      g.fillStyle = "rgba(56,34,20,.42)";
+      g.beginPath(); g.ellipse(cx, 26.6, 6.3, 2.2, 0, 0, Math.PI * 2); g.fill();
+      // iris
+      const ig = g.createRadialGradient(cx - 0.5, 28.1, 0.3, cx, 28.5, 3.2);
+      ig.addColorStop(0, o.irisLight || "#8a5c34");
+      ig.addColorStop(0.62, "#4a2c18");
+      ig.addColorStop(1, o.iris || "#241408");
+      g.fillStyle = ig;
+      g.beginPath(); g.arc(cx, 28.5, 3, 0, Math.PI * 2); g.fill();
+      // iris fibers
+      for (let i = 0; i < 14; i++) {
+        const a = (i / 14) * Math.PI * 2;
+        g.globalAlpha = 0.16;
+        g.strokeStyle = "#c09060";
+        g.lineWidth = 0.18;
+        g.beginPath();
+        g.moveTo(cx + Math.cos(a) * 1.0, 28.5 + Math.sin(a) * 1.0);
+        g.lineTo(cx + Math.cos(a) * 2.6, 28.5 + Math.sin(a) * 2.4);
+        g.stroke();
+      }
+      g.globalAlpha = 1;
+      // pupil
+      g.fillStyle = "#0a0705";
+      g.beginPath(); g.arc(cx, 28.5, 1.45, 0, Math.PI * 2); g.fill();
+      // catches
+      g.fillStyle = "#ffffff";
+      g.beginPath(); g.arc(cx - 0.95, 27.4, 0.82, 0, Math.PI * 2); g.fill();
+      g.globalAlpha = 0.6;
+      g.beginPath(); g.arc(cx + 1.15, 29.5, 0.4, 0, Math.PI * 2); g.fill();
+      g.globalAlpha = 1;
+      // lid lines
+      g.strokeStyle = "rgba(44,26,15,.78)";
+      g.lineWidth = 0.62;
+      g.beginPath();
+      g.moveTo(cx - 6.5, 28.4);
+      g.quadraticCurveTo(cx, 24.7, cx + 6.5, 28.2);
+      g.stroke();
+      g.strokeStyle = "rgba(120,78,54,.55)";
+      g.lineWidth = 0.45;
+      g.beginPath();
+      g.moveTo(cx - 5.6, 30.4);
+      g.quadraticCurveTo(cx, 32.1, cx + 5.6, 30.2);
+      g.stroke();
+      if (o.tired) {
+        g.strokeStyle = "rgba(116,74,56,.5)";
+        g.lineWidth = 0.4;
+        g.beginPath(); g.moveTo(cx - 5.4, 31.7); g.quadraticCurveTo(cx, 32.9, cx + 5.2, 31.5); g.stroke();
+        g.globalAlpha = 0.35;
+        g.strokeStyle = "#7a5040";
+        g.beginPath(); g.moveTo(cx - 6.4, 24.6); g.lineTo(cx + 6.4, 24.2); g.stroke();
+        g.globalAlpha = 1;
+      }
+      // crow's feet
+      g.strokeStyle = "rgba(120,78,52,.28)";
+      g.lineWidth = 0.3;
+      g.beginPath(); g.moveTo(cx + 7.2, 28.2); g.lineTo(cx + 9, 27.4); g.stroke();
+      g.beginPath(); g.moveTo(cx + 7.2, 29.4); g.lineTo(cx + 9, 29.6); g.stroke();
     });
 
     // nose
-    g.fillStyle = "rgba(140,88,58,.5)";
-    g.fillRect(30, 33, 4, 10);
-    g.fillStyle = "rgba(120,70,44,.6)";
-    g.fillRect(29, 42, 7, 2);
+    g.fillStyle = "rgba(255,238,214,.4)";
+    g.beginPath(); g.ellipse(32.2, 34.6, 1.35, 4.6, 0, 0, 7); g.fill();
+    g.fillStyle = "rgba(150,94,62,.22)";
+    g.beginPath(); g.ellipse(28.4, 36, 1.9, 5, 0, 0, 7); g.fill();
+    g.fillStyle = "rgba(255,232,206,.26)";
+    g.beginPath(); g.ellipse(35.1, 35.6, 1.2, 4, 0, 0, 7); g.fill();
+    g.fillStyle = "rgba(96,54,34,.62)";
+    g.beginPath(); g.ellipse(29.2, 42.5, 0.95, 0.72, -0.2, 0, 7); g.fill();
+    g.beginPath(); g.ellipse(34.8, 42.5, 0.95, 0.72, 0.2, 0, 7); g.fill();
+    g.fillStyle = "rgba(126,74,46,.4)";
+    g.beginPath(); g.ellipse(32, 43.6, 3.7, 1.2, 0, 0, 7); g.fill();
+    g.fillStyle = "rgba(255,236,212,.22)";
+    g.beginPath(); g.ellipse(32, 42.1, 3.2, 0.75, 0, 0, 7); g.fill();
 
     // mouth
-    g.fillStyle = o.mouth || "#6d3a2a";
-    if (o.smile) {
-      g.fillRect(25, 50, 15, 2);
-      g.fillRect(22, 48, 5, 2);
-      g.fillRect(38, 48, 5, 2);
-    } else if (o.worried) {
-      g.fillRect(27, 50, 11, 6);
+    const mCol = o.mouth || "#6d3a2a";
+    if (o.worried) {
+      // open, gasping mouth
       g.fillStyle = "#3a1a12";
-      g.fillRect(28, 51, 9, 4);
+      g.beginPath(); g.ellipse(32, 51.4, 5.6, 3.6, 0, 0, 7); g.fill();
+      g.fillStyle = "#e8dcc8";
+      g.fillRect(27.4, 48.9, 9.2, 1.1);
+      g.fillStyle = "#8d3a2c";
+      g.beginPath(); g.ellipse(32, 53.8, 3.4, 1.5, 0, 0, 7); g.fill();
+      g.strokeStyle = "rgba(50,24,16,.8)";
+      g.lineWidth = 0.5;
+      g.beginPath(); g.ellipse(32, 51.4, 5.6, 3.6, 0, 0, 7); g.stroke();
+    } else if (o.smile) {
+      g.strokeStyle = mCol;
+      g.lineWidth = 0.9;
+      g.beginPath();
+      g.moveTo(25.4, 50.4);
+      g.quadraticCurveTo(32, 54.6, 38.6, 50.2);
+      g.stroke();
+      g.fillStyle = "rgba(255,230,210,.3)";
+      g.fillRect(28, 51.8, 8, 0.8);
     } else if (o.angry) {
-      g.fillRect(24, 51, 17, 2);
-      g.fillRect(25, 49, 4, 2);
-      g.fillRect(36, 49, 4, 2);
+      g.strokeStyle = mCol;
+      g.lineWidth = 1.15;
+      g.beginPath();
+      g.moveTo(25.2, 51.8);
+      g.quadraticCurveTo(32, 49.6, 38.8, 51.6);
+      g.stroke();
+      // teeth gritted line
+      g.strokeStyle = "rgba(240,230,214,.28)";
+      g.lineWidth = 0.5;
+      g.beginPath(); g.moveTo(26, 51.2); g.lineTo(38, 51.1); g.stroke();
     } else {
-      g.fillRect(25, 50, 15, 2);
+      g.strokeStyle = mCol;
+      g.lineWidth = 0.85;
+      g.beginPath();
+      g.moveTo(25.6, 50.6);
+      g.quadraticCurveTo(32, 51.6, 38.4, 50.5);
+      g.stroke();
+      g.fillStyle = "rgba(255,226,204,.26)";
+      g.beginPath(); g.ellipse(32, 52.1, 4.6, 0.9, 0, 0, 7); g.fill();
     }
+    // mouth corners
+    g.fillStyle = "rgba(90,46,32,.4)";
+    g.beginPath(); g.arc(25.2, 50.2, 0.5, 0, 7); g.fill();
+    g.beginPath(); g.arc(38.8, 50.1, 0.5, 0, 7); g.fill();
 
     if (o.moustache) {
       g.fillStyle = o.hair || "#241a12";
-      g.fillRect(24, 47, 17, 3);
+      g.beginPath();
+      g.moveTo(24, 47.4);
+      g.quadraticCurveTo(32, 45.6, 40, 47.4);
+      g.quadraticCurveTo(32, 49.2, 24, 47.4);
+      g.closePath();
+      g.fill();
     }
     if (o.beard) {
-      g.fillStyle = "rgba(36,26,18,.75)";
-      for (let i = 0; i < 60; i++) {
-        g.fillRect(12 + Math.random() * 40, 40 + Math.random() * 20, 2, 2);
+      // beard shaped along the jaw, denser at the chin
+      for (let i = 0; i < 900; i++) {
+        const a = R() * Math.PI * 2, rad = R() * 15;
+        const x = 32 + Math.cos(a) * rad * 1.15;
+        const y = 50 + Math.sin(a) * rad * 0.62;
+        if (y < 45 || y > 63 || x < 12 || x > 52) continue;
+        g.globalAlpha = 0.3 + R() * 0.45;
+        g.fillStyle = R() < 0.75 ? "rgba(32,23,16,1)" : "rgba(96,72,48,1)";
+        g.fillRect(x, y, 0.5, 0.5);
       }
+      g.globalAlpha = 1;
     } else if (o.stubble) {
-      g.fillStyle = "rgba(40,30,22,.35)";
-      for (let i = 0; i < 34; i++) {
-        g.fillRect(14 + Math.random() * 36, 44 + Math.random() * 16, 1, 1);
+      for (let i = 0; i < 520; i++) {
+        const a = R() * Math.PI * 2, rad = R() * 16;
+        const x = 32 + Math.cos(a) * rad * 1.1;
+        const y = 52 + Math.sin(a) * rad * 0.55;
+        if (y < 45 || y > 63 || x < 12 || x > 52) continue;
+        g.globalAlpha = 0.16 + R() * 0.3;
+        g.fillStyle = "rgba(36,27,20,1)";
+        g.fillRect(x, y, 0.42, 0.42);
       }
+      g.globalAlpha = 1;
     }
     if (o.scar) {
-      g.fillStyle = "rgba(150,60,50,.55)";
-      g.fillRect(49, 20, 2, 9);
-      g.fillRect(51, 28, 2, 4);
+      g.strokeStyle = "rgba(158,74,62,.6)";
+      g.lineWidth = 0.75;
+      g.beginPath(); g.moveTo(49.4, 19.6); g.lineTo(50.2, 28.6); g.stroke();
+      g.strokeStyle = "rgba(255,235,225,.4)";
+      g.lineWidth = 0.35;
+      g.beginPath(); g.moveTo(48.8, 19.8); g.lineTo(49.6, 28.4); g.stroke();
+      for (let i = 0; i < 4; i++) {
+        g.strokeStyle = "rgba(150,66,56,.45)";
+        g.lineWidth = 0.3;
+        const y = 21 + i * 2;
+        g.beginPath(); g.moveTo(49.6, y + 0.5); g.lineTo(51.4, y); g.stroke();
+      }
     }
     if (o.headband) {
       g.fillStyle = o.headband;
-      g.fillRect(0, 8, w, 5);
-      g.fillStyle = "rgba(255,255,255,.25)";
-      g.fillRect(0, 8, w, 1);
+      g.fillRect(0, 8, W, 5.2);
+      g.fillStyle = "rgba(255,255,255,.24)";
+      g.fillRect(0, 8, W, 0.9);
+      g.fillStyle = "rgba(0,0,0,.22)";
+      g.fillRect(0, 12.4, W, 0.9);
     }
     // cheeks
-    g.fillStyle = "rgba(220,120,100,.18)";
+    g.fillStyle = "rgba(214,112,96,.16)";
     g.beginPath();
-    g.ellipse(10, 42, 7, 4, 0, 0, 7);
-    g.ellipse(54, 42, 7, 4, 0, 0, 7);
+    g.ellipse(11, 43, 6.6, 4, 0, 0, 7);
+    g.ellipse(53, 43, 6.6, 4, 0, 0, 7);
     g.fill();
-    // jaw shading
-    g.fillStyle = "rgba(120,74,48,.20)";
-    g.fillRect(0, h - 5, w, 5);
+    // chin highlight
+    g.fillStyle = "rgba(255,238,216,.14)";
+    g.beginPath(); g.ellipse(32, 58.4, 6.4, 2.6, 0, 0, 7); g.fill();
+    // heavier jaw shade for the boss and the tough
+    if (o.brow) {
+      g.fillStyle = "rgba(120,74,48,.12)";
+      g.fillRect(0, H - 4, W, 4);
+    }
+    g.restore();
   }
 
   function faceMat(key, o) {
     if (!SOL.faces) SOL.faces = {};
     if (SOL.faces[key]) return SOL.faces[key];
-    const t = ctex("face" + key, 64, 64, (g, w, h) => paintFace(g, w, h, o));
+    const t = ctex("face" + key, 256, 256, (g, w, h) => paintFace(g, w, h, o));
     SOL.faces[key] = new T.MeshLambertMaterial({ map: t });
     return SOL.faces[key];
   }
@@ -562,114 +1551,60 @@
     if (SOL.ready) return;
     SOL.ready = 1;
     const L = (tex, opt) => new T.MeshLambertMaterial(Object.assign({ map: tex }, opt || {}));
-    SOL.stone = L(blockTex("stone", "#bdb6a6", "rgba(72,66,56,.5)", ["#d6cfbe", "#a9a190", "#948c7c"], 5));
-    SOL.stoneDark = L(blockTex("stoneD", "#9a958a", "rgba(52,48,42,.6)", ["#b3aea2", "#807a70", "#6c665c"], 9));
-    SOL.concrete = L(blockTex("conc", "#b9b7ad", "rgba(90,88,82,.35)", ["#cbc9bf", "#a6a49a", "#94928a"], 13));
-    SOL.sand = L(ctex("sand", 32, 32, (g, w, h) => {
-      g.fillStyle = "#a08a5e";
-      g.fillRect(0, 0, w, h);
-      for (let y = 0; y < h; y += 4) {
-        g.fillStyle = y % 8 ? "rgba(96,78,44,.5)" : "rgba(238,222,176,.45)";
-        g.fillRect(0, y, w, 1);
-      }
-      speck(g, w, h, ["#8a7448", "#e2d2a4"], 21, 400);
-    }));
-    SOL.wood = L(ctex("wood", 32, 32, (g, w, h) => {
-      g.fillStyle = "#8a6034";
-      g.fillRect(0, 0, w, h);
-      for (let y = 0; y < h; y += 8) {
-        g.fillStyle = "#68451d";
-        g.fillRect(0, y + 7, w, 1);
-        g.fillStyle = "#a67a3e";
-        g.fillRect(0, y + 1, w, 1);
-      }
-      speck(g, w, h, ["#5e3f1c", "#d8ab63"], 4, 320);
-    }));
-    SOL.woodDark = L(ctex("woodD", 32, 32, (g, w, h) => {
-      g.fillStyle = "#6f4b23";
-      g.fillRect(0, 0, w, h);
-      for (let y = 0; y < h; y += 8) {
-        g.fillStyle = "#4b3016";
-        g.fillRect(0, y + 7, w, 1);
-      }
-      speck(g, w, h, ["#33200c", "#9a7038"], 8, 240);
-    }));
+    SOL.stone = L(blockTex("stone", "#bdb6a6", "#5e584c", ["#d6cfbe", "#a9a190", "#948c7c"], 5));
+    SOL.stoneDark = L(blockTex("stoneD", "#9a958a", "#46423a", ["#b3aea2", "#807a70", "#6c665c"], 9));
+    SOL.concrete = L(concreteTex("conc", "#b9b7ad", 13));
+    SOL.sand = L(burlapTex("sand", "#a08a5e", 21));
+    SOL.wood = L(woodTex("wood", "#8a6034", "#4e3413", "#c79a58", 4));
+    SOL.woodDark = L(woodTex("woodD", "#6f4b23", "#38230d", "#a3763c", 8));
     SOL.camo = L(camoTex("camo", ["#5c6b3c", "#47542e", "#6f7d4a", "#3b4527", "#7d7048"], 31));
     SOL.camoDark = L(camoTex("camoD", ["#424d2c", "#333d22", "#4f5a36", "#2a321c", "#5c5334"], 37));
     SOL.camoBoss = L(camoTex("camoBoss", ["#4a4a30", "#33331f", "#5c5c3c", "#262616"], 41));
-    SOL.steel = L(null, { color: 0x6a7078 });
-    SOL.helm = L(camoTex("helm", ["#4d5a33", "#3a4526", "#5c6b40", "#2f3820"], 43, 24));
-    SOL.belt = L(null, { color: 0x2f2a20 });
-    SOL.boot = L(null, { color: 0x241d15 });
+    const weave = weaveTex("weave", "#d2d2d2", 3);
+    const weaveFine = weaveTex("weaveF", "#cfcfcf", 7, 1.5);
+    SOL.steel = L(metalTex("steel", 12), { color: 0x7c848e });
+    SOL.helm = L(camoTex("helm", ["#4d5a33", "#3a4526", "#5c6b40", "#2f3820"], 43, 128));
+    SOL.belt = L(leatherTex("belt", "#3a3226", 77), { color: 0x8d8578 });
+    SOL.boot = L(leatherTex("boot", "#2b2319", 4));
     SOL.skin = L(null, { color: 0xe8b48c });
-    SOL.black = L(null, { color: 0x1b1b1d });
-    SOL.gunmetal = L(null, { color: 0x34383a });
+    SOL.black = L(polymerTex("poly", 6), { color: 0x1e1e21 });
+    SOL.gunmetal = L(metalTex("gunmetal", 18, { base: "#dfe3e7" }), { color: 0x3d4246 });
     SOL.red = L(null, { color: 0xc0281f });
     SOL.gold = L(null, { color: 0xd8a83c });
-    SOL.white = L(null, { color: 0xf3efe2 });
-    SOL.civil = L(ctex("civil", 32, 32, (g, w, h) => {
-      g.fillStyle = "#ece4d0";
-      g.fillRect(0, 0, w, h);
-      speck(g, w, h, ["#cfc4a8", "#ffffff"], 61, 260);
-    }));
-    SOL.civilPant = L(null, { color: 0x3d4a63 });
+    SOL.white = L(weaveFine, { color: 0xf3efe2 });
+    SOL.civil = L(weave, { color: 0xece4d0 });
+    SOL.civilPant = L(weaveFine, { color: 0x3d4a63 });
     SOL.hair = L(null, { color: 0x241a12 });
-    SOL.olive = L(null, { color: 0x5c6438 });
-    SOL.oliveDark = L(null, { color: 0x434a26 });
+    SOL.olive = L(weave, { color: 0x5c6438 });
+    SOL.oliveDark = L(weave, { color: 0x434a26 });
     SOL.tire = L(null, { color: 0x22242a });
-    SOL.barrel = L(ctex("barrel", 32, 32, (g, w, h) => {
-      g.fillStyle = "#b8302a";
-      g.fillRect(0, 0, w, h);
-      g.fillStyle = "#8e1f1a";
-      g.fillRect(0, 4, w, 3);
-      g.fillRect(0, 24, w, 3);
-      speck(g, w, h, ["#e05a4a", "#7a1612"], 77, 260);
-    }));
+    SOL.barrel = L(barrelTex("barrel", 77));
     SOL.star = new T.MeshBasicMaterial({
-      map: ctex("star", 64, 64, (g, w, h) => {
+      map: ctex("star", 128, 128, (g, w, h) => {
         g.clearRect(0, 0, w, h);
         g.fillStyle = "#f7f5ec";
-        starPath(g, 32, 32, 28);
+        starPath(g, 64, 64, 58);
         g.fill();
+        g.strokeStyle = "rgba(120,110,80,.35)";
+        g.lineWidth = 2;
+        g.stroke();
       }),
       transparent: true
     });
     SOL.flagKR = L(flagKR(), { side: T.DoubleSide });
     SOL.flagKP = L(flagKP(), { side: T.DoubleSide });
-    SOL.street = L(ctex("street", 64, 64, (g, w, h) => {
-      g.fillStyle = "#9b9587";
-      g.fillRect(0, 0, w, h);
-      g.strokeStyle = "rgba(70,66,58,.45)";
-      g.lineWidth = 1;
-      const R = rng(91);
-      for (let y = 0; y < h; y += 16) {
-        for (let x = (y / 16) % 2 ? 8 : 0; x < w; x += 16) {
-          g.fillStyle = ["#b6b0a2", "#9d9789", "#ada695", "#928c7e"][(R() * 4) | 0];
-          g.fillRect(x + 1, y + 1, 14, 14);
-          g.strokeRect(x + 0.5, y + 0.5, 15, 15);
-        }
-      }
-      speck(g, w, h, ["#6f6a5e", "#cfc9bb"], 55, 900);
-      for (let i = 0; i < 8; i++) {
-        g.globalAlpha = 0.25;
-        g.fillStyle = "#8a7a58";
-        g.beginPath();
-        g.arc(R() * w, R() * h, 4 + R() * 9, 0, 7);
-        g.fill();
-      }
-      g.globalAlpha = 1;
-    }));
+    SOL.street = L(cobbleTex("street", "#9b9587", 91));
     SOL.grass = L(null, { color: 0x6d8a3f });
     SOL.tan = L(camoTex("tan", ["#ddcda8", "#cdbb94", "#e8dcc0", "#b9a681", "#f0e6cc"], 71));
     SOL.tanDark = L(camoTex("tanD", ["#8e8062", "#7a6d52", "#9d8f6e", "#6b5f47"], 73));
-    SOL.vest = L(null, { color: 0x2b3036 });
-    SOL.enemyCloth = L(null, { color: 0x5c6b39 });
-    SOL.enemyDark = L(null, { color: 0x49562c });
-    SOL.enemyBelt = L(null, { color: 0x6d4a28 });
-    SOL.enemyCap = L(null, { color: 0x53612f });
+    SOL.vest = L(weave, { color: 0x2b3036 });
+    SOL.enemyCloth = L(weave, { color: 0x5c6b39 });
+    SOL.enemyDark = L(weave, { color: 0x49562c });
+    SOL.enemyBelt = L(weaveFine, { color: 0x6d4a28 });
+    SOL.enemyCap = L(weave, { color: 0x53612f });
     SOL.helmAlly = L(null, { color: 0x4b5145 });
-    SOL.bandW = L(null, { color: 0xe8e6dc });
-    SOL.bandB = L(null, { color: 0x22407c });
+    SOL.bandW = L(weaveFine, { color: 0xe8e6dc });
+    SOL.bandB = L(weaveFine, { color: 0x22407c });
     Object.keys(SOL).forEach((k) => {
       const m = SOL[k];
       if (m && m.isMaterial && m.color && m.color.convertSRGBToLinear) m.color.convertSRGBToLinear();
@@ -1222,24 +2157,43 @@
     makeSol();
     const g = new T.Group();
     const mk = (hex) => { const m = new T.MeshLambertMaterial({ color: hex }); m.color.convertSRGBToLinear(); return m; };
-    const slide = mk(0x3e4652);
-    const slideDark = mk(0x2b313a);
-    const slideTop = mk(0x4a5563);
-    const poly = mk(0x1a1e24);
+    // brushed steel body parts share one map so the grain lines up
+    const smetal = metalTex("pistolSteel", 23);
+    const mpoly = polymerTex("pistolPoly", 29);
+    const mm = (hex, tex, rx, ry) => {
+      const m = new T.MeshLambertMaterial({ color: hex, map: tex || null });
+      if (tex) {
+        const t = tex.clone();
+        t.wrapS = t.wrapT = T.RepeatWrapping;
+        t.repeat.set(rx || 1, ry || 1);
+        t.anisotropy = Math.max(1, Math.min(8, MAXANISO));
+        t.needsUpdate = true;
+        m.map = t;
+      }
+      m.color.convertSRGBToLinear();
+      return m;
+    };
+    const slide = mm(0x49525f, smetal, 1, 1.6);
+    const slideDark = mm(0x333a45, smetal, 1, 1.6);
+    const slideTop = mm(0x59636f, smetal, 1, 1.6);
+    const poly = mm(0x22262c, mpoly, 2, 2);
     const bore = mk(0x07090b);
-    const steel = mk(0x6b747e);
+    const steel = mm(0x7f8792, smetal, 1, 1);
     const skin = mk(0xc08a5e);
     const olive = mk(0x4a5430);
     const gripMat = new T.MeshLambertMaterial({
-      color: 0x232a31,
-      map: ctex("grip", 32, 32, (gg, w, h) => {
-        gg.fillStyle = "#2a323a";
-        gg.fillRect(0, 0, w, h);
-        for (let y = 1; y < h; y += 3) for (let x = 1; x < w; x += 3) {
-          gg.fillStyle = ((x + y) % 6) ? "#1b2127" : "#3a444e";
-          gg.fillRect(x, y, 2, 2);
-        }
-      })
+      color: 0xffffff,
+      map: (() => {
+        const t = gripTex();
+        const c2 = t.clone();
+        // the grip box is 0.10 m wide by 0.24 m tall, so the tile is stretched
+        // 2.4x vertically; repeating it keeps the checkering square
+        c2.wrapS = c2.wrapT = T.RepeatWrapping;
+        c2.repeat.set(1, 2.2);
+        c2.anisotropy = Math.max(1, Math.min(8, MAXANISO));
+        c2.needsUpdate = true;
+        return c2;
+      })()
     });
     gripMat.color.convertSRGBToLinear();
     const add = (w, h, d, x, y, z, mat) => {
@@ -1337,9 +2291,28 @@
     return m;
   }
 
+  /* one stone/concrete tile covers about 2.4 m. A wall mesh whose box is
+     much larger than that has to repeat the map, otherwise the tile is
+     stretched into vertical streaks that read as planks instead of stone. */
+  const TILED = {};
+  function tiledMat(mat, w, h, tile) {
+    if (!mat || !mat.map) return mat;
+    const T2 = tile || 2.4;
+    const rx = Math.max(1, Math.round(Math.max(1, w) / T2));
+    const ry = Math.max(1, Math.round(Math.max(1, h) / T2));
+    if (rx === 1 && ry === 1) return mat;
+    // walls that share a repeat share one material (and one GPU texture)
+    const k = (mat.uuid || "m") + "|" + rx + "x" + ry;
+    if (TILED[k]) return TILED[k];
+    const m = cloneMat(mat, rx, ry);
+    m.color.copy(mat.color);
+    TILED[k] = m;
+    return m;
+  }
+
   function blockAt(S, x0, x1, z0, z1, h, mat, y0) {
     const w = Math.abs(x1 - x0), d = Math.abs(z1 - z0);
-    const m = new T.Mesh(new T.BoxGeometry(w, h, d), mat);
+    const m = new T.Mesh(new T.BoxGeometry(w, h, d), tiledMat(mat, Math.max(w, d), h));
     m.position.set((x0 + x1) / 2, (y0 === undefined ? 0.3 : y0) + h / 2, (z0 + z1) / 2);
     m.castShadow = true;
     m.receiveShadow = true;
@@ -1419,18 +2392,20 @@
 
   function makeGate(S) {
     const g = new T.Group();
-    const stoneMat = new T.MeshLambertMaterial({ map: cloneMat(SOL.stone, 6, 3).map });
+    const stoneMat = (w, h) => new T.MeshLambertMaterial({
+      map: cloneMat(SOL.stone, Math.max(1, Math.round(w / 2.4)), Math.max(1, Math.round(h / 2.4))).map
+    });
     const OPEN = 5.2, HALF = OPEN / 2;
     // two piers and a lintel, so the arch is a real opening you can see through
     [[-8.8, -HALF], [HALF, 8.8]].forEach(([a, b]) => {
       const w = b - a;
-      const pier = new T.Mesh(new T.BoxGeometry(w, 9.2, 1.8), stoneMat);
+      const pier = new T.Mesh(new T.BoxGeometry(w, 9.2, 1.8), stoneMat(w, 9.2));
       pier.position.set(YARD_MID + (a + b) / 2, 0.3 + 4.6, GATE_Z);
       pier.castShadow = true;
       pier.receiveShadow = true;
       g.add(pier);
     });
-    const top = new T.Mesh(new T.BoxGeometry(OPEN, 3.8, 1.8), stoneMat);
+    const top = new T.Mesh(new T.BoxGeometry(OPEN, 3.8, 1.8), stoneMat(OPEN, 3.8));
     top.position.set(YARD_MID, 0.3 + 5.4 + 1.9, GATE_Z);
     g.add(top);
     // dark tunnel behind the opening
@@ -1448,7 +2423,7 @@
     }
     // corner towers
     [-8.6, 8.6].forEach((dx) => {
-      const t = new T.Mesh(new T.BoxGeometry(3.2, 11.4, 3.4), stoneMat);
+      const t = new T.Mesh(new T.BoxGeometry(3.2, 11.4, 3.4), stoneMat(3.4, 11.4));
       t.position.set(YARD_MID + dx, 0.3 + 5.7, GATE_Z - 0.2);
       t.castShadow = true;
       g.add(t);
@@ -1493,13 +2468,14 @@
       if (LT.rim) { LT.rim.intensity = 0.34; LT.rim.color && LT.rim.color.setHex(0xffc79a); }
     }
     if (ctx.renderer) ctx.renderer.toneMappingExposure = 0.96;
+    try {
+      const caps = ctx.renderer && ctx.renderer.capabilities;
+      if (caps && caps.getMaxAnisotropy) MAXANISO = Math.min(8, caps.getMaxAnisotropy() || 4);
+      applyAniso();
+    } catch (e) {}
 
     // ---- ground: one big pad so no hole ever shows ----
-    const tex = ctex("dirt", 64, 64, (g, w, h) => {
-      g.fillStyle = "#7d7a5e";
-      g.fillRect(0, 0, w, h);
-      speck(g, w, h, ["#6a6748", "#8f8b6a", "#5c5a3f"], 13, 1400);
-    });
+    const tex = groundTex("dirt", 13);
     tex.needsUpdate = true;
     tex.wrapS = tex.wrapT = T.RepeatWrapping;
     tex.repeat.set(26, 26);
@@ -1908,6 +2884,12 @@
 
   function begin(ctx) {
     if (!ctx || !ctx.scene || !ctx.camera) return false;
+    // pick the GPU's anisotropic limit before any texture is painted
+    try {
+      const caps = ctx.renderer && ctx.renderer.capabilities;
+      if (caps && caps.getMaxAnisotropy) MAXANISO = Math.min(8, caps.getMaxAnisotropy() || 4);
+      applyAniso();
+    } catch (e) {}
     if (!booted) boot(ctx);
     SCENE = ctx.scene;
     clearStage(ctx);
@@ -2189,6 +3171,17 @@
     try { g.unlock(); g[name] && g[name](); } catch (e) {}
   }
 
+  /* a soldier's voice: a short "윽!" when he is only winged, a long
+     falling "으악!" when the round puts him down */
+  function grunt(fatal) {
+    try {
+      const G = window.GunSFX;
+      if (G && typeof G.playHitGrunt === "function") G.playHitGrunt(!!fatal);
+      window.__grunts = (window.__grunts || 0) + 1;
+      if (fatal) window.__gruntsFatal = (window.__gruntsFatal || 0) + 1;
+    } catch (e) { window.__gruntErr = String(e && e.stack || e); }
+  }
+
   function spawnSmoke(camera) {
     if (smokes.length > 8 || !pistol) return;
     const m = new T.Mesh(new T.SphereGeometry(0.05, 6, 5), new T.MeshBasicMaterial({ color: 0xd8d2c4, transparent: true, opacity: 0.35, depthWrite: false }));
@@ -2245,6 +3238,29 @@
     p.e.alive = false;
     p.state = "dead";
     p.dying = 1.05;
+    /* every soldier goes down his own way: tipping back, pitching forward,
+       folding left or right, with a knockback away from the muzzle */
+    const camP = ctx.camera ? ctx.camera.position : null;
+    let kx = 0, kz = 1;
+    if (camP) {
+      kx = p.x - camP.x; kz = p.z - camP.z;
+      const d = Math.hypot(kx, kz) || 1;
+      kx /= d; kz /= d;
+    }
+    const dirs = ["back", "back", "fwd", "left", "right", "right"];
+    const dir = p.role === "boss" ? "back" : dirs[(Math.random() * dirs.length) | 0];
+    p.dieDur = p.dying;
+    p.fall = {
+      dir,
+      twist: 0,
+      spin: (Math.random() * 2 - 1) * (dir === "back" || dir === "fwd" ? 0.4 : 0.62),
+      kx, kz,
+      push: (0.28 + Math.random() * 0.42) * (p.role === "boss" ? 1.6 : 1),
+      side: Math.random() < 0.5 ? -1 : 1,
+      lean: (Math.random() * 2 - 1) * 0.2,
+      yaw0: (p.mesh && p.mesh.rotation.y) || 0
+    };
+    grunt(true);
     p.e.x = p.x;
     p.e.y = p.y;
     let scored = false;
@@ -2416,6 +3432,7 @@
       p.state = "duck";
       p.stateT = 0.34;
       p.expose = Math.min(p.expose, 0.85);
+      grunt(false);
       gun("hit");
       return;
     }
@@ -2636,9 +3653,31 @@
       if (!p.mesh || p.e.alive !== false) return;
       if (p.dying > 0) {
         p.dying -= dt;
-        const k = Math.max(0, Math.min(1, 1.05 - p.dying));
-        p.mesh.rotation.z = -k * 1.45;
-        p.mesh.position.y = p.y - Math.max(0, k - 0.45) * 1.1;
+        const dur = p.dieDur || 1.05;
+        const t = Math.max(0, Math.min(1, 1 - p.dying / dur));
+        const f = p.fall || (p.fall = { dir: "back", spin: 0, kx: 0, kz: 1, push: 0.4, side: 1, lean: 0, yaw0: p.mesh.rotation.y || 0 });
+        // the hit snaps him over, then the body settles into the dirt
+        const k = t < 0.42 ? Math.pow(t / 0.42, 0.66) * 0.9 : 0.9 + ((t - 0.42) / 0.58) * 0.1;
+        if (f.dir === "back") {
+          p.mesh.rotation.x = -k * 1.52;
+          p.mesh.rotation.z = f.lean * k + f.side * 0.24 * k;
+        } else if (f.dir === "fwd") {
+          p.mesh.rotation.x = k * 1.46;
+          p.mesh.rotation.z = f.lean * k + f.side * 0.28 * k;
+        } else if (f.dir === "left") {
+          p.mesh.rotation.z = -k * 1.44 + f.lean * k;
+          p.mesh.rotation.x = f.lean * k * 0.7;
+        } else {
+          p.mesh.rotation.z = k * 1.48 + f.lean * k;
+          p.mesh.rotation.x = f.lean * k * 0.7;
+        }
+        // a quarter turn on the way down, so no two kills read the same
+        p.mesh.rotation.y = f.yaw0 + f.spin * t;
+        // knockback along the line of fire, plus a shallow sink so the feet
+        // pivot does not hang in the air
+        p.mesh.position.x = p.x + f.kx * f.push * t;
+        p.mesh.position.z = p.z + f.kz * f.push * t;
+        p.mesh.position.y = p.y - Math.max(0, k - 0.7) * 0.3;
         if (p.dying <= 0) p.mesh.visible = false;
       }
     });
@@ -2733,6 +3772,12 @@
       ally: window.__allyShots || 0,
       bullets, shotsFired, shotsHit, hp, lives, waveT: +waveT.toFixed(1),
       pickups: pickups.length, got: pickups.filter((p) => p.taken).length,
+      falls: posts.filter((p) => p.fall).map((p) => p.fall.dir).join(","),
+      dyingPose: posts.filter((p) => p.mesh && p.e.alive === false && p.dying > 0)
+        .map((p) => (p.fall ? p.fall.dir : "?") + "@" + p.mesh.rotation.x.toFixed(2) + "/" + p.mesh.rotation.z.toFixed(2))
+        .join("|"),
+      grunts: window.__grunts || 0, gruntsFatal: window.__gruntsFatal || 0,
+      texes: window.__texSizes ? Object.keys(window.__texSizes).length : 0,
       errs: (window.__railErrs || []).length
     };
     const spot = exposedHostiles()[0] || null;
