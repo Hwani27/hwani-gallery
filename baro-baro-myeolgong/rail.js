@@ -56,6 +56,22 @@
   let lastShot = 0;
   let hp = 100;
   let lives = 3;
+  /* (v20) difficulty, practice, rank perks and continues, read from
+     MGProfile (profile.js) at the start of every mission */
+  let HPMAX = 100, LIVES0 = 3, continues = 0, practice = false, contOpen = false;
+  let DIFF = { dmg: 1, aim: 1, lives: 3, boss: 1, xp: 1 }, PERK = { hp: 100, nades: 0, reload: 1, lives: 0 }, diffKey = "normal";
+  function readProfile() {
+    const P = window.MGProfile;
+    try {
+      DIFF = (P && P.diffDef) || DIFF;
+      diffKey = (P && P.diff) || "normal";
+      practice = !!(P && P.practice);
+      PERK = (P && P.perks()) || PERK;
+    } catch (e) {}
+    if (window.__railDiff && window.MGProfile && window.MGProfile.DIFFS[window.__railDiff]) { diffKey = window.__railDiff; DIFF = window.MGProfile.DIFFS[diffKey]; }
+    HPMAX = PERK.hp || 100;
+    LIVES0 = (DIFF.lives || 3) + (PERK.lives || 0);
+  }
   let combo = 0;
   let bestCombo = 0;
   let shotsFired = 0;
@@ -112,13 +128,64 @@
       #railHud{position:fixed;inset:0;z-index:40;pointer-events:none;image-rendering:pixelated}
       #railHud canvas{width:100%;height:100%;image-rendering:pixelated}
       #railX{position:fixed;left:50%;top:46%;width:46px;height:46px;transform:translate(-50%,-50%);z-index:41;pointer-events:none}
-      #railNade{position:fixed;right:max(92px,calc(env(safe-area-inset-right) + 92px));bottom:max(12px,env(safe-area-inset-bottom));z-index:42;min-width:60px;min-height:64px;border-radius:16px;border:3px solid #111;background:#3a2c18;color:#ffd36a;font:900 16px sans-serif;pointer-events:auto}
-      #railReload{position:fixed;right:max(12px,env(safe-area-inset-right));bottom:max(12px,env(safe-area-inset-bottom));z-index:42;min-width:72px;min-height:64px;border-radius:16px;border:3px solid #111;background:#1a2430;color:#fff;font:900 16px sans-serif;pointer-events:auto}
+      #railNade,#railReload{position:fixed;bottom:max(14px,env(safe-area-inset-bottom));z-index:42;width:64px;height:64px;padding:0;border-radius:50%;
+        display:grid;place-items:center;pointer-events:auto;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;
+        border:2px solid rgba(255,255,255,.28);box-shadow:0 6px 18px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.22),inset 0 -6px 12px rgba(0,0,0,.35);
+        -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);transition:transform .08s ease,filter .15s ease}
+      #railReload{right:max(14px,env(safe-area-inset-right));background:radial-gradient(circle at 50% 30%,rgba(70,96,120,.92),rgba(18,26,36,.92))}
+      #railNade{right:max(88px,calc(env(safe-area-inset-right) + 88px));background:radial-gradient(circle at 50% 30%,rgba(108,92,46,.92),rgba(34,28,12,.92))}
+      #railNade:active,#railReload:active{transform:scale(.93)}
+      #railNade svg,#railReload svg{width:36px;height:36px;display:block;filter:drop-shadow(0 2px 2px rgba(0,0,0,.5))}
+      #railNade .cnt{position:absolute;right:-4px;top:-4px;min-width:22px;height:22px;padding:0 5px;border-radius:11px;background:#ffcf4a;color:#1b1406;
+        font:900 13px/22px ui-monospace,monospace;text-align:center;box-shadow:0 2px 6px rgba(0,0,0,.5);border:2px solid #1b1406}
+      #railNade.empty{filter:grayscale(1) brightness(.6)}
+      #railNade.empty .cnt{background:#777}
+      #railReload.busy svg{animation:railSpin .44s linear infinite}
+      #railReload.low{border-color:#ff6a4a;box-shadow:0 0 0 3px rgba(255,90,60,.35),0 6px 18px rgba(0,0,0,.45)}
+      @keyframes railSpin{to{transform:rotate(360deg)}}
       #railResult{position:fixed;inset:0;z-index:50;display:none;align-items:center;justify-content:center;background:rgba(4,8,16,.9);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);color:#fff;font-family:Pretendard,system-ui,sans-serif;text-align:center;padding:24px}
       #railResult.show{display:flex}
+      #railCont{position:fixed;inset:0;z-index:52;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle,rgba(60,0,0,.55),rgba(0,0,0,.82));
+        color:#fff;font-family:Pretendard,system-ui,sans-serif;text-align:center;padding:20px}
+      #railCont .cc{width:min(420px,100%)}
+      #railCont .k{margin:0;font:800 12px/1 ui-monospace,monospace;letter-spacing:.3em;color:#ff8a7a}
+      #railCont h2{margin:10px 0 0;font:900 clamp(36px,9vw,56px)/1 ui-monospace,monospace;letter-spacing:.04em;color:#ffe14a;text-shadow:0 4px 0 #3a2a00,0 0 24px rgba(255,200,60,.45)}
+      #railCont .num{margin:6px 0;font:900 clamp(70px,20vw,120px)/1 ui-monospace,monospace;color:#fff;text-shadow:0 6px 0 rgba(0,0,0,.5)}
+      #railCont .num.tick{animation:railTick .5s ease-out}
+      @keyframes railTick{0%{transform:scale(1.35);color:#ff6a4a}100%{transform:scale(1)}}
+      #railCont .d{margin:0 0 16px;color:#e8d8d0;font-size:14px}
+      #railCont .btns{display:flex;gap:10px}
+      #railCont button{flex:1;min-height:56px;border-radius:14px;border:2px solid #7a6a52;background:#2a2218;color:#eee;font:900 17px/1 inherit;cursor:pointer;touch-action:manipulation}
+      #railCont button.primary{flex:1.6;background:linear-gradient(180deg,#e8c65a,#b58a22);border-color:#ffe08a;color:#1e1606}
       #railResult .card{width:min(460px,100%);background:#121a16;border:3px solid #d8c98a;border-radius:18px;padding:22px;box-shadow:0 18px 60px rgba(0,0,0,.55)}
       #railResult h2{margin:0 0 8px;font-size:28px;letter-spacing:.02em}
       #railResult p{margin:6px 0;font-size:16px;color:#dfe6d4}
+      #railResult .card{max-height:calc(100vh - 32px);overflow:auto}
+      #railResult p.meta{font:800 12px/1 ui-monospace,monospace;letter-spacing:.16em;color:#b8c0a6;margin:4px 0 12px}
+      #railResult .grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+      #railResult .grid p{margin:0;padding:8px 4px;border-radius:10px;background:rgba(255,255,255,.05)}
+      #railResult .grid span{display:block;font:700 10px/1 ui-monospace,monospace;letter-spacing:.08em;color:#9aa58a}
+      #railResult .grid b{display:block;margin-top:5px;font-size:17px;color:#fff}
+      #railResult .rk{display:flex;align-items:center;gap:12px;margin-top:12px;padding:10px 12px;border-radius:12px;background:rgba(201,184,113,.1);text-align:left}
+      #railResult .rt{flex:1;min-width:0}
+      #railResult .rt b{font-size:17px}
+      #railResult .rt .xp{margin-left:6px;font:900 13px/1 ui-monospace,monospace;color:#9ce05a}
+      #railResult .rt small{display:block;margin-top:4px;font-size:11px;color:#a9b098}
+      #railResult .bar{height:6px;margin-top:6px;border-radius:4px;background:rgba(255,255,255,.1);overflow:hidden}
+      #railResult .bar i{display:block;height:100%;background:linear-gradient(90deg,#9cc45a,#e8c860);animation:railGrow .9s ease-out}
+      @keyframes railGrow{from{width:0}}
+      #railResult .up{margin-top:10px;padding:10px;border-radius:12px;background:linear-gradient(90deg,#7a5a12,#d8b04a,#7a5a12);color:#1b1406;font-weight:900;font-size:17px;animation:railUp .6s ease-out}
+      #railResult .up small{display:block;margin-top:3px;font-size:12px;font-weight:800}
+      @keyframes railUp{0%{transform:scale(.6);opacity:0}70%{transform:scale(1.06)}100%{transform:scale(1);opacity:1}}
+      #railResult .nb{margin-top:8px;font:900 13px/1 ui-monospace,monospace;letter-spacing:.2em;color:#ffe14a}
+      #railResult .btns.share{margin-top:8px}
+      #railResult .btns.share button{min-height:44px;background:#1b2430;border-color:#4f6a86;display:flex;align-items:center;justify-content:center;gap:8px;font-size:15px}
+      @media (max-height:520px){#railResult{padding:8px}#railResult .card{width:min(700px,100%);padding:10px 14px;display:grid;grid-template-columns:1fr 1fr;gap:0 14px;align-items:start}
+        #railResult .card>*{grid-column:1}#railResult .card>.rk,#railResult .card>.up,#railResult .card>.nb,#railResult .card>.btns{grid-column:2}
+        #railResult .card>.rk{grid-row:1 / span 2;margin-top:0}
+        #railResult h2{font-size:20px;margin:0 0 4px}#railResult .stars{font-size:22px}#railResult p.meta{margin:2px 0 8px}
+        #railResult .grid{grid-template-columns:repeat(3,minmax(0,1fr))}#railResult .grid b{font-size:15px}
+        #railResult .btns{margin-top:8px}#railResult .btns button{min-height:40px;font-size:14px;flex:1 1 90px}}
       #railResult .stars{font-size:32px;letter-spacing:6px;color:#ffd54a}
       #railResult .btns{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap}
       #railResult .btns button{flex:1 1 130px;min-height:52px;border-radius:12px;border:2px solid #6d7a52;background:#222b1c;color:#eef1e6;font:900 16px/1 Pretendard,system-ui,sans-serif;letter-spacing:.02em;cursor:pointer;touch-action:manipulation}
@@ -133,16 +200,17 @@
         border:2px solid var(--rtc);color:#fff;font:900 15px/1 ui-monospace,monospace;
         box-shadow:0 0 9px var(--rtc),inset 0 0 6px rgba(0,0,0,.7)}
       .railThreat.urgent .rtDot{border-color:#ff2a1a;color:#fff;animation:railPulse .42s steps(2,end) infinite}      @keyframes railPulse{0%{transform:translate(-50%,-50%) scale(1)}50%{transform:translate(-50%,-50%) scale(1.22)}100%{transform:translate(-50%,-50%) scale(1)}}
-      #railRadio{position:fixed;left:50%;bottom:max(18px,env(safe-area-inset-bottom));transform:translateX(-50%) translateY(16px);z-index:46;
-        width:min(680px,calc(100% - 28px));pointer-events:none;opacity:0;transition:opacity .22s ease,transform .22s ease;
+      #railRadio{position:fixed;left:calc(max(12px,env(safe-area-inset-left)) + 128px);right:calc(max(14px,env(safe-area-inset-right)) + 166px);
+        bottom:max(14px,env(safe-area-inset-bottom));transform:translateY(16px);z-index:46;max-width:620px;margin:0 auto;pointer-events:none;opacity:0;transition:opacity .22s ease,transform .22s ease;
         border:2px solid rgba(160,206,120,.55);border-radius:12px;padding:11px 14px 12px;
         background:linear-gradient(180deg,rgba(10,20,12,.9),rgba(6,12,8,.94));
         box-shadow:0 10px 30px rgba(0,0,0,.55),inset 0 0 22px rgba(80,190,90,.12);
         font-family:Pretendard,system-ui,"Malgun Gothic",sans-serif}
-      #railRadio.show{opacity:1;transform:translateX(-50%) translateY(0)}
+      #railRadio.show{opacity:1;transform:translateY(0)}
       #railRadio .rdTop{display:flex;align-items:center;gap:8px;margin:0 0 6px;
         font:900 10px/1 ui-monospace,monospace;letter-spacing:.24em;color:#8fe07a}
       #railRadio .rdTop i{width:7px;height:7px;border-radius:50%;background:#5ce04e;box-shadow:0 0 8px #5ce04e;animation:railBlip 1.1s steps(2,end) infinite}
+      @media (max-width:620px){#railRadio{left:10px;right:10px;bottom:auto;top:max(64px,calc(env(safe-area-inset-top) + 56px))}}
       @keyframes railBlip{0%{opacity:.25}50%{opacity:1}100%{opacity:.25}}
       #railRadio p{margin:0;font-size:clamp(13px,3.4vw,15px);line-height:1.42;color:#eef6e2;text-shadow:0 1px 0 rgba(0,0,0,.7)}
       #railRadio .rdBar{margin-top:8px;height:3px;background:rgba(120,180,100,.22);border-radius:2px;overflow:hidden}
@@ -265,6 +333,14 @@
     }
   }
   function drawHud() {
+    /* (v20) the round buttons carry their own state: grenades left, a
+       spinning arrow while reloading, a red ring when the clip runs low */
+    try {
+      const nbE = document.getElementById("railNade");
+      if (nbE) { const c = nbE.querySelector(".cnt"); if (c && c.textContent !== String(grenades)) c.textContent = String(grenades); nbE.classList.toggle("empty", !grenades); }
+      const rbE = document.getElementById("railReload");
+      if (rbE) { rbE.classList.toggle("busy", !!reloading); rbE.classList.toggle("low", weapon === "pistol" && !reloading && bullets <= 5); }
+    } catch (e) {}
     if (!hud) return;
     const c = hud.querySelector("canvas");
     const dpr = Math.min(2, devicePixelRatio || 1);
@@ -311,7 +387,7 @@
       blit(g, pct, bx + bw - textW(pct, sc * 0.8), by + bh + 5 * sc, sc * 0.8, "#ffd6c8", "#2a0c0c");
     }
     blit(g, "HP " + hp, m, m + 20 * sc, sc, "#ff8a7a", "#2a0c0c");
-    blit(g, "X" + lives, m + textW("HP 100 ", sc), m + 20 * sc, sc, "#fff", "#111");
+    blit(g, "X" + lives, m + textW("HP " + Math.max(100, HPMAX) + " ", sc), m + 20 * sc, sc, "#fff", "#111");
     const by = h - m - 12 * sc;
     if (weapon === "pistol") {
       blit(g, "BULLET", m, by, sc, "#3ec0ff", "#062033");
@@ -323,7 +399,7 @@
       blit(g, String(Math.max(0, wAmmo)).padStart(2, "0"), m + textW(lab + " ", sc), by, sc, "#fff", "#2a1604");
     }
     blit(g, "GRENADE X" + grenades, m, by - (weapon === "pistol" ? 28 : 12) * sc, sc * 0.8, grenades ? "#ffd36a" : "#7a7060", "#1a1204");
-    const cred = "CREDIT 0";
+    const cred = practice ? "PRACTICE" : continues ? "CONTINUE " + continues : (DIFF.en || "NORMAL");
     const edge = m + 172;
     blit(g, cred, w - edge - textW(cred, sc), h - m - 12 * sc, sc, "#f7f7f7", "#111");
     if (combo > 1) blit(g, "COMBO " + combo, m, m + 32 * sc, sc, "#ffe14a", "#2a2204");
@@ -4946,8 +5022,9 @@
 
   const ROLE = { weak: 1, throw: 1, tough: 1, hostage: 1, boss: 1, para: 1 };
   function roleOf(kind) { return ROLE[kind] ? kind : "weak"; }
-  function roleHp(role) { return role === "tough" ? 3 : role === "throw" || role === "para" ? 2 : role === "boss" ? 16 : 1; }
-  function roleAim(role) { return role === "weak" ? 1.95 : role === "throw" ? 2.25 : role === "para" ? 2.35 : role === "tough" ? 2.65 : role === "boss" ? 1.85 : 99; }
+  function roleHp(role) { return role === "tough" ? 3 : role === "throw" || role === "para" ? 2 : role === "boss" ? Math.round(16 * (DIFF.boss || 1)) : 1; }
+  function roleAim(role) { return roleAim0(role) * (DIFF.aim || 1); }
+  function roleAim0(role) { return role === "weak" ? 1.95 : role === "throw" ? 2.25 : role === "para" ? 2.35 : role === "tough" ? 2.65 : role === "boss" ? 1.85 : 99; }
   function roleScale(role) { return role === "tough" || role === "boss" ? 1.5 : 1.28; }
 
   let CLOCK0 = 200;
@@ -5384,6 +5461,9 @@
      Paektu. Boss: a tank, with a helicopter overhead.
      ============================================================ */
   const PATH5 = [
+    /* (v20) the jeep chase down the border road comes first */
+    [0, -152], [0, -144], [0, -136], [0.6, -128], [1.2, -120], [1.0, -112], [0.2, -104], [-0.6, -96], [-0.8, -88], [-0.4, -80],
+    [0, -72], [0, -64], [0, -58], [0, -52],
     [0, -46], [0, -40], [0, -34], [0, -28], [0, -22], [0, -16], [0, -10], [0, -4],
     [0, 2], [0, 8], [0, 14], [0, 20], [0, 26], [0, 32], [0, 38], [0.8, 44], [2.4, 50],
     [4, 56], [5, 62], [6, 66], [6, 70]
@@ -5493,25 +5573,25 @@
     },
     3: {
       id: 3, label: "STAGE 3-1", clock: 380, path: PATH_S, waves: WAVES_S, boss: BOSS_S,
-      dress: "summit", bossKind: "apc", bossTank: true, bossHp: 90,
+      dress: "summit", bossKind: "heli", bossHp: 46,
       introDur: 4.0,
       introCam: [[7.0, 10.0, -60.0, 0, 5.0, -10.0], [0, 1.68, -44.0, 0, 1.55, -30.0]],
       introLines: [
         { t: 0.4, text: "여기는 본부. 판문점 평화의 집 일대에 적 특수부대가 침투했다." },
         { t: 2.2, text: "도보다리를 건너 군사분계선을 넘어 판문각을 확보하라!" }
       ],
-      bossRadio: "판문각 광장에 적 전차! 포구가 빛나면 포구를 쏴서 막아라, 약점은 앞쪽 흡기구!"
+      bossRadio: "판문각 상공에 적 공격헬기! 기총 소사를 피해 기체를 집중 사격하라!"
     },
     5: {
       id: 5, label: "STAGE 5-1", clock: 400, path: PATH5, waves: WAVES5, boss: BOSS5,
-      dress: "paektu", bossKind: "apc", bossTank: true, bossHp: 130,
+      dress: "paektu", bossKind: "commander", bossHp: 40, chase: true,
       introDur: 5.2,
-      introCam: [[4.0, 34.0, 92.0, 0, 2.0, 175.0], [0, 1.68, -44.0, 0, 1.55, -30.0]],
+      introCam: [[7.0, 9.0, -176.0, 0, 1.0, -128.0], [0, 1.68, -152.0, 0, 1.55, -138.0]],
       introLines: [
         { t: 0.4, text: "여기는 본부. 평양 광장 확보 완료. 마지막 작전이다." },
-        { t: 2.2, text: "압록강을 따라 북상해 백두산 천지까지 진격하라!" }
+        { t: 2.2, text: "지프로 국경 도로를 돌파해 압록강, 백두산 천지까지 진격하라!" }
       ],
-      bossRadio: "천지 전망대에 적 마지막 전차! 포구를 막고 흡기구를 노려라!"
+      bossRadio: "천지 전망대에 적 총사령관 확인! 경호원을 쓰러뜨리고 사령관을 제압하라!"
     },
     4: {
       id: 4, label: "STAGE 4-1", clock: 380, path: PATH3, waves: WAVES3, boss: BOSS3,
@@ -6795,6 +6875,11 @@
       tagOff(p);
     });
     posts.length = 0;
+    chase = null;
+    if (jeepRig) jeepRig.visible = false;
+    debris.forEach((m) => m.parent && m.parent.remove(m));
+    debris.length = 0;
+    MONU = null;
     shots3.forEach((s) => { if (s.mesh && s.mesh.parent) s.mesh.parent.remove(s.mesh); });
     shots3 = [];
     tracers.forEach((s) => { if (s.mesh && s.mesh.parent) s.mesh.parent.remove(s.mesh); });
@@ -6877,8 +6962,9 @@
   }
 
   function resetNumbers(ctx) {
-    clock = CLOCK0; bullets = 20; hp = 100; lives = 3;
-    grenades = 2; holding = false;
+    readProfile();
+    clock = CLOCK0; bullets = 20; hp = HPMAX; lives = LIVES0; continues = 0; contOpen = false;
+    grenades = 2 + (PERK.nades || 0); holding = false;
     nades.forEach((n) => n.mesh.parent && n.mesh.parent.remove(n.mesh));
     nades.length = 0;
     setWeapon("pistol");
@@ -6914,19 +7000,25 @@
     weaponRig = rig.weapons;
     window.__pistol = pistol;
     /* model factory hooks (handy for eyeballing the cast without playing) */
-    window.__mk = { soldier: makeSoldier, ally: makeAlly, rifle: makeRifle };
+    window.__mk = { soldier: makeSoldier, ally: makeAlly, rifle: makeRifle, commander: () => { const m = makeSoldier("boss"); dressCommander(m); return m; } };
     window.__pistolAim = pistolAim;
     window.__pistolBody = pistolBody;
     const btn = document.createElement("button");
     btn.id = "railReload";
     btn.type = "button";
-    btn.textContent = "R";
+    btn.innerHTML = '<svg viewBox="0 0 40 40" aria-hidden="true"><rect x="15" y="12" width="10" height="17" rx="1.6" fill="#e9eef2"/><rect x="15" y="12" width="10" height="3" fill="#9fb0bf"/>' +
+      '<path d="M17 18h6M17 21.5h6M17 25h6" stroke="#5f7080" stroke-width="1.4"/><path d="M9.5 20a10.5 10.5 0 0 1 17.6-7.7" stroke="#7fd0ff" stroke-width="2.6" fill="none" stroke-linecap="round"/>' +
+      '<path d="M28.6 8.6l-.6 5.4-5.2-1.2z" fill="#7fd0ff"/><path d="M30.5 20a10.5 10.5 0 0 1-17.6 7.7" stroke="#7fd0ff" stroke-width="2.6" fill="none" stroke-linecap="round"/><path d="M11.4 31.4l.6-5.4 5.2 1.2z" fill="#7fd0ff"/></svg>';
+    btn.setAttribute("aria-label", "reload");
     btn.addEventListener("pointerdown", (e) => { e.preventDefault(); e.stopPropagation(); window.RAIL.reload(); });
     document.body.appendChild(btn);
     const nb = document.createElement("button");
     nb.id = "railNade";
     nb.type = "button";
-    nb.textContent = "G";
+    nb.innerHTML = '<svg viewBox="0 0 40 40" aria-hidden="true"><ellipse cx="19" cy="24.5" rx="9.5" ry="10.5" fill="#6b7a3a"/><path d="M10 21h18M10 26.5h18M15 14.6v19.8M23 14.6v19.8" stroke="#3e4a1c" stroke-width="1.6"/>' +
+      '<ellipse cx="16" cy="20" rx="3" ry="4" fill="rgba(255,255,255,.22)"/><rect x="14.5" y="10.5" width="9" height="5" rx="1" fill="#9aa1a6"/><path d="M23.5 11.5l7 5.5-1.4 1.6-6.6-4.6z" fill="#c9ced2"/>' +
+      '<circle cx="11.5" cy="10.5" r="3.6" fill="none" stroke="#ffd36a" stroke-width="2"/><path d="M14.6 11.6l1.6 .6" stroke="#ffd36a" stroke-width="2"/></svg><b class="cnt">2</b>';
+    nb.setAttribute("aria-label", "grenade");
     nb.addEventListener("pointerdown", (e) => { e.preventDefault(); e.stopPropagation(); window.RAIL.grenade(); });
     document.body.appendChild(nb);
     if (!window.__railKeys) {
@@ -7205,7 +7297,9 @@
       post.runT = -(m.run.delay || 0);
       post.runPhase = 0;
       if (m.bike && post.mesh) {
-        /* he rides in on a motorcycle and gets off at his cover */
+        /* he rides in on a motorcycle and gets off at his cover; (v20) slower
+           and from nearer the front, so the ride itself is a target */
+        post.run.dur = Math.max(3.6, post.run.dur);
         const bk = makeMotorbike();
         bk.scale.setScalar(1 / (post.mesh.scale.x || 1));
         bk.position.set(0, -0.62 / (post.mesh.scale.x || 1), 0.12 / (post.mesh.scale.x || 1));
@@ -7264,15 +7358,80 @@
     window.__railPhase = "fight";
   }
 
+  /* (v20) the final boss: a fictional supreme commander. A white dress
+     uniform, an oversized peaked cap with a gold badge, gold epaulettes,
+     rows of medals, a red sash and a gilded rifle — the dictator of every
+     cartoon, modelled on nobody. The tactical gear of the officer comes off. */
+  function dressCommander(mesh) {
+    const u = mesh.userData;
+    const body = u.body;
+    if (!body) return;
+    const white = new T.MeshStandardMaterial({ color: 0xece6d4, roughness: 0.62, metalness: 0.02 });
+    const white2 = new T.MeshStandardMaterial({ color: 0xd9d1bc, roughness: 0.7 });
+    const gold = new T.MeshStandardMaterial({ color: 0xe0b440, roughness: 0.28, metalness: 0.85, emissive: 0x2a1c00 });
+    const red = new T.MeshStandardMaterial({ color: 0xb8231c, roughness: 0.55 });
+    const blackG = new T.MeshStandardMaterial({ color: 0x0c0c0e, roughness: 0.18, metalness: 0.4 });
+    /* soldiers get their own copies of the shared materials (for the hit
+       flash), so match a copy to its source by texture and colour */
+    const same = (m, src) => !!(m && src) && (m === src || (m.map === src.map && m.color && src.color && m.color.equals(src.color)));
+    const isAny = (m, list) => list.some((x) => same(m, x));
+    const gear = [SOL.plate, SOL.strap, SOL.oliveDark, SOL.steel, SOL.rubber];
+    body.traverse((o) => {
+      if (!o.isMesh) return;
+      if (o.parent === u.headG) return;
+      if (u.rifle && (o === u.rifle || (o.parent && (o.parent === u.rifle || o.parent.parent === u.rifle)))) return;
+      if (isAny(o.material, gear)) { o.visible = false; return; }
+      if (same(o.material, SOL.enemyDark) && o.parent === body && Math.abs(o.position.z) > 0.18) { o.visible = false; return; }
+      if (same(o.material, SOL.black) && o.parent === body && o.position.x > 0.25) { o.visible = false; return; }
+      if (isAny(o.material, [SOL.camoBoss, SOL.enemyCloth, SOL.camoDark])) o.material = white;
+      else if (same(o.material, SOL.enemyDark)) o.material = white2;
+    });
+    const add = (parent, w, h, d, x, y, z, m, rz) => { const o = new T.Mesh(new T.BoxGeometry(w, h, d), m); o.position.set(x, y, z); if (rz) o.rotation.z = rz; parent.add(o); return o; };
+    /* the cap: the officer's comes off, a parade cap goes on */
+    if (u.headG) {
+      u.headG.children.forEach((c) => { if (c.isMesh && c.position.y >= 0.33 && c.material !== SOL.skin && c.material !== SOL.hair) c.visible = false; });
+      add(u.headG, 0.6, 0.15, 0.6, 0, 0.5, -0.01, white);
+      add(u.headG, 0.5, 0.09, 0.5, 0, 0.4, 0, red);
+      add(u.headG, 0.54, 0.04, 0.26, 0, 0.375, 0.27, blackG).rotation.x = 0.12;
+      add(u.headG, 0.5, 0.03, 0.03, 0, 0.395, 0.4, gold);
+      add(u.headG, 0.18, 0.14, 0.03, 0, 0.5, 0.31, gold);
+      add(u.headG, 0.08, 0.07, 0.035, 0, 0.5, 0.325, red);
+    }
+    /* collar, buttons, sash, epaulettes, medals */
+    add(body, 0.32, 0.08, 0.05, 0, 1.2, 0.165, white2);
+    [1.14, 1.06, 0.98, 0.9].forEach((y) => add(body, 0.035, 0.035, 0.02, 0.035, y, 0.178, gold));
+    add(body, 0.09, 0.62, 0.025, 0.02, 1.0, 0.185, red, 0.62);
+    [-1, 1].forEach((sx) => {
+      add(body, 0.2, 0.05, 0.26, sx * 0.3, 1.24, 0, gold);
+      for (let k = 0; k < 4; k++) add(body, 0.025, 0.07, 0.025, sx * (0.22 + k * 0.05), 1.19, 0.12, gold);
+    });
+    const medC = [0xe0b440, 0xb8231c, 0x2a5cb8, 0xe0b440, 0x2f8a3a, 0xc0c4c8, 0xe0b440, 0xb8231c, 0xe0b440];
+    for (let r = 0; r < 3; r++) for (let k = 0; k < 3; k++) {
+      const m = new T.MeshStandardMaterial({ color: medC[r * 3 + k], roughness: 0.35, metalness: 0.6 });
+      add(body, 0.05, 0.045, 0.02, -0.2 + k * 0.06, 1.11 - r * 0.06, 0.178, m);
+    }
+    add(body, 0.06, 0.06, 0.02, -0.14, 0.93, 0.18, gold);
+    if (u.rifle) u.rifle.traverse((o) => { if (o.isMesh) o.material = gold; });
+    mesh.scale.multiplyScalar(1.08);
+  }
+
   /* the commander, staged the same way, behind whichever heavy barrier of the
      yard he starts from */
   function stageBoss() {
     if (bossStage) return bossStage;
     if (STAGE.bossKind === "apc") return stageBoss2();
+    if (STAGE.bossKind === "heli") return stageBossHeli();
     const w = { yaw: 0, hold: bossHold, covers: bossCovers };
     const spot = BOSS_DEF.spots[1];
     const post = makePost(w, { role: "boss", lat: spot[0], dep: spot[1], cover: "heavy" }, 1);
     post.isBoss = true;
+    if (STAGE.bossKind === "commander") {
+      try { dressCommander(post.mesh); } catch (err) { window.__cmdErr = String(err && err.stack || err); }
+      post.e.hp = Math.round((STAGE.bossHp || 40) * (DIFF.boss || 1));
+      post.commander = true;
+      post.phaseN = 0;
+      post.aimMax *= 0.85;
+    }
     /* (v16) every boss carries a gauge, not only the armour */
     post.hpMax = post.e.hp || 1;
     post.state = "hidden";
@@ -7288,6 +7447,66 @@
     return post;
   }
 
+  /* (v20) the Stage 3 gunship: a heavier airframe that strafes the square,
+     lays rocket salvos you can break up by pouring fire into it, and calls
+     paratroopers as it weakens */
+  function stageBossHeli() {
+    const w = { yaw: 0, hold: bossHold };
+    const post = makeHeliPost(w, { air: "heli", lat: 0, dep: 24, y: 12, front: 16, sweep: 7.5, flyY: 6.4 }, 0);
+    post.isBoss = true;
+    post.e.hp = Math.round((STAGE.bossHp || 46) * (DIFF.boss || 1));
+    post.hpMax = post.e.hp;
+    post.phaseN = 0;
+    post.rocketT = 6;
+    post.charge = 0;
+    post.jam = 0;
+    post.mesh.scale.multiplyScalar(1.45);
+    post.orbitW = 0.5;
+    bossPost = post;
+    bossStage = post;
+    return post;
+  }
+  function heliRockets(ctx, p, dt) {
+    const u = p.mesh.userData;
+    if (p.charge > 0) {
+      p.charge -= dt;
+      if (!p.pods) {
+        p.pods = [-1, 1].map((sx) => {
+          const m = new T.Mesh(new T.BoxGeometry(0.5, 0.5, 0.5), new T.MeshBasicMaterial({ color: 0xff4a1a, toneMapped: false, transparent: true, opacity: 0.9 }));
+          m.position.set(sx * 1.1, -0.35, 0.6);
+          p.mesh.add(m);
+          return m;
+        });
+      }
+      const pulse = 0.6 + Math.sin(performance.now() / 60) * 0.4;
+      p.pods.forEach((m) => { m.visible = true; m.scale.setScalar(0.6 + (1 - p.charge / 1.8) * 1.2 * pulse); });
+      if (p.charge <= 0) {
+        p.pods.forEach((m) => (m.visible = false));
+        const cam = ctx.camera.position;
+        for (let i = 0; i < 4; i++) {
+          setTimeout(() => {
+            if (ended) return;
+            const from = new T.Vector3(p.x + (i % 2 ? 1.4 : -1.4), p.y - 0.4, p.z);
+            const to = new T.Vector3(cam.x + (Math.random() - 0.5) * 3, 0.6 + Math.random(), cam.z + 3 + Math.random() * 2);
+            tracerTo(ctx, from, to, 0xffb04a, 0.12);
+            boomAt(ctx, to.x, to.y, to.z);
+            gun("boom");
+          }, i * 110);
+        }
+        shake = 1.5;
+        hurtPlayer(ctx, 24);
+        p.rocketT = 8 + Math.random() * 2;
+      }
+      return;
+    }
+    p.rocketT -= dt;
+    if (p.rocketT <= 0) {
+      p.charge = 1.8;
+      p.jam = 0;
+      if (!p.rocketCalled) { p.rocketCalled = 1; radio("로켓 포드 점화! 기체에 집중 사격하면 발사를 끊을 수 있다!", 3200); }
+    }
+  }
+
   function startBoss(ctx) {
     const post = stageBoss();
     phase = "boss";
@@ -7301,10 +7520,20 @@
       post.live = true;
       post.state = "hidden";
       post.stateT = 1.2;
-      post.expose = post.air === "apc" ? 1 : 0;
+      post.expose = post.air ? 1 : 0;
+      if (post.air === "heli") { post.state = "hover"; post.enterT = 0; }
       post.aim = post.aimMax;
       post.burstN = 0;
       post.moveT = post.air === "apc" ? 3.2 : undefined;
+    }
+    if (STAGE.bossKind === "commander" && post) {
+      /* two bodyguards step out in front of him */
+      [-2.8, 2.8].forEach((lat, k) => {
+        try {
+          const g = makePost({ yaw: 0, hold: bossHold }, { role: "tough", lat: lat, dep: 8.6 + k * 0.6 }, 40 + k);
+          g.live = true; g.state = "hidden"; g.stateT = 0.5 + k * 0.6; g.guard = true;
+        } catch (err) { window.__guardErr = String(err && err.stack || err); }
+      });
     }
     if (STAGE.bossRadio) radio(STAGE.bossRadio, 4800);
     else if (STAGE.bossKind === "apc") radio("중장갑 차량 확인! 호위 병력 분리, 측면을 노려라!", 4800);
@@ -7412,6 +7641,7 @@
   }
 
   function endWave(ctx) {
+    if (ended) return;
     if (waveClean) addPts(ctx, 500);
     posts.forEach((p) => {
       if (p.mesh) { p.mesh.parent && p.mesh.parent.remove(p.mesh); }
@@ -7445,8 +7675,8 @@
   }
 
   function hurtPlayer(ctx, dmg) {
-    if (ended || window.__railGod) return;
-    hp -= dmg;
+    if (ended || contOpen || window.__railGod) return;
+    hp -= Math.max(1, Math.round(dmg * (DIFF.dmg || 1)));
     shake = 0.7;
     flashScreen(0.6, "radial-gradient(circle at 50% 50%,rgba(255,90,70,.75),rgba(180,20,20,.35) 60%,rgba(120,0,0,0) 85%)");
     waveClean = false;
@@ -7454,9 +7684,274 @@
     try { ctx.snd && ctx.snd("hurt"); } catch (e) {}
     if (hp <= 0) {
       lives--;
-      hp = 100;
-      if (lives <= 0) finish(ctx, false);
+      hp = HPMAX;
+      if (lives <= 0) {
+        if (practice) { lives = LIVES0; radio("연습 모드 — 전원 복귀, 계속 진행한다.", 2400); }
+        else offerContinue(ctx);
+      }
     }
+  }
+
+  /* (v20) the jeep chase: Stage 5 opens in the passenger seat of a jeep
+     tearing down the border road. Bikers come head-on in pairs, take one
+     telegraphed shot as they close and blow past; drop them while they
+     ride for the crash and the bonus. */
+  let chase = null, jeepRig = null;
+  function makeJeepRig() {
+    const g = new T.Group();
+    const M = (c, r, m) => new T.MeshStandardMaterial({ color: c, roughness: r, metalness: m || 0, envMapIntensity: 0.15 });
+    const olive = M(0x1a220d, 0.9), oliveD = M(0x10160a, 0.95), black = M(0x0a0a0a, 0.7), steel = M(0x33383c, 0.5, 0.5);
+    const lamp = new T.MeshBasicMaterial({ color: 0xfff2c8 });
+    const B = (w, h, d, x, y, z, m, rx) => { const o = new T.Mesh(new T.BoxGeometry(w, h, d), m); o.position.set(x, y, z); if (rx) o.rotation.x = rx; g.add(o); return o; };
+    B(1.9, 0.2, 1.9, -0.45, -1.02, -2.25, olive, 0.04);             /* bonnet */
+    for (let k = 0; k < 7; k++) B(0.04, 0.03, 1.6, -1.15 + k * 0.233, -0.91, -2.3, oliveD, 0.04); /* bonnet ribs */
+    B(1.96, 0.07, 0.07, -0.45, -0.9, -1.28, steel);                 /* folded screen frame */
+    [-1.39, 0.49].forEach((x) => B(0.06, 0.26, 0.06, x, -0.78, -1.28, steel));
+    B(1.9, 0.05, 0.05, -0.45, -0.66, -1.28, steel);
+    B(0.16, 0.13, 0.08, 0.66, -0.7, -1.32, black);                  /* mirror */
+    B(0.04, 0.04, 0.2, 0.6, -0.74, -1.26, black);
+    [-1.2, 0.3].forEach((x) => { B(0.2, 0.15, 0.06, x, -0.98, -3.22, lamp); B(0.26, 0.21, 0.05, x, -0.98, -3.2, black); });
+    B(0.5, 0.05, 0.02, -0.45, -0.915, -1.55, new T.MeshBasicMaterial({ color: 0xd8d4c6 }));     /* unit number */
+    const wheel = new T.Mesh(new T.TorusGeometry(0.2, 0.026, 6, 18), black);
+    wheel.position.set(-0.98, -0.78, -0.95); wheel.rotation.x = -0.45; g.add(wheel);
+    g.userData.wheel = wheel;
+    g.visible = false;
+    return g;
+  }
+  function startChase(ctx) {
+    if (!jeepRig) { jeepRig = makeJeepRig(); ctx.camera.add(jeepRig); }
+    jeepRig.visible = true;
+    chase = { t: 0, i: 0, plan: [1.4, 3.0, 5.2, 7.0, 9.2, 11.4, 13.0, 15.2], riders: [] };
+    if (dress && dress.ally) dress.ally.visible = false;
+    radio("추격전! 국경 도로 돌파 중 — 정면에서 적 오토바이 부대!", 3400);
+    gun("motor");
+  }
+  function spawnChaser(ctx, lat, k) {
+    const ahead = 36;
+    const u = Math.min(1, pathU + ahead / pathLen);
+    const pt = pathAt(u);
+    const p = makePost({ yaw: 0, hold: { x: pt.x, z: pt.z - 2 } }, { role: k % 3 === 2 ? "tough" : "weak", lat: 0, dep: 2, bike: true, run: { from: [pt.x, pt.z], dur: 99, delay: 0 } }, 70 + k);
+    p.run = null;
+    p.live = true;
+    p.state = "chase";
+    p.expose = 1;
+    p.coverTop = undefined;
+    p.chase = { ahead: ahead, lat: lat, ph: Math.random() * 6, speed: 2.2 + Math.random() * 1.6 };
+    p.aimMax = 1.6 * (DIFF.aim || 1);
+    p.aim = p.aimMax;
+    chase.riders.push(p);
+    return p;
+  }
+  function stepChase(ctx, dt) {
+    if (!chase) return;
+    chase.t += dt;
+    while (chase.i < chase.plan.length && chase.t >= chase.plan[chase.i]) {
+      const k = chase.i++;
+      const side = k % 2 ? 1 : -1;
+      spawnChaser(ctx, side * (2.3 + Math.random() * 0.7), k);
+      if (k === 2 || k === 5) spawnChaser(ctx, -side * (2.3 + Math.random() * 0.7), k + 10);
+      if (k === 0 || k === 4) gun("motor");
+    }
+    const cam = ctx.camera;
+    chase.riders.forEach((p) => {
+      if (!p.chase || p.live === false || p.e.alive === false) return;
+      const c = p.chase;
+      c.ahead -= (c.speed + 6.2) * dt;
+      const u = Math.max(0, Math.min(1, pathU + c.ahead / pathLen));
+      const pt = pathAt(u);
+      const tg = curve.getTangentAt(u);
+      const tl = Math.hypot(tg.x, tg.z) || 1, tx = tg.x / tl, tz = tg.z / tl;
+      const lat = c.lat * (c.ahead < 9 ? 1 + (9 - Math.max(0, c.ahead)) * 0.05 : 1) + Math.sin(chase.t * 1.8 + c.ph) * 0.5;
+      p.x = pt.x + tz * lat;
+      p.z = pt.z - tx * lat;
+      p.y = 0.98;
+      const yaw = Math.atan2(-tx, -tz);
+      posePost(p, cam.position, dt);
+      applyRidePose(p, yaw, Math.cos(chase.t * 1.8 + c.ph) * 0.14);
+      if (p.bikeMesh) {
+        (p.bikeMesh.userData.wheels || []).forEach((w) => { w.rotation.x += dt * 26; });
+        if (p.bikeMesh.userData.stand) p.bikeMesh.userData.stand.visible = false;
+      }
+      if (Math.random() < 0.3) smokeAt(ctx, p.x + tx * 1.0, 0.45, p.z + tz * 1.0, 0x9a8c74);
+      p.visTop = p.y + 1.6;
+      const armed = c.ahead < 27 && c.ahead > 6.5 && p.aim < 90;
+      if (armed) {
+        p.aim -= dt;
+        if (p.aim <= 0) { enemyFire(ctx, p, p.role === "tough" ? 12 : 9); p.aim = 99; }
+      }
+      placeTag(p, ctx, armed ? Math.max(0, Math.min(1, 1 - p.aim / p.aimMax)) : 0, armed);
+      if (c.ahead < -6) {
+        /* he got past: gone down the road behind us */
+        tagOff(p);
+        p.live = false;
+        p.e.alive = false;
+        p.escaped = true;
+        if (p.mesh && p.mesh.parent) p.mesh.parent.remove(p.mesh);
+      }
+    });
+    if (jeepRig) {
+      const t = chase.t;
+      jeepRig.position.y = Math.sin(t * 11) * 0.012 + (Math.random() < 0.02 ? -0.03 : 0);
+      jeepRig.rotation.z = Math.sin(t * 1.3) * 0.012;
+      if (jeepRig.userData.wheel) jeepRig.userData.wheel.rotation.z = Math.sin(t * 0.9) * 0.4;
+    }
+  }
+  function endChase(ctx) {
+    if (!chase) return;
+    chase.riders.forEach((p) => {
+      if (p.live === false || p.e.alive === false) return;
+      tagOff(p);
+      p.live = false;
+      p.e.alive = false;
+      if (p.mesh && p.mesh.parent) p.mesh.parent.remove(p.mesh);
+    });
+    const down = chase.riders.filter((p) => p.e.alive === false && !p.escaped && p.mesh && p.mesh.parent).length;
+    chase = null;
+    if (jeepRig) jeepRig.visible = false;
+    if (dress && dress.ally) dress.ally.visible = true;
+    radio(down >= 6 ? "추격대 전멸! 하차, 압록강 초소로 진입한다!" : "하차! 압록강 국경 초소로 진입한다!", 3000);
+  }
+  window.__chase = () => (chase ? { t: +chase.t.toFixed(1), riders: chase.riders.length, alive: chase.riders.filter((p) => p.live !== false && p.e.alive !== false).length } : null);
+
+  /* (v20) the brag card: a still of the battlefield with the result laid
+     over it, 1080×1350 (fits every feed), shared through the system sheet
+     where the browser can hand over files, saved as a PNG otherwise */
+  const SHARE_ICO = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 3v12M7.5 7.5L12 3l4.5 4.5" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>';
+  const SAVE_ICO = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 4v11M7.5 10.5L12 15l4.5-4.5" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 18v1a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-1" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>';
+  function makeShareCard(I) {
+    const W = 1080, H = 1350;
+    const c = document.createElement("canvas");
+    c.width = W; c.height = H;
+    const g = c.getContext("2d");
+    g.fillStyle = "#0b0f08"; g.fillRect(0, 0, W, H);
+    if (I.shot) {
+      const sh = I.shot, k = Math.max(W / sh.width, 860 / sh.height);
+      const dw = sh.width * k, dh = sh.height * k;
+      g.drawImage(sh, (W - dw) / 2, 0, dw, dh);
+    }
+    let gr = g.createLinearGradient(0, 380, 0, 900);
+    gr.addColorStop(0, "rgba(11,15,8,0)"); gr.addColorStop(1, "rgba(11,15,8,1)");
+    g.fillStyle = gr; g.fillRect(0, 380, W, 520);
+    g.fillStyle = "#0b0f08"; g.fillRect(0, 900, W, H - 900);
+    gr = g.createLinearGradient(0, 0, 0, 200);
+    gr.addColorStop(0, "rgba(0,0,0,.65)"); gr.addColorStop(1, "rgba(0,0,0,0)");
+    g.fillStyle = gr; g.fillRect(0, 0, W, 200);
+    const F = (w, px) => w + " " + px + "px Pretendard, 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif";
+    g.textBaseline = "alphabetic";
+    g.fillStyle = "#c9b871"; g.font = F(800, 30); g.fillText(I.ko ? "지금 바로 멸공" : "DESTROY NOW", 60, 84);
+    g.textAlign = "right"; g.fillStyle = "#fff"; g.font = F(800, 30); g.fillText("STAGE " + I.label.replace("STAGE ", ""), W - 60, 84); g.textAlign = "left";
+    g.fillStyle = I.cleared ? "#ffe14a" : "#ff8a7a"; g.font = F(900, 74);
+    const head = I.head.length > 18 ? I.head.split(" · ") : [I.head];
+    head.forEach((ln, k) => g.fillText(ln, 60, 760 + k * 84 - (head.length - 1) * 84));
+    g.fillStyle = "#ffd54a"; g.font = F(900, 64); g.fillText(I.stars, 60, 860);
+    const tiles = [[I.ko ? "점수" : "SCORE", I.score.toLocaleString()], [I.ko ? "명중률" : "ACCURACY", I.acc + "%"], ["COMBO", String(I.combo)]];
+    tiles.forEach((t, k) => {
+      const x = 60 + k * 330, y = 920;
+      g.fillStyle = "rgba(255,255,255,.06)"; g.fillRect(x, y, 300, 150);
+      g.fillStyle = "#9aa58a"; g.font = F(700, 28); g.fillText(t[0], x + 26, y + 50);
+      g.fillStyle = "#fff"; g.font = F(900, 56); g.fillText(t[1], x + 26, y + 120);
+    });
+    const P = window.MGProfile;
+    if (P && I.rec) {
+      const r = I.rec.rank1;
+      g.fillStyle = "rgba(201,184,113,.12)"; g.fillRect(60, 1100, W - 120, 120);
+      g.fillStyle = "#f2ecd0"; g.font = F(900, 46); g.fillText((I.ko ? "계급 " : "RANK ") + P.rankName(r), 90, 1176);
+      g.textAlign = "right"; g.fillStyle = "#c9b871"; g.font = F(800, 32);
+      g.fillText([I.diff, I.practice ? (I.ko ? "연습" : "PRACTICE") : "", I.rec.rankUp ? (I.ko ? "진급!" : "PROMOTED!") : ""].filter(Boolean).join(" · "), W - 90, 1172);
+      g.textAlign = "left";
+    }
+    g.fillStyle = "#6f7a60"; g.font = F(700, 26);
+    g.fillText(location.host + location.pathname.replace(/[^/]*$/, ""), 60, 1300);
+    g.textAlign = "right"; g.fillText(new Date().toISOString().slice(0, 10), W - 60, 1300); g.textAlign = "left";
+    return c;
+  }
+  function shareResult(I, act, btn) {
+    const ko = I.ko;
+    const url = location.href.split("#")[0].split("?")[0];
+    const text = (ko ? "지금 바로 멸공 " : "Destroy Now ") + I.label + " " + (I.cleared ? (ko ? "클리어! " : "clear! ") : "") + I.stars + " " + I.score.toLocaleString() + (ko ? "점" : " pts") +
+      (I.rec && window.MGProfile ? " · " + (ko ? "계급 " : "rank ") + window.MGProfile.rankName(I.rec.rank1) : "") + (ko ? " — 너도 도전해봐!" : " — beat that!");
+    const card = makeShareCard(I);
+    const done = (msg) => { if (btn) { const o = btn.innerHTML; btn.textContent = msg; setTimeout(() => { btn.innerHTML = o; }, 1800); } };
+    const download = (blob) => {
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "myeolgong-" + I.label.replace(/\W+/g, "") + "-" + I.score + ".png";
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+      done(ko ? "저장했습니다" : "Saved");
+    };
+    card.toBlob((blob) => {
+      if (!blob) return;
+      const file = new File([blob], "myeolgong.png", { type: "image/png" });
+      if (act === "share" && navigator.share) {
+        const data = { title: ko ? "지금 바로 멸공" : "Destroy Now", text: text, url: url };
+        const withFile = navigator.canShare && navigator.canShare({ files: [file] }) ? Object.assign({ files: [file] }, data) : data;
+        navigator.share(withFile).then(() => done(ko ? "공유 완료" : "Shared")).catch(() => {});
+        return;
+      }
+      if (act === "share") {
+        try { navigator.clipboard && navigator.clipboard.writeText(text + " " + url); } catch (e) {}
+        download(blob);
+        done(ko ? "문구 복사 + 이미지 저장" : "Text copied + image saved");
+        return;
+      }
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] }) && /iPhone|iPad|Android/i.test(navigator.userAgent)) {
+        /* phones keep pictures through the share sheet ("Save image") */
+        navigator.share({ files: [file] }).then(() => done(ko ? "저장 완료" : "Saved")).catch(() => {});
+        return;
+      }
+      download(blob);
+    }, "image/png");
+  }
+  window.__shareCard = (I) => makeShareCard(I);
+
+  /* (v20) arcade continue: the game freezes on a ten-second count; take it
+     and a fresh set of lives drops in where you fell, score kept */
+  function offerContinue(ctx) {
+    if (contOpen || ended) return;
+    contOpen = true;
+    active = false;
+    const pausedAt = performance.now();
+    const ko = (document.documentElement.lang || "").startsWith("ko");
+    const box = document.createElement("div");
+    box.id = "railCont";
+    box.innerHTML = '<div class="cc"><p class="k">' + (ko ? "작전 불능" : "MAN DOWN") + '</p><h2>CONTINUE?</h2><div class="num">10</div>' +
+      '<p class="d">' + (ko ? "이어하면 점수는 그대로, 별 3개는 놓칩니다" : "Score is kept, the third star is lost") + (continues ? " · " + (ko ? "이어하기 " : "continues ") + continues : "") + "</p>" +
+      '<div class="btns"><button class="primary" data-act="cont" type="button">▶ ' + (ko ? "이어하기" : "CONTINUE") + '</button><button data-act="quit" type="button">' + (ko ? "포기" : "GIVE UP") + "</button></div></div>";
+    document.body.appendChild(box);
+    posts.forEach((p) => tagOff(p));
+    if (pistol) pistol.visible = false;
+    showHud(false);
+    try { window.GunSFX && window.GunSFX.bgm(false); } catch (e) {}
+    let n = 10;
+    const num = box.querySelector(".num");
+    const close = () => { clearInterval(iv); box.remove(); contOpen = false; };
+    const iv = setInterval(() => {
+      n--;
+      if (num) { num.textContent = String(Math.max(0, n)); num.classList.remove("tick"); void num.offsetWidth; num.classList.add("tick"); }
+      if (n <= 0) { close(); finish(ctx, false); }
+    }, 1000);
+    box.addEventListener("click", (e) => {
+      const b = e.target && e.target.closest ? e.target.closest("button[data-act]") : null;
+      if (!b) return;
+      e.preventDefault();
+      e.stopPropagation();
+      close();
+      if (b.getAttribute("data-act") !== "cont") { finish(ctx, false); return; }
+      continues++;
+      lives = LIVES0;
+      hp = HPMAX;
+      grenades = Math.max(grenades, 2);
+      const now = performance.now();
+      t0 += now - pausedAt;
+      frame._t = now;
+      active = true;
+      if (pistol) pistol.visible = true;
+      showHud(true);
+      flashScreen(0.5, "radial-gradient(circle,rgba(120,220,255,.55),rgba(40,120,200,0) 70%)");
+      radio(ko ? "증원 투입! 작전을 계속한다." : "Reinforcements in! Carry on.", 2600);
+      try { window.GunSFX && window.GunSFX.bgm(true, false); } catch (e) {}
+    });
   }
 
   function finish(ctx, cleared) {
@@ -7475,24 +7970,47 @@
     const tot = pickups.length;
     const s1 = !!cleared;
     const s2 = tot === 0 || got / tot >= 0.6;
-    const s3 = lives >= 3;
-    const stars = "★".repeat([s1, s2, s3].filter(Boolean).length) + "☆".repeat(3 - [s1, s2, s3].filter(Boolean).length);
+    const s3 = continues === 0 && lives >= LIVES0;
+    const nStars = s1 ? [s1, s2, s3].filter(Boolean).length : 0;
+    const stars = "★".repeat(nStars) + "☆".repeat(3 - nStars);
+    const score = (ctx.G && ctx.G.score) || 0;
+    /* (v20) rank XP and the stage record, then a still for the share card */
+    let rec = null;
+    try { rec = window.MGProfile ? window.MGProfile.record({ stage: stageId, cleared: !!cleared, score: score, stars: nStars, diff: diffKey, practice: practice, continues: continues }) : null; } catch (e) { window.__recErr = String(e); }
+    let shot = null;
+    try { shot = window.MG && window.MG.snap ? window.MG.snap(1280) : null; } catch (e) {}
     const ko = (document.documentElement.lang || "").startsWith("ko");
     const NEXT = { 1: [2, "다음 작전 · DMZ·판문점", "NEXT · DMZ & PANMUNJOM"], 2: [3, "다음 작전 · 평화의 집", "NEXT · PEACE HOUSE"], 3: [4, "다음 작전 · 평양 진입", "NEXT · INTO PYONGYANG"], 4: [5, "다음 작전 · 압록강·백두산", "NEXT · YALU & PAEKTU"] };
     const nx = cleared ? NEXT[stageId] : null;
     const nextB = nx ? "<button class=primary data-act=next data-stage=" + nx[0] + ">" + (ko ? nx[1] : nx[2]) + "</button>" : "";
     const head = cleared
-      ? (stageId === 2 ? (ko ? "작전 성공 · JSA 확보" : "MISSION CLEAR · JSA SECURED") : stageId === 3 ? (ko ? "작전 성공 · 판문각 확보" : "MISSION CLEAR · PANMUNGAK SECURED") : stageId === 4 ? (ko ? "작전 성공 · 평양 광장 확보" : "MISSION CLEAR · SQUARE SECURED") : stageId === 5 ? (ko ? "최종 작전 성공 · 백두산 도달" : "FINAL MISSION CLEAR")  : (ko ? "작전 성공 · 숭례문 탈환" : "MISSION CLEAR"))
+      ? (stageId === 2 ? (ko ? "작전 성공 · JSA 확보" : "MISSION CLEAR · JSA SECURED") : stageId === 3 ? (ko ? "작전 성공 · 판문각 확보" : "MISSION CLEAR · PANMUNGAK SECURED") : stageId === 4 ? (ko ? "작전 성공 · 평양 광장 확보" : "MISSION CLEAR · SQUARE SECURED") : stageId === 5 ? (ko ? "최종 작전 성공 · 총사령관 제압" : "FINAL MISSION · LEADER DOWN")  : (ko ? "작전 성공 · 숭례문 탈환" : "MISSION CLEAR"))
       : (ko ? "작전 실패" : "MISSION FAILED");
     const box = document.createElement("div");
     box.id = "railResult";
     box.className = "show";
+    const P = window.MGProfile;
+    let rankHtml = "";
+    if (rec && P) {
+      const r1 = rec.rank1;
+      const xb = P.xpBar(rec.after);
+      rankHtml = '<div class="rk">' + P.insignia(r1, 46) + '<div class="rt"><b>' + P.rankName(r1) + (rec.practice ? "" : ' <span class="xp">+' + rec.xp.toLocaleString() + " XP</span>") + "</b>" +
+        '<div class="bar"><i style="width:' + Math.round(xb.k * 100) + '%"></i></div><small>' +
+        (rec.practice ? (ko ? "연습 모드 — 경험치·기록 없음" : "Practice — no XP or records") : xb.toNext ? (ko ? "다음 계급까지 " : "Next rank in ") + xb.toNext.toLocaleString() + " XP" : (ko ? "최고 계급" : "Top rank")) +
+        "</small></div></div>" +
+        (rec.rankUp ? '<div class="up">' + (ko ? "진급! " : "PROMOTED! ") + P.rankName(rec.rank0) + " → <b>" + P.rankName(r1) + "</b>" + (rec.perk && rec.perk.length ? "<small>" + rec.perk.join(" · ") + "</small>" : "") + "</div>" : "") +
+        (rec.newBest ? '<div class="nb">' + (ko ? "최고 기록 갱신!" : "NEW BEST!") + "</div>" : "");
+    }
+    const dName = window.MGProfile ? (ko ? DIFF.ko : DIFF.en) : "";
     box.innerHTML = "<div class=card><h2>" + head +
-      "</h2><div class=stars>" + stars + "</div><p>" + (ko ? "스테이지" : "STAGE") + " " + (STAGE.label || "1-1") +
-      "</p><p>" + (ko ? "점수" : "SCORE") + " " + (((ctx.G && ctx.G.score) || 0)) +
-      "</p><p>" + (ko ? "명중률" : "ACCURACY") + " " + Math.round(acc * 100) + "%</p><p>" + (ko ? "보급" : "SUPPLY") + " " + got + "/" + tot +
-      "</p><p>" + (ko ? "파괴" : "DESTROYED") + " " + brokenN + (brokenPts ? " (+" + brokenPts + ")" : "") + "</p><p>COMBO " + bestCombo + "</p><div class=btns>" + nextB + "<button" + (nextB ? "" : " class=primary") + " data-act=again>" + (ko ? "다시 하기" : "PLAY AGAIN") +
-      "</button><button data-act=title>" + (ko ? "타이틀" : "TITLE") + "</button></div></div>";
+      "</h2><div class=stars>" + stars + "</div><p class=meta>" + (STAGE.label || "1-1") + (dName ? " · " + dName : "") + (practice ? " · " + (ko ? "연습" : "PRACTICE") : "") + (continues ? " · CONTINUE " + continues : "") +
+      "</p><div class=grid><p><span>" + (ko ? "점수" : "SCORE") + "</span><b>" + score.toLocaleString() +
+      "</b></p><p><span>" + (ko ? "명중률" : "ACCURACY") + "</span><b>" + Math.round(acc * 100) + "%</b></p><p><span>" + (ko ? "보급" : "SUPPLY") + "</span><b>" + got + "/" + tot +
+      "</b></p><p><span>" + (ko ? "파괴" : "DESTROYED") + "</span><b>" + brokenN + "</b></p><p><span>COMBO</span><b>" + bestCombo + "</b></p></div>" + rankHtml +
+      "<div class=btns>" + nextB + "<button" + (nextB ? "" : " class=primary") + " data-act=again>" + (ko ? "다시 하기" : "PLAY AGAIN") +
+      "</button><button data-act=title>" + (ko ? "타이틀" : "TITLE") + "</button></div>" +
+      "<div class=\"btns share\"><button data-act=share>" + SHARE_ICO + (ko ? "자랑하기" : "SHARE") + "</button><button data-act=save>" + SAVE_ICO + (ko ? "이미지 저장" : "SAVE IMAGE") + "</button></div></div>";
+    const shareInfo = { cleared: !!cleared, head: head, stars: stars, nStars: nStars, score: score, acc: Math.round(acc * 100), combo: bestCombo, label: STAGE.label || "1-1", stage: stageId, diff: dName, practice: practice, continues: continues, rec: rec, shot: shot, ko: ko };
     box.addEventListener("click", (e) => {
       const b = e.target && e.target.closest ? e.target.closest("button[data-act]") : null;
       if (!b) return;
@@ -7501,6 +8019,7 @@
       const act = b.getAttribute("data-act");
       if (act === "again") { try { window.MG && window.MG.playAgain(); } catch (err) {} }
       else if (act === "next") { try { window.MG && window.MG.playStage(+b.getAttribute("data-stage") || 2); } catch (err) {} }
+      else if (act === "share" || act === "save") { shareResult(shareInfo, act, b); }
       else { try { window.MG && window.MG.toTitle(); } catch (err) {} }
     });
     document.body.appendChild(box);
@@ -8161,6 +8680,7 @@
     /* head shot pays twice, and three times on the boss */
     const dmg = head ? (p.role === "boss" ? 3 : 2) : 1;
     window.__lastDmg = { role: p.role, head: head, dmg: dmg };    p.e.hp = (p.e.hp || 1) - dmg;
+    if (p.commander && p.e.hp > 0) bossPhaseCheck(ctx, p);
     if (p.e.hp > 0) {
       // suppressed: he drops back behind cover instead of standing there
       p.state = "duck";
@@ -8316,7 +8836,14 @@
         const fx = p.run.dest[0] - p.run.from[0], fz = p.run.dest[1] - p.run.from[1];
         if (p.bikeMesh) {
           /* a bike comes in fast and brakes into his spot */
-          const eb = 1 - Math.pow(1 - kk, 2.2);
+          if (!p.motorOn) {
+            p.motorOn = 1;
+            gun("motor");
+            const sp = screenOf(new T.Vector3(p.x, 1.6, p.z), ctx.camera);
+            if (sp && sp.x > 0 && sp.x < innerWidth) hitMark("block", sp.x, sp.y - 30, false, "BIKE!");
+            if (!window.__bikeCalled || performance.now() - window.__bikeCalled > 9000) { window.__bikeCalled = performance.now(); radio("적 오토바이 돌진! 타고 있을 때 쏘면 보너스!", 2600); }
+          }
+          const eb = 1 - Math.pow(1 - kk, 1.8);
           p.x = p.run.from[0] + fx * eb;
           p.z = p.run.from[1] + fz * eb;
           p.y = 0.98;
@@ -8581,6 +9108,65 @@
     }
     window.__bikes = (window.__bikes || 0) + 1;
   }
+  /* (v20) the square's bronze group can be brought down by a falling
+     gunship: every block of it comes loose, tumbles and settles on the
+     flagstones */
+  let MONU = null;
+  const debris = [];
+  function shatterMonument(ctx, at) {
+    if (!MONU || MONU.broken) return;
+    MONU.broken = true;
+    const cx = MONU.x, cz = MONU.z;
+    const pieces = [];
+    MONU.figs.forEach((o) => {
+      if (!o.parent) return;
+      o.updateMatrixWorld(true);
+      if (o.isMesh) pieces.push(o);
+      else o.traverse((c) => { if (c.isMesh) pieces.push(c); });
+    });
+    pieces.forEach((m) => {
+      ctx.scene.attach(m);
+      const dx = m.position.x - (at ? at.x : cx), dz = m.position.z - (at ? at.z : cz);
+      const d = Math.hypot(dx, dz) || 1;
+      const pw = 4 + Math.random() * 6;
+      m.userData.dv = new T.Vector3((dx / d) * pw + (Math.random() - 0.5) * 3, 3 + Math.random() * 7, (dz / d) * pw + (Math.random() - 0.5) * 3 - 2);
+      m.userData.dw = new T.Vector3((Math.random() - 0.5) * 8, (Math.random() - 0.5) * 8, (Math.random() - 0.5) * 8);
+      const bb = new T.Box3().setFromObject(m);
+      m.userData.half = Math.max(0.15, (bb.max.y - bb.min.y) * 0.25);
+      m.userData.rest = 0;
+      debris.push(m);
+    });
+    for (let i = 0; i < 6; i++) boomAt(ctx, cx + (Math.random() - 0.5) * 9, MONU.base + Math.random() * 6, cz + (Math.random() - 0.5) * 3);
+    for (let i = 0; i < 16; i++) smokeAt(ctx, cx + (Math.random() - 0.5) * 12, MONU.base + Math.random() * 5, cz + (Math.random() - 0.5) * 4, 0x8a8070);
+    shake = 2.2;
+    hitStop = Math.max(hitStop, 0.25);
+    flashScreen(0.8);
+    gun("boom");
+    setTimeout(() => gun("boom"), 180);
+    addPts(ctx, 3000);
+    radio("동상이 무너진다! 적 사기 붕괴, 밀어붙여라!", 3400);
+    window.__monuDown = (window.__monuDown || 0) + 1;
+  }
+  function stepDebris(dt) {
+    for (let i = debris.length - 1; i >= 0; i--) {
+      const m = debris[i], u = m.userData;
+      if (u.rest > 2) continue;
+      u.dv.y -= 14 * dt;
+      m.position.addScaledVector(u.dv, dt);
+      m.rotation.x += u.dw.x * dt; m.rotation.y += u.dw.y * dt; m.rotation.z += u.dw.z * dt;
+      /* the plinth top is a floor too, for the blocks that drop straight down */
+      const onPlinth = MONU && Math.abs(m.position.x - MONU.x) < 6.5 && Math.abs(m.position.z - MONU.z) < 2.7;
+      const floor = (onPlinth ? MONU.base : 0.3) + u.half;
+      if (m.position.y < floor) {
+        m.position.y = floor;
+        u.dv.y = -u.dv.y * 0.32;
+        u.dv.x *= 0.55; u.dv.z *= 0.55;
+        u.dw.multiplyScalar(0.5);
+        if (Math.abs(u.dv.y) < 1.2) { u.rest++; u.dv.set(0, 0, 0); u.dw.set(0, 0, 0); }
+      }
+    }
+  }
+
   function stepCrashed(ctx, dt) {
     for (let i = crashed.length - 1; i >= 0; i--) {
       const b = crashed[i], u = b.userData;
@@ -8831,10 +9417,11 @@
           phase = "move";
           pathU = 0;
           window.__railPhase = "move";
+          if (STAGE.chase) startChase(ctx);
         }
       } else if (phase === "move" || phase === "toBoss") {
         const goalU = phase === "toBoss" ? bossU : (waves[waveI] ? waves[waveI].u : bossU);
-        pathU = Math.min(goalU, pathU + (7.4 * dt) / pathLen);
+        pathU = Math.min(goalU, pathU + ((chase ? 6.2 : 7.4) * dt) / pathLen);
         const p = pathAt(pathU);
         const tng = curve.getTangentAt(Math.max(0, Math.min(1, pathU)));
         const tl = Math.hypot(tng.x, tng.z) || 1;
@@ -8857,7 +9444,7 @@
         }
         arrived = goalU - pathU < 0.0005;
         if (arrived) {
-          if (phase === "move") { startWave(waves[waveI]); }
+          if (phase === "move") { if (chase) endChase(ctx); startWave(waves[waveI]); }
           else if (phase === "toBoss") { startBoss(ctx); }
         }
       } else {
@@ -8888,7 +9475,7 @@
     }
     const sway = Math.sin(nowMs / 2400) * 0.0016;
     cam.position.x += sx;
-    if (phase !== "intro") cam.position.y = CAM_Y + sy + Math.sin(nowMs / 1700) * 0.006;
+    if (phase !== "intro") cam.position.y = CAM_Y + sy + Math.sin(nowMs / 1700) * 0.006 + (chase ? Math.sin(nowMs / 90) * 0.012 : 0);
     cam.lookAt(lookSmooth.x, lookSmooth.y + sway, lookSmooth.z);
     cam.near = 0.06;
     cam.fov = viewFov();
@@ -8913,7 +9500,8 @@
       const falling = posts.some((p) => p.air === "heli" && p.e.alive === false && p.mesh && p.mesh.visible !== false);
       if (!falling && (left === 0 || (waveT <= 0 && phase !== "boss"))) endWave(ctx);
     } else if (phase === "move" || phase === "toBoss") {
-      stepAlly(ctx, dt);
+      if (chase) stepChase(ctx, dt);
+      else stepAlly(ctx, dt);
     }
 
     // ---- dying ----
@@ -8998,7 +9586,7 @@
     const since = performance.now() - lastShot;
     const kick = Math.max(0, recoil);
     recoil = Math.max(0, recoil - 0.08);
-    if (reloadK > 0) reloadK = Math.max(0, reloadK - dt / 0.44);
+    if (reloadK > 0) reloadK = Math.max(0, reloadK - dt / (0.44 * (PERK.reload || 1)));
     if (pistol && pistolBase) {
       { const want = phase !== "intro" && phase !== "result"; if (pistol.visible !== want) pistol.visible = want; }
       const asp = innerWidth / Math.max(1, innerHeight);
@@ -9149,6 +9737,7 @@
     stepWeather(ctx, dt);
     stepFallers(dt);
     stepCrashed(ctx, dt);
+    if (debris.length) stepDebris(dt);
     stepNades(ctx, dt);
     /* the SMG keeps firing while the trigger is held */
     if (holding && weapon === "smg" && active && !ended && phase !== "intro") fire(ctx);
@@ -10280,7 +10869,7 @@
     const gT = vm.grass.map.clone(); gT.needsUpdate = true; gT.wrapS = gT.wrapT = T.RepeatWrapping; gT.repeat.set(60, 40);
     const grassM = new T.MeshStandardMaterial({ map: gT, color: 0xc0d6a4, roughness: 0.96 });
     const plane = (w, d, x, z, m, y) => { const o = new T.Mesh(new T.PlaneGeometry(w, d), m); o.rotation.x = -Math.PI / 2; o.position.set(x, y == null ? 0.24 : y, z); o.receiveShadow = true; o.userData.noBlock = 1; S.add(o); return o; };
-    plane(400, 160, 0, -72, grassM);
+    plane(400, 260, 0, -122, grassM);
     const gN = new T.MeshStandardMaterial({ map: gT, color: 0xb4c69a, roughness: 0.96 });
     plane(400, 70, 0, 67, gN);
     const trailT = ctex("trailDirt", 128, 128, (g, w, h) => {
@@ -10291,6 +10880,7 @@
     });
     const trM = (rx, ry) => { const t = trailT.clone(); t.needsUpdate = true; t.wrapS = t.wrapT = T.RepeatWrapping; t.repeat.set(rx, ry); return new T.MeshStandardMaterial({ map: t, roughness: 0.95 }); };
     plane(7, 54, 0, -19, trM(2, 14), 0.26);
+    plane(8, 124, 0, -106, trM(2, 32), 0.26);
     plane(9, 64, 3, 66, trM(2, 16), 0.26);
     /* ---- the gorge: rock walls down to the river ---- */
     const VR = voxBatch();
@@ -10428,8 +11018,8 @@
       return true;
     };
     let placed = 0;
-    for (let tries = 0; tries < 1400 && placed < 190; tries++) {
-      const x = (R() - 0.5) * 140, z = -80 + R() * 176;
+    for (let tries = 0; tries < 2400 && placed < 300; tries++) {
+      const x = (R() - 0.5) * 140, z = -180 + R() * 276;
       if (!clear(x, z, 8.0)) continue;
       const h = (z > 40 ? 4 : 7) + R() * 6;
       if (R() < 0.85) voxPine(VT, x, 0.25, z, h, tries + 9);
@@ -10881,14 +11471,18 @@
         g.rotation.y = rot;
         S.add(g);
       };
+      MONU = { figs: [], x: mx, z: mz, top: base + 2.2 * sc, base: base, broken: false };
       fig(mx - 3.6, mz + 0.2, Math.PI + 0.25, "hammer");
       fig(mx, mz - 0.4, Math.PI, "rifle");
       fig(mx + 3.6, mz + 0.2, Math.PI - 0.25, "sheaf");
+      S.children.slice(-3).forEach((o) => MONU.figs.push(o));
       /* the flag behind them: a pole leaning back and a cloth of stepped blocks */
       const pole = new T.Mesh(new T.CylinderGeometry(0.12, 0.14, 13, 8), bronzeD);
       pole.position.set(mx - 1.0, base + 6.0, mz + 1.6); pole.rotation.z = 0.28; pole.castShadow = true; S.add(pole);
+      MONU.figs.push(pole);
       for (let i = 0; i < 6; i++) {
         const c = new T.Mesh(new T.BoxGeometry(1.4, 3.2 - i * 0.18, 0.3), redM);
+        MONU.figs.push(c);
         c.position.set(mx - 2.2 + i * 1.3, base + 9.6 - i * 0.35 + Math.sin(i * 1.3) * 0.3, mz + 1.6 + Math.sin(i) * 0.4);
         c.castShadow = true;
         S.add(c);
@@ -11080,11 +11674,21 @@
       cx: p0.x, cz: p0.z, baseY: m.y || 8.6,
       orbitR: m.orbit || 5.0, orbitT: Math.random() * 6.28, orbitW: m.ow || 0.42,
       hpMax: hp, gunnerAlive: true,
-      aim: 2.8, aimMax: 2.8, burstN: 0, shotT: 0,
+      aim: 2.8 * (DIFF.aim || 1), aimMax: 2.8 * (DIFF.aim || 1), burstN: 0, shotT: 0,
       live: false, state: "hover", expose: 1, smokeT: 0,
       bob: Math.random() * 6, walk: 0, moving: false,
       fallV: 0, spin: 0, dying: 0, visTop: 0
     };
+    /* (v20) it no longer circles a spot behind the scenery: it climbs out
+       from where it was parked and then strafes across the front of the
+       position, swinging side to side between the player and the cover */
+    const f0 = waveXY(w, 0, m.front || 12.5), fl = waveXY(w, 1, m.front || 12.5), ff = waveXY(w, 0, (m.front || 12.5) + 1);
+    post.front = { x: f0.x, z: f0.z };
+    post.lat = { x: fl.x - f0.x, z: fl.z - f0.z };
+    post.fwd = { x: ff.x - f0.x, z: ff.z - f0.z };
+    post.sweep = m.sweep || 7.0;
+    post.enterT = 0;
+    post.flyY = m.flyY || (5.6 + Math.random() * 0.8);
     g.position.set(post.x, post.y, post.z);
     if (SCENE) SCENE.add(g);
     post.mesh = g;
@@ -11120,6 +11724,22 @@
       /* shot down: the tail comes round, smoke pours, then it hits the dirt */
       p.fallV -= 9.2 * dt;
       p.y += p.fallV * dt;
+      if (MONU && !MONU.broken && p.crashMonu === undefined) {
+        p.crashMonu = Math.hypot(p.x - MONU.x, p.z - MONU.z) < 48 && STAGE.dress === "pyongyang";
+        if (p.crashMonu) { p.fallV = 1.5; radio("헬기가 동상 쪽으로 추락한다!", 2200); }
+      }
+      if (p.crashMonu && MONU && !MONU.broken) {
+        /* it glides in on a smoking arc and slams into the bronze group */
+        const k = Math.min(1, dt * 1.6);
+        p.x += (MONU.x - p.x) * k;
+        p.z += (MONU.z - 0.6 - p.z) * k;
+        p.fallV = Math.max(p.fallV, -7.5);
+        if (p.y <= MONU.top && Math.hypot(p.x - MONU.x, p.z - MONU.z) < 3.4) {
+          shatterMonument(window.__railCtx || { scene: SCENE }, { x: p.x, z: p.z });
+          p.crashMonu = false;
+          p.fallV = -2;
+        }
+      }
       p.spin += dt * 3.4;
       p.mesh.position.set(p.x, p.y, p.z);
       p.mesh.rotation.z = Math.sin(p.spin) * 0.5;
@@ -11137,22 +11757,43 @@
         for (let i = 0; i < 3; i++) boomAt(ctx, p.x + (Math.random() - 0.5) * 2, 0.9, p.z + (Math.random() - 0.5) * 2);
         shake = 1.6;
         gun("boom");
+        if (p.isBoss && !ended) finish(ctx, true);
       }
       return;
     }
     p.orbitT += dt * p.orbitW;
-    const ox = p.cx + Math.sin(p.orbitT) * p.orbitR;
-    const oz = p.cz + Math.cos(p.orbitT * 0.8) * p.orbitR * 0.42;
-    p.x += (ox - p.x) * Math.min(1, dt * 1.5);
-    p.z += (oz - p.z) * Math.min(1, dt * 1.5);
+    let ox, oz, oy, lean = 0;
+    if (p.front && p.live !== false) {
+      /* climb out first (over whatever it was hiding behind), then sweep */
+      p.enterT = Math.min(1, (p.enterT || 0) + dt / 2.6);
+      const sw = Math.sin(p.orbitT * 1.15) * p.sweep;
+      const fw = 1.2 + Math.cos(p.orbitT * 0.83) * 2.4 - (p.isBoss ? Math.max(0, Math.sin(p.orbitT * 0.41)) * 3.5 : 0);
+      ox = p.front.x + p.lat.x * sw + p.fwd.x * fw;
+      oz = p.front.z + p.lat.z * sw + p.fwd.z * fw;
+      oy = p.flyY + Math.sin(p.orbitT * 0.7) * 0.8;
+      if (p.enterT < 1) {
+        const k = p.enterT * p.enterT * (3 - 2 * p.enterT);
+        oy = Math.max(oy, p.baseY + 2.2 * (1 - k));
+      }
+      lean = -Math.cos(p.orbitT * 1.15) * 0.22;
+    } else {
+      ox = p.cx + Math.sin(p.orbitT) * p.orbitR;
+      oz = p.cz + Math.cos(p.orbitT * 0.8) * p.orbitR * 0.42;
+      oy = p.baseY;
+    }
+    const kk = Math.min(1, dt * (p.enterT < 1 ? 1.1 : 1.6));
+    p.x += (ox - p.x) * kk;
+    p.z += (oz - p.z) * kk;
     p.bob += dt * 1.3;
-    p.y = p.baseY + Math.sin(p.bob) * 0.4;
+    p.yB = (p.yB == null ? p.y : p.yB) + (oy - (p.yB == null ? p.y : p.yB)) * kk;
+    p.y = p.yB + Math.sin(p.bob) * 0.3;
     p.mesh.position.set(p.x, p.y, p.z);
     p.mesh.rotation.y = Math.atan2(cam.x - p.x, cam.z - p.z) + 0.28;
-    p.mesh.rotation.z = Math.sin(p.bob * 0.7) * 0.05 - 0.04;
+    p.mesh.rotation.z = Math.sin(p.bob * 0.7) * 0.05 - 0.04 + lean;
     if (u.rotor) u.rotor.rotation.y += dt * 17;
     if (u.tail) u.tail.rotation.x += dt * 26;
     p.visTop = p.y + 2.3;
+    if (p.isBoss && p.live !== false && (p.enterT || 0) >= 1) heliRockets(ctx, p, dt);
     if (p.live !== false) {
       p.aim -= dt;
       if (p.aim <= 0) {
@@ -11539,13 +12180,13 @@
     const p0 = waveXY({ yaw: 0, hold: bossHold }, spot[0], spot[1]);
     /* (v17) armour: ordinary hits barely scratch it; the glowing vent, a
        grenade, or jamming the main gun is how it dies */
-    const hp = STAGE.bossHp || 60;
+    const hp = Math.round((STAGE.bossHp || 60) * (DIFF.boss || 1));
     const post = {
       e: { kind: "boss", mesh: g, alive: true, hp: hp, h: 2.8, _tag: null },
       role: "boss", air: "apc", isBoss: true, i: 1,
       x: p0.x, z: p0.z, y: 0.3,
       hpMax: hp, spotI: 1, live: false, state: "hidden", stateT: 1.2,
-      aim: 2.4, aimMax: 2.4, burstN: 0, shotT: 0, expose: 1,
+      aim: 2.4 * (DIFF.aim || 1), aimMax: 2.4 * (DIFF.aim || 1), burstN: 0, shotT: 0, expose: 1,
       jump: null, moveT: 3.2, bob: 0, walk: 0, moving: false,
       knock: 0, recoil: 0, visTop: 0,
       tank: tank, cannonT: 6.5, charge: 0, jam: 0, stun: 0, phaseN: 0
@@ -11569,7 +12210,11 @@
     const want = k < 0.34 ? 2 : k < 0.67 ? 1 : 0;
     while (p.phaseN < want) {
       p.phaseN++;
-      radio(p.phaseN === 1 ? "적 증원 낙하! 호위병부터 정리하라!" : "적 전차가 발악한다! 증원 병력 다수 강하!", 3600);
+      const lines = p.commander ? ["총사령관이 친위대를 부른다! 낙하병부터 정리하라!", "총사령관이 궁지에 몰렸다! 마지막 친위대 강하!"]
+        : p.air === "heli" ? ["헬기가 공수부대를 떨군다! 낙하병 주의!", "공격헬기가 발악한다! 증원 병력 다수 강하!"]
+        : ["적 증원 낙하! 호위병부터 정리하라!", "적 전차가 발악한다! 증원 병력 다수 강하!"];
+      radio(lines[p.phaseN === 1 ? 0 : 1], 3600);
+      if (p.commander) p.aimMax = Math.max(0.9, p.aimMax * 0.85);
       const n = p.phaseN === 1 ? 2 : 3;
       for (let i = 0; i < n; i++) {
         const lat = (i - (n - 1) / 2) * 4.2 + (Math.random() - 0.5);
@@ -11727,6 +12372,17 @@
     p.hitFlash = 0.09;
     burst(ctx.scene, at.x, at.y, at.z, dmg >= 3 || p.e.hp <= 1);
     p.recoil = 1;
+    if (p.air === "heli" && p.isBoss && p.charge > 0) {
+      p.jam = (p.jam || 0) + 1;
+      const sp = screenOf(at, ctx.camera);
+      hitMark("block", sp.x, sp.y, false, "BREAK " + p.jam + "/5");
+      if (p.jam >= 5) {
+        p.charge = 0; p.jam = 0; p.rocketT = 7 + Math.random() * 2;
+        if (p.pods) p.pods.forEach((m) => (m.visible = false));
+        radio("로켓 발사 저지! 기체가 흔들린다!", 2600);
+        addPts(ctx, 300);
+      }
+    }
     if (p.air === "heli") {
       grunt(false);
       if (p.e.hp <= 3 && p.gunnerAlive) {
@@ -11736,7 +12392,7 @@
     }
     window.__lastHitAir = { kind: p.air, dmg: dmg, hp: p.e.hp, crit: crit };
     window.__lastDmg = { role: p.role, head: crit, dmg: dmg };
-    if (p.air === "apc" && p.e.hp > 0) bossPhaseCheck(ctx, p);
+    if ((p.air === "apc" || p.isBoss) && p.e.hp > 0) bossPhaseCheck(ctx, p);
     if (p.e.hp > 0) { gun(dmg >= 3 ? "crit" : "hit"); return; }
     if (p.air === "heli") {
       p.e.alive = false;
@@ -11746,9 +12402,10 @@
       flashScreen(0.5);
       shake = 1.3;
       gun("boom");
-      addPts(ctx, 600);
+      addPts(ctx, p.isBoss ? 3000 : 600);
       tagOff(p);
       window.__heliDown = (window.__heliDown || 0) + 1;
+      if (p.isBoss) { window.__bossDown = (window.__bossDown || 0) + 1; radio("적 공격헬기 격추!", 2400); }
       return;
     }
     /* the armoured car goes up */
@@ -11795,6 +12452,9 @@
       aimN.y = -(y / innerHeight) * 2 + 1;
       try { fire(ctx); } catch (err) { window.__fireErr = String(err && err.stack || err); }
     },
+    hurt: (n) => { const ctx = window.__railCtx; if (ctx) hurtPlayer(ctx, n || 10); },
+    killHeli: () => { const ctx = window.__railCtx; posts.slice().forEach((p) => { if (p.air === "heli" && p.live !== false && p.e.alive !== false) { p.e.hp = 1; airDamage(ctx, p, new T.Vector3(p.x, p.y, p.z), new T.Box3(new T.Vector3(p.x - 1, p.y - 1, p.z - 1), new T.Vector3(p.x + 1, p.y + 1, p.z + 1))); } }); },
+    win: () => { const ctx = window.__railCtx; if (ctx) finish(ctx, true); },
     killWave: () => {
       const ctx = window.__railCtx;
       if (!ctx) return 0;

@@ -7,8 +7,7 @@
   const canvas = document.getElementById("mgCanvas");
   const errEl = document.getElementById("mgErr");
   const titleEl = document.getElementById("mgTitle");
-  const startBtn = document.getElementById("mgStart");
-  const sndBtn = document.getElementById("mgSound");
+  let sndBtn = document.getElementById("mgSound");
   const ko = (document.documentElement.lang || "ko").toLowerCase().indexOf("ko") === 0;
   const TXT = ko
     ? { sndOn: "소리 켬", sndOff: "소리 끔", err: "이 기기에서는 3D 화면을 열 수 없습니다. 페이지를 새로고침하거나 다른 브라우저로 열어 주세요." }
@@ -41,7 +40,7 @@
   paintSound();
 
   /* ---- graphics switch: auto -> high -> low (post.js) ---- */
-  const gfxBtn = document.getElementById("mgGfx");
+  let gfxBtn = document.getElementById("mgGfx");
   const GFX = ko ? { auto: "그래픽 자동", high: "그래픽 높음", low: "그래픽 낮음" }
                  : { auto: "Graphics: auto", high: "Graphics: high", low: "Graphics: low" };
   function paintGfx() {
@@ -50,9 +49,15 @@
     const p = window.MGPost.pref;
     const t = gfxBtn.querySelector(".tGfxTxt") || gfxBtn;
     t.textContent = GFX[p] + (p === "auto" ? " · " + (window.MGPost.quality === "high" ? (ko ? "높음" : "high") : (ko ? "낮음" : "low")) : "");
+    gfxBtn.title = t.textContent;
+    gfxBtn.setAttribute("aria-label", t.textContent);
+    gfxBtn.classList.toggle("off", p === "low");
   }
+  if (window.MGPost) window.MGPost.onChange(paintGfx);
+  function bindMenu() {
+  sndBtn = document.getElementById("mgSound");
+  gfxBtn = document.getElementById("mgGfx");
   if (gfxBtn && window.MGPost) {
-    window.MGPost.onChange(paintGfx);
     gfxBtn.addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -75,6 +80,12 @@
       } catch (err) {}
     });
   }
+  paintSound();
+  paintGfx();
+  }
+  bindMenu();
+  /* profile.js re-makes the title menu after every mission */
+  window.MGMenuBind = bindMenu;
 
   /* ---- renderer / scene / camera ---- */
   let renderer = null;
@@ -256,8 +267,22 @@
     state.mode = "title";
     try { window.RAIL && window.RAIL.pause(); } catch (e) {}
     document.documentElement.classList.remove("mg-playing");
+    try { window.MGMenu && window.MGMenu.refresh(); } catch (e) {}
     if (titleEl) titleEl.classList.add("show");
     if (titleEl) titleEl.scrollTop = 0;
+  }
+
+  /* a still of the battlefield for the result card: render now and copy the
+     frame out before the browser clears the drawing buffer */
+  function snap(maxW) {
+    try {
+      if (window.MGPost) window.MGPost.render(renderer, scene, camera); else renderer.render(scene, camera);
+      const w = Math.min(maxW || 1080, canvas.width), h = Math.round(canvas.height * (w / canvas.width));
+      const c = document.createElement("canvas");
+      c.width = w; c.height = h;
+      c.getContext("2d").drawImage(canvas, 0, 0, w, h);
+      return c;
+    } catch (e) { return null; }
   }
 
   window.MG = {
@@ -266,48 +291,9 @@
     play: play,
     playStage: play,
     playAgain: function () { play(window.RAIL && window.RAIL.stage ? window.RAIL.stage : 1); },
-    toTitle: toTitle
+    toTitle: toTitle,
+    snap: snap
   };
-
-  if (startBtn) {
-    startBtn.addEventListener("click", (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      play(1);
-    });
-  }
-  const start5 = document.getElementById("mgStart5");
-  if (start5) {
-    start5.addEventListener("click", (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      play(5);
-    });
-  }
-  const start4 = document.getElementById("mgStart4");
-  if (start4) {
-    start4.addEventListener("click", (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      play(4);
-    });
-  }
-  const start3 = document.getElementById("mgStart3");
-  if (start3) {
-    start3.addEventListener("click", (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      play(3);
-    });
-  }
-  const start2 = document.getElementById("mgStart2");
-  if (start2) {
-    start2.addEventListener("click", (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      play(2);
-    });
-  }
 
   document.addEventListener("gesturestart", (e) => e.preventDefault());
 

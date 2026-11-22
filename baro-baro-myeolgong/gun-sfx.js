@@ -225,6 +225,30 @@
     band(c, t + 0.02, 0.08, "bandpass", 2400, 2.0, 0.2, 0.001, 0.06, bus);
   }
 
+  /* (v20) a two-stroke bike coming in: a buzzing sawtooth that climbs
+     through two gears, through a low-pass so it sits behind the guns */
+  function motor() {
+    if (muted()) return;
+    const c = ac();
+    const t = c.currentTime;
+    const o = c.createOscillator(), o2 = c.createOscillator(), f = c.createBiquadFilter(), gN = c.createGain();
+    o.type = "sawtooth"; o2.type = "square";
+    o.frequency.setValueAtTime(62, t);
+    o.frequency.linearRampToValueAtTime(118, t + 0.7);
+    o.frequency.linearRampToValueAtTime(84, t + 0.8);
+    o.frequency.linearRampToValueAtTime(140, t + 1.6);
+    o.frequency.linearRampToValueAtTime(70, t + 2.2);
+    o2.frequency.setValueAtTime(31, t);
+    o2.frequency.linearRampToValueAtTime(70, t + 1.6);
+    f.type = "lowpass"; f.frequency.value = 900; f.Q.value = 2;
+    gN.gain.setValueAtTime(0.0001, t);
+    gN.gain.exponentialRampToValueAtTime(0.16, t + 0.12);
+    gN.gain.setValueAtTime(0.16, t + 1.7);
+    gN.gain.exponentialRampToValueAtTime(0.0001, t + 2.3);
+    o.connect(f); o2.connect(f); f.connect(gN); gN.connect(bus);
+    o.start(t); o2.start(t); o.stop(t + 2.4); o2.stop(t + 2.4);
+  }
+
   function reload() {
     if (muted()) return;
     const c = ac();
@@ -612,6 +636,7 @@
     shotgun,
     smg,
     clank,
+    motor,
     reload,
     hit,
     crit,
