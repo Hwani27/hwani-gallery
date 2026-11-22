@@ -19,6 +19,25 @@
   let booted = false;
   let t0 = 0;
   let pistol = null;
+  let pistolAim = null;
+  let pistolBody = null;
+  let pistolUpperL = null;
+  let pistolPivot = null;
+  const tmpV = new T.Vector3();
+  const gunQ = new T.Quaternion();
+  const gunQd = new T.Quaternion();
+  const gunE = new T.Euler(0, 0, 0, "YXZ");
+  const aimRay = new T.Raycaster();
+  const aimNdc = new T.Vector2();
+  const aimPt = new T.Vector3();
+  const aimLocal = new T.Vector3();
+  const aimSnapPt = new T.Vector3();
+  const aimWish = new T.Vector3();
+  const tmpT3 = new T.Vector3();
+  const tmpT4 = new T.Vector3();
+  const UPY_VIEW = new T.Vector3(0, 1, 0);
+  let aimSnapAt = -1e9;
+  let gunAim = { yaw: 0, pitch: 0 };
   let flash = null;
   let flashHalo = null;
   let flashLight = null;
@@ -2136,9 +2155,20 @@
 
   function pathAt(u) { return curve.getPointAt(Math.max(0, Math.min(1, u))); }
 
+  /* camera.fov is the VERTICAL angle. A fixed ~58° on a portrait phone
+     (aspect ~0.46) squeezes the horizontal cone down to ~30°, so the left and
+     right enemies drop out of frame. On portrait screens hold the horizontal
+     cone instead: vfov = 2·atan(tan(hfov/2) / aspect), clamped to 52..82 so a
+     tall phone never turns into a fisheye. Landscape (aspect >= 1) keeps the
+     old 58° and a nearly square window eases out of it instead of snapping. */
+  const FOV_LAND = 58, FOV_MIN = 52, FOV_MAX = 82, FOV_KEEP_H = 76;
   function viewFov() {
     const asp = innerWidth / Math.max(1, innerHeight);
-    return asp < 0.8 ? 60 : 58;
+    if (asp >= 1) return FOV_LAND;
+    const want = (2 * Math.atan(Math.tan((FOV_KEEP_H * Math.PI) / 360) / Math.max(0.2, asp)) * 180) / Math.PI;
+    const v = Math.max(FOV_MIN, Math.min(FOV_MAX, want));
+    const k = Math.min(1, (1 - asp) / 0.16);
+    return FOV_LAND + (v - FOV_LAND) * k;
   }
   function halfTan() {
     const asp = innerWidth / Math.max(1, innerHeight);
@@ -2156,6 +2186,15 @@
   function makePistol(camera) {
     makeSol();
     const g = new T.Group();
+    /* two children: `aim` is everything from the shooting elbow out (gun,
+       both hands, both forearms) and it turns around that elbow to aim;
+       `body` is the upper arms, shoulders and vest, which stay on the torso.
+       Split this way the barrel can swing with the aim without ever opening a
+       gap at the shoulder or dragging the whole body across the screen. */
+    const aim = new T.Group();
+    const body = new T.Group();
+    g.add(aim);
+    g.add(body);
     const mk = (hex) => { const m = new T.MeshLambertMaterial({ color: hex }); m.color.convertSRGBToLinear(); return m; };
     // brushed steel body parts share one map so the grain lines up
     const smetal = metalTex("pistolSteel", 23);
@@ -2180,7 +2219,6 @@
     const bore = mk(0x07090b);
     const steel = mm(0x7f8792, smetal, 1, 1);
     const skin = mk(0xc08a5e);
-    const olive = mk(0x4a5430);
     const gripMat = new T.MeshLambertMaterial({
       color: 0xffffff,
       map: (() => {
@@ -2199,7 +2237,7 @@
     const add = (w, h, d, x, y, z, mat) => {
       const m = new T.Mesh(new T.BoxGeometry(w, h, d), mat);
       m.position.set(x, y, z);
-      g.add(m);
+      aim.add(m);
       return m;
     };
 
@@ -2250,11 +2288,82 @@
     add(0.05, 0.05, 0.11, -0.03, -0.262, -0.015, skin);
     add(0.05, 0.05, 0.1, 0.01, -0.268, -0.01, skin);
     add(0.04, 0.07, 0.09, -0.115, -0.215, 0.02, skin);
-    // camo sleeves running off the bottom of the frame
-    add(0.15, 0.16, 0.24, 0.015, -0.29, 0.21, olive);
-    add(0.155, 0.12, 0.12, 0.015, -0.35, 0.33, olive);
-    add(0.14, 0.15, 0.22, -0.12, -0.32, 0.2, olive);
-    add(0.14, 0.11, 0.11, -0.13, -0.37, 0.31, olive);
+    /* ---- arms: wrist → forearm → elbow → upper arm → shoulder ----
+       The pistol hangs ~0.66 m in front of the eye and the whole rig is scaled
+       to the viewport, so a portrait phone sees a long way below the grip. The
+       sleeves are a jointed chain that runs out through the bottom and side
+       edges of the frustum, so no cuff end can hang in the middle of the
+       picture at any aspect ratio.
+       Everything below the elbow (`aim`) turns with the pistol so the barrel
+       really points where the player shoots. The upper arms, deltoids and vest
+       (`body`) stay on the torso, and the right elbow is that turn's pivot, so
+       the shooting shoulder can never come apart. */
+    const camMap = camoTex("camo", ["#5c6b3c", "#47542e", "#6f7d4a", "#3b4527", "#7d7048"], 31);
+    const camDark = camoTex("camoD", ["#424d2c", "#333d22", "#4f5a36", "#2a321c", "#5c5334"], 37);
+    /* one cloth material per piece, with the tile repeated by real size so the
+       camouflage blobs stay square along a long sleeve instead of streaking */
+    const cloth = (tex, len, w, tint) => {
+      const t = tex.clone();
+      t.wrapS = t.wrapT = T.RepeatWrapping;
+      t.repeat.set(Math.max(1, Math.round(w / 0.2)), Math.max(1, Math.round(len / 0.2)));
+      t.anisotropy = Math.max(1, Math.min(8, MAXANISO));
+      t.needsUpdate = true;
+      const m = new T.MeshLambertMaterial({ color: tint || 0xffffff, map: t });
+      m.color.convertSRGBToLinear();
+      return m;
+    };
+    const strap = mm(0x4e4e48, mpoly, 1, 1);
+    const UPY = new T.Vector3(0, 1, 0);
+    /* sleeves are hexagonal prisms: a box read as a flat plank from above, a
+       6-sided prism keeps the blocky look but rolls off like cloth on an arm */
+    const seg = (host, a, b, rA, rB, tex, name, tint, sides) => {
+      const A = new T.Vector3(a[0], a[1], a[2]);
+      const B = new T.Vector3(b[0], b[1], b[2]);
+      const len = Math.max(0.02, A.distanceTo(B));
+      const m = new T.Mesh(new T.CylinderGeometry(rB, rA, len, sides || 6, 1),
+                           cloth(tex, len, (rA + rB) * 2.2, tint));
+      m.position.copy(A).add(B).multiplyScalar(0.5);
+      m.quaternion.setFromUnitVectors(UPY, B.clone().sub(A).normalize());
+      if (name) { m.name = name; m.userData.armEnd = 1; }
+      host.add(m);
+      return m;
+    };
+    const pad = (host, x, y, z, w, h, d, mat) => {
+      const m = new T.Mesh(new T.BoxGeometry(w, h, d), mat);
+      m.position.set(x, y, z);
+      host.add(m);
+      return m;
+    };
+
+    // right arm — the shooting hand; the elbow is the aim pivot
+    add(0.126, 0.105, 0.15, 0.015, -0.29, 0.11, skin);                     // wrist
+    seg(aim, [0.018, -0.3, 0.155], [0.03, -0.34, 0.215], 0.092, 0.1, camDark, null, 0xcfcfcf, 8);  // sleeve mouth
+    seg(aim, [0.02, -0.345, 0.225], [0.132, -0.695, 0.405], 0.088, 0.105, camMap, null, 0xd2d2d2); // forearm
+    seg(aim, [0.126, -0.68, 0.395], [0.142, -0.73, 0.425], 0.107, 0.115, camDark, null, 0xd0d0d0, 8); // elbow cuff
+
+    // left arm — the support hand
+    add(0.132, 0.105, 0.15, -0.1, -0.29, 0.07, skin);
+    seg(aim, [-0.142, -0.3, 0.12], [-0.155, -0.34, 0.175], 0.092, 0.1, camDark, null, 0xcfcfcf, 8);
+    seg(aim, [-0.158, -0.345, 0.185], [-0.362, -0.695, 0.398], 0.088, 0.105, camMap, null, 0xd2d2d2);
+    seg(aim, [-0.356, -0.68, 0.388], [-0.372, -0.73, 0.418], 0.107, 0.115, camDark, null, 0xd0d0d0, 8);
+
+    // upper arms stay on the torso; the right elbow is the pivot, so the right
+    // one is fixed and only the left one has to be re-fitted each frame
+    seg(body, [0.148, -0.72, 0.418], [0.30, -1.06, 0.78], 0.115, 0.138, camDark, null, 0xd8d8d8);
+    pad(body, 0.325, -1.10, 0.82, 0.34, 0.32, 0.34, cloth(camDark, 0.34, 0.34));   // right deltoid
+    const upperL = seg(body, [-0.372, -0.72, 0.412], [-0.575, -1.10, 0.78], 0.115, 0.138, camDark, null, 0xd8d8d8);
+    upperL.userData.len = upperL.geometry.parameters.height;
+    pad(body, -0.60, -1.13, 0.82, 0.33, 0.31, 0.33, cloth(camDark, 0.33, 0.33));   // left deltoid
+
+    // shoulder yoke / vest top between the arms, so the two sleeves belong
+    // to one body instead of floating up out of the dark
+    pad(body, 0.0, -1.2, 0.9, 1.0, 0.28, 0.36, strap);
+    pad(body, 0.0, -1.48, 0.88, 1.15, 0.36, 0.42, cloth(camDark, 0.4, 1.1));
+    pad(body, -0.2, -1.66, 0.84, 0.3, 0.26, 0.3, strap);                   // chest pouches
+    pad(body, 0.16, -1.64, 0.84, 0.26, 0.22, 0.26, strap);
+    pad(body, 0.0, -1.95, 0.82, 1.32, 0.6, 0.46, cloth(camDark, 0.4, 1.3));
+    seg(body, [0.34, -1.14, 0.84], [0.5, -1.88, 1.0], 0.158, 0.172, camDark, "R-arm-end", 0xc8c8c8);
+    seg(body, [-0.62, -1.17, 0.84], [-0.84, -1.92, 0.98], 0.158, 0.172, camDark, "L-arm-end", 0xc8c8c8);
 
     const f = add(0.085, 0.085, 0.12, 0, 0.062, -0.44, new T.MeshBasicMaterial({ color: 0xfff3b0 }));
     f.visible = false;
@@ -2262,16 +2371,18 @@
     halo.visible = false;
     const flashLight = new T.PointLight(0xffc878, 0, 6, 2);
     flashLight.position.set(0, 0.06, -0.42);
-    g.add(flashLight);
+    aim.add(flashLight);
 
-    /* the barrel runs down -Z, so a zeroed rig points dead ahead at the
-       reticle. Sitting low-right with a touch of inward yaw/pitch makes
-       the muzzle converge on the centre of the screen. */
+    /* the barrel runs down -Z; `aim` is turned every frame so that axis goes
+       through whatever the crosshair (or the last shot) is on. `g` only
+       carries the position and the viewport scale. */
     g.position.set(0.2, -0.235, -0.66);
-    g.rotation.set(0.05, 0.085, 0.012);
+    g.rotation.set(0, 0, 0);
     g.scale.setScalar(0.4);
+    aim.rotation.order = "YXZ";
+    aim.rotation.set(0, 0, 0);
     camera.add(g);
-    return { g, flash: f, halo, light: flashLight };
+    return { g, aim, body, upperL, flash: f, halo, light: flashLight };
   }
 
   function roleTag(el) {
@@ -2848,11 +2959,20 @@
     if (ctx.scene && ctx.camera && !ctx.camera.parent) ctx.scene.add(ctx.camera);
     const rig = makePistol(ctx.camera);
     pistol = rig.g;
+    pistolAim = rig.aim;
+    pistolBody = rig.body;
+    pistolUpperL = rig.upperL;
+    /* the pistol, hands and forearms turn around the right elbow, so the
+       shooting shoulder never opens up however far the aim swings */
+    pistolPivot = new T.Vector3(0.134, -0.705, 0.41);
+    gunQ.set(0, 0, 0, 1);
     pistolBase = { x: rig.g.position.x, y: rig.g.position.y, z: rig.g.position.z };
     flash = rig.flash;
     flashHalo = rig.halo;
     flashLight = rig.light;
     window.__pistol = pistol;
+    window.__pistolAim = pistolAim;
+    window.__pistolBody = pistolBody;
     const btn = document.createElement("button");
     btn.id = "railReload";
     btn.type = "button";
@@ -3383,6 +3503,9 @@
       if (bestPx > 105) hit = null;
     }
     if (!hit) { combo = 0; return; }
+    // the shot just landed: snap the muzzle onto that exact point for a beat
+    aimSnapPt.copy(hit.at);
+    aimSnapAt = now;
     shotsHit++;
     window.__lastHitPx = { x: (hit.at.clone().project(ctx.camera).x * 0.5 + 0.5) * innerWidth, y: (-hit.at.clone().project(ctx.camera).y * 0.5 + 0.5) * innerHeight };
     if (hit.sort === "barrel") { boomBarrel(ctx, hit.extra); return; }
@@ -3719,20 +3842,91 @@
       const asp = innerWidth / Math.max(1, innerHeight);
       const tHalf = Math.tan((cam.fov * Math.PI) / 360) * Math.abs(pistolBase.z);
       const halfW = tHalf * asp;
-      const vk = Math.max(0.14, Math.min(0.4, halfW * 0.58));
+      /* the wider portrait FOV makes the pistol read small against a tall
+         frame, so the rig grows a little there; landscape keeps its old size */
+      const tall = Math.max(0, 1 - asp);
+      const vk = Math.max(0.14, Math.min(0.4, halfW * 0.58 * (1 + tall * 0.8)));
       if (Math.abs(pistol.scale.x - vk) > 0.005) pistol.scale.setScalar(vk);
       const baseX = Math.min(pistolBase.x, halfW * 0.5);
+      /* a tall portrait frame has a lot of empty floor below the hand, so the
+         viewmodel drops a little there and the arms leave the frame sooner */
+      const drop = Math.max(0, 1 - asp) * 0.13;
+      const baseY = pistolBase.y - drop;
       const dip = reloadK > 0 ? Math.sin(Math.PI * (1 - reloadK)) : 0;
-      const swayX = aimN.x * 0.012 + Math.sin(nowMs / 740) * 0.0025;
-      const swayY = aimN.y * 0.008 + Math.cos(nowMs / 960) * 0.0025;
+      const swayX = aimN.x * 0.006 + Math.sin(nowMs / 740) * 0.0025;
+      const swayY = aimN.y * 0.004 + Math.cos(nowMs / 960) * 0.0025;
       pistol.position.x = baseX + swayX;
       pistol.position.z = pistolBase.z + kick * 0.045 + dip * 0.03;
-      pistol.position.y = pistolBase.y - kick * 0.018 - dip * 0.1 + swayY;
-      // muzzle stays on the reticle; the rig only leans a touch toward the aim
-      pistol.rotation.x = 0.05 + kick * 0.2 + dip * 0.5 + aimN.y * 0.05;
-      pistol.rotation.y = 0.085 - aimN.x * 0.055 + dip * 0.1;
-      pistol.rotation.z = 0.012 + dip * 0.3;
+      pistol.position.y = baseY - kick * 0.018 - dip * 0.1 + swayY;
+
+      /* ---- point the barrel at what the shot is on ----
+         The aim ray is the one `fire()` uses. If an exposed enemy sits on it,
+         aim at that enemy's chest; otherwise at the point 26 m along the ray;
+         and for a moment after a shot, right at the point that was hit.
+         The muzzle rides above the elbow pivot, so "turn the barrel at the
+         target" is solved from the muzzle itself and refined twice; the barrel
+         line then really runs through the target, not just near it. */
+      aimNdc.set(aimN.x, aimN.y);
+      aimRay.setFromCamera(aimNdc, cam);
+      let aimD = 26;
+      posts.forEach((p) => {
+        if (p.e.alive === false || p.expose <= 0.42 || !p.mesh) return;
+        tmpV.set(p.mesh.position.x, p.y + 0.95, p.mesh.position.z).sub(aimRay.ray.origin);
+        const along = tmpV.dot(aimRay.ray.direction);
+        if (along < 2.5 || along > 34) return;
+        const perp = tmpV.addScaledVector(aimRay.ray.direction, -along).length();
+        if (perp < 0.95 && along < aimD) aimD = along;
+      });
+      aimPt.copy(aimRay.ray.origin).addScaledVector(aimRay.ray.direction, aimD);
+      const snapped = nowMs - aimSnapAt < 140;
+      if (snapped) aimPt.copy(aimSnapPt);
+      window.__aimTarget = aimPt.clone();
+      pistol.updateMatrixWorld(true);
+      aimLocal.copy(aimPt);
+      pistol.worldToLocal(aimLocal);
+      let gyaw = 0, gpit = 0;
+      for (let it = 0; it < 2; it++) {
+        // muzzle position for the current guess, in rig space
+        tmpV.set(0, 0.062, -0.4).sub(pistolPivot).applyQuaternion(gunQd).add(pistolPivot);
+        aimWish.copy(aimLocal).sub(tmpV);
+        gyaw = Math.atan2(-aimWish.x, -aimWish.z);
+        gpit = Math.atan2(aimWish.y, Math.hypot(aimWish.x, aimWish.z));
+        gunE.set(gpit, gyaw, 0, "YXZ");
+        gunQd.setFromEuler(gunE);
+      }
+      const yawC = Math.max(-0.52, Math.min(0.52, gyaw));
+      const pitC = Math.max(-0.3, Math.min(0.42, gpit));
+      gunE.set(pitC, yawC, 0, "YXZ");
+      gunQd.setFromEuler(gunE);
+      if (snapped) gunQ.copy(gunQd);
+      else gunQ.slerp(gunQd, 1 - Math.exp(-12 * dt));
+      pistolAim.quaternion.copy(gunQ);
+      // kick rides up the barrel, the reload dip drops the muzzle and rolls it
+      pistolAim.rotation.x += kick * 0.15 + dip * 0.55;
+      pistolAim.rotation.z += dip * 0.3;
+      // pivot the turn on the right elbow, so the hand stays in the sleeve
+      tmpV.copy(pistolPivot).applyQuaternion(pistolAim.quaternion);
+      pistolAim.position.copy(pistolPivot).sub(tmpV);
+      // the support elbow swings with it; re-fit its upper arm to the shoulder
+      if (pistolUpperL) {
+        tmpV.set(-0.366, -0.705, 0.405).sub(pistolPivot).applyQuaternion(pistolAim.quaternion).add(pistolPivot);
+        const S = pistolUpperL.userData;
+        tmpT3.set(-0.575, -1.1, 0.78);   // the left shoulder stays on the torso waiting here
+        const dx = tmpV.x - tmpT3.x, dy = tmpV.y - tmpT3.y, dz = tmpV.z - tmpT3.z;
+        const len = Math.sqrt(dx * dx + dy * dy + dz * dz) || 0.001;
+        pistolUpperL.position.set((tmpV.x + tmpT3.x) / 2, (tmpV.y + tmpT3.y) / 2, (tmpV.z + tmpT3.z) / 2);
+        tmpT4.set(dx / len, dy / len, dz / len);
+        pistolUpperL.quaternion.setFromUnitVectors(UPY_VIEW, tmpT4);
+        pistolUpperL.scale.set(1, len / (S.len || 1), 1);
+      }
+      gunAim.yaw = yawC; gunAim.pitch = pitC;
+      window.__aimDbg = { gyaw: +gyaw.toFixed(4), gpit: +gpit.toFixed(4), yawC: +yawC.toFixed(4), pitC: +pitC.toFixed(4),
+        q: gunQ.toArray().map((v) => +v.toFixed(4)), qd: gunQd.toArray().map((v) => +v.toFixed(4)),
+        kick: +kick.toFixed(3), dip: +dip.toFixed(3), aimD: +aimD.toFixed(1) };
     }
+    window.__gunAim = gunAim;
+    window.__posts = posts;
+    window.__aimN = aimN;
     if (flash) { flash.visible = since < 70; flash.scale.setScalar(1 + (1 - Math.min(1, since / 70)) * 1.4); }
     if (flashLight) flashLight.intensity = since < 95 ? (1 - since / 95) * 2.8 : 0;
     if (flashHalo) {
