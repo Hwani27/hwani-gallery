@@ -13,11 +13,11 @@
 | 영어 페이지 | https://hwani27.github.io/hwani-gallery/baro-baro-myeolgong/en.html |
 | 갤러리 카드 | `index.html`의 `baro-baro-myeolgong/` 카드 → `thumb.png` |
 | 폴더 | `work/hwani-gallery/baro-baro-myeolgong/` (완전 독립 빌드) |
-| 현재 버전 | **v14** (`?v=14`, 겹침·관통 정리) / v13 (`?v=13`, 레일 관통 수정 · 복셀 텍스처 · 나무/남산/숭례문/버스 · 파편·탄흔) / v12 (`?v=12`, 화면 후처리 `post.js` + 적 테두리 빛) / v11 (`?v=11`, 버그 수정 4건) / 이전 **v10 통합** (`?v=10`) — v10 표면(텍스처·PBR 재질·환경맵·ACES·그림자·총구 화염/탄피) 위에 **Stage 2(DMZ·판문점)** 를 함께 얹은 상태. PR #12(`feat/myeolgong-v9-seoul-polish`)를 main에 병합하며 충돌 4곳을 해소 |
+| 현재 버전 | **v15** (`?v=15`, 시간대·날씨 + 부서지는 유리·간판) / v14 (`?v=14`, 겹침·관통 정리) / v13 (`?v=13`, 레일 관통 수정 · 복셀 텍스처 · 나무/남산/숭례문/버스 · 파편·탄흔) / v12 (`?v=12`, 화면 후처리 `post.js` + 적 테두리 빛) / v11 (`?v=11`, 버그 수정 4건) / 이전 **v10 통합** (`?v=10`) — v10 표면(텍스처·PBR 재질·환경맵·ACES·그림자·총구 화염/탄피) 위에 **Stage 2(DMZ·판문점)** 를 함께 얹은 상태. PR #12(`feat/myeolgong-v9-seoul-polish`)를 main에 병합하며 충돌 4곳을 해소 |
 | 스테이지 | `STAGES` 표: 1 = 서울 시가지(v9 리뉴얼), 2 = DMZ·판문점. 타이틀의 두 버튼 / Stage 1 클리어 결과의 `다음 작전` 버튼으로 진입 |
 | v9 브랜치 | `feat/myeolgong-v9-seoul-polish` → PR #12 (v10도 같은 브랜치) |
 | v6 커밋 | `3df8b62` — full 1st-person arms/torso, adaptive portrait FOV, barrel tracks the aim point |
-| 캐시 버스터 | `?v=14` (index.html·en.html **네 줄**: post·engine·gun-sfx·rail) |
+| 캐시 버스터 | `?v=15` (index.html·en.html **네 줄**: post·engine·gun-sfx·rail) |
 
 | 로컬 실행 | `cd work/hwani-gallery && python3 -m http.server 8133` → `http://127.0.0.1:8133/baro-baro-myeolgong/index.html` |
 
@@ -414,6 +414,13 @@ Stage 1(서울)은 손대지 않았고, 그 뒤에 **Stage 2**를 붙였다. 두
 - **v3**: 군사 리스킨(블록 병사·가림막·기름통), HUD·결과 화면.
 - **v2**: 레일 슈터 골격(`baro-baro-jump` 엔진 위에 얹었다가 이후 완전 분리).
 - **v1**: `baro-baro-jump` HTML을 fetch/DOMParser로 재파싱해 쓰던 시절 → **지금은 금지된 구조**. 독립 빌드로 되돌리지 말 것.
+
+## 6-8. v15 — 시간대·날씨, 부서지는 배경 (2026-11-22)
+
+- **무드** (`MOODS` / `applyMood` / `startWeather` / `stepWeather`): 스테이지가 `day`·`dusk`·`snow` 중 하나를 고른다. Stage 1 = `day`(기존 맑은 아침), Stage 2 = `dusk`(보라→주황 하늘 그라데이션, 플레이어 앞쪽 낮은 해 — 블록 모양 해 + 가산 혼합 후광, 따뜻한 안개 55~230 m, 주황 키 라이트·분홍 구름, 노출 1.0, 빛가루 파티클). `snow`(흐린 하얀 하늘·짙은 안개·눈 1,600개)는 다음 겨울 스테이지용으로 준비만. 미리보기: URL `?mood=day|dusk|snow`(두 스테이지 모두에 적용). 날씨는 Points 1개(그리기 1회), 입자는 월드에 고정되고 카메라 주변 상자 밖으로 나가면 반대편으로 감긴다. `window.__mood` / `__weather`.
+- **부서지는 유리창·간판** (`breakables` / `breakIt` / `stepFallers`): `streetFront`의 통유리를 2.3 m 패널 + 멀리언으로 쪼개고, 뒤에 어두운 가게 내부(선반·상품 텍스처, polygonOffset으로 깊이 싸움 방지)를 깔았다. 탄이 패널에 먼저 닿으면 깨짐(유리 파편 블록 + `GunSFX.glass()` + `GLASS +50`), 가게 간판·세로 간판은 떨어져 바닥에 눕는다(`GunSFX.clank()` + `SIGN +100`). 적보다 앞에 있을 때만(레이 첫 충돌) 깨지고, 명중률에는 넣지 않는다. 결과 화면에 `파괴 N (+점수)`. `window.__broken`.
+- **헬기·장갑차 테두리 빛**: `makeHeliModel`·`makeAPCModel`도 `enemyRim()`.
+- 검증: Stage 2 완주(390×844), Stage 1 보스 진입(480×270) 오류 0, 유리 사격 → `{sort:"break", kind:"glass"}`·점수 +50 확인.
 
 ## 6-9. v14 — 오브젝트 겹침·관통 정리 (2026-11-22)
 

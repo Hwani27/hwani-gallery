@@ -3292,6 +3292,73 @@
 
   /* shop band + signage + awning on one face of a block. (ax, az) is the
      outward normal of that face in metres. */
+  /* ---- breakable dressing: shop windows and shop signs ----
+     A round that reaches a pane before anything else shatters it (glass
+     shards, a tinkle, +50); a sign is torn off its fixings and falls to the
+     pavement (+100). Counted on the result card as 파괴. */
+  let breakables = [];
+  const fallers = [];
+  let brokenN = 0, brokenPts = 0;
+  let SHOPIN = null;
+  function shopInsideMat() {
+    if (SHOPIN) return SHOPIN;
+    const t = ctex("shopInside", 128, 64, (g, w, h) => {
+      g.fillStyle = "#2a2622"; g.fillRect(0, 0, w, h);
+      g.fillStyle = "#4a4038"; for (let y = 14; y < h; y += 16) g.fillRect(0, y, w, 3);
+      const cols = ["#b84a3a", "#e0c060", "#4a7ab8", "#e8e2d4", "#6aa060", "#c87a3a"];
+      for (let i = 0; i < 90; i++) { g.fillStyle = cols[i % cols.length]; const y = 4 + ((i * 7) % 4) * 16; g.fillRect((i * 13) % w, y, 4, 9); }
+      g.fillStyle = "rgba(255,230,170,.35)"; g.fillRect(0, 0, w, 3);
+    });
+    t.wrapS = t.wrapT = T.RepeatWrapping;
+    SHOPIN = new T.MeshBasicMaterial({ map: t, color: 0xb0a090, polygonOffset: true, polygonOffsetFactor: 3, polygonOffsetUnits: 3 });
+    return SHOPIN;
+  }
+  function breakIt(ctx, b, at) {
+    if (!b || b.broken) return;
+    b.broken = true;
+    brokenN++; brokenPts += b.pts;
+    addPts(ctx, b.pts);
+    const sp = screenOf(at, ctx.camera);
+    hitMark("pickup", sp.x, sp.y, false, (b.kind === "glass" ? "GLASS +" : "SIGN +") + b.pts);
+    if (b.kind === "glass") {
+      b.mesh.visible = false;
+      voxBreak(ctx.scene, at.x, at.y - 0.6, at.z, [0xd8eef8, 0xa9cfe2, 0xffffff, 0x7fa9c0], 18, 0.7);
+      gun("glass");
+    } else {
+      /* tear the sign off into world space and let it fall */
+      const m = b.mesh;
+      m.updateMatrixWorld(true);
+      const wp = new T.Vector3(), wq = new T.Quaternion(), ws = new T.Vector3();
+      m.matrixWorld.decompose(wp, wq, ws);
+      m.parent && m.parent.remove(m);
+      m.position.copy(wp); m.quaternion.copy(wq); m.scale.copy(ws);
+      m.material = m.material.clone();
+      m.material.side = T.DoubleSide;
+      ctx.scene.add(m);
+      const n = new T.Vector3(0, 0, 1).applyQuaternion(wq);
+      m.userData.v = new T.Vector3(n.x * 1.2, 0.6, n.z * 1.2);
+      m.userData.w = new T.Vector3((Math.random() - 0.5) * 4, (Math.random() - 0.5) * 2, (Math.random() - 0.5) * 5);
+      m.userData.life = 6;
+      fallers.push(m);
+      impactBurst(ctx.scene, at, "concrete");
+      gun("clank");
+    }
+    window.__broken = { n: brokenN, pts: brokenPts };
+  }
+  function stepFallers(dt) {
+    for (let i = fallers.length - 1; i >= 0; i--) {
+      const m = fallers[i], u = m.userData;
+      u.life -= dt;
+      if (m.position.y > 0.36) {
+        u.v.y -= 9.8 * dt;
+        m.position.addScaledVector(u.v, dt);
+        m.rotation.x += u.w.x * dt; m.rotation.y += u.w.y * dt; m.rotation.z += u.w.z * dt;
+        if (m.position.y <= 0.36) { m.position.y = 0.36; m.rotation.set(-Math.PI / 2, 0, Math.random() * 3); }
+      }
+      if (u.life <= 0) { m.parent && m.parent.remove(m); fallers.splice(i, 1); }
+    }
+  }
+
   function streetFront(S, opt) {
     const o = opt || {};
     const len = o.len, k = o.k || 0;
@@ -3303,9 +3370,25 @@
     const rotY = Math.atan2(ax, az);
     const g = new T.Group();
     /* glazed shopfront */
-    const glass = new T.Mesh(new T.PlaneGeometry(len, 3.0), repMat(SOL.shopGlass, len / 4, 1));
-    glass.position.set(0, 1.5, 0.02);
-    g.add(glass);
+    /* the shop window is a row of separate panes (each one can be shot out)
+       in front of a dim shop interior that shows through the broken ones */
+    const inside = new T.Mesh(new T.PlaneGeometry(len, 3.0), shopInsideMat());
+    inside.position.set(0, 1.5, -0.018);
+    g.add(inside);
+    const doorX = len * 0.22;
+    const nP = Math.max(2, Math.round(len / 2.3));
+    const pw = len / nP;
+    for (let i = 0; i < nP; i++) {
+      const px = -len / 2 + pw * (i + 0.5);
+      if (Math.abs(px - doorX) < pw * 0.5 + 0.7) continue; /* the door has its own glass */
+      const pane = new T.Mesh(new T.PlaneGeometry(pw - 0.06, 2.95), repMat(SOL.shopGlass, pw / 4, 1));
+      pane.position.set(px, 1.5, 0.03);
+      g.add(pane);
+      breakables.push({ mesh: pane, kind: "glass", pts: 50, broken: false });
+      const mull = new T.Mesh(new T.BoxGeometry(0.07, 3.0, 0.06), SOL.metalDark);
+      mull.position.set(-len / 2 + pw * i, 1.5, 0.05);
+      g.add(mull);
+    }
     /* fascia band with two signs over it */
     const fascia = new T.Mesh(new T.BoxGeometry(len, 0.9, 0.16), SOL.shopFascia);
     fascia.position.set(0, 3.5, 0.1);
@@ -3316,6 +3399,7 @@
       const sm = new T.Mesh(new T.PlaneGeometry(w, w * 0.275), signMat(k + i));
       sm.position.set((i - (n - 1) / 2) * (w + 0.5), 3.5, 0.2);
       g.add(sm);
+      breakables.push({ mesh: sm, kind: "sign", pts: 100, broken: false });
     }
     /* awning over the glass */
     const aw = new T.Mesh(new T.BoxGeometry(len - 0.6, 0.1, 1.15), k % 2 ? SOL.awnA : SOL.awnB);
@@ -3350,6 +3434,7 @@
     const vsign = new T.Mesh(new T.PlaneGeometry(0.62, 1.9), signMat(k + 2));
     vsign.position.set(len * 0.42, 5.2, 0.2);
     g.add(vsign);
+    breakables.push({ mesh: vsign, kind: "sign", pts: 100, broken: false });
     g.position.set(x, y, z);
     g.rotation.y = rotY;
     S.add(g);
@@ -3743,6 +3828,144 @@
     g.position.set(x, 0.3, z);
     g.rotation.y = -0.08;
     return g;
+  }
+
+  /* ================= TIME OF DAY / WEATHER =================
+     A stage picks a mood: "day" (clear morning, Stage 1), "dusk" (low
+     orange sun in front of the player, violet sky, warm haze; Stage 2) or
+     "snow" (overcast white-out with snowfall; ready for a winter stage).
+     ?mood=day|dusk|snow in the URL overrides it for previewing. Weather is a
+     single Points cloud that follows the camera, so it costs one draw call. */
+  const MOODS = {
+    dusk: {
+      sky: ["#1e2f63", "#4a3f7c", "#a35a7e", "#ef8452", "#ffc073", "#ffe0a8"],
+      bg: 0xd98a5c, fog: 0xe39a6c, fogNear: 55, fogFar: 230,
+      sun: [-26, 9, 70], sunDisc: 0xffb25a,
+      hemi: [0.42, 0xffc9a0, 0x4a5a3a], amb: [0.16, 0xd8a7a0], key: [2.05, 0xffa45c], rim: [0.75, 0xff8a52], moon: [0.18, 0x8a90d8],
+      exposure: 1.0, cloud: [0xffc7a6, 0xc0607a, 0.55], wx: "motes"
+    },
+    snow: {
+      sky: ["#8e9aa8", "#aab4bf", "#c4ccd4", "#d8dee4", "#e6eaee", "#eef1f4"],
+      bg: 0xd6dce2, fog: 0xdfe4e9, fogNear: 24, fogFar: 140,
+      sun: [20, 40, 30], sunDisc: null,
+      hemi: [0.8, 0xe6eef6, 0x9aa2a8], amb: [0.34, 0xdbe4ee], key: [0.85, 0xe8eef8], rim: [0.2, 0xd0dcf0], moon: [0.2, 0xc8d4e8],
+      exposure: 1.05, cloud: [0xeef1f4, 0xb8c0c8, 0.5], wx: "snow"
+    }
+  };
+  let weather = null;
+  function moodOverride() {
+    try { const q = new URLSearchParams(location.search).get("mood"); return q && (q === "day" || MOODS[q]) ? q : null; } catch (e) { return null; }
+  }
+  function applyMood(ctx, S, sky, clouds, name) {
+    clearWeather(ctx);
+    window.__mood = name;
+    if (name === "day" || !MOODS[name]) { window.__mgSun = null; return; }
+    const M = MOODS[name];
+    const tex = ctex("skyMood-" + name, 256, 256, (g, w, h) => {
+      const gr = g.createLinearGradient(0, 0, 0, h * 0.62);
+      M.sky.forEach((c, i) => gr.addColorStop(i / (M.sky.length - 1), c));
+      g.fillStyle = gr; g.fillRect(0, 0, w, h);
+      g.fillStyle = M.sky[M.sky.length - 1]; g.fillRect(0, h * 0.62, w, h * 0.38);
+      /* banded block clouds catching the light */
+      const R = rng(57);
+      for (let c = 0; c < 10; c++) {
+        const cx = R() * w, cy = h * (0.18 + R() * 0.36), ss = 5 + R() * 9;
+        g.fillStyle = "rgba(255,210,170,.55)";
+        for (let i = 0; i < 5; i++) g.fillRect(cx + (R() - 0.5) * ss * 4, cy + (R() - 0.5) * ss * 0.6, ss * (1.4 + R() * 2), ss * 0.3);
+      }
+    }, { smooth: true });
+    if (sky && sky.material) { sky.material.map = tex; sky.material.needsUpdate = true; }
+    ctx.scene.background = new T.Color(M.bg).convertSRGBToLinear();
+    ctx.scene.fog = new T.Fog(M.fog, M.fogNear, M.fogFar);
+    if (ctx.scene.fog.color.convertSRGBToLinear) ctx.scene.fog.color.convertSRGBToLinear();
+    const LT = ctx.LT || {};
+    const set = (l, v) => { if (!l || !v) return; l.intensity = v[0]; if (l.color) l.color.setHex(v[1]); if (v[2] != null && l.groundColor) l.groundColor.setHex(v[2]); };
+    set(LT.hemi, M.hemi); set(LT.amb, M.amb); set(LT.key, M.key); set(LT.rim, M.rim); set(LT.moon, M.moon);
+    if (ctx.renderer) ctx.renderer.toneMappingExposure = M.exposure;
+    window.__mgSun = M.sun;
+    (clouds || []).forEach((c) => c.traverse((o) => {
+      if (o.isMesh && o.material && o.material.emissive) {
+        o.material = o.material.clone();
+        o.material.color.setHex(M.cloud[0]); o.material.emissive.setHex(M.cloud[1]); o.material.emissiveIntensity = M.cloud[2];
+      }
+    }));
+    if (M.sunDisc) {
+      /* a stepped (blocky) sun sitting on the horizon, with a softer halo square */
+      const disc = new T.Group();
+      const mk = (w, h, col, op) => { const m = new T.Mesh(new T.PlaneGeometry(w, h), new T.MeshBasicMaterial({ color: col, fog: false, transparent: true, opacity: op, depthWrite: false, toneMapped: false, blending: op < 1 ? T.AdditiveBlending : T.NormalBlending })); m.renderOrder = op < 1 ? -91 : -89; disc.add(m); return m; };
+      mk(30, 30, 0xff9a4a, 0.18).position.z = -0.4;
+      mk(18, 18, 0xffb866, 0.35).position.z = -0.2;
+      mk(12, 9, 0xfff1c8, 1); mk(9, 12, 0xfff1c8, 1);
+      disc.position.set(M.sun[0] * 1.6, 52, 175);
+      disc.lookAt(0, 4, 20);
+      disc.renderOrder = -90;
+      disc.userData.noBlock = 1;
+      S.add(disc);
+    }
+    if (M.wx) startWeather(ctx, M.wx);
+  }
+  function startWeather(ctx, kind) {
+    const N = kind === "snow" ? 1600 : 420;
+    const BX = 46, BY = 22, BZ = 56;
+    const pos = new Float32Array(N * 3);
+    const R = rng(kind === "snow" ? 991 : 337);
+    for (let i = 0; i < N; i++) { pos[i * 3] = (R() - 0.5) * BX; pos[i * 3 + 1] = R() * BY; pos[i * 3 + 2] = (R() - 0.5) * BZ; }
+    const geo = new T.BufferGeometry();
+    geo.setAttribute("position", new T.BufferAttribute(pos, 3));
+    const tex = ctex("wx-" + kind, 8, 8, (g, w, h) => {
+      g.clearRect(0, 0, w, h);
+      g.fillStyle = kind === "snow" ? "#ffffff" : "#ffe6a8";
+      g.fillRect(1, 1, 6, 6);
+      g.fillStyle = kind === "snow" ? "rgba(255,255,255,.5)" : "rgba(255,200,120,.5)";
+      g.fillRect(0, 2, 8, 4); g.fillRect(2, 0, 4, 8);
+    }, { smooth: true });
+    tex.magFilter = T.NearestFilter;
+    const mat = new T.PointsMaterial({ map: tex, size: kind === "snow" ? 0.09 : 0.06, sizeAttenuation: true, transparent: true, opacity: kind === "snow" ? 0.95 : 0.8, depthWrite: false, fog: true,
+      blending: kind === "snow" ? T.NormalBlending : T.AdditiveBlending });
+    const pts = new T.Points(geo, mat);
+    pts.frustumCulled = false;
+    pts.userData.noBlock = 1;
+    pts.renderOrder = 5;
+    ctx.scene.add(pts);
+    const seeds = new Float32Array(N);
+    for (let i = 0; i < N; i++) seeds[i] = R() * 6.28;
+    weather = { kind, pts, BX, BY, BZ, N, seeds, t: 0 };
+    window.__weather = kind;
+  }
+  function clearWeather(ctx) {
+    if (!weather) return;
+    weather.pts.parent && weather.pts.parent.remove(weather.pts);
+    weather.pts.geometry.dispose();
+    weather.pts.material.dispose();
+    weather = null;
+    window.__weather = null;
+  }
+  function stepWeather(ctx, dt) {
+    if (!weather) return;
+    const W = weather, cam = ctx.camera.position;
+    W.t += dt;
+    const a = W.pts.geometry.attributes.position, p = a.array;
+    const fall = W.kind === "snow" ? 1.3 : 0.12;
+    const sway = W.kind === "snow" ? 0.45 : 0.25;
+    for (let i = 0; i < W.N; i++) {
+      const j = i * 3, sd = W.seeds[i];
+      p[j] += Math.sin(W.t * 0.7 + sd) * sway * dt;
+      p[j + 1] -= fall * dt * (0.7 + (sd % 1) * 0.6);
+      if (W.kind !== "snow") p[j + 1] += Math.sin(W.t * 0.5 + sd * 2) * 0.1 * dt;
+      p[j + 2] += Math.cos(W.t * 0.6 + sd) * sway * 0.6 * dt;
+      if (p[j + 1] < 0.3) p[j + 1] += W.BY;
+      if (p[j + 1] > W.BY) p[j + 1] -= W.BY;
+    }
+    a.needsUpdate = true;
+    /* flakes stay put in the world (so walking through them reads as
+       motion); any that fall outside the box around the camera wrap to its
+       far side */
+    for (let i = 0; i < W.N; i++) {
+      const j = i * 3;
+      const dx = p[j] - cam.x, dz = p[j + 2] - cam.z;
+      if (dx < -W.BX / 2) p[j] += W.BX; else if (dx > W.BX / 2) p[j] -= W.BX;
+      if (dz < -W.BZ / 2) p[j + 2] += W.BZ; else if (dz > W.BZ / 2) p[j + 2] -= W.BZ;
+    }
   }
 
   /* ================= VOXEL KIT =================
@@ -5794,6 +6017,7 @@
     S.traverse((o) => { if (o.userData && o.userData.cloth) flags.push(o); });
     gateFlags.forEach((f) => flags.push(f));
 
+    applyMood(ctx, S, sky, clouds, moodOverride() || "day");
     dress = {
       root: S, sky, flags, clouds, barrels, ally,
       truck1: null, trunks: trunks
@@ -6000,6 +6224,11 @@
     if (bossPost) { tagOff(bossPost); bossPost = null; }
     sparks.forEach((s) => s.parent && s.parent.remove(s));
     clearFx2();
+    breakables = [];
+    fallers.forEach((m) => m.parent && m.parent.remove(m));
+    fallers.length = 0;
+    brokenN = 0; brokenPts = 0;
+    window.__broken = { n: 0, pts: 0 };
     sparks = [];
     smokes.forEach((s) => s.parent && s.parent.remove(s));
     smokes = [];
@@ -6595,7 +6824,7 @@
       "</h2><div class=stars>" + stars + "</div><p>" + (ko ? "스테이지" : "STAGE") + " " + (STAGE.label || "1-1") +
       "</p><p>" + (ko ? "점수" : "SCORE") + " " + (((ctx.G && ctx.G.score) || 0)) +
       "</p><p>" + (ko ? "명중률" : "ACCURACY") + " " + Math.round(acc * 100) + "%</p><p>" + (ko ? "보급" : "SUPPLY") + " " + got + "/" + tot +
-      "</p><p>COMBO " + bestCombo + "</p><div class=btns>" + nextB + "<button" + (nextB ? "" : " class=primary") + " data-act=again>" + (ko ? "다시 하기" : "PLAY AGAIN") +
+      "</p><p>" + (ko ? "파괴" : "DESTROYED") + " " + brokenN + (brokenPts ? " (+" + brokenPts + ")" : "") + "</p><p>COMBO " + bestCombo + "</p><div class=btns>" + nextB + "<button" + (nextB ? "" : " class=primary") + " data-act=again>" + (ko ? "다시 하기" : "PLAY AGAIN") +
       "</button><button data-act=title>" + (ko ? "타이틀" : "TITLE") + "</button></div></div>";
     box.addEventListener("click", (e) => {
       const b = e.target && e.target.closest ? e.target.closest("button[data-act]") : null;
@@ -7006,6 +7235,7 @@
     pickups.forEach((p) => { if (!p.taken) addOwned(p.mesh, p, p.kind); });
     if (dress) dress.barrels.forEach((b) => { if (!b.dead) addOwned(b.mesh, b, "barrel"); });
     /* and the things that stop a round before it gets there */
+    breakables.forEach((b) => { if (!b.broken && b.mesh.visible) addOwned(b.mesh, b, "break"); });
     occluders().forEach((m) => addOwned(m, null, "block"));
     const found = ray.intersectObjects(owned.map((o) => o.mesh), true);
     const ownerOf = (obj) => {
@@ -7028,6 +7258,11 @@
       break;
     }
     window.__lastBlocked = blocked ? { x: +blocked.point.x.toFixed(2), y: +blocked.point.y.toFixed(2) } : null;
+    if (hit && hit.sort === "break") {
+      window.__lastShot = { sort: "break", kind: hit.extra.kind };
+      breakIt(ctx, hit.extra, hit.at);
+      return;
+    }
     const cx = (aimN.x * 0.5 + 0.5) * innerWidth;
     const cy = (-aimN.y * 0.5 + 0.5) * innerHeight;
     if (!hit) {
@@ -7989,6 +8224,8 @@
       }
     }
     stepChunks(dt);
+    stepWeather(ctx, dt);
+    stepFallers(dt);
     for (let i = sparks.length - 1; i >= 0; i--) {
       const s = sparks[i];
       s.userData.life -= dt;
@@ -9057,6 +9294,7 @@
     }
     landCovers.forEach((c) => walkBlockers.push(new T.Box3().setFromObject(c.g)));
 
+    applyMood(ctx, S, sky, clouds, moodOverride() || "dusk");
     dress = {
       root: S, sky, flags, clouds, barrels: [], ally,
       truck1: waves && waves[2] ? waveXY(waves[2], -4.6, 8.4) : null,
@@ -9142,6 +9380,7 @@
     g.userData.tail = tail;
     g.userData.gunner = gunner;
     g.userData.body = b;
+    enemyRim(g); /* the same warm edge the riflemen carry */
     return g;
   }
 
@@ -9503,6 +9742,7 @@
     star.rotation.y = Math.PI / 2;
     b.add(star);
     g.userData.body = b;
+    enemyRim(g); /* the same warm edge the riflemen carry */
     return g;
   }
 

@@ -182,6 +182,28 @@
     thump(c, t, 320, 180, 0.03, 0.06, bus);
   }
 
+  /* a pane going: a bright crack, then a shower of little tinkling pings */
+  function glass() {
+    if (muted()) return;
+    const c = ac();
+    const t = c.currentTime;
+    band(c, t, 0.05, "highpass", 3800, 0.7, 0.5, 0.0005, 0.03, bus);
+    band(c, t + 0.01, 0.18, "bandpass", 6200, 1.4, 0.22, 0.002, 0.14, bus);
+    for (let i = 0; i < 9; i++) {
+      ping(c, t + 0.04 + i * 0.035 + Math.random() * 0.03, 3200 + Math.random() * 4200, 0.03 + Math.random() * 0.03, 0.05 + Math.random() * 0.06, bus);
+    }
+  }
+  /* a shop sign torn loose: a metal clank and a clatter */
+  function clank() {
+    if (muted()) return;
+    const c = ac();
+    const t = c.currentTime;
+    ping(c, t, 820, 0.12, 0.22, bus);
+    ping(c, t + 0.01, 1330, 0.08, 0.16, bus);
+    thump(c, t, 180, 90, 0.08, 0.14, bus, "triangle");
+    band(c, t + 0.02, 0.08, "bandpass", 2400, 2.0, 0.2, 0.001, 0.06, bus);
+  }
+
   function reload() {
     if (muted()) return;
     const c = ac();
@@ -565,6 +587,8 @@
     shot,
     rifle,
     dry: dryFire,
+    glass,
+    clank,
     reload,
     hit,
     crit,
