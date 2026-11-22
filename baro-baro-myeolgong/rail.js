@@ -225,6 +225,7 @@
   });
   FONT[" "] = ["00000","00000","00000","00000","00000","00000","00000"];
   FONT["-"] = ["00000","00000","00000","11111","00000","00000","00000"];
+  FONT["%"] = ["11001","11010","00010","00100","01000","01011","10011"];
 
   function blit(g, text, x, y, scale, color, outline) {
     const s = scale;
@@ -290,7 +291,7 @@
     blit(g, time, (w - tw) / 2, m + 10 * sc, sc * 2, "#ffe14a", "#1a1402");
     const stage = (STAGE && STAGE.label) || "STAGE 1-1";
     blit(g, stage, w - m - textW(stage, sc), m, sc, "#f7f7f7", "#111");
-    const zone = (wave && wave.def && wave.def.zone) || (phase === "boss" ? "JSA" : "");
+    const zone = (wave && wave.def && wave.def.zone) || "";
     if (zone) blit(g, zone, w - m - textW(zone, sc * 0.8), m + 9 * sc, sc * 0.8, "#d6e8b4", "#141a10");
     /* armoured boss gauge, straight under the clock */
     if (phase === "boss" && bossPost && bossPost.hpMax) {
@@ -6887,7 +6888,9 @@
     const sc = roleScale(role);
     let sx = p.x, sz = p.z;
     if (wallBoxes.length) {
-      const free = pushOutOfWalls(sx, sz, 0.4);
+      const hx = w.hold ? w.hold.x : sx, hz = w.hold ? w.hold.z : sz - 1;
+      const dl = Math.hypot(sx - hx, sz - hz) || 1;
+      const free = pushOutOfWalls(sx, sz, 0.4, { x: (sx - hx) / dl, z: (sz - hz) / dl });
       if (free.x !== sx || free.z !== sz) {
         window.__postWallNudge = (window.__postWallNudge || 0) + 1;
         sz = free.z;
@@ -7143,7 +7146,20 @@
   }
 
   /* push a standing character out of every wall he overlaps */
-  function pushOutOfWalls(x, z, r) {
+  function pushOutOfWalls(x, z, r, dir) {
+    /* (v18) a man planted inside his own cover is moved straight BACK, away
+       from the player, until he stands behind it; the old shallowest-axis push
+       slid him out to the side, so he crouched in plain view ("hiding" next to
+       the barrier). Only if backing off fails does the side push apply. */
+    if (dir) {
+      const hits = (px, pz) => wallBoxes.some((b) => !(b.max.y < 0.5 || b.min.y > 2.1) && px > b.min.x - r && px < b.max.x + r && pz > b.min.z - r && pz < b.max.z + r);
+      if (hits(x, z)) {
+        for (let k = 1; k <= 30; k++) {
+          const px = x + dir.x * k * 0.1, pz = z + dir.z * k * 0.1;
+          if (!hits(px, pz)) return { x: px, z: pz };
+        }
+      }
+    }
     for (let k = 0; k < 3; k++) {
       let moved = false;
       for (let i = 0; i < wallBoxes.length; i++) {
@@ -8166,7 +8182,8 @@
           p.spotI = (p.spotI + 1 + ((Math.random() * 2) | 0)) % BOSS_DEF.spots.length;
           const s = BOSS_DEF.spots[p.spotI];
           const np = waveXY({ yaw: 0, hold: bossHold }, s[0], s[1]);
-          const fr = wallBoxes.length ? pushOutOfWalls(np.x, np.z, 0.4) : np;
+          const dl = Math.hypot(np.x - bossHold.x, np.z - bossHold.z) || 1;
+          const fr = wallBoxes.length ? pushOutOfWalls(np.x, np.z, 0.4, { x: (np.x - bossHold.x) / dl, z: (np.z - bossHold.z) / dl }) : np;
           p.x = fr.x; p.z = fr.z;
           const g = bossCovers[p.spotI];
           if (g && g.userData.topY !== undefined) {

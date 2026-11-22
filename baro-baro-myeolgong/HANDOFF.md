@@ -13,11 +13,11 @@
 | 영어 페이지 | https://hwani27.github.io/hwani-gallery/baro-baro-myeolgong/en.html |
 | 갤러리 카드 | `index.html`의 `baro-baro-myeolgong/` 카드 → `thumb.png` |
 | 폴더 | `work/hwani-gallery/baro-baro-myeolgong/` (완전 독립 빌드) |
-| 현재 버전 | **v17** (`?v=17`, 보스 장갑·전차, 평화의 집 스테이지, 평양 기념상) / v16 (`?v=16`, 스테이지 연장 · Stage 3 · 무기) / v15 (`?v=15`, 시간대·날씨 + 부서지는 유리·간판) / v14 (`?v=14`, 겹침·관통 정리) / v13 (`?v=13`, 레일 관통 수정 · 복셀 텍스처 · 나무/남산/숭례문/버스 · 파편·탄흔) / v12 (`?v=12`, 화면 후처리 `post.js` + 적 테두리 빛) / v11 (`?v=11`, 버그 수정 4건) / 이전 **v10 통합** (`?v=10`) — v10 표면(텍스처·PBR 재질·환경맵·ACES·그림자·총구 화염/탄피) 위에 **Stage 2(DMZ·판문점)** 를 함께 얹은 상태. PR #12(`feat/myeolgong-v9-seoul-polish`)를 main에 병합하며 충돌 4곳을 해소 |
+| 현재 버전 | **v18** (`?v=18`, 엄폐 위치 수정) / v17 (`?v=17`, 보스 장갑·전차, 평화의 집 스테이지, 평양 기념상) / v16 (`?v=16`, 스테이지 연장 · Stage 3 · 무기) / v15 (`?v=15`, 시간대·날씨 + 부서지는 유리·간판) / v14 (`?v=14`, 겹침·관통 정리) / v13 (`?v=13`, 레일 관통 수정 · 복셀 텍스처 · 나무/남산/숭례문/버스 · 파편·탄흔) / v12 (`?v=12`, 화면 후처리 `post.js` + 적 테두리 빛) / v11 (`?v=11`, 버그 수정 4건) / 이전 **v10 통합** (`?v=10`) — v10 표면(텍스처·PBR 재질·환경맵·ACES·그림자·총구 화염/탄피) 위에 **Stage 2(DMZ·판문점)** 를 함께 얹은 상태. PR #12(`feat/myeolgong-v9-seoul-polish`)를 main에 병합하며 충돌 4곳을 해소 |
 | 스테이지 | `STAGES` 표: 1 = 서울(8웨이브+보스), 2 = DMZ·판문점(6웨이브+보스), 3 = 판문점 평화의 집(7웨이브+전차), 4 = 평양 진입(7웨이브+전차, 눈). 타이틀 버튼 4개(`#mgStart`/`2`/`3`/`4`), 결과의 `다음 작전`은 1→2→3→4. 타이틀의 두 버튼 / Stage 1 클리어 결과의 `다음 작전` 버튼으로 진입 |
 | v9 브랜치 | `feat/myeolgong-v9-seoul-polish` → PR #12 (v10도 같은 브랜치) |
 | v6 커밋 | `3df8b62` — full 1st-person arms/torso, adaptive portrait FOV, barrel tracks the aim point |
-| 캐시 버스터 | `?v=17` (index.html·en.html **네 줄**: post·engine·gun-sfx·rail) |
+| 캐시 버스터 | `?v=18` (index.html·en.html **네 줄**: post·engine·gun-sfx·rail) |
 
 | 로컬 실행 | `cd work/hwani-gallery && python3 -m http.server 8133` → `http://127.0.0.1:8133/baro-baro-myeolgong/index.html` |
 
@@ -414,6 +414,12 @@ Stage 1(서울)은 손대지 않았고, 그 뒤에 **Stage 2**를 붙였다. 두
 - **v3**: 군사 리스킨(블록 병사·가림막·기름통), HUD·결과 화면.
 - **v2**: 레일 슈터 골격(`baro-baro-jump` 엔진 위에 얹었다가 이후 완전 분리).
 - **v1**: `baro-baro-jump` HTML을 fetch/DOMParser로 재파싱해 쓰던 시절 → **지금은 금지된 구조**. 독립 빌드로 되돌리지 말 것.
+
+## 6-5. v18 — "보스가 다 보이는데 숨어 있다" (2026-11-22)
+
+- 원인: `makePost()`와 보스의 엄폐 이동이 자리 좌표를 `pushOutOfWalls()`로 벽 밖으로 밀었는데, `wallBoxes`에는 엄폐물도 들어 있어 **자기 엄폐물** 안에 걸치면 가장 얕은 축(대개 옆)으로 밀려났다 → 엄폐물 옆, 훤히 보이는 자리에서 "숨기"(웅크림) 상태. Stage 1 보스(사람, 1.5배 체격 + heavy 엄폐)에서 특히 심했다.
+- 수정: `pushOutOfWalls(x, z, r, dir)` — 방향을 주면 먼저 그 방향(정지점→적, 즉 플레이어 반대쪽)으로 0.1 m씩 최대 3 m 물러나 엄폐물 뒤에 서게 하고, 실패할 때만 옆으로 민다. `makePost`와 보스 이동 둘 다 이 방향을 넘긴다. 검증: Stage 1 보스가 자기 엄폐물(x −3.02~−0.18, z ≤ 69.34) 바로 뒤(x −1.36, z 70.3)에 선다.
+- HUD 구역 표시의 `"JSA"` 기본값 삭제(Stage 1 보스전에 JSA가 뜨던 것). 보스 게이지 `%` 글리프 추가.
 
 ## 6-6. v17 — 보스 장갑, 전차, 평화의 집, 기념상 (2026-11-22)
 
