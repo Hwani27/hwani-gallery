@@ -699,7 +699,7 @@ dict: {
 "2. 기기에 저장되는 정보": "2. Information stored on your device",
 "코인·레이팅·출석·이어두기 기록·설정값은 기기 저장소에만 저장됩니다(앱인토스 빌드에서는 토스가 제공하는 앱 저장소, 구글플레이·웹 빌드에서는 브라우저 저장소). 개발자 서버로 전송하지 않습니다.": "Coins, ratings, check-ins, saved games and settings are stored only on your device (Toss app storage in the Apps in Toss build; browser storage in the Google Play and web builds). Nothing is sent to the developer's servers.",
 "3. 광고": "3. Ads",
-"앱인토스 빌드의 광고는 토스 인앱광고로 제공되며, 광고 처리에 필요한 정보는 토스(비바리퍼블리카)의 정책을 따릅니다. 구글플레이·웹 빌드에는 광고가 없습니다.": "Ads in the Apps in Toss build are served by Toss in-app ads, and any information needed for ads follows the policy of Toss (Viva Republica). The Google Play and web builds have no ads.",
+"구글플레이(Android) 빌드의 광고는 Google AdMob으로 제공되며, 광고 ID·IP 기반 대략적 위치·앱 상호작용·진단 정보가 광고 게재와 부정행위 방지를 위해 Google 및 광고 파트너에게 처리·공유될 수 있습니다. 앱인토스 빌드의 광고는 토스 인앱광고로 제공되며, 광고 처리에 필요한 정보는 토스(비바리퍼블리카)의 정책을 따릅니다. 웹 빌드에는 광고가 없습니다.": "Ads in the Google Play (Android) build are served by Google AdMob: advertising ID, approximate location based on IP address, app interactions and diagnostics may be processed and shared with Google and its ad partners to serve ads and prevent fraud. Ads in the Apps in Toss build are served by Toss in-app ads, and any information needed for ads follows the policy of Toss (Viva Republica). The web build has no ads.",
 "4. 친구 대국 링크": "4. Friend game links",
 "친구에게 보내는 링크에는 대국 수순과 임의로 만든 초대 코드만 담기고, 이름·연락처 등 개인을 알아볼 수 있는 정보는 포함되지 않습니다.": "Links you send to friends contain only the game moves and a randomly generated invite code — no names, contacts or other identifying information.",
 "5. 보관·삭제": "5. Retention & deletion",
