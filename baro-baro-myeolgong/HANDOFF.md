@@ -13,7 +13,7 @@
 | 갤러리 카드 | `index.html`의 `baro-baro-myeolgong/` 카드 → `thumb.png` |
 | 폴더 | `work/hwani-gallery/baro-baro-myeolgong/` (완전 독립 빌드) |
 | 현재 버전 | **v9** (Stage 1 서울 시가지 리뉴얼 + 전투/조작 디벨롭, `?v=9`) — 서울 배경 · 히트마커/파편 · 글린트 · 우클릭/스페이스 재장전 · 세로 아군 보정 · 헤드샷 차별화 · 벽 관통 방지 · 버추어캅식 `!` 카운트다운 링 · 움직이는 적(트럭 탑승/돌격) |
-| v7 브랜치 | `fix/myeolgong-v6-combat-polish` → PR (아래 3절) |
+| v9 브랜치 | `feat/myeolgong-v9-seoul-polish` → PR #12 |
 | v6 커밋 | `3df8b62` — full 1st-person arms/torso, adaptive portrait FOV, barrel tracks the aim point |
 | 캐시 버스터 | `?v=9` (index.html·en.html 세 줄) |
 | 로컬 실행 | `cd work/hwani-gallery && python3 -m http.server 8133` → `http://127.0.0.1:8133/baro-baro-myeolgong/index.html` |
