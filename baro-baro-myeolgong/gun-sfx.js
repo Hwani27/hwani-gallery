@@ -203,6 +203,22 @@
     ping(c, t + 0.37, 1700, 0.12, 0.03, bus);
   }
 
+  /* an enemy rifle from across the street: a sharper, harder crack than the
+     player's pistol, with the tail the walls throw back */
+  function rifle() {
+    if (muted()) return;
+    const c = ac();
+    const t = c.currentTime;
+    const v = 0.94 + Math.random() * 0.12;
+    band(c, t, 0.045, "highpass", 5200 * v, 0.7, 0.85, 0.0006, 0.02, bus, 3000);
+    band(c, t, 0.1, "bandpass", 3000 * v, 0.8, 0.62, 0.001, 0.05, bus);
+    band(c, t + 0.002, 0.16, "bandpass", 900 * v, 0.6, 0.42, 0.002, 0.09, bus, 600);
+    thump(c, t, 150 * v, 44, 0.18, 0.72, bus, "sine");
+    thump(c, t, 84 * v, 36, 0.26, 0.3, bus, "triangle");
+    band(c, t + 0.03, 0.5, "lowpass", 1200, 0.5, 0.2, 0.012, 0.42, bus, 420);
+    ping(c, t + 0.05, 5600 * v, 0.05, 0.035, bus);
+  }
+
   function hit() {
     if (muted()) return;
     const c = ac();
@@ -533,6 +549,7 @@
   const api = {
     bgm,
     shot,
+    rifle,
     dry: dryFire,
     reload,
     hit,

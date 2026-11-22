@@ -81,6 +81,9 @@
   let bossSpawned = false;
   let allyT = 0;
   let tracers = [];
+  let bossCovers = [];
+  let bossStage = null;
+  let wallList = [];
 
   /* impact feedback borrowed from the boxing game's feel: a short
      freeze-frame, a screen flash and a knockback flinch. */
@@ -1160,47 +1163,68 @@
     g.fillRect(0, 0, w, h);
   }
 
+  /* The flag of the Republic of Korea, drawn to the official construction
+     (대한민국국기법 시행령 제6조): a 3:2 white cloth; the taegeuk's diameter is
+     half the height, and its two small semicircles split the circle along the
+     upper-left → lower-right diagonal (the left one below that line, the right
+     one above it) so the red sits over the S and the blue under it; the four
+     trigrams 건 곤 감 리 sit on the diagonals, r/2 clear of the taegeuk, their
+     bars square to the diagonal, each bar r long and the stack 2r/3 deep. */
   function flagKR() {
-    return ctex("flagKR", 256, 176, (g, w, h) => {
-      g.fillStyle = "#f6f4ec";
+    return ctex("flagKR", 384, 256, (g, w, h) => {
+      g.fillStyle = "#ffffff";
       g.fillRect(0, 0, w, h);
-      const cx = w / 2, cy = h / 2, r = h * 0.22;
-      g.fillStyle = "#cd2e3a";
-      g.beginPath(); g.arc(cx, cy, r, Math.PI, Math.PI * 2); g.fill();
-      g.fillStyle = "#0047a0";
-      g.beginPath(); g.arc(cx, cy, r, 0, Math.PI); g.fill();
-      g.fillStyle = "#cd2e3a";
-      g.beginPath(); g.arc(cx - r / 2, cy, r / 2, 0, Math.PI * 2); g.fill();
-      g.fillStyle = "#0047a0";
-      g.beginPath(); g.arc(cx + r / 2, cy, r / 2, 0, Math.PI * 2); g.fill();
-      // soft ink edge on the taegeuk
-      g.strokeStyle = "rgba(120,40,40,.12)";
-      g.lineWidth = 1;
-      g.beginPath(); g.arc(cx, cy, r, 0, Math.PI * 2); g.stroke();
+      const cx = w / 2, cy = h / 2;
+      const r = h / 4;                        // taegeuk radius (diameter = h/2)
+      const th = Math.atan2(h, w);            // upper-left → lower-right diagonal
 
-      // trigrams: three bars each, with the gap the flag uses
-      const bar = (px, py, ang, broken) => {
+      /* ---- taegeuk: blue disc, then the red over the S-curve ---- */
+      g.save();
+      g.translate(cx, cy);
+      g.beginPath();
+      g.arc(0, 0, r, 0, Math.PI * 2);
+      g.fillStyle = "#0047a0";
+      g.fill();
+      g.rotate(th);
+      g.beginPath();
+      g.moveTo(-r, 0);
+      g.arc(0, 0, r, Math.PI, Math.PI * 2, false);     // the half above the line
+      g.arc(r / 2, 0, r / 2, 0, Math.PI, true);        // right half: bulges up
+      g.arc(-r / 2, 0, r / 2, 0, Math.PI, false);      // left half: bulges down
+      g.closePath();
+      g.fillStyle = "#cd2e3a";
+      g.fill();
+      g.restore();
+
+      /* ---- four trigrams ---- */
+      const triH = (2 * r) / 3;               // depth of the stack
+      const barLen = r;                       // length of one bar
+      const hyo = triH / 4;                   // thickness of a bar
+      const gap = triH / 8;                   // between bars, and the split gap
+      const triD = r + r / 2 + triH / 2;      // centre, r/2 clear of the disc
+      const TRI = { geon: [0, 0, 0], gon: [1, 1, 1], gam: [1, 0, 1], ri: [0, 1, 0] };
+      const put = (kind, ang) => {            // ang: outward direction
         g.save();
-        g.translate(px, py);
-        g.rotate(ang);
-        g.fillStyle = "#141414";
-        const bw = h * 0.155, bh = h * 0.028;
+        g.translate(cx + Math.cos(ang) * triD, cy + Math.sin(ang) * triD);
+        g.rotate(ang - Math.PI / 2);          // bars square to the diagonal
+        g.fillStyle = "#000000";
+        const bars = TRI[kind];
         for (let i = 0; i < 3; i++) {
-          const yy = (i - 1) * bh * 2.1;
-          if (broken && i === 1) {
-            g.fillRect(-bw / 2, yy, bw * 0.42, bh);
-            g.fillRect(bw * 0.08, yy, bw * 0.42, bh);
+          const y = -triH / 2 + hyo / 2 + i * (hyo + gap);
+          if (bars[i]) {
+            g.fillRect(-barLen / 2, y - hyo / 2, barLen / 2 - gap / 2, hyo);
+            g.fillRect(gap / 2, y - hyo / 2, barLen / 2 - gap / 2, hyo);
           } else {
-            g.fillRect(-bw / 2, yy, bw, bh);
+            g.fillRect(-barLen / 2, y - hyo / 2, barLen, hyo);
           }
         }
         g.restore();
       };
-      const off = h * 0.3;
-      bar(w * 0.5 - off, h * 0.5 - off * 0.62, -0.6, true);
-      bar(w * 0.5 + off, h * 0.5 - off * 0.62, 0.6, true);
-      bar(w * 0.5 - off, h * 0.5 + off * 0.62, 0.6, false);
-      bar(w * 0.5 + off, h * 0.5 + off * 0.62, -0.6, false);
+      put("geon", th + Math.PI);              // upper left  ☰
+      put("gon", th);                         // lower right ☷
+      put("gam", -th);                        // upper right ☵
+      put("ri", Math.PI - th);                // lower left  ☲
+
       clothFlag(g, w, h);
       g.strokeStyle = "rgba(120,110,90,.3)";
       g.lineWidth = 1;
@@ -1622,6 +1646,10 @@
     SOL.enemyBelt = L(weaveFine, { color: 0x6d4a28 });
     SOL.enemyCap = L(weave, { color: 0x53612f });
     SOL.helmAlly = L(null, { color: 0x4b5145 });
+    SOL.plate = L(weave, { color: 0x333829 });
+    SOL.strap = L(weaveFine, { color: 0x2b2c27 });
+    SOL.rubber = L(null, { color: 0x1b1c1a });
+    SOL.lens = new T.MeshLambertMaterial({ color: 0x24343c, emissive: 0x0a1216 });
     SOL.bandW = L(weaveFine, { color: 0xe8e6dc });
     SOL.bandB = L(weaveFine, { color: 0x22407c });
     Object.keys(SOL).forEach((k) => {
@@ -1644,6 +1672,49 @@
     return m;
   }
 
+  /* the rifle: receiver, rail, handguard, barrel and brake, gas tube, pistol
+     grip, magazine, buffer tube, stock and optic. Returns a group whose
+     userData.muzzle marks the barrel tip for muzzle flashes and tracers. */
+  function makeRifle() {
+    makeSol();
+    const g = new T.Group();
+    const d = (w, h, dd, x, y, z, m) => {
+      const b = new T.Mesh(new T.BoxGeometry(w, h, dd), m);
+      b.position.set(x, y, z);
+      g.add(b);
+      return b;
+    };
+    d(0.085, 0.10, 0.50, 0, 0, 0, SOL.gunmetal);                 // receiver
+    d(0.075, 0.055, 0.10, 0, 0.035, 0.20, SOL.gunmetal);         // rear rail
+    d(0.075, 0.08, 0.26, 0, 0.005, -0.33, SOL.black);            // handguard
+    d(0.10, 0.045, 0.10, 0, 0.025, -0.24, SOL.gunmetal);         // front rail
+    d(0.032, 0.032, 0.26, 0, 0.02, -0.55, SOL.gunmetal);         // barrel
+    d(0.052, 0.052, 0.075, 0, 0.02, -0.69, SOL.black);           // muzzle brake
+    d(0.028, 0.028, 0.16, 0, 0.058, -0.30, SOL.black);           // gas tube
+    d(0.065, 0.075, 0.09, 0, -0.135, 0.075, SOL.black);          // pistol grip
+    d(0.072, 0.20, 0.085, 0, -0.145, -0.075, SOL.black);         // magazine
+    d(0.07, 0.07, 0.09, 0, -0.245, -0.10, SOL.black);
+    d(0.06, 0.06, 0.14, 0, -0.005, 0.28, SOL.gunmetal);          // buffer tube
+    d(0.075, 0.125, 0.26, 0, -0.03, 0.44, SOL.black);            // stock
+    d(0.08, 0.16, 0.03, 0, -0.03, 0.565, SOL.rubber);            // butt pad
+    d(0.055, 0.035, 0.14, 0, 0.075, 0.05, SOL.black);            // optic base
+    d(0.07, 0.07, 0.11, 0, 0.115, 0.05, SOL.black);              // optic body
+    d(0.05, 0.05, 0.02, 0, 0.115, 0.11, SOL.lens);               // optic lens
+    d(0.03, 0.06, 0.03, 0, 0.075, -0.44, SOL.black);             // front sight
+    const muzzle = new T.Object3D();
+    muzzle.position.set(0, 0.02, -0.75);
+    g.add(muzzle);
+    g.userData.muzzle = muzzle;
+    return g;
+  }
+
+  /* one block-built soldier. The legs hang from hip joints and the arms from
+     shoulder joints so he can walk and shoulder his rifle; on top of the block
+     body sit a plate carrier with magazine pouches, a helmet with goggles, chin
+     strap and an NVG mount, shoulder/knee/elbow pads, gloves and boots, and a
+     rifle with a real receiver, handguard, stock, magazine and optic. Every
+     piece is still a box (art rule); the small detail boxes skip the shadow
+     pass so the cost stays close to the old model. */
   function makeSoldier(role) {
     makeSol();
     const g = new T.Group();
@@ -1653,98 +1724,172 @@
     const tough = role === "tough";
     const boss = role === "boss";
     const uniform = civ ? SOL.civil : boss ? SOL.camoBoss : tough ? SOL.camoDark : SOL.enemyCloth;
-    const pants = civ ? SOL.civilPant : tough || boss ? SOL.enemyDark : SOL.enemyDark;
-    // legs and boots
-    part(body, 0.21, 0.44, 0.23, -0.13, 0.42, 0, pants);
-    part(body, 0.21, 0.44, 0.23, 0.13, 0.42, 0, pants);
-    part(body, 0.24, 0.15, 0.32, -0.13, 0.08, 0.03, SOL.boot);
-    part(body, 0.24, 0.15, 0.32, 0.13, 0.08, 0.03, SOL.boot);
-    // torso
-    part(body, 0.56, 0.54, 0.34, 0, 0.92, 0, uniform);
-    part(body, 0.58, 0.09, 0.36, 0, 0.68, 0, civ ? SOL.belt : SOL.enemyBelt);
-    if (!civ && !boss) part(body, 0.3, 0.16, 0.02, -0.1, 0.98, 0.175, SOL.belt);
-    if (tough) {
-      part(body, 0.46, 0.34, 0.09, 0, 0.98, 0.2, SOL.steel);
-      part(body, 0.12, 0.12, 0.03, 0, 1.02, 0.26, SOL.gold);
+    const pants = civ ? SOL.civilPant : SOL.enemyDark;
+    const padMat = civ ? SOL.belt : tough ? SOL.steel : SOL.plate;
+    /* detail pieces: same box, but no shadow pass and no receiving */
+    const D = (parent, w, h, d, x, y, z, mat) => {
+      const m = new T.Mesh(new T.BoxGeometry(w, h, d), mat);
+      m.position.set(x, y, z);
+      parent.add(m);
+      return m;
+    };
+
+    /* ---- legs: a hip group, with the shin and boot hanging under it ---- */
+    const HIP = 0.68;
+    const mkLeg = (sx) => {
+      const hip = new T.Group();
+      hip.position.set(sx * 0.135, HIP, 0);
+      part(hip, 0.215, 0.34, 0.24, 0, -0.17, 0, pants);
+      if (!civ) D(hip, 0.185, 0.13, 0.08, 0, -0.235, 0.125, SOL.rubber);      // knee pad
+      if (!civ) D(hip, 0.085, 0.14, 0.055, sx * 0.115, -0.15, 0.085, SOL.oliveDark); // thigh pocket
+      const shin = new T.Group();
+      shin.position.set(0, -0.34, 0);
+      hip.add(shin);
+      part(shin, 0.19, 0.23, 0.21, 0, -0.115, 0, pants);
+      part(shin, 0.22, 0.12, 0.30, 0, -0.28, 0.035, civ ? SOL.black : SOL.boot);
+      D(shin, 0.23, 0.035, 0.32, 0, -0.335, 0.035, SOL.black);               // sole
+      D(shin, 0.21, 0.05, 0.06, 0, -0.245, 0.19, SOL.black);                 // toe cap
+      body.add(hip);
+      return { hip, shin };
+    };
+    const legL = mkLeg(-1), legR = mkLeg(1);
+
+    /* ---- pelvis, belt and torso ---- */
+    part(body, 0.42, 0.15, 0.30, 0, 0.745, 0, pants);
+    part(body, 0.455, 0.075, 0.325, 0, 0.80, 0, civ ? SOL.belt : SOL.enemyBelt);
+    D(body, 0.085, 0.06, 0.03, 0, 0.80, 0.17, SOL.steel);                    // buckle
+    part(body, 0.54, 0.43, 0.34, 0, 1.02, 0, uniform);
+    D(body, 0.30, 0.07, 0.03, 0, 1.19, 0.175, SOL.strap);                    // collar seam
+    if (!civ) {
+      D(body, 0.40, 0.29, 0.07, 0, 1.05, 0.185, padMat);                     // front plate
+      D(body, 0.40, 0.28, 0.06, 0, 1.05, -0.185, padMat);                    // back plate
+      D(body, 0.05, 0.25, 0.28, -0.265, 1.06, 0, padMat);                    // cummerbund
+      D(body, 0.05, 0.25, 0.28, 0.265, 1.06, 0, padMat);
+      D(body, 0.095, 0.085, 0.30, -0.15, 1.235, 0.02, SOL.strap);            // shoulder straps
+      D(body, 0.095, 0.085, 0.30, 0.15, 1.235, 0.02, SOL.strap);
+      [-0.12, 0, 0.12].forEach((px) => D(body, 0.095, 0.125, 0.06, px, 0.965, 0.20, SOL.enemyDark)); // mag pouches
+      D(body, 0.09, 0.15, 0.05, 0.235, 1.15, 0.175, SOL.oliveDark);          // radio
+      D(body, 0.035, 0.10, 0.035, 0.30, 1.19, 0.14, SOL.black);              // antenna
+      D(body, 0.13, 0.16, 0.09, -0.265, 0.90, -0.055, SOL.oliveDark);        // canteen
+      D(body, 0.07, 0.10, 0.07, 0.215, 0.90, 0.135, SOL.oliveDark);          // grenade
+      D(body, 0.075, 0.05, 0.02, 0.125, 1.16, 0.222, SOL.red);               // rank patch
+      D(body, 0.16, 0.10, 0.25, -0.305, 1.185, 0, padMat);                   // shoulder pads
+      D(body, 0.16, 0.10, 0.25, 0.305, 1.185, 0, padMat);
+    } else {
+      D(body, 0.44, 0.10, 0.30, 0, 0.815, 0.01, SOL.belt);                   // shirt hem
     }
-    if (boss) {
-      part(body, 0.6, 0.1, 0.38, 0, 1.17, 0, SOL.red);
-      part(body, 0.16, 0.06, 0.4, -0.24, 1.2, 0, SOL.gold);
-      part(body, 0.16, 0.06, 0.4, 0.24, 1.2, 0, SOL.gold);
-    }
-    // head
+
+    /* ---- head on its own joint so it can tilt while aiming ---- */
+    const headG = new T.Group();
+    headG.position.set(0, 1.26, 0);
+    body.add(headG);
+    D(body, 0.15, 0.09, 0.15, 0, 1.245, 0, SOL.skin);                        // neck
     const faceKey = civ ? "hostage" : boss ? "boss" : tough ? "tough" : role === "throw" ? "thrower" : "grunt";
-    const head = new T.Mesh(new T.BoxGeometry(0.44, 0.44, 0.44), [SOL.skin, SOL.skin, SOL.hair, SOL.skin, headFor(faceKey), SOL.skin]);
-    head.position.set(0, 1.33, 0);
+    /* +x -x +y -y +z(face) -z: hair on top and on the back of the head, so he
+       is not a bald block when he turns away */
+    const head = new T.Mesh(new T.BoxGeometry(0.42, 0.42, 0.42), [SOL.skin, SOL.skin, SOL.hair, SOL.skin, headFor(faceKey), SOL.hair]);
+    head.position.set(0, 0.21, 0);
     head.castShadow = true;
     head.receiveShadow = true;
-    body.add(head);
-    part(body, 0.05, 0.11, 0.1, -0.225, 1.32, 0.01, SOL.skin);
-    part(body, 0.05, 0.11, 0.1, 0.225, 1.32, 0.01, SOL.skin);
+    headG.add(head);
+    D(headG, 0.05, 0.11, 0.10, -0.225, 0.20, 0.01, SOL.skin);                // ears
+    D(headG, 0.05, 0.11, 0.10, 0.225, 0.20, 0.01, SOL.skin);
     if (civ) {
-      part(body, 0.46, 0.13, 0.46, 0, 1.57, 0, SOL.hair);
+      D(headG, 0.45, 0.12, 0.45, 0, 0.44, 0, SOL.hair);                      // hair
+      D(headG, 0.46, 0.06, 0.20, 0, 0.40, 0.21, SOL.hair);
     } else if (boss) {
-      part(body, 0.5, 0.12, 0.36, 0, 1.6, -0.02, SOL.black);
-      part(body, 0.54, 0.14, 0.52, 0, 1.67, 0.02, SOL.black);
-      part(body, 0.56, 0.06, 0.24, 0, 1.62, 0.24, SOL.black);
-      part(body, 0.16, 0.13, 0.03, 0, 1.7, 0.3, SOL.red);
+      D(headG, 0.50, 0.11, 0.36, 0, 0.44, -0.02, SOL.black);                 // peaked cap
+      D(headG, 0.52, 0.06, 0.52, 0, 0.39, 0.015, SOL.black);
+      D(headG, 0.56, 0.05, 0.22, 0, 0.385, 0.26, SOL.black);                 // visor
+      D(headG, 0.14, 0.11, 0.03, 0, 0.46, 0.29, SOL.red);                    // star
+      D(headG, 0.20, 0.06, 0.04, -0.26, 0.36, 0, SOL.gold);                  // cap badges
+      D(headG, 0.20, 0.06, 0.04, 0.26, 0.36, 0, SOL.gold);
     } else {
-      part(body, 0.54, 0.18, 0.54, 0, 1.58, 0, tough ? SOL.steel : SOL.enemyCap);
-      part(body, 0.56, 0.07, 0.22, 0, 1.51, 0.28, tough ? SOL.steel : SOL.enemyCap);
-      part(body, 0.14, 0.14, 0.03, 0, 1.6, 0.28, SOL.red);
+      const helmMat = tough ? SOL.steel : SOL.helm;
+      D(headG, 0.51, 0.055, 0.545, 0, 0.365, 0, helmMat);                    // helmet rim
+      D(headG, 0.47, 0.135, 0.50, 0, 0.425, -0.005, helmMat);                // crown
+      D(headG, 0.34, 0.06, 0.36, 0, 0.475, -0.01, helmMat);                  // top ridge
+      D(headG, 0.52, 0.045, 0.13, 0, 0.372, 0.255, helmMat);                 // front brim
+      D(headG, 0.13, 0.09, 0.05, 0, 0.47, 0.245, SOL.black);                 // NVG mount
+      D(headG, 0.075, 0.035, 0.04, 0, 0.505, 0.265, SOL.rubber);
+      D(headG, 0.135, 0.05, 0.03, -0.115, 0.475, 0.235, SOL.oliveDark);      // helmet band
+      D(headG, 0.135, 0.05, 0.03, 0.115, 0.475, 0.235, SOL.oliveDark);
+      D(headG, 0.09, 0.19, 0.03, -0.185, 0.10, 0.145, SOL.strap);            // chin strap
+      D(headG, 0.09, 0.19, 0.03, 0.185, 0.10, 0.145, SOL.strap);
+      if (tough) D(headG, 0.16, 0.16, 0.035, 0, 0.475, 0.28, SOL.gold);      // unit plate
+      else D(headG, 0.105, 0.095, 0.03, 0, 0.455, 0.265, SOL.red);           // cap star
+      D(headG, 0.505, 0.06, 0.515, 0, 0.352, 0, SOL.strap);                  // goggle strap
+      D(headG, 0.135, 0.085, 0.045, -0.10, 0.345, 0.245, SOL.lens);          // goggles, up on the rim
+      D(headG, 0.135, 0.085, 0.045, 0.10, 0.345, 0.245, SOL.lens);
+      D(headG, 0.05, 0.045, 0.04, 0, 0.345, 0.25, SOL.rubber);
     }
-    // arms
-    const armL = new T.Group();
-    const armR = new T.Group();
-    armL.position.set(-0.34, 1.12, 0);
-    armR.position.set(0.34, 1.12, 0);
-    part(armL, 0.17, 0.44, 0.19, 0, -0.2, 0, uniform);
-    part(armR, 0.17, 0.44, 0.19, 0, -0.2, 0, uniform);
-    part(armL, 0.14, 0.13, 0.16, 0, -0.46, 0, SOL.skin);
-    part(armR, 0.14, 0.13, 0.16, 0, -0.46, 0, SOL.skin);
-    body.add(armL, armR);
+
+    /* ---- arms on shoulder joints ---- */
+    const mkArm = (sx) => {
+      const arm = new T.Group();
+      arm.position.set(sx * 0.335, 1.155, 0);
+      part(arm, 0.165, 0.28, 0.19, 0, -0.145, 0, uniform);
+      D(arm, 0.115, 0.065, 0.115, 0, -0.272, 0.055, SOL.rubber);             // elbow pad
+      part(arm, 0.15, 0.24, 0.17, 0, -0.42, 0.02, civ ? SOL.skin : uniform);
+      D(arm, 0.16, 0.11, 0.18, 0, -0.565, 0.03, civ ? SOL.skin : SOL.black); // glove
+      body.add(arm);
+      return arm;
+    };
+    const armL = mkArm(-1);
+    const armR = mkArm(1);
     if (civ) {
       armL.rotation.z = 2.5;
       armR.rotation.z = -2.5;
-    } else {
-      // rifle held at port arms
-      const rifle = new T.Group();
-      part(rifle, 0.08, 0.09, 0.86, 0, 0, 0, SOL.gunmetal);
-      part(rifle, 0.06, 0.16, 0.12, 0, -0.13, -0.1, SOL.black);
-      part(rifle, 0.05, 0.05, 0.3, 0, 0.04, -0.52, SOL.black);
-      part(rifle, 0.07, 0.1, 0.2, 0, -0.05, 0.3, SOL.woodDark);
-      rifle.position.set(0, 0.86, 0.24);
-      rifle.rotation.x = -0.18;
-      body.add(rifle);
-      armL.rotation.x = -0.55;
-      armR.rotation.x = -0.2;
-      g.userData.rifle = rifle;
     }
+
+    /* ---- rifle, barrel forward: the model faces +z, and the rifle is built
+       with its barrel down -z, so the group is turned a half turn ---- */
+    if (!civ) {
+      const rifle = makeRifle();
+      rifle.position.set(-0.02, 0.99, 0.30);
+      rifle.rotation.set(0.16, Math.PI, -0.42);
+      body.add(rifle);
+      g.userData.rifle = rifle;
+      g.userData.muzzle = rifle.userData.muzzle;
+      // port arms: support hand under the handguard, trigger hand on the grip
+      armL.rotation.set(-1.05, 0, 0.42);
+      armR.rotation.set(-0.72, 0, -0.20);
+    }
+
     if (role === "throw") {
-      part(body, 0.3, 0.34, 0.16, 0, 0.96, -0.24, SOL.camoDark);
+      part(body, 0.30, 0.34, 0.16, 0, 0.96, -0.25, SOL.camoDark);            // rucksack
+      D(body, 0.28, 0.12, 0.03, 0, 1.02, -0.335, SOL.strap);
       const nade = new T.Group();
-      part(nade, 0.1, 0.14, 0.1, 0, 0, 0, SOL.oliveDark);
-      nade.position.set(0.34, 0.62, 0.16);
+      D(nade, 0.10, 0.13, 0.10, 0, 0, 0, SOL.oliveDark);
+      D(nade, 0.05, 0.05, 0.10, 0, 0.075, 0, SOL.steel);
+      nade.position.set(0.30, 0.60, 0.14);
       body.add(nade);
       g.userData.nade = nade;
-      armR.rotation.x = -1.4;
+      armR.rotation.x = -1.5;
+      armR.rotation.z = -0.25;
     }
     if (boss) {
       const cape = new T.Mesh(new T.PlaneGeometry(0.72, 0.95), new T.MeshLambertMaterial({ color: 0x8e1f1a, side: T.DoubleSide }));
-      cape.position.set(0, 0.95, -0.26);
+      cape.position.set(0, 0.95, -0.27);
       cape.rotation.x = 0.08;
       body.add(cape);
-      g.scale.setScalar(1.5);
-    } else if (tough) {
-      g.scale.setScalar(1.5);
-    } else if (!boss) {
-      g.scale.setScalar(1.28);
+      D(body, 0.60, 0.09, 0.36, 0, 1.22, 0, SOL.red);
+      D(body, 0.17, 0.055, 0.38, -0.25, 1.24, 0, SOL.gold);
+      D(body, 0.17, 0.055, 0.38, 0.25, 1.24, 0, SOL.gold);
     }
+    if (boss || tough) g.scale.setScalar(1.5);
+    else g.scale.setScalar(1.28);
     g.userData.body = body;
+    g.userData.headG = headG;
+    g.userData.armL = armL;
+    g.userData.armR = armR;
+    g.userData.legL = legL.hip;
+    g.userData.legR = legR.hip;
+    g.userData.shinL = legL.shin;
+    g.userData.shinR = legR.shin;
     g.userData.role = role;
     return g;
   }
-
   function makePickup(kind) {
     makeSol();
     const g = new T.Group();
@@ -1771,57 +1916,121 @@
     return g;
   }
 
+  /* the ally: a standing rifleman who walks with the camera, so he needs real
+     hip and shoulder joints. Tan uniform, plate carrier, helmet with an ally
+     patch, a white/blue armband, and the same detailed rifle the enemy carries. */
   function makeAlly() {
     makeSol();
     const g = new T.Group();
     const b = new T.Group();
     g.add(b);
-    // kneeling right leg, left knee up
-    part(b, 0.24, 0.2, 0.62, -0.16, 0.1, -0.05, SOL.tanDark);
-    part(b, 0.24, 0.5, 0.26, -0.16, 0.28, 0.28, SOL.tanDark);
-    part(b, 0.26, 0.18, 0.5, 0.18, 0.09, 0.02, SOL.tanDark);
-    part(b, 0.26, 0.18, 0.44, 0.18, 0.2, 0.3, SOL.boot);
-    part(b, 0.56, 0.56, 0.34, 0, 0.68, 0.02, SOL.tan);
-    part(b, 0.5, 0.44, 0.1, 0, 0.72, 0.2, SOL.vest);
-    part(b, 0.14, 0.12, 0.06, -0.16, 0.78, 0.24, SOL.vest);
-    part(b, 0.14, 0.12, 0.06, 0.16, 0.78, 0.24, SOL.vest);
-    part(b, 0.58, 0.1, 0.36, 0, 0.44, 0.02, SOL.belt);
-    const ahead = new T.Mesh(new T.BoxGeometry(0.44, 0.44, 0.44), [SOL.skin, SOL.skin, SOL.hair, SOL.skin, headFor("ally"), SOL.skin]);
-    ahead.position.set(0, 1.14, 0.04);
-    ahead.castShadow = true;
-    ahead.receiveShadow = true;
-    b.add(ahead);
-    part(b, 0.05, 0.11, 0.1, -0.225, 1.13, 0.05, SOL.skin);
-    part(b, 0.05, 0.11, 0.1, 0.225, 1.13, 0.05, SOL.skin);
-    part(b, 0.54, 0.16, 0.56, 0, 1.36, 0.02, SOL.helmAlly);
-    part(b, 0.46, 0.1, 0.48, 0, 1.46, 0.02, SOL.helmAlly);
-    part(b, 0.34, 0.06, 0.36, 0, 1.52, 0.02, SOL.helmAlly);
-    part(b, 0.58, 0.06, 0.6, 0, 1.29, 0.02, SOL.helmAlly);
-    part(b, 0.18, 0.12, 0.03, 0, 1.37, 0.3, SOL.white);
-    part(b, 0.09, 0.06, 0.04, -0.024, 1.38, 0.315, SOL.red);
-    part(b, 0.09, 0.06, 0.04, 0.024, 1.36, 0.315, SOL.bandB);
-    // arms forward, rifle along +x
-    const armL = new T.Group(), armR = new T.Group();
-    armL.position.set(-0.32, 0.92, 0.06);
-    armR.position.set(0.32, 0.92, 0.06);
-    part(armL, 0.17, 0.5, 0.19, 0, -0.2, 0.16, SOL.tan);
-    part(armR, 0.17, 0.5, 0.19, 0, -0.2, 0.16, SOL.tan);
-    part(armL, 0.185, 0.09, 0.205, 0, -0.06, 0.16, SOL.bandW);
-    part(armL, 0.19, 0.045, 0.21, 0, -0.095, 0.16, SOL.bandB);
-    armL.rotation.x = -1.25;
-    armR.rotation.x = -1.05;
-    b.add(armL, armR);
-    const rifle = new T.Group();
-    part(rifle, 0.86, 0.1, 0.09, 0, 0, 0, SOL.gunmetal);
-    part(rifle, 0.12, 0.15, 0.08, -0.1, -0.12, 0, SOL.black);
-    part(rifle, 0.28, 0.05, 0.05, 0.55, 0.02, 0, SOL.black);
-    part(rifle, 0.22, 0.1, 0.07, -0.42, -0.03, 0, SOL.woodDark);
-    rifle.position.set(0.1, 0.72, 0.46);
-    rifle.rotation.y = -Math.PI / 2;
+    const D = (parent, w, h, d, x, y, z, mat) => {
+      const m = new T.Mesh(new T.BoxGeometry(w, h, d), mat);
+      m.position.set(x, y, z);
+      parent.add(m);
+      return m;
+    };
+
+    /* legs */
+    const HIP = 0.68;
+    const mkLeg = (sx) => {
+      const hip = new T.Group();
+      hip.position.set(sx * 0.135, HIP, 0);
+      part(hip, 0.215, 0.34, 0.24, 0, -0.17, 0, SOL.tanDark);
+      D(hip, 0.185, 0.13, 0.08, 0, -0.235, 0.125, SOL.rubber);         // knee pad
+      D(hip, 0.085, 0.14, 0.055, sx * 0.115, -0.15, 0.085, SOL.tanDark);
+      const shin = new T.Group();
+      shin.position.set(0, -0.34, 0);
+      hip.add(shin);
+      part(shin, 0.19, 0.23, 0.21, 0, -0.115, 0, SOL.tanDark);
+      part(shin, 0.22, 0.12, 0.30, 0, -0.28, 0.035, SOL.boot);
+      D(shin, 0.23, 0.035, 0.32, 0, -0.335, 0.035, SOL.black);
+      b.add(hip);
+      return { hip, shin };
+    };
+    const legL = mkLeg(-1), legR = mkLeg(1);
+
+    /* torso, carrier, belt */
+    part(b, 0.42, 0.15, 0.30, 0, 0.745, 0, SOL.tanDark);
+    part(b, 0.455, 0.075, 0.325, 0, 0.80, 0, SOL.belt);
+    D(b, 0.085, 0.06, 0.03, 0, 0.80, 0.17, SOL.steel);
+    part(b, 0.54, 0.43, 0.34, 0, 1.02, 0, SOL.tan);
+    D(b, 0.42, 0.30, 0.075, 0, 1.05, 0.185, SOL.vest);                // front plate
+    D(b, 0.42, 0.29, 0.06, 0, 1.05, -0.185, SOL.vest);                // back plate
+    D(b, 0.05, 0.26, 0.29, -0.265, 1.06, 0, SOL.vest);
+    D(b, 0.05, 0.26, 0.29, 0.265, 1.06, 0, SOL.vest);
+    D(b, 0.095, 0.085, 0.30, -0.15, 1.235, 0.02, SOL.vest);
+    D(b, 0.095, 0.085, 0.30, 0.15, 1.235, 0.02, SOL.vest);
+    [-0.12, 0, 0.12].forEach((px) => D(b, 0.095, 0.125, 0.06, px, 0.965, 0.20, SOL.vest)); // pouches
+    D(b, 0.10, 0.06, 0.03, -0.10, 1.16, 0.228, SOL.bandW);            // name tape
+    D(b, 0.10, 0.03, 0.032, -0.10, 1.16, 0.229, SOL.bandB);
+    D(b, 0.13, 0.16, 0.09, -0.265, 0.90, -0.055, SOL.olive);
+    D(b, 0.07, 0.10, 0.07, 0.215, 0.90, 0.135, SOL.oliveDark);
+    D(b, 0.16, 0.10, 0.25, -0.305, 1.185, 0, SOL.tan);
+    D(b, 0.16, 0.10, 0.25, 0.305, 1.185, 0, SOL.tan);
+
+    /* head + helmet */
+    const headG = new T.Group();
+    headG.position.set(0, 1.26, 0);
+    b.add(headG);
+    D(b, 0.15, 0.09, 0.15, 0, 1.245, 0, SOL.skin);
+    const head = new T.Mesh(new T.BoxGeometry(0.42, 0.42, 0.42), [SOL.skin, SOL.skin, SOL.hair, SOL.skin, headFor("ally"), SOL.hair]);
+    head.position.set(0, 0.21, 0);
+    head.castShadow = true;
+    head.receiveShadow = true;
+    headG.add(head);
+    D(headG, 0.05, 0.11, 0.10, -0.225, 0.20, 0.01, SOL.skin);
+    D(headG, 0.05, 0.11, 0.10, 0.225, 0.20, 0.01, SOL.skin);
+    D(headG, 0.51, 0.055, 0.545, 0, 0.365, 0, SOL.helmAlly);
+    D(headG, 0.47, 0.135, 0.50, 0, 0.425, -0.005, SOL.helmAlly);
+    D(headG, 0.34, 0.06, 0.36, 0, 0.475, -0.01, SOL.helmAlly);
+    D(headG, 0.52, 0.045, 0.13, 0, 0.372, 0.255, SOL.helmAlly);
+    D(headG, 0.17, 0.12, 0.035, 0, 0.44, 0.265, SOL.white);           // ally patch
+    D(headG, 0.09, 0.07, 0.038, -0.032, 0.445, 0.267, SOL.red);
+    D(headG, 0.09, 0.07, 0.038, 0.032, 0.44, 0.267, SOL.bandB);
+    D(headG, 0.505, 0.055, 0.515, 0, 0.352, 0, SOL.strap);            // goggle strap
+    D(headG, 0.135, 0.085, 0.045, -0.10, 0.345, 0.245, SOL.lens);
+    D(headG, 0.135, 0.085, 0.045, 0.10, 0.345, 0.245, SOL.lens);
+    D(headG, 0.05, 0.045, 0.04, 0, 0.345, 0.25, SOL.rubber);
+    D(headG, 0.09, 0.19, 0.03, -0.185, 0.10, 0.145, SOL.strap);
+    D(headG, 0.09, 0.19, 0.03, 0.185, 0.10, 0.145, SOL.strap);
+
+    /* arms with the white/blue armband on the left one */
+    const mkArm = (sx) => {
+      const arm = new T.Group();
+      arm.position.set(sx * 0.335, 1.155, 0);
+      part(arm, 0.165, 0.28, 0.19, 0, -0.145, 0, SOL.tan);
+      D(arm, 0.115, 0.065, 0.115, 0, -0.272, 0.055, SOL.rubber);
+      part(arm, 0.15, 0.24, 0.17, 0, -0.42, 0.02, SOL.tan);
+      D(arm, 0.16, 0.11, 0.18, 0, -0.565, 0.03, SOL.black);
+      b.add(arm);
+      return arm;
+    };
+    const armL = mkArm(-1), armR = mkArm(1);
+    D(armL, 0.185, 0.075, 0.20, 0, -0.10, 0, SOL.bandW);
+    D(armL, 0.19, 0.04, 0.205, 0, -0.145, 0, SOL.bandB);
+
+    /* the rifle rides in both hands, pointing the way he faces (+z) */
+    const rifle = makeRifle();
+    rifle.position.set(0.02, 1.00, 0.16);
+    rifle.rotation.set(-0.05, Math.PI, 0);
     b.add(rifle);
-    b.rotation.y = 0.22;
+    armR.rotation.set(-1.05, 0, -0.26);
+    armL.rotation.set(-1.20, 0, 0.40);
+
+    g.userData.body = b;
+    g.userData.headG = headG;
     g.userData.armL = armL;
     g.userData.armR = armR;
+    g.userData.legL = legL.hip;
+    g.userData.legR = legR.hip;
+    g.userData.shinL = legL.shin;
+    g.userData.shinR = legR.shin;
+    g.userData.rifle = rifle;
+    g.userData.muzzle = rifle.userData.muzzle;
+    g.userData.phase = 0;
+    g.userData.aimK = 0;
+    g.scale.setScalar(1.06);
     return g;
   }
 
@@ -2427,6 +2636,7 @@
     m.position.set((x0 + x1) / 2, (y0 === undefined ? 0.3 : y0) + h / 2, (z0 + z1) / 2);
     m.castShadow = true;
     m.receiveShadow = true;
+    m.userData.wall = 1;
     S.add(m);
     return m;
   }
@@ -2492,6 +2702,7 @@
     const par = new T.Mesh(new T.BoxGeometry(Math.abs(x1 - x0), 0.95, 0.26), SOL.stone);
     par.position.set((x0 + x1) / 2, y + 0.475, zEdge);
     par.castShadow = true;
+    par.userData.wall = 1;
     S.add(par);
     for (let x = x0 + 0.8; x < x1; x += 2.2) {
       const b = new T.Mesh(new T.BoxGeometry(0.3, 0.4, 0.34), SOL.stoneDark);
@@ -2514,6 +2725,7 @@
       pier.position.set(YARD_MID + (a + b) / 2, 0.3 + 4.6, GATE_Z);
       pier.castShadow = true;
       pier.receiveShadow = true;
+      pier.userData.wall = 1;
       g.add(pier);
     });
     const top = new T.Mesh(new T.BoxGeometry(OPEN, 3.8, 1.8), stoneMat(OPEN, 3.8));
@@ -2792,13 +3004,38 @@
     return 1.10;
   }
 
+  /* Where a post's cover stands. The player looks at a post from the wave's
+     hold point, and for a side post that line is up to 60° off the zone's
+     forward axis, so a cover placed on the zone axis ended up beside the man
+     from where the camera really is - he stood in the open and nothing in
+     front of him. So the cover goes on the hold -> man line instead, turned
+     to face the camera, and the man peeks out along the camera's right. */
+  function coverPlace(w, m, i) {
+    const role = roleOf(m.role);
+    const p = waveXY(w, m.lat || 0, m.dep || 8);
+    const hx = (w.hold && w.hold.x) || 0;
+    const hz = (w.hold && w.hold.z) || 0;
+    let dx = p.x - hx, dz = p.z - hz;
+    const d = Math.hypot(dx, dz) || 1;
+    dx /= d; dz /= d;
+    const side = i % 2 ? 1 : -1;
+    return {
+      x: p.x, z: p.z, elev: m.elev || 0,
+      cx: p.x - dx * 0.95 - dz * side * 0.14,
+      cz: p.z - dz * 0.95 + dx * side * 0.14,
+      yaw: Math.atan2(dx, dz),
+      cover: m.cover || "sandbag",
+      coverSide: side,
+      scale: roleScale(role)
+    };
+  }
+
+  /* builds one cover prop and records its real top and centre, so the man
+     behind it can be ducked to exactly that height (a table of nominal
+     heights never matched the props: the sandbags stand 0.99 m, the doorway
+     1.65 m, and the old numbers let a head and both shoulders stick out) */
   function buildCover(p, w) {
-    const s = Math.sin(w.yaw), c = Math.cos(w.yaw);
-    const rx = c, rz = -s;
-    const fx = s, fz = c;
-    const side = p.coverSide || 0;
-    const cx = p.x - fx * 0.95 + rx * side * 0.18;
-    const cz = p.z - fz * 0.95 + rz * side * 0.18;
+    const cx = p.cx, cz = p.cz;
     const baseY = p.elev || 0.3;
     const wide = Math.min(1.5, (p.scale || 1.28) / 1.28);
     let g = null;
@@ -2841,19 +3078,59 @@
         break;
       }
       case "rail": return null;
-      default: g = makeSandbags(cx, cz, 2.0, 3);
+      default: g = makeSandbags(cx, cz, 2.0, 3); break;
     }
     if (!g) return null;
     g.position.y = baseY;
-    g.rotation.y = w.yaw;
+    g.rotation.y = p.yaw != null ? p.yaw : (w ? w.yaw : 0);
     g.userData.cover = 1;
-    coverRoot.add(g);
+    (coverTarget || coverRoot).add(g);
+    g.updateMatrixWorld(true);
+    const bb = new T.Box3().setFromObject(g);
+    g.userData.topY = bb.max.y;
+    g.userData.centerX = (bb.min.x + bb.max.x) / 2;
+    g.userData.centerZ = (bb.min.z + bb.max.z) / 2;
     return g;
+  }
+
+  /* every wave's cover is built with the course, before the first frame, so a
+     man is never seen standing in an empty street waiting for his sandbags to
+     appear when his wave starts */
+  function prebuildCovers() {
+    coverGroups = [];
+    waves.forEach((w) => {
+      w.coverGroup = new T.Group();
+      w.coverGroup.name = "covers-w" + w.i;
+      coverRoot.add(w.coverGroup);
+      coverTarget = w.coverGroup;
+      w.covers = w.def.members.map((m, i) => {
+        if (roleOf(m.role) === "hostage" || !m.cover) return null;
+        let g = null;
+        try { g = buildCover(coverPlace(w, m, i), w); } catch (e) { window.__coverErr = String(e && e.stack || e); }
+        return g;
+      });
+      coverGroups.push({ u: w.u, g: w.coverGroup });
+    });
+    const bg = new T.Group();
+    bg.name = "covers-boss";
+    coverRoot.add(bg);
+    coverTarget = bg;
+    bossCovers = BOSS_DEF.spots.map((s, i) => {
+      let g = null;
+      try {
+        g = buildCover(coverPlace({ yaw: 0, hold: bossHold }, { role: "boss", lat: s[0], dep: s[1], cover: "heavy" }, i), { yaw: 0 });
+      } catch (e) {}
+      return g;
+    });
+    coverGroups.push({ u: bossU, g: bg });
+    coverTarget = null;
   }
 
   /* ---------------- waves ---------------- */
 
   let coverRoot = null;
+  let coverTarget = null;
+  let coverGroups = [];
 
   function buildWaves() {
     buildRail();
@@ -2930,6 +3207,12 @@
     dress = null;
     wave = null;
     waveT = 0;
+    bossStage = null;
+    bossCovers = [];
+    coverGroups = [];
+    coverTarget = null;
+    wallList = [];
+    waves.forEach((w) => { w.staged = null; w.covers = null; });
   }
 
   function showHud(on) {
@@ -2971,6 +3254,8 @@
     flashHalo = rig.halo;
     flashLight = rig.light;
     window.__pistol = pistol;
+    /* model factory hooks (handy for eyeballing the cast without playing) */
+    window.__mk = { soldier: makeSoldier, ally: makeAlly, rifle: makeRifle };
     window.__pistolAim = pistolAim;
     window.__pistolBody = pistolBody;
     const btn = document.createElement("button");
@@ -2996,7 +3281,16 @@
       addEventListener("mousedown", shootAt);
       addEventListener("contextmenu", (e) => { if (armed) e.preventDefault(); });
       addEventListener("keydown", (e) => {
-        if (e.code === "KeyR" || e.key === "r" || e.key === "R") window.RAIL.reload();
+        if (e.ctrlKey || e.metaKey || e.altKey) return;
+        const tag = (e.target && e.target.tagName) || "";
+        if (tag === "INPUT" || tag === "TEXTAREA" || (e.target && e.target.isContentEditable)) return;
+        const isR = e.code === "KeyR" || (e.key || "").toLowerCase() === "r" || e.key === "ㄱ";
+        if (!isR) return;
+        /* hold-R repeats are one reload, and R must not reach the browser's
+           own shortcuts (Ctrl+R is filtered above; this keeps the page still) */
+        e.preventDefault();
+        if (e.repeat) return;
+        window.RAIL.reload();
       });
     }
     if (ctx.pl) ctx.pl.inv = 99999;
@@ -3018,8 +3312,17 @@
     coverRoot = new T.Group();
     coverRoot.name = "covers";
     ctx.scene.add(coverRoot);
+    /* every zone's sandbags, crates and doorways are part of the course from
+       the start: nothing the enemy hides behind may appear after he does */
+    try { prebuildCovers(); } catch (err) { window.__coverErr = String(err && err.stack || err); }
     buildPickups(ctx);
     try { dressBattlefield(ctx); } catch (err) { window.__dressErr = String(err && err.stack || err); }
+    /* walls, for stopping bullets */
+    wallList = [];
+    try {
+      if (dress && dress.root) dress.root.traverse((o) => { if (o.isMesh && o.userData && o.userData.wall) wallList.push(o); });
+    } catch (e) {}
+    try { stageWave(waves[0]); } catch (err) { window.__stageErr = String(err && err.stack || err); }
     const cam = ctx.camera;
     cam.near = 0.06; cam.fov = viewFov(); cam.far = 320;
     const p0 = pathAt(0);
@@ -3065,7 +3368,85 @@
 
   /* ---------------- enemy posts ---------------- */
 
+  /* One man at his post. `live` is false while he is only staged: the next
+     zone's men are planted as soon as the previous wave is cleared, so they
+     are already standing behind sandbags that have been there since the start
+     instead of popping into an empty street when the camera arrives. */
+  function makePost(w, m, i) {
+    const role = roleOf(m.role);
+    const p = waveXY(w, m.lat || 0, m.dep || 8);
+    const sc = roleScale(role);
+    const post = {
+      e: { kind: role, mesh: new T.Object3D(), alive: true, hp: roleHp(role), h: 1.4 * sc, _tag: null },
+      role, i,
+      x: p.x, z: p.z, y: (m.elev || 0) + 0.3,
+      elev: m.elev || 0,
+      cover: m.cover || "sandbag",
+      coverSide: i % 2 ? 1 : -1,
+      peekDir: i % 2 ? 1 : -1,
+      scale: sc,
+      headTop: 1.67 * sc,
+      expose: 0, live: false,
+      state: role === "hostage" ? "civ" : "hidden",
+      stateT: 0.7 + i * 0.42 + Math.random() * 0.7,
+      aimMax: roleAim(role), aim: roleAim(role),
+      fireMax: 1.5 + Math.random() * 0.7,
+      hideMin: 0.55 + Math.random() * 0.7,
+      nextThrow: 0.8,
+      bob: Math.random() * 6, breath: Math.random() * 6,
+      knock: 0, recoil: 0, armK: 0, shotT: 0, burstN: 0,
+      hideFrac: 0.4, peekX: 0
+    };
+    let sm = null;
+    try { sm = makeSoldier(role); } catch (err) { window.__soldierErr = String(err && err.message || err); }
+    if (sm && SCENE) {
+      sm.position.set(post.x, post.y, post.z);
+      SCENE.add(sm);
+      post.mesh = sm;
+      post.body = sm.userData.body || sm;
+      sm.updateMatrixWorld(true);
+      /* the height of this very model, helmet and all, so ducking behind
+         cover can be solved from geometry instead of a guessed table */
+      const bb = new T.Box3().setFromObject(sm);
+      post.headTop = Math.max(1.1, bb.max.y - post.y);
+    } else {
+      post.mesh = null;
+    }
+    posts.push(post);
+    if (role === "hostage") {
+      post.expose = 1;
+    } else {
+      post.coverG = w && w.covers ? w.covers[i] : null;
+      if (!post.coverG) {
+        let g = null;
+        try { g = buildCover(coverPlace(w, m, i), w); } catch (e) {}
+        post.coverG = g;
+      }
+      if (post.coverG && post.coverG.userData.topY !== undefined) {
+        post.coverTop = post.coverG.userData.topY;
+        post.coverCX = post.coverG.userData.centerX;
+        post.coverCZ = post.coverG.userData.centerZ;
+      } else {
+        /* the alley balcony has no prop of its own: its parapet is the cover */
+        post.coverTop = post.y + 0.62;
+        post.coverCX = post.x;
+        post.coverCZ = post.z - 0.95;
+      }
+      roleTag(post.e);
+      if (post.e._tag) post.e._tag.style.display = "none";
+    }
+    posePost(post, { x: (w && w.hold && w.hold.x) || 0, y: CAM_Y, z: (w && w.hold && w.hold.z) || 0 }, 0);
+    return post;
+  }
+
+  /* plant a wave's men without starting their fight */
+  function stageWave(w) {
+    if (!w || w.staged) return;
+    w.staged = w.def.members.map((m, i) => makePost(w, m, i));
+  }
+
   function startWave(w) {
+    stageWave(w);
     phase = "fight";
     wave = w;
     waveT = w.def.time || 24;
@@ -3073,63 +3454,41 @@
     curHold = { x: w.hold.x, z: w.hold.z };
     curLook = { x: w.look.x, y: w.look.y, z: w.look.z };
     pathU = w.u;
-    const scale0 = w.def.members.length;
-    w.def.members.forEach((m, i) => {
-      const role = roleOf(m.role);
-      const p = waveXY(w, m.lat || 0, m.dep || 8);
-      const sc = roleScale(role);
-      const post = {
-        e: { kind: role, mesh: new T.Object3D(), alive: true, hp: roleHp(role), h: 1.4 * sc, _tag: null },
-        role, i,
-        x: p.x, z: p.z, y: (m.elev || 0) + 0.3,
-        elev: m.elev || 0,
-        cover: m.cover || "sandbag",
-        coverSide: i % 2 ? 1 : -1,
-        peekDir: i % 2 ? 1 : -1,
-        scale: sc,
-        headTop: 1.67 * sc,
-        squashY: 1,
-        expose: 0,
-        state: role === "hostage" ? "civ" : "hidden",
-        stateT: 0.7 + i * 0.42 + Math.random() * 0.7,
-        aimMax: roleAim(role),
-        aim: roleAim(role),
-        fireMax: 1.5 + Math.random() * 0.7,
-        hideMin: 0.55 + Math.random() * 0.7,
-        nextThrow: 0.8,
-        popped: true,
-        bob: Math.random() * 6,
-        knock: 0
-      };
-      post.e.hp = roleHp(role);
-      post.e.alive = true;
-      let sm = null;
-      try { sm = makeSoldier(role); } catch (err) { window.__soldierErr = String(err && err.message || err); }
-      if (sm && SCENE) {
-        sm.position.set(post.x, post.y, post.z);
-        sm.visible = true;
-        SCENE.add(sm);
-        post.mesh = sm;
-        post.body = sm.userData.body || sm;
-      }
-      if (!post.mesh) post.mesh = null;
-      posts.push(post);
-      if (role === "hostage") post.expose = 1;
-      if (role !== "hostage") {
-        const nh = coverHeight(post.cover);
-        post.squashY = Math.max(0.36, Math.min(0.92, (nh - 0.06) / post.headTop));
-        buildCover(post, w);
-        roleTag(post.e);
-        if (post.e._tag) post.e._tag.style.display = "none";
-      }
-      // civilians stay put, hands up, facing the player
-      if (role === "hostage") post.squashY = 1;
-      post.stateT += i * 0.12;
+    w.staged.forEach((p, i) => {
+      p.live = true;
+      p.state = p.role === "hostage" ? "civ" : "hidden";
+      p.stateT = 0.7 + i * 0.42 + Math.random() * 0.7 + i * 0.12;
+      p.expose = p.role === "hostage" ? 1 : 0;
+      p.aim = p.aimMax;
+      p.burstN = 0;
+      p.recoil = 0;
     });
     window.__railPhase = "fight";
   }
 
+  /* the commander, staged the same way, behind whichever heavy barrier of the
+     yard he starts from */
+  function stageBoss() {
+    if (bossStage) return bossStage;
+    const w = { yaw: 0, hold: bossHold, covers: bossCovers };
+    const spot = BOSS_DEF.spots[1];
+    const post = makePost(w, { role: "boss", lat: spot[0], dep: spot[1], cover: "heavy" }, 1);
+    post.isBoss = true;
+    post.state = "hidden";
+    post.spotI = 1;
+    post.coverG = bossCovers[1];
+    if (post.coverG && post.coverG.userData.topY !== undefined) {
+      post.coverTop = post.coverG.userData.topY;
+      post.coverCX = post.coverG.userData.centerX;
+      post.coverCZ = post.coverG.userData.centerZ;
+    }
+    bossPost = post;
+    bossStage = post;
+    return post;
+  }
+
   function startBoss(ctx) {
+    const post = stageBoss();
     phase = "boss";
     bossSpawned = true;
     waveT = 40;
@@ -3137,42 +3496,41 @@
     curHold = { x: bossHold.x, z: bossHold.z };
     curLook = { x: BOSS_DEF.look[0], y: BOSS_DEF.look[1], z: BOSS_DEF.look[2] };
     pathU = bossU;
-    const w = { yaw: 0, hold: bossHold };
-    const spot = BOSS_DEF.spots[1];
-    const p = waveXY(w, spot[0], spot[1]);
-    const post = {
-      e: { kind: "boss", mesh: new T.Object3D(), alive: true, hp: roleHp("boss"), h: 2.1, _tag: null },
-      role: "boss", i: 0, isBoss: true,
-      x: p.x, z: p.z, y: 0.3, elev: 0,
-      cover: "heavy", coverSide: -1, peekDir: 1,
-      scale: 1.5, headTop: 2.5, squashY: 0.5, expose: 0,
-      state: "hidden", stateT: 1.2,
-      aimMax: roleAim("boss"), aim: roleAim("boss"),
-      fireMax: 1.7, hideMin: 0.5, nextThrow: 0,
-      popped: true, bob: 0, knock: 0, spotI: 1
-    };
-    let sm = null;
-    try { sm = makeSoldier("boss"); } catch (e) {}
-    if (sm && SCENE) {
-      sm.position.set(post.x, post.y, post.z);
-      SCENE.add(sm);
-      post.mesh = sm;
-      post.body = sm.userData.body || sm;
+    if (post) {
+      post.live = true;
+      post.state = "hidden";
+      post.stateT = 1.2;
+      post.expose = 0;
+      post.aim = post.aimMax;
     }
-    posts.push(post);
-    bossPost = post;
-    buildCover(post, w);
-    roleTag(post.e);
-    if (post.e._tag) post.e._tag.style.display = "none";
     window.__railPhase = "boss";
   }
 
   function livingHostiles() {
-    return posts.filter((p) => p.e.alive !== false && p.role !== "hostage");
+    return posts.filter((p) => p.live !== false && p.e.alive !== false && p.role !== "hostage");
   }
 
   function exposedHostiles() {
-    return posts.filter((p) => p.e.alive !== false && p.role !== "hostage" && p.expose > 0.45);
+    return posts.filter((p) => p.live !== false && p.e.alive !== false && p.role !== "hostage" && p.expose > 0.45);
+  }
+
+  /* everything a bullet can be stopped by between the muzzle and a man: the
+     cover props this round, and the walls of the course */
+  function occluders() {
+    const out = [];
+    if (coverRoot) out.push(coverRoot);
+    for (let i = 0; i < wallList.length; i++) out.push(wallList[i]);
+    return out;
+  }
+
+  /* was this point hidden behind cover or wall from the camera? */
+  function blockedFromCamera(pt, cam) {
+    const dir = new T.Vector3().subVectors(pt, cam);
+    const d = dir.length();
+    if (d < 0.05) return false;
+    dir.normalize();
+    const rc = new T.Raycaster(cam.clone(), dir, 0.05, d - 0.03);
+    try { return rc.intersectObjects(occluders(), true).length > 0; } catch (e) { return false; }
   }
 
   function endWave(ctx) {
@@ -3187,12 +3545,17 @@
     shots3 = [];
     tracers.forEach((s) => s.mesh && s.mesh.parent && s.mesh.parent.remove(s.mesh));
     tracers = [];
-    if (coverRoot) { coverRoot.parent && coverRoot.parent.remove(coverRoot); disposeGeo(coverRoot); }
-    coverRoot = new T.Group();
-    if (SCENE) SCENE.add(coverRoot);
+    /* the covers stay where they are: they are scenery now, and the next
+       zone's men already stand behind their own */
+    if (bossPost) { bossPost = null; }
+    bossStage = null;
     wave = null;
     if (phase === "fight") waveI++;
     phase = waveI < waves.length ? "move" : "toBoss";
+    try {
+      if (waveI < waves.length) stageWave(waves[waveI]);
+      else stageBoss();
+    } catch (err) { window.__stageErr = String(err && err.stack || err); }
     window.__railPhase = phase;
   }
 
@@ -3326,8 +3689,13 @@
     if (!a || !target) return;
     window.__allyShots = (window.__allyShots || 0) + 1;
     const from = new T.Vector3();
-    a.getWorldPosition(from);
-    from.y += 1.2;
+    if (a.userData && a.userData.muzzle) {
+      a.userData.muzzle.updateWorldMatrix(true, false);
+      a.userData.muzzle.getWorldPosition(from);
+    } else {
+      a.getWorldPosition(from);
+      from.y += 1.2;
+    }
     const to = new T.Vector3(target.x, target.y + 1.05, target.z);
     const dir = to.clone().sub(from);
     const len = Math.max(0.4, dir.length());
@@ -3341,6 +3709,7 @@
     ctx.scene.add(fl);
     tracers.push({ mesh: fl, life: 0.06, grow: 1 });
     burst(ctx.scene, to.x, to.y, to.z, false);
+    if (a.userData) a.userData.recoil = 1;
     if (Math.random() < 0.3 && !target.isBoss) {
       target.e.hp = (target.e.hp || 1) - 1;
       if (target.e.hp <= 0) killPost(ctx, target, 80);
@@ -3460,38 +3829,62 @@
     ray.far = 34;
     const owned = [];
     const addOwned = (mesh, extra, sort) => { if (mesh) owned.push({ mesh, extra, sort }); };
-    posts.forEach((p) => { if (p.e.alive !== false && p.expose > 0.42 && p.mesh) addOwned(p.mesh, p, "foe"); });
+    /* every man who could be on screen, whether he is peeking or ducked; his
+       own body and the cover in front of it decide the rest */
+    posts.forEach((p) => {
+      if (p.live !== false && p.e.alive !== false && p.mesh && p.mesh.visible !== false) addOwned(p.mesh, p, "foe");
+    });
     shots3.forEach((s) => addOwned(s.mesh, s, "shot"));
     pickups.forEach((p) => { if (!p.taken) addOwned(p.mesh, p, p.kind); });
     if (dress) dress.barrels.forEach((b) => { if (!b.dead) addOwned(b.mesh, b, "barrel"); });
+    /* and the things that stop a round before it gets there */
+    occluders().forEach((m) => addOwned(m, null, "block"));
     const found = ray.intersectObjects(owned.map((o) => o.mesh), true);
-    let hit = null;
-    if (found.length) {
-      let node = found[0].object;
-      let owner = null;
-      while (node && !owner) {
-        owner = owned.find((o) => o.mesh === node);
+    const ownerOf = (obj) => {
+      let node = obj;
+      while (node) {
+        const o = owned.find((x) => x.mesh === node);
+        if (o) return o;
         node = node.parent;
       }
-      if (owner) {
-        const bb = new T.Box3().setFromObject(owner.mesh);
-        hit = { at: found[0].point, box: bb, extra: owner.extra, sort: owner.sort };
-      }
+      return null;
+    };
+    let hit = null;
+    let blocked = null;
+    for (let i = 0; i < found.length; i++) {
+      const owner = ownerOf(found[i].object);
+      if (!owner) continue;
+      if (owner.sort === "block") { blocked = found[i]; break; }
+      const bb = new T.Box3().setFromObject(owner.mesh);
+      hit = { at: found[i].point, box: bb, extra: owner.extra, sort: owner.sort };
+      break;
     }
+    window.__lastBlocked = blocked ? { x: +blocked.point.x.toFixed(2), y: +blocked.point.y.toFixed(2) } : null;
     const cx = (aimN.x * 0.5 + 0.5) * innerWidth;
     const cy = (-aimN.y * 0.5 + 0.5) * innerHeight;
     mark(cx, cy);
     if (!hit) {
       let bestPx = 9999;
       const near = [];
-      posts.forEach((p) => { if (p.e.alive !== false && p.expose > 0.42 && p.mesh) near.push({ mesh: p.mesh, extra: p, sort: "foe", lift: 0.8 }); });
+      posts.forEach((p) => {
+        if (p.live === false || p.e.alive === false || !p.mesh) return;
+        if (p.role !== "hostage") {
+          /* only the part of him that stands above his cover counts, and only
+             if no wall is in the way */
+          const top = p.visTop || p.y + p.headTop;
+          if (p.coverTop !== undefined && top < p.coverTop - 0.02) return;
+        }
+        near.push({ mesh: p.mesh, extra: p, sort: "foe", lift: 0.8 });
+      });
       pickups.forEach((p) => { if (!p.taken && p.mesh) near.push({ mesh: p.mesh, extra: p, sort: p.kind, lift: 0.3 }); });
       if (dress) dress.barrels.forEach((b) => { if (!b.dead && b.mesh) near.push({ mesh: b.mesh, extra: b, sort: "barrel", lift: 0.55 }); });
+      const camP = ctx.camera.position;
       near.forEach((n) => {
         const v = new T.Vector3();
         n.mesh.getWorldPosition(v);
         const at = v.clone();
         at.y += n.lift;
+        if (blockedFromCamera(at, camP)) return;
         const pjt = at.clone().project(ctx.camera);
         if (pjt.z > 1) return;
         const x = (pjt.x * 0.5 + 0.5) * innerWidth;
@@ -3502,7 +3895,16 @@
       window.__miss = bestPx;
       if (bestPx > 105) hit = null;
     }
-    if (!hit) { combo = 0; return; }
+    if (!hit) {
+      combo = 0;
+      window.__lastShot = { sort: "miss", blocked: !!blocked };
+      if (blocked) {
+        burst(ctx.scene, blocked.point.x, blocked.point.y, blocked.point.z, false);
+        gun("dry");
+      }
+      return;
+    }
+    window.__lastShot = { sort: hit.sort, role: (hit.extra && hit.extra.role) || null };
     // the shot just landed: snap the muzzle onto that exact point for a beat
     aimSnapPt.copy(hit.at);
     aimSnapAt = now;
@@ -3569,10 +3971,77 @@
 
   /* ---------------- per frame ---------------- */
 
+  /* Put the man in the world for this frame: how far down he is behind his own
+     cover *as seen from where the camera stands* (the cover's measured top,
+     continued along the sight line to him), the sideways peek out of it, the
+     crouch, the rifle and arms for the state he is in, and the breathing sway.
+     Nothing about being "hidden" is decided by a flag any more: what the eye
+     sees is what the shot can reach. */
+  function posePost(p, cam, dt) {
+    const u = p.mesh.userData;
+    const k = dt > 0 ? Math.min(1, dt * 9) : 1;
+    const ex = p.expose;
+
+    /* the sight line that just clears his cover: anything above it is visible */
+    let hideTop = p.y + p.headTop;
+    let dx = p.x - cam.x, dz = p.z - cam.z;
+    let dE = Math.hypot(dx, dz) || 1;
+    dx /= dE; dz /= dE;
+    if (p.coverTop !== undefined) {
+      const dC = Math.hypot((p.coverCX || p.x) - cam.x, (p.coverCZ || p.z) - cam.z) || 1;
+      const over = Math.max(0, (dE - dC) / dC);
+      /* the eye is above the wall, so the line to the man keeps dropping past
+         it; he has to be that much lower to stay out of sight */
+      hideTop = Math.min(p.coverTop, p.coverTop + (cam.y - p.coverTop) * over);
+    }
+    const want = Math.max(0.26, Math.min(1, (hideTop - p.y - 0.04) / Math.max(0.6, p.headTop)));
+    p.hideFrac += (want - p.hideFrac) * k;
+
+    /* sideways peek along the camera's right, so he steps out of the cover */
+    const side = (p.peekDir || 1) * 0.66 * ex;
+    const rx = -dz, rz = dx;
+    p.mesh.position.set(
+      p.x + rx * side - dx * (1 - ex) * 0.12,
+      p.y - (1 - ex) * 0.02,
+      p.z + rz * side - dz * (1 - ex) * 0.12
+    );
+    p.mesh.rotation.y = Math.atan2(cam.x - p.mesh.position.x, cam.z - p.mesh.position.z);
+
+    /* crouch: the body compresses from the boots, so he sinks behind the wall
+       instead of the wall being drawn over him */
+    const sy = p.hideFrac + (1 - p.hideFrac) * ex;
+    if (p.body) {
+      p.body.scale.y = sy;
+      p.body.position.y = Math.sin(p.breath) * 0.008 * ex;
+      p.body.rotation.z = (p.knock || 0) * 0.9 + Math.sin(p.bob * 0.63) * 0.022 * ex;
+      p.body.rotation.x = (1 - ex) * 0.14 + 0.05 * ex;
+    }
+
+    /* rifle up and arms to it as he comes out, back down as he ducks */
+    const want3 = p.state === "fire" ? 1 : p.state === "peek" ? 0.72 : 0.1;
+    p.armK += (Math.max(want3, ex * 0.92) - p.armK) * k;
+    if (p.recoil > 0) p.recoil = Math.max(0, p.recoil - dt * 5.5);
+    const ak = p.armK, rc = p.recoil || 0;
+    if (u.armR) u.armR.rotation.set(-0.72 - 0.62 * ak + rc * 0.30, 0, -0.20 - 0.10 * ak);
+    if (u.armL) u.armL.rotation.set(-1.05 - 0.35 * ak + rc * 0.22, 0, 0.42 - 0.12 * ak);
+    if (u.rifle) {
+      u.rifle.position.set(-0.02, 0.99 + 0.17 * ak, 0.30 + 0.06 * ak - rc * 0.045);
+      u.rifle.rotation.set(0.16 - 0.14 * ak + rc * 0.20, Math.PI, -0.42 + 0.42 * ak);
+    }
+    if (u.headG) u.headG.rotation.x = 0.09 * ak - (1 - ex) * 0.06 + Math.sin(p.breath * 0.7) * 0.02;
+    if (u.legL) u.legL.rotation.x = 0.12 * (1 - ex) + Math.sin(p.bob) * 0.03 * ex;
+    if (u.legR) u.legR.rotation.x = -0.16 * (1 - ex) - Math.sin(p.bob) * 0.03 * ex;
+    if (u.shinL) u.shinL.rotation.x = 0.22 * (1 - ex);
+    if (u.shinR) u.shinR.rotation.x = 0.26 * (1 - ex);
+    if (u.nade) u.nade.position.y = 0.60 + ex * 0.12;
+
+    /* keep the visible top around for the tag and for the hit test */
+    p.visTop = p.y + p.headTop * sy;
+  }
+
   function stepPost(p, ctx, dt) {
+    if (!p.mesh || p.live === false || p.e.alive === false) return;
     const cam = ctx.camera.position;
-    if (!p.mesh) return;
-    if (p.e.alive === false) return;
 
     if (p.role === "hostage") {
       p.mesh.rotation.y = Math.atan2(cam.x - p.x, cam.z - p.z);
@@ -3581,25 +4050,40 @@
       return;
     }
 
-    // cover state machine: hidden -> peek -> fire -> duck -> hidden
+    p.breath += dt * 1.7;
+    p.bob += dt * 2.4;
+
+    // cover state machine: hidden -> peek -> fire (burst) -> duck -> hidden
     p.stateT -= dt;
     if (p.state === "hidden") {
       if (p.stateT <= 0) {
         p.state = "peek";
-        p.stateT = 0.3;
+        p.stateT = 0.34;
         if (p.e._tag) p.e._tag.style.display = "";
       }
     } else if (p.state === "peek") {
-      p.expose = Math.min(1, p.expose + dt / 0.28);
-      if (p.stateT <= 0) { p.state = "fire"; p.stateT = p.fireMax; }
+      p.expose = Math.min(1, p.expose + dt / 0.3);
+      if (p.stateT <= 0) {
+        p.state = "fire";
+        p.stateT = p.fireMax;
+        p.aim = p.aimMax;
+      }
     } else if (p.state === "fire") {
       p.expose = Math.min(1, p.expose + dt / 0.2);
       p.aim -= dt;
-      if (p.aim <= 0) {
-        hurtPlayer(ctx, p.role === "boss" ? 22 : 15);
-        p.aim = p.aimMax;
-        p.state = "duck";
-        p.stateT = 0.32;
+      if (p.burstN > 0) {
+        /* the burst he actually fires: flash, tracer, recoil; only the first
+           round of it carries the damage, so one attack still costs one hit */
+        p.shotT -= dt;
+        if (p.shotT <= 0) {
+          const first = p.burstN === p.burstMax;
+          enemyFire(ctx, p, first ? (p.role === "boss" ? 7 : 5) : 0);
+          p.burstN--;
+          p.shotT = 0.15;
+        }
+      } else if (p.aim <= 0) {
+        p.burstN = p.burstMax = p.role === "tough" || p.role === "boss" ? 3 : 2;
+        p.shotT = 0.03;
       } else if (p.stateT <= 0) {
         p.state = "duck";
         p.stateT = 0.32;
@@ -3617,34 +4101,27 @@
           const s = BOSS_DEF.spots[p.spotI];
           const np = waveXY({ yaw: 0, hold: bossHold }, s[0], s[1]);
           p.x = np.x; p.z = np.z;
+          const g = bossCovers[p.spotI];
+          if (g && g.userData.topY !== undefined) {
+            p.coverG = g;
+            p.coverTop = g.userData.topY;
+            p.coverCX = g.userData.centerX;
+            p.coverCZ = g.userData.centerZ;
+          }
         }
       }
     }
 
-    p.bob += dt * 2.4;
-    const ex = p.expose;
-    // step sideways out of cover while peeking
-    const side = p.peekDir * 0.62 * ex;
-    p.mesh.position.set(p.x + side, p.y + (1 - ex) * -0.06, p.z + (1 - ex) * (p.isBoss ? 0.35 : 0.22));
-    p.mesh.rotation.y = Math.atan2(cam.x - p.mesh.position.x, cam.z - p.mesh.position.z);
-    const bob = Math.sin(p.bob) * 0.015 * ex;
-    if (p.body) {
-      const sy = 1 - (1 - p.squashY) * (1 - ex);
-      p.body.scale.y = sy;
-      p.body.position.y = bob;
-      p.body.rotation.z = (p.knock || 0) * 0.9 + Math.sin(p.bob * 0.63) * 0.02 * ex;
-      p.body.rotation.x = (1 - ex) * 0.16;
-    }
-    if (p.knock > 0) p.knock = Math.max(0, p.knock - dt * 1.6);
+    posePost(p, cam, dt);
+
     const u = p.mesh.userData;
-    if (u.rifle) u.rifle.rotation.x = -0.18 - ex * 0.5;
-    if (u.nade) u.nade.position.y = 0.62 + ex * 0.12;
+    if (p.knock > 0) p.knock = Math.max(0, p.knock - dt * 1.6);
     if (p.state === "fire" && p.role === "throw") {
       p.nextThrow -= dt;
       if (p.nextThrow <= 0) { p.nextThrow = 1.4; throwShot(ctx, p); }
     }
     if (p.e._tag && p.e._tag.style.display !== "none") {
-      const v = new T.Vector3(p.mesh.position.x, p.y + p.headTop * (1 - (1 - p.squashY) * (1 - ex)) + 0.85, p.mesh.position.z);
+      const v = new T.Vector3(p.mesh.position.x, p.visTop + 0.55, p.mesh.position.z);
       v.project(ctx.camera);
       p.e._tag.style.left = ((v.x * 0.5 + 0.5) * innerWidth) + "px";
       p.e._tag.style.top = ((-v.y * 0.5 + 0.5) * innerHeight) + "px";
@@ -3656,17 +4133,70 @@
     }
   }
 
+  /* an enemy round: muzzle flash at his barrel, a tracer back at the camera,
+     a kick of the rifle, and the damage when this round is the one that counts */
+  function enemyFire(ctx, p, dmg) {
+    const u = p.mesh && p.mesh.userData;
+    const from = new T.Vector3(p.mesh.position.x, p.y + 1.2, p.mesh.position.z);
+    if (u && u.muzzle) {
+      u.muzzle.updateWorldMatrix(true, false);
+      u.muzzle.getWorldPosition(from);
+    }
+    p.recoil = 1;
+    muzzleFlash(ctx, from);
+    /* the tracer is drawn as a bar, so it has to stop a few metres short of
+       the eye: a bar that reaches the camera fills half the screen */
+    const cam = ctx.camera.position;
+    const toCam = new T.Vector3(cam.x - from.x, cam.y - 0.2 - from.y, cam.z - from.z);
+    const dCam = toCam.length() || 1;
+    toCam.multiplyScalar(Math.max(0.2, (dCam - 5) / dCam));
+    tracerTo(ctx, from, new T.Vector3(from.x + toCam.x, from.y + toCam.y, from.z + toCam.z), 0xffe6a0, 0.05);
+    gun("rifle");
+    if (dmg) hurtPlayer(ctx, dmg);
+  }
+
+  function muzzleFlash(ctx, at) {
+    const m = new T.Mesh(new T.SphereGeometry(0.11, 6, 5), new T.MeshBasicMaterial({ color: 0xffd06a, transparent: true, opacity: 0.95, depthWrite: false }));
+    m.position.copy(at);
+    ctx.scene.add(m);
+    tracers.push({ mesh: m, life: 0.07 });
+    for (let i = 0; i < 4; i++) {
+      const s = new T.Mesh(new T.BoxGeometry(0.05, 0.05, 0.05), new T.MeshBasicMaterial({ color: 0xfff2b0 }));
+      s.position.copy(at);
+      s.userData.v = new T.Vector3((Math.random() - 0.5) * 2.4, Math.random() * 1.6, (Math.random() - 0.5) * 2.4);
+      s.userData.life = 0.16 + Math.random() * 0.1;
+      ctx.scene.add(s);
+      sparks.push(s);
+    }
+  }
+
+  function tracerTo(ctx, from, to, color, thick) {
+    const dir = to.clone().sub(from);
+    const len = Math.max(0.4, dir.length());
+    const m = new T.Mesh(new T.BoxGeometry(thick || 0.04, thick || 0.04, len), new T.MeshBasicMaterial({ color: color || 0xffe08a }));
+    m.position.copy(from).addScaledVector(dir, 0.5);
+    m.lookAt(to);
+    ctx.scene.add(m);
+    tracers.push({ mesh: m, life: 0.1 });
+  }
+
   function stepAlly(ctx, dt) {
     const a = dress && dress.ally;
     if (!a) return;
     const cam = ctx.camera;
     const right = new T.Vector3().setFromMatrixColumn(cam.matrixWorld, 0);
     const fwd = new T.Vector3().setFromMatrixColumn(cam.matrixWorld, 2).negate();
-    const tx = cam.position.x - right.x * 2.8 + fwd.x * 4.6;
-    const tz = cam.position.z - right.z * 2.8 + fwd.z * 4.6;
-    a.position.x += (tx - a.position.x) * Math.min(1, dt * 4);
-    a.position.z += (tz - a.position.z) * Math.min(1, dt * 4);
+    const tx = cam.position.x - right.x * 3.3 + fwd.x * 5.0;
+    const tz = cam.position.z - right.z * 3.3 + fwd.z * 5.0;
+    const px = a.position.x, pz = a.position.z;
+    const k = Math.min(1, dt * 4.2);
+    a.position.x += (tx - a.position.x) * k;
+    a.position.z += (tz - a.position.z) * k;
     a.position.y = 0.3;
+    const moved = Math.hypot(a.position.x - px, a.position.z - pz);
+    const speed = dt > 0 ? moved / dt : 0;
+    const u = a.userData;
+
     const foes = exposedHostiles();
     let best = null, bd = 1e9;
     foes.forEach((p) => {
@@ -3675,11 +4205,44 @@
     });
     if (best) {
       a.rotation.y = Math.atan2(best.x - a.position.x, best.z - a.position.z);
-      if (a.userData.armL) a.userData.armL.rotation.x = -1.4;
+    } else if (speed > 0.2) {
+      a.rotation.y = Math.atan2(a.position.x - px, a.position.z - pz);
+    }
+
+    /* walk cycle driven by the distance actually covered, so his boots never
+       slide: strides, counter-swinging arms, a bounce on each footfall, and a
+       stop into a firing stance when he has caught up */
+    u.phase = (u.phase || 0) + moved * 2.6;
+    const gait = Math.max(0, Math.min(1, speed / 3.2));
+    u.aimK = (u.aimK || 0) + (((best && gait < 0.35) ? 1 : 0) - (u.aimK || 0)) * Math.min(1, dt * 5);
+    const aim = u.aimK || 0;
+    const sw = Math.sin(u.phase) * 0.52 * gait;
+    const swB = Math.sin(u.phase + Math.PI) * 0.52 * gait;
+    if (u.legL) u.legL.rotation.x = sw + 0.16 * aim;
+    if (u.legR) u.legR.rotation.x = -sw + 0.10 * aim;
+    if (u.shinL) u.shinL.rotation.x = Math.max(0, -Math.sin(u.phase - 0.5)) * 0.95 * gait + 0.30 * aim;
+    if (u.shinR) u.shinR.rotation.x = Math.max(0, -Math.sin(u.phase + Math.PI - 0.5)) * 0.95 * gait + 0.24 * aim;
+    if (u.armL) u.armL.rotation.set(-0.82 - 0.45 * aim - swB * 0.55, 0, 0.40 - 0.04 * aim);
+    if (u.armR) u.armR.rotation.set(-0.58 - 0.55 * aim + swB * 0.50, 0, -0.24 + 0.05 * aim);
+    if (u.rifle) {
+      u.rifle.position.y = 1.00 + 0.13 * aim;
+      u.rifle.rotation.set(-0.05 - 0.06 * aim + (u.recoil || 0) * 0.18, Math.PI, 0);
+    }
+    if (u.body) {
+      u.body.position.y = Math.abs(Math.sin(u.phase)) * 0.05 * gait - 0.05 * aim;
+      u.body.rotation.z = Math.sin(u.phase) * 0.035 * gait;
+      u.body.rotation.x = 0.04 * gait - 0.03 * aim;
+    }
+    if (u.headG) u.headG.rotation.y = Math.sin(u.phase * 0.5) * 0.06 * gait;
+    u.recoil = Math.max(0, (u.recoil || 0) - dt * 6);
+    u.speed = speed;
+    u.steps = (u.steps || 0) + Math.abs(moved);
+    if (best) {
       allyT -= dt;
-      if (allyT <= 0) { allyT = 1.15 + Math.random() * 0.8; allyTracer(ctx, best); }
-    } else if (a.userData.armL) {
-      if (a.userData.armL) a.userData.armL.rotation.x = -1.25 + Math.sin(performance.now() / 800) * 0.05;
+      if (allyT <= 0) {
+        allyT = 1.15 + Math.random() * 0.8;
+        allyTracer(ctx, best);
+      }
     }
   }
 
@@ -3805,6 +4368,15 @@
       }
     });
 
+    // ---- zone cover culling (they exist from the start; only the far ones rest)
+    if (coverGroups.length) {
+      const uNow = pathU * pathLen;
+      coverGroups.forEach((cg) => {
+        if (!cg.g) return;
+        cg.g.visible = Math.abs(uNow - cg.u * pathLen) < 42;
+      });
+    }
+
     // ---- world dressing follow ----
     if (dress) {
       if (dress.sky) { dress.sky.position.set(cam.position.x, 0, cam.position.z + 20); }
@@ -3825,7 +4397,12 @@
       const tr = tracers[i];
       tr.life -= dt;
       if (tr.grow && tr.mesh.scale) tr.mesh.scale.setScalar(1 + (0.06 - tr.life) * 12);
-      if (tr.life <= 0) { tr.mesh.parent && tr.mesh.parent.remove(tr.mesh); tracers.splice(i, 1); }
+      if (tr.life <= 0) {
+        if (tr.mesh.parent) tr.mesh.parent.remove(tr.mesh);
+        if (tr.mesh.geometry) tr.mesh.geometry.dispose();
+        if (tr.mesh.material) tr.mesh.material.dispose();
+        tracers.splice(i, 1);
+      }
     }
     pickups.forEach((item) => {
       if (item.taken || !item.mesh) return;
@@ -3870,7 +4447,7 @@
       aimRay.setFromCamera(aimNdc, cam);
       let aimD = 26;
       posts.forEach((p) => {
-        if (p.e.alive === false || p.expose <= 0.42 || !p.mesh) return;
+        if (p.live === false || p.e.alive === false || p.expose <= 0.42 || !p.mesh) return;
         tmpV.set(p.mesh.position.x, p.y + 0.95, p.mesh.position.z).sub(aimRay.ray.origin);
         const along = tmpV.dot(aimRay.ray.direction);
         if (along < 2.5 || along > 34) return;
@@ -3941,14 +4518,24 @@
       s.position.add(s.userData.v);
       if (s.userData.smoke && s.scale) s.scale.multiplyScalar(1 + dt * 0.85);
       s.material.opacity = Math.max(0, Math.min(0.6, s.userData.life * 0.7));
-      if (s.userData.life <= 0) { s.parent && s.parent.remove(s); smokes.splice(i, 1); }
+      if (s.userData.life <= 0) {
+        if (s.parent) s.parent.remove(s);
+        if (s.geometry) s.geometry.dispose();
+        if (s.material) s.material.dispose();
+        smokes.splice(i, 1);
+      }
     }
     for (let i = sparks.length - 1; i >= 0; i--) {
       const s = sparks[i];
       s.userData.life -= dt;
       s.position.addScaledVector(s.userData.v, dt);
       s.userData.v.y -= 6 * dt;
-      if (s.userData.life <= 0) { ctx.scene.remove(s); sparks.splice(i, 1); }
+      if (s.userData.life <= 0) {
+        ctx.scene.remove(s);
+        if (s.geometry) s.geometry.dispose();
+        if (s.material) s.material.dispose();
+        sparks.splice(i, 1);
+      }
     }
     if (nowMs - (frame._bgmT || 0) > 1600) {
       frame._bgmT = nowMs;
@@ -3961,8 +4548,11 @@
     window.__railDbg = {
       phase, waveI, u: +pathU.toFixed(3), cam: [+cam.position.x.toFixed(2), +cam.position.z.toFixed(2)],
       posts: posts.length, alive: posts.filter((p) => p.e.alive !== false).length,
-      exposed: posts.filter((p) => p.e.alive !== false && p.expose > 0.42).length,
-      states: posts.map((p) => p.state).join(","),
+      exposed: posts.filter((p) => p.live !== false && p.e.alive !== false && p.expose > 0.42).length,
+      states: posts.filter((p) => p.live !== false).map((p) => p.state).join(","),
+      staged: posts.filter((p) => p.live === false).length,
+      cover: posts.filter((p) => p.live !== false && p.role !== "hostage")
+        .map((p) => (p.coverTop !== undefined ? ((p.visTop || 0) - p.coverTop).toFixed(2) : "?")) .join(","),
       ally: window.__allyShots || 0,
       bullets, shotsFired, shotsHit, hp, lives, waveT: +waveT.toFixed(1),
       pickups: pickups.length, got: pickups.filter((p) => p.taken).length,
