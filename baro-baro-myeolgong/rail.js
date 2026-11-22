@@ -3295,7 +3295,10 @@
   function streetFront(S, opt) {
     const o = opt || {};
     const len = o.len, k = o.k || 0;
-    const ax = o.ax || 0, az = o.az || 1;
+    /* (v14) `o.az || 1` turned an explicit 0 into 1, so every shop front on an
+       east or west face stood at 45° and cut through its own building and the
+       street. Only a missing value defaults now. */
+    const ax = o.ax != null ? o.ax : 0, az = o.az != null ? o.az : 1;
     const x = o.x, y = o.y, z = o.z;
     const rotY = Math.atan2(ax, az);
     const g = new T.Group();
@@ -3544,49 +3547,37 @@
       beam.position.set(cx, py + 3.35 + i * 0.36, cz);
       S.add(beam);
     });
-    /* two tiled hip roofs, each a slab with a frustum on top */
-    const roof = (w, d, yy, hi) => {
-      /* exposed rafter soffit under a wide tiled eave */
-      const soffit = new T.Mesh(new T.BoxGeometry(w * 0.96, 0.24, d * 0.96), SOL.rafter);
-      soffit.position.set(cx, yy - 0.16, cz);
-      S.add(soffit);
-      const eave = new T.Mesh(new T.BoxGeometry(w, 0.3, d), SOL.roofTile);
-      eave.position.set(cx, yy, cz);
-      eave.castShadow = true;
-      S.add(eave);
-      const frust = new T.Mesh(new T.CylinderGeometry(w * 0.13, w * 0.52, hi, 4, 1), SOL.roofTile);
-      frust.rotation.y = Math.PI / 4;
-      frust.scale.z = (d / w) * 1.06;
-      frust.position.set(cx, yy + hi / 2 + 0.12, cz);
-      frust.castShadow = true;
-      S.add(frust);
-      const ridge = new T.Mesh(new T.BoxGeometry(w * 0.34, 0.22, 0.34), SOL.roofRidge);
-      ridge.position.set(cx, yy + hi + 0.18, cz);
-      S.add(ridge);
-      [-1, 1].forEach((sx) => {
-        const cap = new T.Mesh(new T.BoxGeometry(w * 0.045, 0.5, 0.4), SOL.roofRidge);
-        cap.position.set(cx + (sx * w) * 0.17, yy + hi + 0.22, cz);
-        S.add(cap);
-      });
-      /* upturned eave tips at the four corners */
-      [-1, 1].forEach((sx) => {
-        [-1, 1].forEach((sz) => {
-          const tip = new T.Mesh(new T.BoxGeometry(w * 0.2, 0.2, d * 0.28), SOL.roofTile);
-          tip.position.set(cx + (sx * w) / 2.08, yy + 0.2, cz + (sz * d) / 2.3);
-          tip.rotation.z = -sx * 0.2;
-          tip.rotation.x = sz * 0.12;
-          S.add(tip);
-        });
-      });
-    };
-    roof(W * 1.04, D * 1.34, py + 1.15, 2.6);
-    roof(W * 0.9, D * 1.18, py + 4.15, 2.2);
-    /* a hanging signboard under the upper eave */
+    /* one hipped roof of grey tile, sitting ON the dancheong beams (the old
+       two-roof stack cut through the columns and the tilted frustum faces
+       stuck out of each other): rafter soffit, a wide eave with stepped,
+       upturned corners, tile courses stepping in to a ridge with end caps */
+    const tile = new T.MeshStandardMaterial({ map: SOL.roofTile.map, color: 0x6c727a, roughness: 0.8, metalness: 0.05 });
+    const ridgeM = SOL.roofRidge || tile;
+    const RB = (w, h, d, x, y, z, m) => { const r = new T.Mesh(new T.BoxGeometry(w, h, d), m); r.position.set(cx + x, y, cz + z); r.castShadow = true; r.receiveShadow = true; S.add(r); return r; };
+    const ey = py + 3.35 + 0.72 + 0.12;
+    const RW = PW + 3.4, RD = PD + 3.0;
+    RB(RW * 0.97, 0.22, RD * 0.97, 0, ey - 0.12, 0, SOL.rafter || tile);
+    RB(RW, 0.3, RD, 0, ey + 0.1, 0, tile);
+    [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([a, b]) => {
+      RB(1.5, 0.3, 1.5, a * (RW / 2 - 0.6), ey + 0.38, b * (RD / 2 - 0.6), tile);
+      RB(0.7, 0.3, 0.7, a * (RW / 2 - 0.25), ey + 0.66, b * (RD / 2 - 0.25), tile);
+    });
+    const tiers = 4;
+    for (let t = 1; t <= tiers; t++) {
+      const k = t / (tiers + 1);
+      RB(RW * (1 - k * 0.5) - 0.6, 0.42, RD * (1 - k * 0.88), 0, ey + 0.1 + t * 0.42, 0, tile);
+    }
+    const ry = ey + 0.1 + (tiers + 0.7) * 0.42;
+    RB(RW * 0.46, 0.34, 0.5, 0, ry, 0, ridgeM);
+    [-1, 1].forEach((sx) => RB(0.42, 0.85, 0.58, sx * RW * 0.23, ry + 0.25, 0, ridgeM));
+    /* a hanging signboard under the eave, on the face toward the player */
     const plate = new T.Mesh(new T.PlaneGeometry(1.5, 0.49), SOL.gateSign);
-    plate.position.set(cx, py + 2.75, cz + D * 0.46);
+    plate.position.set(cx, py + 2.75, cz - PD / 2 - 0.25);
+    plate.rotation.y = Math.PI;
     S.add(plate);
-    const f1 = makeFlagPlane(S, "kr", cx - W * 0.36, py + 5.4, cz - 0.2, 1.9, 1.3, Math.PI);
-    const f2 = makeFlagPlane(S, "kr", cx + W * 0.36, py + 5.4, cz - 0.2, 1.9, 1.3, Math.PI);
+    /* flags on short poles at the front corners of the stone base, clear of the roof */
+    const f1 = makeFlagPlane(S, "kr", cx - W * 0.4, py + 1.4, cz - D / 2 - 0.4, 1.9, 1.3, Math.PI);
+    const f2 = makeFlagPlane(S, "kr", cx + W * 0.4, py + 1.4, cz - D / 2 - 0.4, 1.9, 1.3, Math.PI);
     g.userData.flags = [f1, f2];
     return [f1, f2];
   }
@@ -4848,6 +4839,37 @@
   let railBlockers = [];
   let steerOff = 0;
   const _bb = new T.Box3(), _sz = new T.Vector3();
+  /* small street dressing (cones, hydrants, planters, crates, drums) that a
+     wave's cover or a vehicle was later put on top of is hidden, so nothing
+     stands inside anything else */
+  function declutter() {
+    if (!dress || !dress.root) return;
+    dress.root.updateMatrixWorld(true);
+    if (coverRoot) coverRoot.updateMatrixWorld(true);
+    const big = [];
+    const box = (o) => new T.Box3().setFromObject(o);
+    if (coverRoot) coverRoot.children.forEach((g) => g.children.forEach((c) => big.push(box(c))));
+    const smalls = [];
+    dress.root.children.forEach((o) => {
+      if (o.isInstancedMesh || !o.visible) return;
+      const b = box(o);
+      if (b.isEmpty()) return;
+      const sz = new T.Vector3(); b.getSize(sz);
+      if (sz.x <= 1.6 && sz.z <= 1.6 && sz.y <= 1.8 && b.max.y < 2.2) smalls.push([o, b]);
+      else if (sz.x < 14 && sz.z < 14 && sz.y > 0.8) big.push(b);
+    });
+    let hidden = 0;
+    const isBarrel = (o) => dress.barrels && dress.barrels.some((b) => b.mesh === o);
+    smalls.forEach(([o, b]) => {
+      const sh = b.clone().expandByScalar(-0.06);
+      if (big.some((B) => B.intersectsBox(sh))) {
+        if (isBarrel(o)) return;
+        o.visible = false;
+        hidden++;
+      }
+    });
+    window.__declutter = hidden;
+  }
   function buildRailBlockers(ctx) {
     railBlockers = [];
     if (!curve) return;
@@ -5619,7 +5641,7 @@
     makeScaffold(S, -26.4, -19.8, 20.45, 22.15, 3.3);
     makeUtilityPole(S, -15.2, 21.0);
     makeUtilityPole(S, -27.0, 26.9);
-    makeCone(S, -16.2, 22.4);
+    makeCone(S, -15.3, 22.6);
     makeCone(S, -24.4, 26.0);
 
     /* ================= THE YARD (waves 3-4) ================= */
@@ -5684,7 +5706,7 @@
     /* trees on both sidewalks */
     const VT = voxBatch();
     const trunks = [];
-    [[-12.6, -8.0], [-12.6, 13.6], [12.6, 6.2], [12.6, 17.4], [-12.6, 22.4], [12.6, -14.0], [-12.6, -16.0],
+    [[-12.6, -8.0], [-12.8, -1.2], [12.6, 6.2], [12.6, 17.4], [-12.6, 22.4], [12.6, -14.0], [-12.6, -16.0],
      [6.0, 32.0], [-6.0, 36.0], [6.0, 44.0], [-6.0, 50.0], [6.0, 58.0], [-6.0, 64.0], [6.0, 70.0],
      [-46.2, 40.5], [-46.2, 48.5], [-31.4, 34.0]].forEach(([x, z], i) => {
       const h = 3.2 + (i % 3) * 0.5;
@@ -5700,21 +5722,25 @@
     /* skyline behind Sungnyemun, climbing toward the foot of Namsan */
     const R7 = rng(717);
     const sky1 = [];
-    for (let i = 0; i < 26; i++) {
+    for (let i = 0, tries = 0; sky1.length < 26 && tries < 400; tries++) {
       const side = i % 2 ? 1 : -1;
       const x = side * (16 + R7() * 70), z = 96 + R7() * 56;
       const w = 9 + R7() * 9, d = 9 + R7() * 9, h = 18 + R7() * 34 * (1 - Math.abs(x) / 120);
+      /* towers keep a street's width between them instead of growing into each other */
+      if (sky1.some(([x2, z2, w2, d2]) => Math.abs(x - x2) < (w + w2) / 2 + 3 && Math.abs(z - z2) < (d + d2) / 2 + 3)) continue;
       sky1.push([x, z, w, d, h, i]);
+      i++;
     }
     voxSkyline(S, sky1);
 
     /* the parked bus and police car that frame the first firefight */
-    makeCityBus(S, -11.6, 15.4, Math.PI / 2, "143").name = "bus143";
-    makePoliceCar(S, 11.5, 9.4, -Math.PI / 2 + 0.03).name = "policeCar";
-    makePoliceCar(S, -33.4, 50.6, Math.PI / 2 + 0.06);
+    /* parked along the kerb, nose toward the player (it used to stand across
+       the lane with its tail inside the shop front) */
+    makeCityBus(S, -10.15, 12.6, Math.PI, "143").name = "bus143";
+    makePoliceCar(S, 10.4, 9.4, -Math.PI / 2 + 0.03).name = "policeCar";
+    makePoliceCar(S, -45.2, 49.0, 0.04);
 
     /* concrete barriers and cones dressing the kerbs */
-    S.add(makeJersey(-9.1, 8.2, 2.4));
     S.add(makeJersey(-8.9, 21.0, 2.2));
     S.add(makeBarricade(9.1, 3.0, 2.0));
     S.add(makeSiteWall(-18.4, 21.9, 2.6, 1.45));
@@ -6113,6 +6139,7 @@
       if (dress && dress.root) dress.root.traverse((o) => { if (o.isMesh && o.userData && o.userData.wall) wallList.push(o); });
     } catch (e) {}
     try { rebuildWallBoxes(); } catch (err) { window.__wallErr = String(err && err.stack || err); }
+    try { declutter(); } catch (err) { window.__declutterErr = String(err && err.stack || err); }
     try {
       const tb0 = performance.now();
       buildRailBlockers(ctx);
@@ -7510,13 +7537,23 @@
     let tz = cam.position.z + fwd.z * dist + right.z * lat;
     /* if that anchor lands inside a building, step back toward the road until
        it is free, so he never walks into a shopfront or a barrier */
+    /* (v14) he used to slide all the way back to the lens when the anchor sat
+       in a wall, filling the bottom of the screen with camo. Now: try the
+       left anchor pulled in no closer than ~55 %, then the same on the right,
+       then a little further down the road; keep the last good spot if none */
     if (wallBoxes.length && insideWall(tx, tz, 0.42)) {
-      for (let k = 1; k <= 6; k++) {
-        const f = 1 - k * 0.14;
-        const cx2 = cam.position.x + (tx - cam.position.x) * f;
-        const cz2 = cam.position.z + (tz - cam.position.z) * f;
-        if (!insideWall(cx2, cz2, 0.42)) { tx = cx2; tz = cz2; break; }
-      }
+      const cands = [];
+      [1, -1].forEach((side) => {
+        for (let k = 1; k <= 3; k++) {
+          const f = 1 - k * 0.15;
+          cands.push([cam.position.x + fwd.x * dist * f + right.x * lat * side * f, cam.position.z + fwd.z * dist * f + right.z * lat * side * f]);
+        }
+      });
+      cands.push([cam.position.x + fwd.x * dist * 1.35 + right.x * lat * 0.6, cam.position.z + fwd.z * dist * 1.35 + right.z * lat * 0.6]);
+      let ok = null;
+      for (const c of cands) if (!insideWall(c[0], c[1], 0.42)) { ok = c; break; }
+      if (ok) { tx = ok[0]; tz = ok[1]; }
+      else { tx = a.position.x; tz = a.position.z; }
     }
     const px = a.position.x, pz = a.position.z;
     const k = Math.min(1, dt * 4.2);
@@ -7529,6 +7566,23 @@
         a.position.z = free.z;
         window.__allyWallNudges = (window.__allyWallNudges || 0) + 1;
       }
+    }
+    /* never inside the camera's personal space: push him out to 3 m, and if
+       a wall still holds him closer than 2 m, hide him rather than let his
+       helmet fill the screen */
+    {
+      const dx = a.position.x - cam.position.x, dz = a.position.z - cam.position.z;
+      const d = Math.hypot(dx, dz);
+      const MIN = 3.0;
+      if (d < MIN) {
+        const ux = d > 0.01 ? dx / d : fwd.x, uz = d > 0.01 ? dz / d : fwd.z;
+        const nx = cam.position.x + ux * MIN, nz = cam.position.z + uz * MIN;
+        if (!wallBoxes.length || !insideWall(nx, nz, 0.42)) { a.position.x = nx; a.position.z = nz; }
+      }
+      const d2 = Math.hypot(a.position.x - cam.position.x, a.position.z - cam.position.z);
+      const vis = d2 >= 2.0;
+      if (a.visible !== vis) a.visible = vis;
+      window.__allyDist = +d2.toFixed(2);
     }
     a.position.y = 0.3;
     const wantScale = asp < 0.9 ? 0.98 : 1.06;
@@ -8854,8 +8908,8 @@
     });
     S.add(makeJeep(-31.0, 65.6, 0.2));
     S.add(makeJeep(-5.2, 65.0, -0.4));
-    S.add(makeTruck(-26.4, 67.0));
-    S.add(makeTruck(-9.6, 66.8));
+    S.add(makeTruck(-33.6, 66.6));
+    S.add(makeTruck(-2.0, 66.8));
     S.add(makeFence(-33.4, 47.0, 61.0, 1.6));
     S.add(makeFence(-2.6, 47.0, 61.0, 1.6));
     for (let i = 0; i < 4; i++) {
@@ -8878,8 +8932,21 @@
       const RF = rng(2207);
       const pts = [];
       if (curve) for (let i = 0; i <= 120; i++) pts.push(curve.getPointAt(i / 120));
+      /* keep the forest out of everything already standing (huts, towers,
+         fences, trucks): one box per placed object */
+      S.updateMatrixWorld(true);
+      const taken = [];
+      S.children.forEach((o) => {
+        if (o.isInstancedMesh) return;
+        const bb = new T.Box3().setFromObject(o);
+        if (bb.isEmpty()) return;
+        const sz = new T.Vector3(); bb.getSize(sz);
+        if (sz.x > 60 || sz.z > 60 || bb.max.y < 0.5) return;
+        taken.push(bb);
+      });
       const clear = (x, z, r) => {
         for (let i = 0; i < pts.length; i++) { const dx = pts[i].x - x, dz = pts[i].z - z; if (dx * dx + dz * dz < r * r) return false; }
+        for (let i = 0; i < taken.length; i++) { const b = taken[i]; if (x > b.min.x - 2.2 && x < b.max.x + 2.2 && z > b.min.z - 2.2 && z < b.max.z + 2.2) return false; }
         return !(Math.abs(x) < 12.5 && z < 36);
       };
       let placed = 0;
@@ -8915,44 +8982,8 @@
     S.add(makeRidge(92, 130, 84, 16, 36, 0x55705a, 0x66825f));
     S.add(makeRidge(52, 108, 42, 10, 28, 0x627e5c, 0x728e6a));
     S.add(makeRidge(-62, 104, 40, 9, 26, 0x5f7b59, 0x6f8b67));
-    for (let i = 0; i < 14; i++) {
-      const R = rng(i * 31 + 5);
-      const tx = -30 + R() * 60, tz = -6 + R() * 36;
-      if (Math.abs(tx) < 9.4) continue;
-      if (tx < -4 && tx > -34 && tz > 38) continue;
-      const t = new T.Group();
-      part(t, 0.36, 2.1, 0.36, 0, 1.05, 0, SOL.woodDark);
-      const leaf = new T.Mesh(new T.BoxGeometry(2.0, 1.4, 2.0), SOL.grass);
-      leaf.position.y = 2.6;
-      leaf.castShadow = true;
-      t.add(leaf);
-      t.position.set(tx, 0.3, tz);
-      S.add(t);
-    }
-
-    /* a dense treeline hugging both sides of the corridor (the reference has
-       the road cut through forest), plus grass tufts on the verges */
-    for (let i = 0; i < 34; i++) {
-      const R = rng(i * 17 + 3);
-      const side = i % 2 ? 1 : -1;
-      const tx = side * (12.0 + R() * 24);
-      const tz = -10 + R() * 40;
-      if (tz > 30) continue;
-      const t = new T.Group();
-      const th = 2.4 + R() * 1.8;
-      part(t, 0.42, th, 0.42, 0, th / 2, 0, SOL.woodDark);
-      const lw = 2.4 + R() * 1.4;
-      const l1 = new T.Mesh(new T.BoxGeometry(lw, 1.6 + R() * 0.9, lw), i % 3 ? SOL.grass : SOL.camo);
-      l1.position.y = th + 0.5;
-      l1.castShadow = true;
-      t.add(l1);
-      const l2 = new T.Mesh(new T.BoxGeometry(lw * 0.7, 1.2, lw * 0.7), SOL.grass);
-      l2.position.y = th + 1.5;
-      t.add(l2);
-      t.rotation.y = R() * 3;
-      t.position.set(tx, 0.3, tz);
-      S.add(t);
-    }
+    /* (v14) the old flat green box trees were removed: the voxel forest above
+       replaces them and they stood inside the guard post and each other */
     for (let i = 0; i < 40; i++) {
       const R = rng(i * 7 + 19);
       const side = i % 2 ? 1 : -1;
