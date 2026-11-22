@@ -1,5 +1,5 @@
 /* 지금 바로 점프 오프라인 서비스 워커. BUILD는 index.html 해시. */
-const BUILD = 'v6.3.0-ba78c81937';
+const BUILD = 'v6.3.0-ae53f0dc2c';
 const CACHE = 'baro-jump-' + BUILD;
 const CORE = ['./',
   './index.html',
