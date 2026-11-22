@@ -4077,7 +4077,7 @@
         p.shotT -= dt;
         if (p.shotT <= 0) {
           const first = p.burstN === p.burstMax;
-          enemyFire(ctx, p, first ? (p.role === "boss" ? 7 : 5) : 0);
+          enemyFire(ctx, p, first ? (p.role === "boss" ? 22 : 15) : 0);
           p.burstN--;
           p.shotT = 0.15;
         }

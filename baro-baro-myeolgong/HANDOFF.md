@@ -12,10 +12,10 @@
 | 영어 페이지 | https://hwani27.github.io/hwani-gallery/baro-baro-myeolgong/en.html |
 | 갤러리 카드 | `index.html`의 `baro-baro-myeolgong/` 카드 → `thumb.png` |
 | 폴더 | `work/hwani-gallery/baro-baro-myeolgong/` (완전 독립 빌드) |
-| 현재 버전 | **v7** — 엄폐 일치(보이는 만큼만 맞는다) · 적 사격 모션 · 아군 걷기 · 캐릭터 디테일 · 태극기 |
+| 현재 버전 | **v7** (v7.1: 점사 피해량 15/22 복원, `?v=8`) — 엄폐 일치(보이는 만큼만 맞는다) · 적 사격 모션 · 아군 걷기 · 캐릭터 디테일 · 태극기 |
 | v7 브랜치 | `fix/myeolgong-v6-combat-polish` → PR (아래 3절) |
 | v6 커밋 | `3df8b62` — full 1st-person arms/torso, adaptive portrait FOV, barrel tracks the aim point |
-| 캐시 버스터 | `?v=7` (index.html·en.html 세 줄) |
+| 캐시 버스터 | `?v=8` (index.html·en.html 세 줄) |
 | 로컬 실행 | `cd work/hwani-gallery && python3 -m http.server 8133` → `http://127.0.0.1:8133/baro-baro-myeolgong/index.html` |
 
 **코드를 고치면 반드시**: `index.html`·`en.html`의 `engine.js?v=`, `gun-sfx.js?v=`, `rail.js?v=` 세 줄을 **한꺼번에** 한 단계 올린다. 안 올리면 아이폰 Safari가 옛 파일을 계속 쓴다(캐시).
