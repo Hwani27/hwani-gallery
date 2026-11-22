@@ -49,6 +49,8 @@
   .tSound{display:inline-flex;align-items:center;gap:8px;margin-top:18px;border:1px solid rgba(201,184,113,.45);background:rgba(255,255,255,.05);
     color:#d9ddcd;border-radius:999px;padding:10px 18px;font:700 13px/1 inherit;cursor:pointer;touch-action:manipulation}
   .tSound svg{flex:none}
+  #mgGfx{margin-left:6px}
+  .tSound{vertical-align:middle}
   .tSound.off .w1,.tSound.off .w2{opacity:.12}
   .tSound.off{color:#8d9583}
   .tFoot{margin:26px 0 0;font:700 10px/1.5 ui-monospace,monospace;letter-spacing:.2em;color:#5d6752}
@@ -68,7 +70,7 @@
     <button id="mgStart" class="tStart" type="button">▶ Start Mission<span>STAGE 1-1</span></button>
     <button id="mgStart2" class="tStart alt" type="button">▶ DMZ &amp; Panmunjom<span>STAGE 2-1</span></button>
     <p class="tHint">Tap/click to aim &amp; fire · <b>R</b> to reload</p>
-    <button id="mgSound" class="tSound" type="button" aria-pressed="true"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M4 9h3l4-3.6v13.2L7 15H4z" fill="currentColor"/><path class="w1" d="M14.6 8.6a4.6 4.6 0 0 1 0 6.8" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round"/><path class="w2" d="M17.4 6a8.2 8.2 0 0 1 0 12" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round"/></svg><span class="tSoundTxt">Sound on</span></button>
+    <button id="mgSound" class="tSound" type="button" aria-pressed="true"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M4 9h3l4-3.6v13.2L7 15H4z" fill="currentColor"/><path class="w1" d="M14.6 8.6a4.6 4.6 0 0 1 0 6.8" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round"/><path class="w2" d="M17.4 6a8.2 8.2 0 0 1 0 12" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round"/></svg><span class="tSoundTxt">Sound on</span></button> <button id="mgGfx" class="tSound" type="button"><span class="tGfxTxt">Graphics: auto</span></button>
     <p class="tFoot">2 STAGES · DMZ WIRE · PANMUNJOM JSA</p>
   </div>
 </div>
@@ -77,8 +79,9 @@
 <noscript><p style="position:fixed;inset:0;display:grid;place-items:center;margin:0;background:#0b0f08;color:#eef1e6">Turn on JavaScript to start the mission.</p></noscript>
 
 <script src="three.min.js"></script>
-<script src="engine.js?v=11"></script>
-<script src="gun-sfx.js?v=11"></script>
-<script src="rail.js?v=11"></script>
+<script src="post.js?v=12"></script>
+<script src="engine.js?v=12"></script>
+<script src="gun-sfx.js?v=12"></script>
+<script src="rail.js?v=12"></script>
 </body>
 </html>

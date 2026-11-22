@@ -13,15 +13,15 @@
 | 영어 페이지 | https://hwani27.github.io/hwani-gallery/baro-baro-myeolgong/en.html |
 | 갤러리 카드 | `index.html`의 `baro-baro-myeolgong/` 카드 → `thumb.png` |
 | 폴더 | `work/hwani-gallery/baro-baro-myeolgong/` (완전 독립 빌드) |
-| 현재 버전 | **v11** (`?v=11`, v10 통합 + 버그 수정 4건) / 이전 **v10 통합** (`?v=10`) — v10 표면(텍스처·PBR 재질·환경맵·ACES·그림자·총구 화염/탄피) 위에 **Stage 2(DMZ·판문점)** 를 함께 얹은 상태. PR #12(`feat/myeolgong-v9-seoul-polish`)를 main에 병합하며 충돌 4곳을 해소 |
+| 현재 버전 | **v12** (`?v=12`, 화면 후처리 `post.js` + 적 테두리 빛) / v11 (`?v=11`, 버그 수정 4건) / 이전 **v10 통합** (`?v=10`) — v10 표면(텍스처·PBR 재질·환경맵·ACES·그림자·총구 화염/탄피) 위에 **Stage 2(DMZ·판문점)** 를 함께 얹은 상태. PR #12(`feat/myeolgong-v9-seoul-polish`)를 main에 병합하며 충돌 4곳을 해소 |
 | 스테이지 | `STAGES` 표: 1 = 서울 시가지(v9 리뉴얼), 2 = DMZ·판문점. 타이틀의 두 버튼 / Stage 1 클리어 결과의 `다음 작전` 버튼으로 진입 |
 | v9 브랜치 | `feat/myeolgong-v9-seoul-polish` → PR #12 (v10도 같은 브랜치) |
 | v6 커밋 | `3df8b62` — full 1st-person arms/torso, adaptive portrait FOV, barrel tracks the aim point |
-| 캐시 버스터 | `?v=11` (index.html·en.html 세 줄) |
+| 캐시 버스터 | `?v=12` (index.html·en.html **네 줄**: post·engine·gun-sfx·rail) |
 
 | 로컬 실행 | `cd work/hwani-gallery && python3 -m http.server 8133` → `http://127.0.0.1:8133/baro-baro-myeolgong/index.html` |
 
-**코드를 고치면 반드시**: `index.html`·`en.html`의 `engine.js?v=`, `gun-sfx.js?v=`, `rail.js?v=` 세 줄을 **한꺼번에** 한 단계 올린다. 안 올리면 아이폰 Safari가 옛 파일을 계속 쓴다(캐시).
+**코드를 고치면 반드시**: `index.html`·`en.html`의 `post.js?v=`, `engine.js?v=`, `gun-sfx.js?v=`, `rail.js?v=` 네 줄을 **한꺼번에** 한 단계 올린다. 안 올리면 아이폰 Safari가 옛 파일을 계속 쓴다(캐시).
 
 ## 1. 파일 지도
 
@@ -29,6 +29,7 @@
 |---|---|---|
 | `index.html` | 한국어 페이지: `<canvas id="mgCanvas">` + 타이틀 오버레이(`#mgTitle`) + 스크립트 3줄 + 캐시 버스터 | 캐시 버스터 위치. `en.html`과 같은 구조를 유지 |
 | `en.html` | 영어 페이지(문구만 다름) | 위와 동일하게 버전 올릴 것 |
+| `post.js` | 화면 후처리(v12). `MGPost.render()`가 4x MSAA 타깃에 씬을 그린 뒤 밝은 부분 추출 → 1/4·1/8 블러 → 합성(빛 번짐·색 보정·비네트). WebGL1이면 자동으로 끔. 품질 `auto/high/low`(타이틀 `#mgGfx` 버튼, `localStorage.mgGfx`, URL `?gfx=high`로 강제). auto는 플레이 중 평균 25 ms 넘는 구간이 두 번 이어지면 low로 내린다 | 셰이더 상수: `thr`(0.93) · `bloom`(0.6) · `vig`(0.26). 헤드리스 검증은 `?gfx=high`로 |
 | `engine.js` | 렌더러/씬/카메라(초기 fov 58)/조명/프레임 루프/점수 팝업/사운드 토글/리사이즈/컨텍스트 로스트 처리 | 게임 로직 없음. `RAIL.frame(ctx)`를 매 프레임 호출만 한다 |
 | `rail.js` | **게임 전부**: 절차적 텍스처(`ctex`), 스테이지 표(`STAGES` — Stage 1 서울 / Stage 2 DMZ·판문점), 코스, 웨이브, 적 상태머신, 가림막, 아군, 픽업, 보스, HUD(canvas), 무전 UI, 결과 화면, 1인칭 뷰모델 | 대부분의 작업이 여기서 일어난다. 약 6,900줄 |
 | `gun-sfx.js` | 절차적 총성·재장전·폭발·피격/사망 육성 + 내장 전투 BGM | 샘플 파일 없음. 전부 합성 |
@@ -413,6 +414,12 @@ Stage 1(서울)은 손대지 않았고, 그 뒤에 **Stage 2**를 붙였다. 두
 - **v3**: 군사 리스킨(블록 병사·가림막·기름통), HUD·결과 화면.
 - **v2**: 레일 슈터 골격(`baro-baro-jump` 엔진 위에 얹었다가 이후 완전 분리).
 - **v1**: `baro-baro-jump` HTML을 fetch/DOMParser로 재파싱해 쓰던 시절 → **지금은 금지된 구조**. 독립 빌드로 되돌리지 말 것.
+
+## 7-1. v12 — 화면 후처리 + 적 테두리 빛 (2026-11-22)
+
+- **post.js** (위 파일 지도). `engine.js`의 `tick()`이 `MGPost.render()`를 부르고, `resize()`가 `MGPost.resize()`를 부른다. 재질이 이미 ACES·sRGB로 내보내므로(씬 타깃 `encoding = sRGB`) 합성 셰이더는 색을 그대로 받아 보정만 한다. 빛 번짐은 화면 혼합이라 흰 콘크리트가 덩어리로 날아가지 않는다.
+- **적 테두리 빛** (`rail.js` `enemyRim()` / `rimMat()`): `makeSoldier()`가 인질이 아닐 때 모든 부품 재질을 테두리 빛 버전으로 바꾼다(원본 재질별 1회 복제·캐시, 공유 uniform `window.__rim` = `{col, k, pw}`, 현재 `#ff6a2e`, 0.5, 2.8). 추가 그리기 호출 없음. 아군·인질은 원래 재질 그대로라 색만으로 쏘면 안 되는 대상이 갈린다. 헬기·장갑차는 대상 아님(병사만).
+- 검증: 1280×720·390×844, `?gfx=high`/`low` 각각, 오류 0, Stage 2 완주.
 
 ## 8. 알려진 다듬을 거리 (사용자 제보 포함)
 

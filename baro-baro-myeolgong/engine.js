@@ -39,6 +39,29 @@
     sndBtn.setAttribute("aria-pressed", on ? "true" : "false");
   }
   paintSound();
+
+  /* ---- graphics switch: auto -> high -> low (post.js) ---- */
+  const gfxBtn = document.getElementById("mgGfx");
+  const GFX = ko ? { auto: "그래픽 자동", high: "그래픽 높음", low: "그래픽 낮음" }
+                 : { auto: "Graphics: auto", high: "Graphics: high", low: "Graphics: low" };
+  function paintGfx() {
+    if (!gfxBtn) return;
+    if (!window.MGPost) { gfxBtn.hidden = true; return; }
+    const p = window.MGPost.pref;
+    const t = gfxBtn.querySelector(".tGfxTxt") || gfxBtn;
+    t.textContent = GFX[p] + (p === "auto" ? " · " + (window.MGPost.quality === "high" ? (ko ? "높음" : "high") : (ko ? "낮음" : "low")) : "");
+  }
+  if (gfxBtn && window.MGPost) {
+    window.MGPost.onChange(paintGfx);
+    gfxBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const order = ["auto", "high", "low"];
+      window.MGPost.setQuality(order[(order.indexOf(window.MGPost.pref) + 1) % 3]);
+      paintGfx();
+    });
+  }
+  paintGfx();
   if (sndBtn) {
     sndBtn.addEventListener("click", (e) => {
       e.preventDefault();
@@ -170,7 +193,12 @@
       key.target.updateMatrixWorld();
       rim.position.set(camera.position.x - 6, 10, camera.position.z - 26);
     }
-    renderer.render(scene, camera);
+    const nowT = performance.now();
+    if (window.MGPost) {
+      if (state.mode === "play") window.MGPost.sample(nowT - (tick._t || nowT));
+      window.MGPost.render(renderer, scene, camera);
+    } else renderer.render(scene, camera);
+    tick._t = nowT;
   }
 
   function resize() {
@@ -178,6 +206,7 @@
     const h = Math.max(1, window.innerHeight || 1);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
     renderer.setSize(w, h, false);
+    if (window.MGPost) window.MGPost.resize(renderer);
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
   }

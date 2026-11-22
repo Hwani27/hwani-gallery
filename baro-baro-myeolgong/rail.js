@@ -2859,8 +2859,42 @@
     g.userData.shinL = legL.shin;
     g.userData.shinR = legR.shin;
     g.userData.role = role;
+    if (!civ) enemyRim(g);
     return g;
   }
+
+  /* enemy read: every hostile body part gets a warm fresnel edge so a man in
+     camo still separates from sandbags, stone and the far city. One shared set
+     of uniforms (no extra draw calls); hostages and the ally keep the plain
+     materials, so the colour itself says who not to shoot. */
+  const RIM = { col: { value: new T.Color(0xff6a2e) }, k: { value: 0.5 }, pw: { value: 2.8 } };
+  const rimCache = new Map();
+  function rimMat(m) {
+    if (!m || !m.isMeshStandardMaterial) return m;
+    let r = rimCache.get(m);
+    if (r) return r;
+    r = m.clone();
+    r.onBeforeCompile = (sh) => {
+      sh.uniforms.uRimCol = RIM.col;
+      sh.uniforms.uRimK = RIM.k;
+      sh.uniforms.uRimPw = RIM.pw;
+      sh.fragmentShader = "uniform vec3 uRimCol;uniform float uRimK;uniform float uRimPw;\n" + sh.fragmentShader.replace(
+        "gl_FragColor = vec4( outgoingLight, diffuseColor.a );",
+        "float rimF = pow( 1.0 - clamp( dot( normalize( normal ), normalize( vViewPosition ) ), 0.0, 1.0 ), uRimPw );\n" +
+        "outgoingLight += uRimCol * rimF * uRimK;\n" +
+        "gl_FragColor = vec4( outgoingLight, diffuseColor.a );");
+    };
+    r.customProgramCacheKey = () => "enemyRim";
+    rimCache.set(m, r);
+    return r;
+  }
+  function enemyRim(g) {
+    g.traverse((o) => {
+      if (!o.isMesh || !o.material || Array.isArray(o.material)) return;
+      o.material = rimMat(o.material);
+    });
+  }
+  window.__rim = RIM;
   function makePickup(kind) {
     makeSol();
     const g = new T.Group();
