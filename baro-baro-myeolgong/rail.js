@@ -5085,7 +5085,108 @@
   ];
 
   /* ============================================================
-     STAGE 3 — 평양 진입 (v16)
+     STAGE 3 — 판문점 평화의 집 (v17)
+     The summit ground south of the line: a forest road to the Peace House,
+     its garden, the blue-painted 도보다리 footbridge over the wetland with
+     the little deck at its end, then the row of blue conference huts on the
+     MDL, between two guard towers, and the plaza and stair of Panmungak.
+     Summer sun. Boss: a tank on the Panmungak plaza.
+     ============================================================ */
+  const PATH_S = [
+    [0, -46], [0, -40], [0, -34], [0, -28], [0, -22], [0, -16], [0, -10], [0, -4],
+    [0, 2], [0, 8], [0, 14], [0, 20], [0, 25], [1.4, 30], [4.2, 34], [6.6, 38],
+    [7.0, 44], [7.0, 50], [7.0, 55], [7.0, 58]
+  ];
+  const WAVES_S = [
+    {
+      id: 1, zone: "PEACE", hold: [0, -38], yaw: 0, look: [0, 1.7, -26], time: 26,
+      radio: "평화의 집 진입로! 숲길 양쪽에 적 특수부대, 민간 차량 주의!",
+      picks: [[-3.6, 6.2, "ammo"], [3.8, 6.8, "shotgun"]],
+      members: [
+        { role: "weak", lat: -4.4, dep: 9.4, cover: "sandbag" },
+        { role: "weak", lat: 4.2, dep: 10.2, cover: "crate" },
+        { role: "throw", lat: 0.6, dep: 13.2, cover: "barrier" },
+        { role: "hostage", lat: 2.6, dep: 14.4 }
+      ]
+    },
+    {
+      id: 2, zone: "PEACE", hold: [0, -22], yaw: 0, look: [3, 2.4, -8], time: 28,
+      radio: "평화의 집 앞이다! 현관 기둥과 2층 창가를 확인하라!",
+      picks: [[-3.0, 6.0, "grenade"], [3.2, 6.6, "life"]],
+      members: [
+        { role: "tough", lat: 4.6, dep: 9.6, cover: "heavy" },
+        { role: "weak", lat: -3.6, dep: 10.4, cover: "barrier" },
+        { role: "weak", lat: 0.8, dep: 12.4, cover: "crate" },
+        { role: "throw", lat: 7.4, dep: 12.8, cover: "sandbag" },
+        { air: "heli", lat: -2.0, dep: 22.0, y: 9.6, orbit: 5.8 }
+      ]
+    },
+    {
+      id: 3, zone: "GARDEN", hold: [0, -6], yaw: 0, look: [0, 1.8, 6], time: 26,
+      radio: "기념식수 정원 통과 중! 소나무 뒤 적 저격 위치!",
+      picks: [[-3.2, 5.6, "ammo"], [3.4, 6.2, "smg"]],
+      members: [
+        { role: "weak", lat: -4.4, dep: 6.0, cover: "sandbag" },
+        { role: "tough", lat: 4.8, dep: 6.6, cover: "barrier" },
+        { role: "weak", lat: 2.4, dep: 7.6, cover: "crate" },
+        { role: "hostage", lat: -1.8, dep: 8.2 }
+      ]
+    },
+    {
+      id: 4, zone: "BRIDGE", hold: [0, 8], yaw: 0, look: [0, 1.7, 22], time: 28,
+      radio: "도보다리다! 다리 끝 쉼터와 습지 건너편에 적!",
+      picks: [[-1.0, 5.0, "supply"], [1.0, 9.0, "grenade"]],
+      members: [
+        { role: "weak", lat: -2.3, dep: 14.4, cover: "crate" },
+        { role: "throw", lat: 2.2, dep: 15.6, cover: "sandbag" },
+        { role: "weak", lat: -5.6, dep: 13.0, cover: "sandbag" },
+        { role: "weak", lat: 5.8, dep: 12.4, cover: "sandbag" },
+        { air: "para", role: "para", lat: -3.0, dep: 16.0, y: 7.4, land: [-5.0, 13.6] }
+      ]
+    },
+    {
+      id: 5, zone: "MDL", hold: [0, 25], yaw: 0, look: [3, 2.0, 38], time: 28,
+      radio: "군사분계선 앞! 회담장 사이로 적 병력 돌입 중!",
+      picks: [[-2.8, 5.8, "ammo"], [3.0, 6.4, "life"]],
+      members: [
+        { role: "tough", lat: -4.6, dep: 9.4, cover: "barrier" },
+        { role: "weak", lat: 1.2, dep: 10.6, cover: "sandbag" },
+        { role: "weak", lat: 6.6, dep: 9.8, cover: "crate" },
+        { role: "throw", lat: -1.6, dep: 12.6, cover: "barrier" }
+      ]
+    },
+    {
+      id: 6, zone: "MDL", hold: [6.6, 38], yaw: 0, look: [7, 2.4, 52], time: 30,
+      radio: "회담장 통과! 판문각 계단 앞, 감시탑 사수를 먼저!",
+      picks: [[-3.0, 5.8, "grenade"], [3.2, 6.4, "shotgun"]],
+      members: [
+        { role: "weak", lat: -5.6, dep: 9.6, cover: "sandbag" },
+        { role: "tough", lat: -0.8, dep: 11.6, cover: "heavy" },
+        { role: "weak", lat: 4.2, dep: 10.4, cover: "barrier" },
+        { air: "para", role: "para", lat: 2.0, dep: 15.0, y: 8.0, land: [2.4, 12.4] },
+        { air: "para", role: "para", lat: -3.0, dep: 15.6, y: 8.4, land: [-3.4, 12.8] }
+      ]
+    },
+    {
+      id: 7, zone: "PANMUNGAK", hold: [7, 58], yaw: 0, look: [7, 3.2, 72], time: 32,
+      radio: "판문각 광장! 적 주력 집결, 헬기 접근!",
+      picks: [[-4.4, 5.8, "supply"], [4.6, 6.2, "grenade"]],
+      members: [
+        { role: "tough", lat: -6.4, dep: 8.4, cover: "heavy" },
+        { role: "weak", lat: -2.0, dep: 10.2, cover: "barrier" },
+        { role: "throw", lat: 2.8, dep: 9.6, cover: "crate" },
+        { role: "weak", lat: 6.6, dep: 8.6, cover: "sandbag" },
+        { air: "heli", lat: 0.8, dep: 22.0, y: 10.4, orbit: 6.0 }
+      ]
+    }
+  ];
+  const BOSS_S = {
+    hold: [7, 58], look: [7, 2.4, 68],
+    spots: [[-5.6, 10.2], [-0.6, 9.4], [4.6, 10.0]]
+  };
+
+  /* ============================================================
+     STAGE 4 — 평양 진입 (v16; was Stage 3 until v17)
      Winter, snowing. A long straight avenue between grey apartment slabs
      with red banners, a checkpoint, a tram stop, through a great stone arch,
      then out onto a parade square under a monument tower, with a pyramid
@@ -5184,8 +5285,8 @@
     }
   ];
   const BOSS3 = {
-    hold: [16, 60], look: [16, 2.4, 72],
-    spots: [[-5.6, 12.6], [-0.6, 11.8], [4.6, 12.4]]
+    hold: [16, 60], look: [16, 2.4, 70],
+    spots: [[-5.6, 10.4], [-0.6, 9.6], [4.6, 10.2]]
   };
 
   const BOSS2 = {
@@ -5206,19 +5307,31 @@
       bossRadio: "적 지휘관 확인! 엄폐물 사이를 옮겨 다닌다, 머리를 노려라!"
     },
     3: {
-      id: 3, label: "STAGE 3-1", clock: 380, path: PATH3, waves: WAVES3, boss: BOSS3,
-      dress: "pyongyang", bossKind: "apc",
+      id: 3, label: "STAGE 3-1", clock: 380, path: PATH_S, waves: WAVES_S, boss: BOSS_S,
+      dress: "summit", bossKind: "apc", bossTank: true, bossHp: 90,
+      introDur: 4.0,
+      introCam: [[7.0, 10.0, -60.0, 0, 5.0, -10.0], [0, 1.68, -44.0, 0, 1.55, -30.0]],
+      introLines: [
+        { t: 0.4, text: "여기는 본부. 판문점 평화의 집 일대에 적 특수부대가 침투했다." },
+        { t: 2.2, text: "도보다리를 건너 군사분계선을 넘어 판문각을 확보하라!" }
+      ],
+      bossRadio: "판문각 광장에 적 전차! 포구가 빛나면 포구를 쏴서 막아라, 약점은 앞쪽 흡기구!"
+    },
+    4: {
+      id: 4, label: "STAGE 4-1", clock: 380, path: PATH3, waves: WAVES3, boss: BOSS3,
+      dress: "pyongyang", bossKind: "apc", bossTank: true, bossHp: 110,
       introDur: 4.0,
       introCam: [[-8.0, 9.0, -58.0, 0, 6.0, -6.0], [0, 1.68, -44.0, 0, 1.55, -30.0]],
       introLines: [
-        { t: 0.4, text: "여기는 본부. 판문점 확보 완료. 전군 북진한다." },
+        { t: 0.4, text: "여기는 본부. 판문각 확보 완료. 전군 북진한다." },
         { t: 2.2, text: "눈보라를 뚫고 평양 시가로 진입하라. 목표는 중앙 광장!" }
       ],
-      bossRadio: "광장에 적 중장갑 차량! 호위병부터 정리하고 측면을 노려라!"
+      bossRadio: "광장에 적 주력 전차! 포구를 막고 앞쪽 흡기구를 노려라!"
     },
     2: {
       id: 2, label: "STAGE 2-1", clock: 360, path: PATH2, waves: WAVES2, boss: BOSS2,
-      dress: "dmz", bossKind: "apc",
+      dress: "dmz", bossKind: "apc", bossHp: 60,
+      bossRadio: "중장갑 차량 확인! 일반 탄은 튕긴다, 앞쪽 흡기구와 수류탄!",
       introDur: 3.8,
       introCam: [[6.8, 6.4, -50.0, 0.5, 8.6, -6.0], [0, 1.68, -44.0, 0, 1.55, -30.0]],
       introLines: [
@@ -5979,7 +6092,7 @@
   /* the course dressing belongs to the stage: the city of stage 1, or the
      DMZ wire and the Panmunjom plaza of stage 2 */
   function dressBattlefield(ctx) {
-    return STAGE && STAGE.dress === "dmz" ? dressStage2(ctx) : STAGE && STAGE.dress === "pyongyang" ? dressStage3(ctx) : dressStage1(ctx);
+    return STAGE && STAGE.dress === "dmz" ? dressStage2(ctx) : STAGE && STAGE.dress === "pyongyang" ? dressStage3(ctx) : STAGE && STAGE.dress === "summit" ? dressSummit(ctx) : dressStage1(ctx);
   }
 
   function dressStage1(ctx) {
@@ -7138,11 +7251,11 @@
     const s3 = lives >= 3;
     const stars = "★".repeat([s1, s2, s3].filter(Boolean).length) + "☆".repeat(3 - [s1, s2, s3].filter(Boolean).length);
     const ko = (document.documentElement.lang || "").startsWith("ko");
-    const NEXT = { 1: [2, "다음 작전 · DMZ·판문점", "NEXT · DMZ & PANMUNJOM"], 2: [3, "다음 작전 · 평양 진입", "NEXT · INTO PYONGYANG"] };
+    const NEXT = { 1: [2, "다음 작전 · DMZ·판문점", "NEXT · DMZ & PANMUNJOM"], 2: [3, "다음 작전 · 평화의 집", "NEXT · PEACE HOUSE"], 3: [4, "다음 작전 · 평양 진입", "NEXT · INTO PYONGYANG"] };
     const nx = cleared ? NEXT[stageId] : null;
     const nextB = nx ? "<button class=primary data-act=next data-stage=" + nx[0] + ">" + (ko ? nx[1] : nx[2]) + "</button>" : "";
     const head = cleared
-      ? (stageId === 2 ? (ko ? "작전 성공 · JSA 확보" : "MISSION CLEAR · JSA SECURED") : stageId === 3 ? (ko ? "작전 성공 · 평양 광장 확보" : "MISSION CLEAR · SQUARE SECURED") : (ko ? "작전 성공 · 숭례문 탈환" : "MISSION CLEAR"))
+      ? (stageId === 2 ? (ko ? "작전 성공 · JSA 확보" : "MISSION CLEAR · JSA SECURED") : stageId === 3 ? (ko ? "작전 성공 · 판문각 확보" : "MISSION CLEAR · PANMUNGAK SECURED") : stageId === 4 ? (ko ? "작전 성공 · 평양 광장 확보" : "MISSION CLEAR · SQUARE SECURED") : (ko ? "작전 성공 · 숭례문 탈환" : "MISSION CLEAR"))
       : (ko ? "작전 실패" : "MISSION FAILED");
     const box = document.createElement("div");
     box.id = "railResult";
@@ -7509,6 +7622,12 @@
     addPts(ctx, 250);
     const hurt = (p) => {
       if (!p || p.e.alive === false || p.role === "hostage") return;
+      if (p.air === "apc" || p.air === "heli") {
+        const bb = new T.Box3().setFromObject(p.mesh);
+        const c = new T.Vector3(); bb.getCenter(c);
+        airDamage(ctx, p, c, bb, p.air === "apc" ? 9 : 4);
+        return;
+      }
       p.e.hp = (p.e.hp || 1) - 3;
       if (p.e.hp <= 0) killPost(ctx, p, 200 + 150);
     };
@@ -9741,6 +9860,217 @@
     return dress;
   }
 
+  /* ---------------- STAGE 3: 판문점 평화의 집 (summer) ---------------- */
+  function dressSummit(ctx) {
+    makeSol();
+    stage2Mats();
+    const S = new T.Group();
+    S.name = "battlefieldS";
+    ctx.scene.add(S);
+    const sky = makeSkyDome();
+    sky.geometry.dispose();
+    sky.geometry = new T.SphereGeometry(260, 24, 16);
+    sky.position.set(0, 0, 20);
+    S.add(sky);
+    ctx.scene.background = new T.Color(0x72b8f0).convertSRGBToLinear();
+    ctx.scene.fog = new T.Fog(0xd6e6f2, 110, 380);
+    if (ctx.scene.fog.color.convertSRGBToLinear) ctx.scene.fog.color.convertSRGBToLinear();
+    try { buildSceneEnv(ctx); if (window.__mgEnv) ctx.scene.environment = window.__mgEnv; } catch (e) {}
+    if (ctx.LT) {
+      const LT = ctx.LT;
+      if (LT.hemi) { LT.hemi.intensity = 0.3; LT.hemi.color.setHex(0xd8e9fb); LT.hemi.groundColor && LT.hemi.groundColor.setHex(0x8a9a70); }
+      if (LT.amb) { LT.amb.intensity = 0.07; LT.amb.color && LT.amb.color.setHex(0xbfd6ea); }
+      if (LT.key) { LT.key.intensity = 2.2; LT.key.color.setHex(0xfff0d6); }
+      if (LT.moon) { LT.moon.intensity = 0.1; }
+      if (LT.rim) { LT.rim.intensity = 0.45; LT.rim.color && LT.rim.color.setHex(0xffd7ab); }
+    }
+    if (ctx.renderer) ctx.renderer.toneMappingExposure = 1.1;
+    const box = (w, h, d, x, y, z, m, opt) => {
+      const o = new T.Mesh(new T.BoxGeometry(w, h, d), m);
+      o.position.set(x, y, z);
+      o.castShadow = !(opt && opt.noCast);
+      o.receiveShadow = true;
+      if (opt && opt.wall) o.userData.wall = 1;
+      if (opt && opt.rot) o.rotation.y = opt.rot;
+      S.add(o);
+      return o;
+    };
+    const vm = voxMats();
+    const R = rng(5150);
+    /* ---- ground: grass, a paved approach, the concrete apron of the JSA ---- */
+    const gT = vm.grass.map.clone(); gT.needsUpdate = true; gT.wrapS = gT.wrapT = T.RepeatWrapping; gT.repeat.set(90, 90);
+    const ground = new T.Mesh(new T.PlaneGeometry(360, 360), new T.MeshStandardMaterial({ map: gT, color: 0xc8dcae, roughness: 0.96 }));
+    ground.rotation.x = -Math.PI / 2; ground.position.set(0, 0.24, 30); ground.receiveShadow = true;
+    S.add(ground);
+    const paveT = ctex("summitPave", 128, 128, (g, w, h) => {
+      const r = rng(61);
+      g.fillStyle = "#c9c2b2"; g.fillRect(0, 0, w, h);
+      g.fillStyle = "#aea796"; for (let i = 0; i < w; i += 32) { g.fillRect(i, 0, 3, h); g.fillRect(0, i, w, 3); }
+      for (let i = 0; i < 240; i++) { g.fillStyle = r() < 0.5 ? "#d8d2c3" : "#b6af9e"; g.fillRect((r() * 16 | 0) * 8, (r() * 16 | 0) * 8, 8, 8); }
+    });
+    const paveM = (rx, ry) => { const t = paveT.clone(); t.needsUpdate = true; t.wrapS = t.wrapT = T.RepeatWrapping; t.repeat.set(rx, ry); return new T.MeshStandardMaterial({ map: t, roughness: 0.85 }); };
+    const flat = (w, d, x, z, m, y) => { const o = new T.Mesh(new T.PlaneGeometry(w, d), m); o.rotation.x = -Math.PI / 2; o.position.set(x, y || 0.27, z); o.receiveShadow = true; o.userData.noBlock = 1; S.add(o); return o; };
+    flat(9, 52, 0, -30, paveM(3, 16));
+    flat(40, 30, 6, 46, paveM(12, 9), 0.272);
+    flat(30, 18, 7, 64, paveM(10, 6), 0.274);
+    /* ---- 평화의 집: three storeys of pale granite and glass, a deep roof
+       slab, an entrance canopy on four columns, flags at the door ---- */
+    {
+      const cx = 20, cz = -9, W = 26, D = 14;
+      const stone = repMat(SOL.gateStone, W / 5, 3);
+      const glass = new T.MeshStandardMaterial({ color: 0x23394a, roughness: 0.06, metalness: 0.6, envMapIntensity: 1.0 });
+      box(W, 12, D, cx, 0.3 + 6, cz, stone, { wall: true });
+      for (let f = 0; f < 3; f++) {
+        box(W - 1.6, 2.2, 0.12, cx, 0.3 + 1.8 + f * 4, cz - D / 2 - 0.02, glass);
+        for (let i = 0; i <= 8; i++) box(0.5, 2.4, 0.3, cx - W / 2 + 0.8 + i * ((W - 1.6) / 8), 0.3 + 1.8 + f * 4, cz - D / 2 - 0.1, stone);
+        box(W + 0.4, 0.3, 0.6, cx, 0.3 + 3.25 + f * 4, cz - D / 2 - 0.2, stone);
+      }
+      box(W + 3, 0.6, D + 3, cx, 0.3 + 12.3, cz, repMat(SOL.stoneDark || SOL.gateStone, 6, 1));
+      box(W - 6, 1.6, D - 5, cx, 0.3 + 13.4, cz, stone);
+      /* the entrance */
+      box(10, 0.4, 6, cx - 3, 0.3 + 4.6, cz - D / 2 - 3, repMat(SOL.stoneDark || SOL.gateStone, 3, 1));
+      [-1, 1].forEach((k) => [-1, 1].forEach((j) => box(0.6, 4.4, 0.6, cx - 3 + k * 4.2, 0.3 + 2.2, cz - D / 2 - 3 + j * 2.4, stone)));
+      box(10, 0.3, 5, cx - 3, 0.42, cz - D / 2 - 3, paveM(3, 2), { noCast: true });
+      const fk = makeFlagPlane(S, "kr", cx - 9.0, 6.2, cz - D / 2 - 5.5, 2.1, 1.4, Math.PI);
+      fk && (fk.name = "peaceFlag");
+      /* a parked dark sedan by the door */
+      const car = new T.Group();
+      part(car, 1.9, 0.6, 4.8, 0, 0.6, 0, new T.MeshStandardMaterial({ color: 0x111317, roughness: 0.25, metalness: 0.6 }));
+      part(car, 1.6, 0.5, 2.4, 0, 1.15, -0.2, new T.MeshStandardMaterial({ color: 0x0b0e12, roughness: 0.08, metalness: 0.7 }));
+      [-1.6, 1.6].forEach((wz) => [-0.9, 0.9].forEach((wx) => { const w = new T.Mesh(new T.CylinderGeometry(0.36, 0.36, 0.26, 12), SOL.tire); w.rotation.z = Math.PI / 2; w.position.set(wx, 0.36, wz); car.add(w); }));
+      car.position.set(7.6, 0.3, -20.5); car.rotation.y = 0.15;
+      S.add(car);
+    }
+    /* ---- the memorial pine and its stone ---- */
+    const VT = voxBatch();
+    const trunks = [];
+    voxPine(VT, -6.2, 0.3, 1.0, 7.4, 77);
+    trunks.push([-6.2, 1.0]);
+    box(1.6, 0.9, 0.5, -6.2, 0.75, -1.8, repMat(SOL.stoneDark || SOL.gateStone, 1, 1));
+    /* ---- the wetland and 도보다리 ---- */
+    const water = new T.Mesh(new T.PlaneGeometry(36, 24), new T.MeshStandardMaterial({ color: 0x4f6f68, roughness: 0.15, metalness: 0.35, envMapIntensity: 0.8 }));
+    water.rotation.x = -Math.PI / 2; water.position.set(0, 0.262, 14.5); water.userData.noBlock = 1;
+    S.add(water);
+    const VR = voxBatch();
+    for (let i = 0; i < 260; i++) {
+      const x = (R() - 0.5) * 34, z = 3 + R() * 23;
+      if (Math.abs(x) < 2.2) continue;
+      const hh = 0.35 + R() * 0.55;
+      VR.cube(vm.leaf, x, 0.26 + hh / 2, z, 0.12 + R() * 0.1, hh, 0.12 + R() * 0.1, [0xd6e8a0, 0xbcd08a, 0xe8f0b4][i % 3], R());
+    }
+    VR.flush(S, "reeds");
+    const bridgeBlue = new T.MeshStandardMaterial({ color: 0x5f95c4, roughness: 0.6 });
+    const bridgeDark = new T.MeshStandardMaterial({ color: 0x3f6f9a, roughness: 0.6 });
+    const VB = voxBatch();
+    for (let z = 2.6; z < 21; z += 0.42) VB.cube(vm.plain, 0, 0.52, z, 2.7, 0.08, 0.36, (z * 10 | 0) % 2 ? 0x5f95c4 : 0x6ba0cc);
+    for (let z = 2.6; z <= 21; z += 2.1) [-1.35, 1.35].forEach((x) => { VB.cube(vm.plain, x, 0.85, z, 0.12, 0.7, 0.12, 0x3f6f9a); VB.cube(vm.plain, x, 0.3, z, 0.18, 0.5, 0.18, 0x5a6e78); });
+    VB.flush(S, "bridge");
+    [-1.35, 1.35].forEach((x) => box(0.08, 0.08, 18.6, x, 1.18, 11.8, bridgeDark, { noCast: true }));
+    /* the deck at the end, its two chairs and a table, and the MDL marker */
+    box(6.6, 0.12, 5.2, 0, 0.52, 23.4, bridgeBlue).userData.noBlock = 1;
+    [-1, 1].forEach((k) => {
+      const cx = -2.2 + k * 0.75;
+      box(0.62, 0.08, 0.6, cx, 0.98, 23.6, new T.MeshStandardMaterial({ color: 0xf2f2ee, roughness: 0.6 }));
+      box(0.62, 0.6, 0.08, cx, 1.28, 23.92, new T.MeshStandardMaterial({ color: 0xf2f2ee, roughness: 0.6 }));
+      box(0.06, 0.4, 0.06, cx, 0.75, 23.6, SOL.metalDark);
+    });
+    box(0.5, 0.06, 0.5, -2.2, 1.02, 23.4, new T.MeshStandardMaterial({ color: 0xf2f2ee, roughness: 0.6 }));
+    box(0.12, 1.5, 0.12, 2.9, 1.3, 25.4, new T.MeshStandardMaterial({ color: 0xe0c040, roughness: 0.6 }));
+    box(0.8, 0.5, 0.05, 2.9, 2.1, 25.4, new T.MeshStandardMaterial({ map: ctex("mdlMark", 96, 64, (g, w, h) => {
+      g.fillStyle = "#f0d040"; g.fillRect(0, 0, w, h); g.fillStyle = "#1b2a5a"; g.font = "900 18px sans-serif"; g.textAlign = "center"; g.fillText("군사분계선", w / 2, 28); g.font = "700 11px sans-serif"; g.fillText("MDL", w / 2, 48);
+    }, { smooth: true }), roughness: 0.6 }));
+    /* ---- the conference row on the MDL, guard towers, Freedom House,
+       Panmungak and its stair ---- */
+    S.add(makeBlueHall(-11.2, 47.0, 4.2, 5.4, 3.0, 0));
+    S.add(makeBlueHall(-2.6, 47.0, 4.2, 5.4, 3.0, 0));
+    S.add(makeBlueHall(16.6, 47.0, 4.2, 5.4, 3.0, 0));
+    const grayHut = new T.MeshStandardMaterial({ color: 0xa8acb0, roughness: 0.5, metalness: 0.3 });
+    box(4.4, 3.0, 5.4, -19.6, 1.8, 47.0, grayHut, { wall: true });
+    box(4.4, 3.0, 5.4, 24.8, 1.8, 47.0, grayHut, { wall: true });
+    box(60, 0.12, 0.5, 2, 0.32, 47.0, new T.MeshStandardMaterial({ color: 0xd8d4c8, roughness: 0.8 }), { noCast: true });
+    const tower = (x, z, kind) => {
+      const cm = repMat(SOL.stoneDark || SOL.gateStone, 1, 2);
+      [-1, 1].forEach((a) => [-1, 1].forEach((b) => box(0.5, 6.2, 0.5, x + a * 1.6, 3.4, z + b * 1.6, cm)));
+      for (let y = 1.6; y < 6; y += 1.8) { box(3.8, 0.18, 0.18, x, y, z - 1.6, cm, { noCast: true }); box(3.8, 0.18, 0.18, x, y, z + 1.6, cm, { noCast: true }); }
+      box(4.4, 0.4, 4.4, x, 6.7, z, cm);
+      box(3.4, 2.4, 3.4, x, 8.1, z, repMat(SOL.gateStone, 1, 1), { wall: true });
+      box(3.6, 0.9, 0.1, x, 8.3, z - 1.75, new T.MeshStandardMaterial({ color: 0x1f2a32, roughness: 0.1, metalness: 0.5 }));
+      box(4.0, 0.3, 4.0, x, 9.45, z, cm);
+      [-1, 1].forEach((a) => box(4.4, 0.08, 0.08, x, 7.6, z + a * 2.15, SOL.metalDark, { noCast: true }));
+      box(0.3, 0.3, 0.6, x + 1.6, 9.9, z - 1.4, new T.MeshBasicMaterial({ color: 0xfff1c8 }));
+      const fm = kind === "kp" ? SOL.flagKP : SOL.flagKR;
+      const fl = new T.Mesh(new T.PlaneGeometry(2.7, 1.8), fm);
+      fl.position.set(x, 7.0, z - 2.3);
+      fl.rotation.y = Math.PI;
+      fl.userData.noBlock = 1;
+      S.add(fl);
+    };
+    tower(21.0, 38.0, "kr");
+    tower(-15.0, 55.0, "kp");
+    const fh = makeFreedomHouse(-26.0, 30.0, 0.2);
+    S.add(fh);
+    const pg = makePanmungak(7, 78);
+    pg.rotation.y = Math.PI;
+    S.add(pg);
+    /* ---- forest: pines and oaks everywhere the rail and buildings are not ---- */
+    S.updateMatrixWorld(true);
+    const taken = [];
+    S.children.forEach((o) => {
+      if (o.isInstancedMesh) return;
+      const bb = new T.Box3().setFromObject(o);
+      if (bb.isEmpty()) return;
+      const sz = new T.Vector3(); bb.getSize(sz);
+      if (sz.x > 60 || sz.z > 60 || bb.max.y < 0.6) return;
+      taken.push(bb);
+    });
+    const pts = [];
+    if (curve) for (let i = 0; i <= 120; i++) pts.push(curve.getPointAt(i / 120));
+    const clear = (x, z, r) => {
+      for (let i = 0; i < pts.length; i++) { const dx = pts[i].x - x, dz = pts[i].z - z; if (dx * dx + dz * dz < r * r) return false; }
+      for (let i = 0; i < taken.length; i++) { const b = taken[i]; if (x > b.min.x - 2.5 && x < b.max.x + 2.5 && z > b.min.z - 2.5 && z < b.max.z + 2.5) return false; }
+      if (z > 1 && z < 27 && Math.abs(x) < 19) return false; /* the wetland */
+      if (z > 36 && z < 88 && x > -30 && x < 36) return false; /* the JSA apron */
+      return true;
+    };
+    let placed = 0;
+    for (let tries = 0; tries < 1200 && placed < 170; tries++) {
+      const x = (R() - 0.5) * 130, z = -70 + R() * 170;
+      if (!clear(x, z, 8.5)) continue;
+      const h = 6 + R() * 6;
+      if (R() < 0.6) voxPine(VT, x, 0.25, z, h, tries + 5);
+      else voxTree(VT, x, 0.25, z, h * 0.55, tries + 7, { rx: 2.0 + R() * 0.8, ry: 1.6, cube: 0.6, tint: [0xd2e4bc, 0xbcd6a4, 0xe0eccc] });
+      trunks.push([x, z]);
+      placed++;
+    }
+    voxHill(VT, 0, 160, 340, 100, 52, 777, { cell: 5, base: -4 });
+    VT.flush(S, "summitForest");
+    /* ---- paratrooper sandbags ---- */
+    landCovers = [];
+    [[-5.0, 21.4], [5.4, 22.0], [2.6, 50.6], [-3.4, 51.0], [9.8, 52.2]].forEach(([x, z]) => {
+      const c = landCover(x, z, 2.2); S.add(c.g); landCovers.push(c);
+    });
+    const clouds = [];
+    for (let i = 0; i < 9; i++) {
+      const c = makeCloud(-110 + i * 28, 46 + Math.random() * 14, 90 + (i % 3) * 30, 5.5 + Math.random() * 2.4);
+      c.scale.y = 0.34; S.add(c); clouds.push(c);
+    }
+    const ally = makeAlly();
+    ally.position.set(4.6, 0.3, -41.6);
+    S.add(ally);
+    const flags = [];
+    S.traverse((o) => { if (o.userData && o.userData.cloth) flags.push(o); });
+    walkBlockers = [];
+    S.traverse((o) => {
+      if (!o.isMesh) return;
+      if (o.userData && (o.userData.wall || o.userData.solid)) { const bb = new T.Box3().setFromObject(o); if (bb.max.y > 0.6) walkBlockers.push(bb); }
+    });
+    if (coverRoot) coverRoot.traverse((o) => { if (o.userData && o.userData.cover) walkBlockers.push(new T.Box3().setFromObject(o)); });
+    landCovers.forEach((c) => walkBlockers.push(new T.Box3().setFromObject(c.g)));
+    applyMood(ctx, S, sky, clouds, moodOverride() || "day");
+    dress = { root: S, sky, flags, clouds, barrels: [], ally, truck1: null, trunks };
+    return dress;
+  }
+
   /* ---------------- STAGE 3: 평양 진입 (snow) ---------------- */
   function dressStage3(ctx) {
     makeSol();
@@ -9898,7 +10228,62 @@
       box(74, 0.4, 18, 14, 0.3 + 15.4, hz - 1, capM);
       box(40, 3, 10, 14, 0.3 + 17, hz, stoneM(40, 3));
       box(41, 0.4, 11, 14, 0.3 + 18.7, hz, capM);
-      for (let i = 0; i < 6; i++) box(26 - i * 2, 0.5, 2, 14, 0.3 + 0.25 + i * 0.5, hz - 10.5 - i * 0.0 - (6 - i) * 0.8, stoneM(10, 1));
+    }
+    {
+      /* (v17) a bronze group monument in front of the hall, socialist-realist
+         in feel: a soldier with his rifle raised, a worker with a hammer, a
+         farmer with a sheaf, a great flag sweeping behind them. Generic,
+         featureless figures on a stepped granite plinth — nobody real. */
+      const bronze = new T.MeshStandardMaterial({ color: 0x5e4426, roughness: 0.38, metalness: 0.75, envMapIntensity: 0.9 });
+      const bronzeD = new T.MeshStandardMaterial({ color: 0x46321c, roughness: 0.45, metalness: 0.7 });
+      const mx = 16, mz = 80, sc = 3.6;
+      box(20, 1.2, 9, mx, 0.9, mz, stoneM(20, 1));
+      box(16, 1.4, 7, mx, 2.2, mz, stoneM(16, 1));
+      box(13, 2.4, 5.4, mx, 4.1, mz, stoneM(13, 2));
+      box(13.4, 0.3, 5.8, mx, 5.45, mz, capM);
+      box(6.4, 1.0, 0.2, mx, 4.1, mz - 2.82, goldM);
+      const base = 5.3;
+      const fig = (x, z, rot, pose) => {
+        const g = new T.Group();
+        const B = (w, h, d, px, py, pz, m, rx, rz) => { const o = new T.Mesh(new T.BoxGeometry(w * sc, h * sc, d * sc), m || bronze); o.position.set(px * sc, py * sc, pz * sc); if (rx) o.rotation.x = rx; if (rz) o.rotation.z = rz; o.castShadow = true; g.add(o); return o; };
+        B(0.26, 0.9, 0.3, -0.16, 0.45, 0, bronzeD, 0.12);                 /* legs, mid-stride */
+        B(0.26, 0.9, 0.3, 0.16, 0.45, -0.05, bronzeD, -0.18);
+        B(0.8, 0.5, 0.5, 0, 0.75, 0.02, bronze);                           /* coat skirt */
+        B(0.68, 0.75, 0.42, 0, 1.25, 0, bronze);                           /* torso */
+        B(0.32, 0.36, 0.34, 0, 1.82, 0, bronze);                           /* head */
+        B(0.4, 0.1, 0.42, 0, 2.02, 0.02, bronzeD);                         /* cap brim */
+        B(0.34, 0.12, 0.36, 0, 2.09, 0, bronzeD);
+        if (pose === "rifle") {
+          B(0.18, 0.62, 0.2, 0.42, 1.9, 0, bronze, 0, -0.35);            /* raised right arm */
+          B(0.08, 1.2, 0.1, 0.62, 2.5, 0, bronzeD, 0, -0.25);            /* rifle held high */
+          B(0.18, 0.6, 0.2, -0.44, 1.2, 0.08, bronze, -0.4, 0.15);
+        } else if (pose === "hammer") {
+          B(0.18, 0.62, 0.2, -0.44, 1.92, 0, bronze, 0, 0.4);
+          B(0.07, 0.8, 0.07, -0.66, 2.42, 0, bronzeD, 0, 0.3);
+          B(0.34, 0.18, 0.18, -0.78, 2.8, 0, bronzeD);
+          B(0.18, 0.6, 0.2, 0.44, 1.2, 0.08, bronze, -0.3, -0.15);
+        } else {
+          B(0.18, 0.6, 0.2, 0.44, 1.5, 0.18, bronze, -0.9, -0.1);
+          B(0.3, 0.6, 0.3, 0.4, 1.75, 0.42, bronzeD, -0.4, 0);            /* sheaf */
+          B(0.18, 0.6, 0.2, -0.44, 1.2, 0.08, bronze, -0.2, 0.15);
+        }
+        g.position.set(x, base, z);
+        g.rotation.y = rot;
+        S.add(g);
+      };
+      fig(mx - 3.6, mz + 0.2, Math.PI + 0.25, "hammer");
+      fig(mx, mz - 0.4, Math.PI, "rifle");
+      fig(mx + 3.6, mz + 0.2, Math.PI - 0.25, "sheaf");
+      /* the flag behind them: a pole leaning back and a cloth of stepped blocks */
+      const pole = new T.Mesh(new T.CylinderGeometry(0.12, 0.14, 13, 8), bronzeD);
+      pole.position.set(mx - 1.0, base + 6.0, mz + 1.6); pole.rotation.z = 0.28; pole.castShadow = true; S.add(pole);
+      for (let i = 0; i < 6; i++) {
+        const c = new T.Mesh(new T.BoxGeometry(1.4, 3.2 - i * 0.18, 0.3), redM);
+        c.position.set(mx - 2.2 + i * 1.3, base + 9.6 - i * 0.35 + Math.sin(i * 1.3) * 0.3, mz + 1.6 + Math.sin(i) * 0.4);
+        c.castShadow = true;
+        S.add(c);
+      }
+      [mx - 3.6, mx, mx + 3.6].forEach((x) => box(1.2 * sc * 0.6, 0.12, 0.8, x, base + 2.15 * sc, mz, capM, { noCast: true }));
     }
     {
       /* monument tower: a square shaft on a stepped base, a red beacon on top */
@@ -10436,12 +10821,115 @@
     return g;
   }
 
+  /* (v17) a main battle tank for the later bosses: tracked hull with road
+     wheels and side skirts, a cast turret with a long gun and bore evacuator,
+     a commander's hatch with a heavy MG. Faces +Z like the armoured car. */
+  function makeTankModel() {
+    makeSol();
+    stage2Mats();
+    const g = new T.Group();
+    const b = new T.Group();
+    g.add(b);
+    const hull = SOL.camoP || SOL.oliveDark;
+    const dark = SOL.black || SOL.oliveDark;
+    part(b, 3.3, 0.9, 6.2, 0, 0.95, 0, hull);
+    const glacis = part(b, 3.2, 0.7, 1.3, 0, 1.05, 3.35, hull);
+    glacis.rotation.x = -0.6;
+    part(b, 3.25, 0.6, 0.6, 0, 1.0, -3.3, hull);
+    [-1, 1].forEach((sx) => {
+      part(b, 0.62, 0.95, 6.6, sx * 1.62, 0.62, 0, dark);           /* track run */
+      for (let i = 0; i < 6; i++) {
+        const w = new T.Mesh(new T.CylinderGeometry(0.4, 0.4, 0.3, 12), SOL.tire);
+        w.rotation.z = Math.PI / 2;
+        w.position.set(sx * 1.66, 0.52, -2.5 + i * 1.0);
+        b.add(w);
+      }
+      part(b, 0.12, 0.55, 6.4, sx * 1.98, 1.05, 0, hull);              /* side skirt */
+      for (let i = 0; i < 5; i++) part(b, 0.14, 0.5, 0.06, sx * 2.0, 1.05, -2.4 + i * 1.2, dark);
+      part(b, 0.3, 0.24, 0.6, sx * 1.1, 1.45, -2.8, dark);             /* exhaust */
+    });
+    const turret = new T.Group();
+    turret.position.set(0, 1.55, -0.2);
+    b.add(turret);
+    part(turret, 2.5, 0.75, 3.0, 0, 0.35, 0, hull);
+    const tf = part(turret, 2.2, 0.6, 0.9, 0, 0.32, 1.7, hull);
+    tf.rotation.x = -0.35;
+    part(turret, 2.3, 0.35, 0.6, 0, 0.3, -1.75, dark);                  /* bustle rack */
+    const gun = new T.Group();
+    gun.position.set(0, 0.42, 1.9);
+    turret.add(gun);
+    part(gun, 0.42, 0.42, 0.6, 0, 0, 0.2, hull);                         /* mantlet */
+    const barrel = new T.Mesh(new T.CylinderGeometry(0.11, 0.13, 4.2, 10), dark);
+    barrel.rotation.x = Math.PI / 2;
+    barrel.position.set(0, 0, 2.5);
+    gun.add(barrel);
+    const evac = new T.Mesh(new T.CylinderGeometry(0.17, 0.17, 0.5, 10), dark);
+    evac.rotation.x = Math.PI / 2;
+    evac.position.set(0, 0, 2.1);
+    gun.add(evac);
+    const muzzle = new T.Object3D();
+    muzzle.position.set(0, 0, 4.65);
+    gun.add(muzzle);
+    part(turret, 0.7, 0.3, 0.7, -0.6, 0.86, -0.4, dark);                 /* hatch */
+    part(turret, 0.08, 0.08, 1.0, -0.6, 1.15, 0.1, dark);                /* hatch MG */
+    part(turret, 0.06, 0.7, 0.06, 0.8, 1.05, -1.2, dark);                /* aerial */
+    const star = new T.Mesh(new T.PlaneGeometry(0.6, 0.6), SOL.star);
+    star.position.set(1.26, 0.38, 0.2);
+    star.rotation.y = Math.PI / 2;
+    turret.add(star);
+    g.userData.body = b;
+    g.userData.turret = turret;
+    g.userData.cannon = gun;
+    g.userData.cannonMuzzle = muzzle;
+    enemyRim(g);
+    return g;
+  }
+  /* the soft spot every armoured boss carries: a glowing engine vent on the
+     rear deck (and on the tank, the commander's hatch) */
+  function addWeakPoint(g, x, y, z, w, h) {
+    /* a vertical glowing intake on the front of the hull (the vehicle always
+       turns its nose to the player, so this is the face he sees) */
+    const host = g.userData.body || g;
+    const m = new T.Mesh(new T.BoxGeometry(w, h, 0.12), new T.MeshBasicMaterial({ color: 0xff8a1a, toneMapped: false }));
+    m.position.set(x, y, z);
+    host.add(m);
+    for (let i = 0; i < 4; i++) {
+      const bar = new T.Mesh(new T.BoxGeometry(w + 0.12, 0.06, 0.08), SOL.black || SOL.oliveDark);
+      bar.position.set(x, y - h / 2 + (i + 0.5) * h / 4, z + 0.06);
+      host.add(bar);
+    }
+    g.userData.weak = (g.userData.weak || []).concat([m]);
+    return m;
+  }
+
   function stageBoss2() {
     if (bossStage) return bossStage;
-    const g = makeAPCModel();
+    const tank = !!STAGE.bossTank;
+    const g = tank ? makeTankModel() : makeAPCModel();
+    if (tank) addWeakPoint(g, 0, 0.92, 3.52, 1.3, 0.5);
+    else {
+      addWeakPoint(g, 0, 1.02, 3.42, 1.2, 0.46);
+      /* the armoured car's autocannon, so its gun can be jammed too */
+      const b = g.userData.body || g;
+      const mount = new T.Group();
+      mount.position.set(0.5, 1.95, 1.2);
+      b.add(mount);
+      const bar = new T.Mesh(new T.CylinderGeometry(0.07, 0.08, 1.8, 8), SOL.black || SOL.oliveDark);
+      bar.rotation.x = Math.PI / 2;
+      bar.position.set(0, 0, 0.9);
+      mount.add(bar);
+      const box = new T.Mesh(new T.BoxGeometry(0.5, 0.36, 0.6), SOL.oliveDark);
+      mount.add(box);
+      const mz = new T.Object3D();
+      mz.position.set(0, 0, 1.85);
+      mount.add(mz);
+      g.userData.cannonMuzzle = mz;
+    }
     const spot = BOSS_DEF.spots[1];
     const p0 = waveXY({ yaw: 0, hold: bossHold }, spot[0], spot[1]);
-    const hp = 12;
+    /* (v17) armour: ordinary hits barely scratch it; the glowing vent, a
+       grenade, or jamming the main gun is how it dies */
+    const hp = STAGE.bossHp || 60;
     const post = {
       e: { kind: "boss", mesh: g, alive: true, hp: hp, h: 2.8, _tag: null },
       role: "boss", air: "apc", isBoss: true, i: 1,
@@ -10449,7 +10937,8 @@
       hpMax: hp, spotI: 1, live: false, state: "hidden", stateT: 1.2,
       aim: 2.4, aimMax: 2.4, burstN: 0, shotT: 0, expose: 1,
       jump: null, moveT: 3.2, bob: 0, walk: 0, moving: false,
-      knock: 0, recoil: 0, visTop: 0
+      knock: 0, recoil: 0, visTop: 0,
+      tank: tank, cannonT: 6.5, charge: 0, jam: 0, stun: 0, phaseN: 0
     };
     g.position.set(post.x, 0.3, post.z);
     if (SCENE) SCENE.add(g);
@@ -10464,8 +10953,67 @@
     return post;
   }
 
+  /* reinforcements at two thirds and one third of the gauge */
+  function bossPhaseCheck(ctx, p) {
+    const k = p.e.hp / Math.max(1, p.hpMax);
+    const want = k < 0.34 ? 2 : k < 0.67 ? 1 : 0;
+    while (p.phaseN < want) {
+      p.phaseN++;
+      radio(p.phaseN === 1 ? "적 증원 낙하! 호위병부터 정리하라!" : "적 전차가 발악한다! 증원 병력 다수 강하!", 3600);
+      const n = p.phaseN === 1 ? 2 : 3;
+      for (let i = 0; i < n; i++) {
+        const lat = (i - (n - 1) / 2) * 4.2 + (Math.random() - 0.5);
+        try {
+          const q = makeParaPost({ yaw: 0, hold: bossHold }, { air: "para", role: "para", lat: lat, dep: 13 + Math.random() * 2, y: 7.6 + Math.random(), land: [lat * 1.1, 9.6 + Math.random()] }, 90 + i);
+          q.live = true; q.state = "drop"; q.burstN = 0; q.aim = (q.aimMax || 2.4) * (0.8 + Math.random() * 0.4);
+        } catch (err) { window.__escortErr = String(err && err.stack || err); }
+      }
+    }
+  }
+  /* the main gun: every 7-9 s it lays on the player for 1.8 s with a growing
+     glow at the muzzle; four rounds into the muzzle (or the vent) jam it,
+     otherwise the shell lands for heavy damage */
+  function stepCannon(p, ctx, dt) {
+    if (p.stun > 0) { p.stun -= dt; return; }
+    if (p.charge > 0) {
+      p.charge -= dt;
+      const mz = p.mesh.userData.cannonMuzzle || p.mesh;
+      if (!p.glow) {
+        p.glow = new T.Mesh(new T.BoxGeometry(0.5, 0.5, 0.5), new T.MeshBasicMaterial({ color: 0xff3a1a, toneMapped: false, transparent: true, opacity: 0.9 }));
+        ctx.scene.add(p.glow);
+      }
+      mz.getWorldPosition(_mz);
+      p.glow.visible = true;
+      p.glow.position.copy(_mz);
+      const k = 1 - p.charge / 1.8;
+      p.glow.scale.setScalar(0.6 + k * 2.4 + Math.sin(k * 40) * 0.2);
+      p.glow.rotation.y += dt * 6;
+      if (p.charge <= 0) {
+        p.glow.visible = false;
+        p.jam = 0;
+        p.cannonT = 7 + Math.random() * 2;
+        p.recoil = 1;
+        boomAt(ctx, ctx.camera.position.x + (Math.random() - 0.5) * 3, 0.8, ctx.camera.position.z + 4 + Math.random() * 2);
+        flashScreen(0.8);
+        shake = 1.8;
+        gun("boom");
+        hurtPlayer(ctx, 34);
+        window.__cannonHits = (window.__cannonHits || 0) + 1;
+      }
+      return;
+    }
+    p.cannonT -= dt;
+    if (p.cannonT <= 0 && !p.jump) {
+      p.charge = 1.8;
+      p.jam = 0;
+      radio(p.tank ? "적 전차 주포 조준! 포구를 쏴서 막아라!" : "적 장갑차 기관포 조준! 포구를 쏴서 막아라!", 2400);
+      gun("dry");
+    }
+  }
+
   function stepBoss2(p, ctx, dt) {
     const cam = ctx.camera;
+    stepCannon(p, ctx, dt);
     if (p.jump) {
       const j = p.jump;
       j.t += dt / 0.8;
@@ -10528,11 +11076,43 @@
 
   /* a round that lands on something with an engine: the canopy, the airframe,
      the armour. Body hits on a descending man still use the normal path. */
-  function airDamage(ctx, p, at, box) {
+  const _wb = new T.Box3(), _mz = new T.Vector3();
+  function airDamage(ctx, p, at, box, force) {
     if (!p || p.e.alive === false) return;
     const h = Math.max(0.6, box.max.y - box.min.y);
-    const crit = at.y > box.min.y + h * 0.72;
-    const dmg = p.air === "apc" ? (crit ? 3 : 1) : 1;
+    let crit = at.y > box.min.y + h * 0.72;
+    let dmg = p.air === "apc" ? (crit ? 3 : 1) : 1;
+    if (p.air === "apc") {
+      /* armour: 0.5 a round anywhere, 5 on the glowing vent, and while the
+         main gun is charging, a round near the muzzle jams it */
+      let weak = false;
+      ((p.mesh.userData && p.mesh.userData.weak) || []).forEach((w) => {
+        _wb.setFromObject(w).expandByScalar(0.35);
+        if (_wb.containsPoint(at)) weak = true;
+      });
+      dmg = weak ? 5 : 0.5;
+      if (weapon === "shotgun") dmg *= 0.5;
+      crit = weak;
+      const sp = screenOf(at, ctx.camera);
+      if (p.charge > 0 && p.mesh.userData.cannonMuzzle) {
+        p.mesh.userData.cannonMuzzle.getWorldPosition(_mz);
+        if (_mz.distanceTo(at) < 1.6 || weak) {
+          p.jam += 1;
+          hitMark("block", sp.x, sp.y, false, "JAM " + p.jam + "/4");
+          if (p.jam >= 4) {
+            p.charge = 0; p.jam = 0; p.stun = 2.2; p.cannonT = 8 + Math.random() * 2;
+            radio("주포 저지! 지금이다, 엔진 배기구를 노려라!", 3200);
+            addPts(ctx, 300);
+            burst(ctx.scene, _mz.x, _mz.y, _mz.z, true);
+            if (p.glow) p.glow.visible = false;
+            gun("boom");
+          }
+        }
+      }
+      if (weak) hitMark("kill", sp.x, sp.y, true, "WEAK!");
+      else if (!(p.charge > 0)) hitMark("block", sp.x, sp.y, false, "ARMOR");
+    }
+    if (force != null) dmg = force;
     p.e.hp = (p.e.hp || 1) - dmg;
     p.hitFlash = 0.09;
     burst(ctx.scene, at.x, at.y, at.z, dmg >= 3 || p.e.hp <= 1);
@@ -10546,7 +11126,8 @@
     }
     window.__lastHitAir = { kind: p.air, dmg: dmg, hp: p.e.hp, crit: crit };
     window.__lastDmg = { role: p.role, head: crit, dmg: dmg };
-    if (p.e.hp > 0) { gun("hit"); return; }
+    if (p.air === "apc" && p.e.hp > 0) bossPhaseCheck(ctx, p);
+    if (p.e.hp > 0) { gun(dmg >= 3 ? "crit" : "hit"); return; }
     if (p.air === "heli") {
       p.e.alive = false;
       p.fallV = -0.4;
@@ -10612,7 +11193,7 @@
         if (p.live === false || p.e.alive === false || p.role === "hostage") return;
         n++;
         if (p.air === "heli") { p.e.hp = 1; airDamage(ctx, p, new T.Vector3(p.x, p.y, p.z), new T.Box3(new T.Vector3(p.x - 1, p.y - 1, p.z - 1), new T.Vector3(p.x + 1, p.y + 1, p.z + 1))); }
-        else if (p.air === "apc") { p.e.hp = 1; airDamage(ctx, p, new T.Vector3(p.x, p.y + 1.2, p.z), new T.Box3(new T.Vector3(p.x - 1, p.y, p.z - 1), new T.Vector3(p.x + 1, p.y + 2, p.z + 1))); }
+        else if (p.air === "apc") { p.e.hp = 1; airDamage(ctx, p, new T.Vector3(p.x, p.y + 1.2, p.z), new T.Box3(new T.Vector3(p.x - 1, p.y, p.z - 1), new T.Vector3(p.x + 1, p.y + 2, p.z + 1)), 99); }
         else killPost(ctx, p, 100);
       });
       return n;

@@ -276,6 +276,14 @@
       play(1);
     });
   }
+  const start4 = document.getElementById("mgStart4");
+  if (start4) {
+    start4.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      play(4);
+    });
+  }
   const start3 = document.getElementById("mgStart3");
   if (start3) {
     start3.addEventListener("click", (e) => {
