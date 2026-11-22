@@ -388,7 +388,7 @@
      so bump maps made from the same canvas come out blocky too, and the
      sampler uses nearest filtering up close. Lettering, flags, faces, the sky
      and screen effects keep their smooth canvases. */
-  const VOXEL_SKIP = /^(flag|star|sign|gateSign|policeText|busRoute|busBoard|workSign|barPanel|led|glint|muzzle|sky|env|face|dmzBoard|cclBoard|mineBoard|chainlink|shopGlass|grip|pistol)/;
+  const VOXEL_SKIP = /^(paektu|yalu|flag|star|sign|gateSign|policeText|busRoute|busBoard|workSign|barPanel|led|glint|muzzle|sky|env|face|dmzBoard|cclBoard|mineBoard|chainlink|shopGlass|grip|pistol)/;
   const VOXEL_DIV = 8;
   function voxelKey(key) { return !VOXEL_SKIP.test(key) && key.indexOf("@") < 0; }
   function hash2(x, y, s) {
@@ -3467,6 +3467,21 @@
   }
 
   /* one city block. Faces: the `side` face carries the shop band. */
+  /* (v19) one instanced batch for all the small relief on the buildings,
+     filled while a stage dresses and flushed once at the end of it */
+  const DET = { b: null, mat: null };
+  function detailBatch() {
+    if (!DET.mat) DET.mat = new T.MeshStandardMaterial({ color: 0xffffff, roughness: 0.85, metalness: 0.02 });
+    if (!DET.b) DET.b = voxBatch();
+    return DET.b;
+  }
+  function flushDetail(S) {
+    if (!DET.b) return;
+    const tgt = DET.S || S;
+    if (tgt && DET.b.n) DET.b.flush(tgt, "relief");
+    DET.S = null;
+    DET.b = null;
+  }
   function makeBlock(S, x0, x1, z0, z1, h, opt) {
     makeSol();
     const o = opt || {};
@@ -3502,6 +3517,47 @@
     const mast = new T.Mesh(new T.CylinderGeometry(0.05, 0.07, 3.2, 5), SOL.metalDark);
     mast.position.set(cx + w * 0.3, top + 1.6, cz + d * 0.28);
     S.add(mast);
+    /* (v19) the facade in relief: a floor slab ledge, a sill and a lintel
+       per window, laid on the bays of the facade texture so the depth lines
+       up with the painted glass */
+    if (mat === SOL.facA || mat === SOL.facB || mat === SOL.facC) {
+      const DB = detailBatch();
+      DET.S = S;
+      const ra = Math.max(1, Math.round(Math.max(w, d) / 6)), rb = Math.max(1, Math.round(h / 6.4));
+      const fh = h / (rb * 2);
+      const tone = mat === SOL.facC ? [0x9aa2aa, 0x7c848c] : mat === SOL.facB ? [0xe2dccd, 0xc4bcaa] : [0xdde2e8, 0xb8bec6];
+      const faces = [
+        { n: "n", len: w, fx: (u) => x0 + u, fz: () => z1, nx: 0, nz: 1, ry: 0 },
+        { n: "s", len: w, fx: (u) => x1 - u, fz: () => z0, nx: 0, nz: -1, ry: 0 },
+        { n: "e", len: d, fx: () => x1, fz: (u) => z1 - u, nx: 1, nz: 0, ry: Math.PI / 2 },
+        { n: "w", len: d, fx: () => x0, fz: (u) => z0 + u, nx: -1, nz: 0, ry: Math.PI / 2 }
+      ];
+      faces.forEach((F) => {
+        const nb = ra * 3, bw = F.len / nb;
+        const floorsN = Math.floor(h / fh + 0.01);
+        for (let f = 0; f < floorsN; f++) {
+          const yb = 0.3 + f * fh;
+          if (o.shop === F.n && yb < 4.3) continue;
+          /* slab ledge along the whole face at the floor line */
+          if (f > 0) {
+            const cu = F.len / 2;
+            DB.cube(DET.mat, F.fx(cu) + F.nx * 0.07, yb + fh * 0.1, F.fz(cu) + F.nz * 0.07, F.len + 0.1, 0.14, 0.14, tone[1], F.ry);
+          }
+          for (let bi = 0; bi < nb; bi++) {
+            const u = bw * (bi + 0.5);
+            const gw = bw * 0.83 + 0.12;
+            const ySill = yb + fh * (1 - 0.085 - 0.62) - 0.05;
+            const yLin = yb + fh * (1 - 0.085) + 0.05;
+            const px = F.fx(u), pz = F.fz(u);
+            DB.cube(DET.mat, px + F.nx * 0.11, ySill, pz + F.nz * 0.11, gw + 0.16, 0.09, 0.22, tone[0], F.ry);
+            DB.cube(DET.mat, px + F.nx * 0.05, yLin, pz + F.nz * 0.05, gw + 0.04, 0.12, 0.1, tone[1], F.ry);
+          }
+        }
+        /* a cornice under the parapet */
+        const cu = F.len / 2;
+        DB.cube(DET.mat, F.fx(cu) + F.nx * 0.12, 0.3 + h - 0.12, F.fz(cu) + F.nz * 0.12, F.len + 0.24, 0.24, 0.24, tone[0], F.ry);
+      });
+    }
     /* the shop band, on the face that meets the street */
     if (o.shop) {
       const side = o.shop;
@@ -4380,74 +4436,101 @@
     return g;
   }
 
+  /* (v19) a Korean police sedan, rebuilt from a side profile: a beveled
+     body extruded from the real silhouette (nose, hood, A/C pillars, trunk),
+     glass laid on the greenhouse, wheel arches, five-spoke rims, bumpers,
+     grille, lamps, mirrors, door seams and a segmented light bar. */
+  let PCAR = null;
   function makePoliceCar(S, x, z, rotY) {
     makeSol();
+    if (!PCAR) {
+      const sh = new T.Shape();
+      const P = [[-2.28, 0.32], [-2.34, 0.6], [-2.24, 0.96], [-1.68, 1.02], [-1.36, 1.06], [-0.76, 1.5], [0.44, 1.52], [1.14, 1.08], [2.02, 0.96], [2.3, 0.82], [2.33, 0.42], [2.22, 0.32]];
+      sh.moveTo(P[0][0], P[0][1]);
+      P.slice(1).forEach((q) => sh.lineTo(q[0], q[1]));
+      sh.lineTo(P[0][0], P[0][1]);
+      const geo = new T.ExtrudeGeometry(sh, { depth: 1.78, bevelEnabled: true, bevelThickness: 0.05, bevelSize: 0.05, bevelSegments: 2, steps: 1 });
+      geo.translate(0, 0, -0.89);
+      geo.rotateY(-Math.PI / 2); /* shape x (car length) → world z */
+      const win = new T.Shape();
+      [[-1.24, 1.1], [-0.74, 1.45], [0.4, 1.47], [1.02, 1.12]].forEach((q, k) => (k ? win.lineTo(q[0], q[1]) : win.moveTo(q[0], q[1])));
+      const winGeo = new T.ShapeGeometry(win);
+      winGeo.rotateY(-Math.PI / 2);
+      PCAR = {
+        geo: geo, winGeo: winGeo,
+        glass: new T.MeshStandardMaterial({ color: 0x1b2a34, emissive: 0x05090c, roughness: 0.06, metalness: 0.6, envMapIntensity: 1.0, side: T.DoubleSide }),
+        black: new T.MeshStandardMaterial({ color: 0x111316, roughness: 0.7, metalness: 0.1 }),
+        hole: new T.MeshBasicMaterial({ color: 0x060708 }),
+        chrome: new T.MeshStandardMaterial({ color: 0xc4c9cd, roughness: 0.22, metalness: 0.9 }),
+        rim: new T.MeshStandardMaterial({ color: 0xaeb4b9, roughness: 0.3, metalness: 0.8 }),
+        head: new T.MeshBasicMaterial({ color: 0xfff6dc }),
+        amber: new T.MeshBasicMaterial({ color: 0xffa424 })
+      };
+    }
+    const M = PCAR;
     const g = new T.Group();
-    const body = new T.Mesh(new T.BoxGeometry(1.92, 0.62, 4.5), SOL.policeWhite);
-    body.position.y = 0.84;
+    const add = (geo, mat, px, py, pz, rx, ry, rz) => { const o = new T.Mesh(geo, mat); o.position.set(px || 0, py || 0, pz || 0); o.rotation.set(rx || 0, ry || 0, rz || 0); g.add(o); return o; };
+    const B = (w, h, d, mat, px, py, pz, rx) => add(new T.BoxGeometry(w, h, d), mat, px, py, pz, rx);
+    const body = add(M.geo, SOL.policeWhite);
     body.castShadow = true;
+    body.receiveShadow = true;
     body.userData.wall = 1;
-    g.add(body);
-    const skirt = new T.Mesh(new T.BoxGeometry(1.96, 0.3, 4.4), SOL.policeWhite);
-    skirt.position.y = 0.5;
-    g.add(skirt);
-    const cabin = new T.Mesh(new T.BoxGeometry(1.8, 0.62, 2.3), SOL.policeWhite);
-    cabin.position.set(0, 1.42, -0.1);
-    cabin.castShadow = true;
-    cabin.userData.wall = 1;
-    g.add(cabin);
-    const hood = new T.Mesh(new T.BoxGeometry(1.86, 0.16, 1.2), SOL.policeWhite);
-    hood.position.set(0, 1.16, 1.55);
-    g.add(hood);
-    const windshield = new T.Mesh(new T.BoxGeometry(1.7, 0.5, 0.1), SOL.carGlass);
-    windshield.position.set(0, 1.44, 1.06);
-    windshield.rotation.x = 0.34;
-    g.add(windshield);
-    const rear = new T.Mesh(new T.BoxGeometry(1.7, 0.46, 0.1), SOL.carGlass);
-    rear.position.set(0, 1.44, -1.26);
-    rear.rotation.x = -0.3;
-    g.add(rear);
-    [-1, 1].forEach((s) => {
-      const win = new T.Mesh(new T.BoxGeometry(0.04, 0.42, 2.0), SOL.carGlass);
-      win.position.set(s * 0.91, 1.44, -0.1);
-      g.add(win);
-      const stripe = new T.Mesh(new T.BoxGeometry(0.03, 0.2, 4.3), SOL.policeBlue);
-      stripe.position.set(s * 0.97, 0.86, 0);
-      g.add(stripe);
-      const txt = new T.Mesh(new T.PlaneGeometry(1.2, 0.3), SOL.policeText);
-      txt.position.set(s * 0.995, 0.62, 0.2);
-      txt.rotation.y = s * Math.PI / 2;
-      g.add(txt);
+    /* glass: side lights, windshield and back light, with a B pillar */
+    [-1, 1].forEach((sd) => {
+      add(M.winGeo, M.glass, sd * 0.945, 0, 0);
+      B(0.02, 0.4, 0.09, M.black, sd * 0.95, 1.28, -0.08);
     });
-    const bar = new T.Mesh(new T.BoxGeometry(0.96, 0.14, 0.3), SOL.metalDark);
-    bar.position.set(0, 1.78, -0.1);
-    g.add(bar);
-    [-1, 1].forEach((s, i) => {
-      const l = new T.Mesh(new T.BoxGeometry(0.42, 0.16, 0.28), i ? SOL.lampBlue : SOL.lampRed);
-      l.position.set(s * 0.24, 1.88, -0.1);
-      g.add(l);
-    });
-    [-1.45, 1.45].forEach((wz) => {
+    const ws = add(new T.PlaneGeometry(1.66, 0.86), M.glass, 0, 1.31, 0.8, -0.99);
+    ws.rotation.x = -0.99;
+    const rw = add(new T.PlaneGeometry(1.62, 0.78), M.glass, 0, 1.29, -1.06);
+    rw.rotation.x = 0.906;
+    /* wheel arches and wheels */
+    [-1.42, 1.48].forEach((wz) => {
       [-1, 1].forEach((sx) => {
-        const w = new T.Mesh(new T.CylinderGeometry(0.36, 0.36, 0.24, 10), SOL.tire);
-        w.rotation.z = Math.PI / 2;
-        w.position.set(sx * 0.88, 0.36, wz);
+        add(new T.CylinderGeometry(0.43, 0.43, 0.04, 20), M.hole, sx * 0.93, 0.36, wz, 0, 0, Math.PI / 2);
+        const w = add(new T.CylinderGeometry(0.34, 0.34, 0.24, 18), SOL.tire, sx * 0.82, 0.34, wz, 0, 0, Math.PI / 2);
         w.castShadow = true;
-        g.add(w);
-        const hub = new T.Mesh(new T.CylinderGeometry(0.17, 0.17, 0.26, 8), SOL.hubCap);
-        hub.rotation.z = Math.PI / 2;
-        hub.position.set(sx * 0.9, 0.36, wz);
-        g.add(hub);
+        add(new T.CylinderGeometry(0.22, 0.22, 0.02, 16), M.rim, sx * 0.945, 0.34, wz, 0, 0, Math.PI / 2);
+        for (let k = 0; k < 5; k++) {
+          const sp = B(0.025, 0.2, 0.05, M.rim, sx * 0.955, 0.34, wz);
+          sp.rotation.x = (k / 5) * Math.PI * 2;
+          sp.translateY(0.08);
+        }
+        add(new T.CylinderGeometry(0.05, 0.05, 0.03, 8), M.chrome, sx * 0.965, 0.34, wz, 0, 0, Math.PI / 2);
       });
     });
-    [-0.65, 0.65].forEach((sx) => {
-      const hl = new T.Mesh(new T.BoxGeometry(0.42, 0.16, 0.06), SOL.lampWarm);
-      hl.position.set(sx, 0.92, 2.26);
-      g.add(hl);
-      const tl = new T.Mesh(new T.BoxGeometry(0.4, 0.16, 0.06), SOL.lampRed);
-      tl.position.set(sx, 0.92, -2.26);
-      g.add(tl);
+    /* bumpers, grille and lamps */
+    B(1.92, 0.24, 0.16, M.black, 0, 0.44, 2.36);
+    B(1.92, 0.24, 0.16, M.black, 0, 0.46, -2.37);
+    B(0.9, 0.16, 0.04, M.black, 0, 0.72, 2.37);
+    for (let k = 0; k < 3; k++) B(0.86, 0.014, 0.02, M.chrome, 0, 0.67 + k * 0.045, 2.39);
+    [-1, 1].forEach((sx) => {
+      B(0.42, 0.13, 0.04, M.head, sx * 0.64, 0.79, 2.34);
+      B(0.14, 0.06, 0.04, M.amber, sx * 0.84, 0.66, 2.33);
+      B(0.38, 0.15, 0.04, SOL.lampRed, sx * 0.66, 0.86, -2.33);
+      B(0.12, 0.15, 0.04, M.amber, sx * 0.88, 0.86, -2.32);
+      /* mirrors, door seams, handles */
+      B(0.16, 0.1, 0.2, M.black, sx * 1.0, 1.12, 0.86);
+      B(0.012, 0.56, 0.012, M.black, sx * 0.94, 0.78, 0.98);
+      B(0.012, 0.6, 0.012, M.black, sx * 0.94, 0.78, -0.08);
+      B(0.012, 0.5, 0.012, M.black, sx * 0.94, 0.8, -1.2);
+      B(0.02, 0.03, 0.14, M.chrome, sx * 0.945, 0.92, 0.6);
+      B(0.02, 0.03, 0.14, M.chrome, sx * 0.945, 0.92, -0.5);
+      /* the blue belt and the lettering */
+      B(0.02, 0.14, 4.2, SOL.policeBlue, sx * 0.94, 0.7, 0.02);
+      const txt = add(new T.PlaneGeometry(1.1, 0.26), SOL.policeText, sx * 0.952, 0.52, -0.1);
+      txt.rotation.y = sx * Math.PI / 2;
     });
+    /* plates */
+    B(0.5, 0.12, 0.02, SOL.policeWhite, 0, 0.44, 2.45);
+    B(0.5, 0.12, 0.02, SOL.policeWhite, 0, 0.62, -2.37);
+    /* light bar: base, red and blue segments, clear centre */
+    B(1.24, 0.08, 0.32, M.black, 0, 1.58, -0.14);
+    for (let k = 0; k < 6; k++) {
+      const red = k < 3;
+      const m = k === 2 || k === 3 ? M.head : red ? SOL.lampRed : SOL.lampBlue;
+      B(0.18, 0.12, 0.26, m, -0.5 + k * 0.2, 1.68, -0.14);
+    }
     g.position.set(x, 0.3, z);
     g.rotation.y = rotY || 0;
     S.add(g);
@@ -4909,7 +4992,8 @@
         { role: "weak", lat: 1.2, dep: 9.0, cover: "barrier" },
         { role: "weak", lat: 7.2, dep: 10.4, cover: "crate" },
         { role: "throw", lat: 3.8, dep: 12.6, cover: "sandbag" },
-        { role: "tough", lat: 9.6, dep: 13.0, cover: "barrier" }
+        { role: "tough", lat: 9.6, dep: 13.0, cover: "barrier" },
+        { role: "weak", lat: -1.6, dep: 13.4, cover: "sandbag", bike: true, run: { from: [-3.0, 52.0], dur: 2.6, delay: 1.2 } }
       ]
     },
     {
@@ -4969,7 +5053,8 @@
         { role: "weak", lat: -1.0, dep: 12.0, cover: "crate" },
         { role: "throw", lat: 3.4, dep: 13.4, cover: "crates" },
         { role: "weak", lat: -3.6, dep: 14.6, cover: "barrier" },
-        { role: "hostage", lat: 0.8, dep: 15.4 }
+        { role: "hostage", lat: 0.8, dep: 15.4 },
+        { role: "weak", lat: 3.8, dep: 16.6, cover: "crate", bike: true, run: { from: [-3.0, 73.0], dur: 2.8, delay: 2.0 } }
       ]
     },
     {
@@ -5232,6 +5317,7 @@
         { role: "throw", lat: -1.2, dep: 10.4, cover: "sandbag" },
         { role: "weak", lat: 5.2, dep: 8.6, cover: "barrier" },
         { role: "hostage", lat: 2.0, dep: 11.8 },
+        { role: "weak", lat: -4.0, dep: 12.8, cover: "crate", bike: true, run: { from: [3.0, 30.0], dur: 2.8, delay: 1.0 } },
         { air: "heli", lat: 1.0, dep: 20.0, y: 10.0, orbit: 6.0 }
       ]
     },
@@ -5290,6 +5376,104 @@
     spots: [[-5.6, 10.4], [-0.6, 9.6], [4.6, 10.2]]
   };
 
+  /* ============================================================
+     STAGE 5 — 압록강 · 백두산 (v19)
+     A riverside forest trail on the Yalu from a boundary stele, motorcycle
+     patrols, a steel truss bridge over the gorge, a rocky alpine plateau with
+     a watchtower, and the Cheonji viewpoint under the snowcapped crater of
+     Paektu. Boss: a tank, with a helicopter overhead.
+     ============================================================ */
+  const PATH5 = [
+    [0, -46], [0, -40], [0, -34], [0, -28], [0, -22], [0, -16], [0, -10], [0, -4],
+    [0, 2], [0, 8], [0, 14], [0, 20], [0, 26], [0, 32], [0, 38], [0.8, 44], [2.4, 50],
+    [4, 56], [5, 62], [6, 66], [6, 70]
+  ];
+  const WAVES5 = [
+    {
+      id: 1, zone: "YALU", hold: [0, -38], yaw: 0, look: [0, 1.7, -26], time: 26,
+      radio: "압록강 국경 초소다! 경계병 제압, 강변 숲길로 진입하라!",
+      picks: [[-3.6, 6.2, "ammo"], [3.8, 6.8, "smg"]],
+      members: [
+        { role: "weak", lat: -4.4, dep: 9.4, cover: "sandbag" },
+        { role: "tough", lat: 0.8, dep: 11.8, cover: "barrier" },
+        { role: "weak", lat: 4.6, dep: 10.0, cover: "crate" },
+        { role: "throw", lat: -1.6, dep: 13.8, cover: "sandbag" }
+      ]
+    },
+    {
+      id: 2, zone: "YALU", hold: [0, -22], yaw: 0, look: [0, 1.8, -8], time: 28,
+      radio: "오토바이 정찰대 접근! 달려오는 놈부터 떨어뜨려라!",
+      picks: [[-3.0, 6.0, "grenade"], [3.2, 6.6, "life"]],
+      members: [
+        { role: "weak", lat: -5.0, dep: 9.6, cover: "sandbag" },
+        { role: "weak", lat: 4.8, dep: 10.4, cover: "barrier" },
+        { role: "weak", lat: -2.0, dep: 12.4, cover: "crate", bike: true, run: { from: [-1.0, 12.0], dur: 2.4, delay: 0.6 } },
+        { role: "tough", lat: 2.4, dep: 13.2, cover: "sandbag", bike: true, run: { from: [1.6, 14.0], dur: 2.6, delay: 2.4 } }
+      ]
+    },
+    {
+      id: 3, zone: "BRIDGE", hold: [0, -6], yaw: 0, look: [0, 2.6, 8], time: 28,
+      radio: "철교 입구! 상공에 적 헬기, 교두보 확보!",
+      picks: [[-3.4, 5.8, "shotgun"], [3.6, 6.4, "ammo"]],
+      members: [
+        { role: "weak", lat: -4.6, dep: 8.2, cover: "barrier" },
+        { role: "throw", lat: 1.2, dep: 10.2, cover: "sandbag" },
+        { role: "weak", lat: 4.4, dep: 8.8, cover: "crate" },
+        { air: "heli", lat: 0.6, dep: 22.0, y: 9.8, orbit: 6.0 }
+      ]
+    },
+    {
+      id: 4, zone: "BRIDGE", hold: [0, 14], yaw: 0, look: [0, 2.2, 34], time: 30,
+      radio: "다리 위다, 엄폐물이 없다! 건너편 교두보를 빨리 쓸어라!",
+      picks: [[-1.8, 4.0, "supply"], [1.8, 6.0, "grenade"]],
+      members: [
+        { role: "weak", lat: -4.0, dep: 19.0, cover: "sandbag" },
+        { role: "tough", lat: 5.0, dep: 23.4, cover: "heavy" },
+        { role: "weak", lat: 4.8, dep: 19.6, cover: "sandbag" },
+        { role: "weak", lat: -5.2, dep: 23.0, cover: "crate", bike: true, run: { from: [-6.0, 46.0], dur: 2.6, delay: 1.8 } }
+      ]
+    },
+    {
+      id: 5, zone: "PAEKTU", hold: [0, 38], yaw: 0, look: [2, 2.0, 52], time: 28,
+      radio: "고원 입구! 바위 지대 곳곳에 적, 감시탑 사수 주의!",
+      picks: [[-3.0, 6.0, "ammo"], [3.4, 6.8, "shotgun"]],
+      members: [
+        { role: "weak", lat: -5.2, dep: 9.0, cover: "barrier" },
+        { role: "tough", lat: 3.8, dep: 10.4, cover: "heavy" },
+        { role: "throw", lat: -0.8, dep: 12.4, cover: "sandbag" },
+        { role: "weak", lat: 6.4, dep: 12.0, cover: "crate", bike: true, run: { from: [14.0, 58.0], dur: 2.6, delay: 1.0 } }
+      ]
+    },
+    {
+      id: 6, zone: "PAEKTU", hold: [4, 56], yaw: 0.1, look: [6, 2.6, 70], time: 30,
+      radio: "공수부대 강하! 천지 전망대까지 밀어붙여라!",
+      picks: [[-3.2, 5.8, "life"], [3.2, 6.2, "grenade"]],
+      members: [
+        { role: "weak", lat: -4.8, dep: 8.2, cover: "sandbag" },
+        { role: "weak", lat: 4.4, dep: 8.8, cover: "barrier" },
+        { air: "para", role: "para", lat: -2.4, dep: 13.6, y: 8.0, land: [-3.0, 11.0] },
+        { air: "para", role: "para", lat: 2.0, dep: 15.0, y: 8.6, land: [1.8, 12.0] },
+        { air: "para", role: "para", lat: 5.6, dep: 13.0, y: 7.6, land: [5.2, 10.6] }
+      ]
+    },
+    {
+      id: 7, zone: "CHEONJI", hold: [6, 70], yaw: 0, look: [6, 3.0, 86], time: 32,
+      radio: "천지 전망대! 마지막 적 주력이다, 헬기 접근!",
+      picks: [[-4.6, 5.8, "supply"], [4.8, 6.2, "grenade"]],
+      members: [
+        { role: "tough", lat: -6.4, dep: 8.2, cover: "heavy" },
+        { role: "weak", lat: -2.2, dep: 10.2, cover: "barrier" },
+        { role: "throw", lat: 2.6, dep: 9.4, cover: "crate" },
+        { role: "weak", lat: 6.6, dep: 8.4, cover: "sandbag" },
+        { air: "heli", lat: 1.0, dep: 22.0, y: 10.6, orbit: 6.4 }
+      ]
+    }
+  ];
+  const BOSS5 = {
+    hold: [6, 70], look: [6, 2.4, 82],
+    spots: [[-5.6, 11.4], [-0.6, 10.6], [4.6, 11.2]]
+  };
+
   const BOSS2 = {
     hold: [-18, 52], look: [-18, 2.4, 64],
     spots: [[-5.6, 12.6], [-0.6, 11.8], [4.6, 12.4]]
@@ -5317,6 +5501,17 @@
         { t: 2.2, text: "도보다리를 건너 군사분계선을 넘어 판문각을 확보하라!" }
       ],
       bossRadio: "판문각 광장에 적 전차! 포구가 빛나면 포구를 쏴서 막아라, 약점은 앞쪽 흡기구!"
+    },
+    5: {
+      id: 5, label: "STAGE 5-1", clock: 400, path: PATH5, waves: WAVES5, boss: BOSS5,
+      dress: "paektu", bossKind: "apc", bossTank: true, bossHp: 130,
+      introDur: 5.2,
+      introCam: [[4.0, 34.0, 92.0, 0, 2.0, 175.0], [0, 1.68, -44.0, 0, 1.55, -30.0]],
+      introLines: [
+        { t: 0.4, text: "여기는 본부. 평양 광장 확보 완료. 마지막 작전이다." },
+        { t: 2.2, text: "압록강을 따라 북상해 백두산 천지까지 진격하라!" }
+      ],
+      bossRadio: "천지 전망대에 적 마지막 전차! 포구를 막고 흡기구를 노려라!"
     },
     4: {
       id: 4, label: "STAGE 4-1", clock: 380, path: PATH3, waves: WAVES3, boss: BOSS3,
@@ -6093,7 +6288,10 @@
   /* the course dressing belongs to the stage: the city of stage 1, or the
      DMZ wire and the Panmunjom plaza of stage 2 */
   function dressBattlefield(ctx) {
-    return STAGE && STAGE.dress === "dmz" ? dressStage2(ctx) : STAGE && STAGE.dress === "pyongyang" ? dressStage3(ctx) : STAGE && STAGE.dress === "summit" ? dressSummit(ctx) : dressStage1(ctx);
+    DET.b = null;
+    const out = STAGE && STAGE.dress === "dmz" ? dressStage2(ctx) : STAGE && STAGE.dress === "pyongyang" ? dressStage3(ctx) : STAGE && STAGE.dress === "summit" ? dressSummit(ctx) : STAGE && STAGE.dress === "paektu" ? dressPaektu(ctx) : dressStage1(ctx);
+    try { flushDetail(null); } catch (e) { window.__detErr = String(e); }
+    return out;
   }
 
   function dressStage1(ctx) {
@@ -7006,8 +7204,21 @@
       post.run = { from: m.run.from, dest: [post.x, post.z], dur: m.run.dur || 3.5, delay: m.run.delay || 0 };
       post.runT = -(m.run.delay || 0);
       post.runPhase = 0;
+      if (m.bike && post.mesh) {
+        /* he rides in on a motorcycle and gets off at his cover */
+        const bk = makeMotorbike();
+        bk.scale.setScalar(1 / (post.mesh.scale.x || 1));
+        bk.position.set(0, -0.62 / (post.mesh.scale.x || 1), 0.12 / (post.mesh.scale.x || 1));
+        post.mesh.add(bk);
+        post.bikeMesh = bk;
+        post.mesh.position.set(m.run.from[0], post.y, m.run.from[1]);
+        post.x = m.run.from[0]; post.z = m.run.from[1];
+        post.y = 0.98;
+        post.bikeYaw = Math.atan2(post.run.dest[0] - post.x, post.run.dest[1] - post.z);
+      }
     }
     posePost(post, { x: (w && w.hold && w.hold.x) || 0, y: CAM_Y, z: (w && w.hold && w.hold.z) || 0 }, 0);
+    if (post.bikeMesh) { applyRidePose(post, post.bikeYaw, 0); post.bikeMesh.userData.stand.visible = false; }
     return post;
   }
 
@@ -7267,11 +7478,11 @@
     const s3 = lives >= 3;
     const stars = "★".repeat([s1, s2, s3].filter(Boolean).length) + "☆".repeat(3 - [s1, s2, s3].filter(Boolean).length);
     const ko = (document.documentElement.lang || "").startsWith("ko");
-    const NEXT = { 1: [2, "다음 작전 · DMZ·판문점", "NEXT · DMZ & PANMUNJOM"], 2: [3, "다음 작전 · 평화의 집", "NEXT · PEACE HOUSE"], 3: [4, "다음 작전 · 평양 진입", "NEXT · INTO PYONGYANG"] };
+    const NEXT = { 1: [2, "다음 작전 · DMZ·판문점", "NEXT · DMZ & PANMUNJOM"], 2: [3, "다음 작전 · 평화의 집", "NEXT · PEACE HOUSE"], 3: [4, "다음 작전 · 평양 진입", "NEXT · INTO PYONGYANG"], 4: [5, "다음 작전 · 압록강·백두산", "NEXT · YALU & PAEKTU"] };
     const nx = cleared ? NEXT[stageId] : null;
     const nextB = nx ? "<button class=primary data-act=next data-stage=" + nx[0] + ">" + (ko ? nx[1] : nx[2]) + "</button>" : "";
     const head = cleared
-      ? (stageId === 2 ? (ko ? "작전 성공 · JSA 확보" : "MISSION CLEAR · JSA SECURED") : stageId === 3 ? (ko ? "작전 성공 · 판문각 확보" : "MISSION CLEAR · PANMUNGAK SECURED") : stageId === 4 ? (ko ? "작전 성공 · 평양 광장 확보" : "MISSION CLEAR · SQUARE SECURED") : (ko ? "작전 성공 · 숭례문 탈환" : "MISSION CLEAR"))
+      ? (stageId === 2 ? (ko ? "작전 성공 · JSA 확보" : "MISSION CLEAR · JSA SECURED") : stageId === 3 ? (ko ? "작전 성공 · 판문각 확보" : "MISSION CLEAR · PANMUNGAK SECURED") : stageId === 4 ? (ko ? "작전 성공 · 평양 광장 확보" : "MISSION CLEAR · SQUARE SECURED") : stageId === 5 ? (ko ? "최종 작전 성공 · 백두산 도달" : "FINAL MISSION CLEAR")  : (ko ? "작전 성공 · 숭례문 탈환" : "MISSION CLEAR"))
       : (ko ? "작전 실패" : "MISSION FAILED");
     const box = document.createElement("div");
     box.id = "railResult";
@@ -7567,6 +7778,7 @@
     p.e.alive = false;
     p.state = "dead";
     p.dying = 1.05;
+    if (p.bikeMesh) { dropBike(ctx, p, true); p.y = 0.3; addPts(ctx, 200); }
     try {
       const cols = p.role === "boss" ? [0x4a4a30, 0x33331f, 0xe0b48c, 0x2a2a1a] : p.role === "tough" ? [0x424d2c, 0x333d22, 0xe0b48c, 0x1e2416] : [0x5a6a3a, 0x48562e, 0xe8bc94, 0x2c3520];
       voxBreak(ctx.scene, p.x, (p.y || 0.3) + 0.3, p.z, cols, p.role === "boss" ? 26 : 14, p.role === "boss" ? 1.4 : 1);
@@ -7600,6 +7812,9 @@
     try { if (ctx.killFlip) { ctx.killFlip(p.e, pts); scored = true; } } catch (e) {}
     if (!scored) addPts(ctx, pts);
     tagOff(p);
+    /* (v19) the officer can also fall to a grenade or a barrel: every way
+       he dies ends the stage, not only a bullet */
+    if (p.role === "boss") { try { finish(ctx, true); } catch (e) { window.__stageErr = String(e); } }
   }
 
   function boomBarrel(ctx, b) {
@@ -7961,7 +8176,6 @@
     if (quick) pts += 100;
     killPost(ctx, p, pts);
     gun(p.role === "boss" ? "boom" : "hit");
-    if (p.role === "boss") finish(ctx, true);
   }
 
   /* ---------------- per frame ---------------- */
@@ -8087,10 +8301,36 @@
     /* ---- running to a new firing position across the open ---- */
     if (p.run && p.run.from && p.runT < p.run.dur) {
       p.runT += dt;
+      if (p.runT < 0 && p.bikeMesh) {
+        /* waiting on the bike, engine idling, until his cue */
+        p.y = 0.98; p.expose = 1; p.coverTop = undefined;
+        p.bikeYaw = Math.atan2(p.run.dest[0] - p.run.from[0], p.run.dest[1] - p.run.from[1]);
+        posePost(p, cam, dt);
+        applyRidePose(p, p.bikeYaw, 0);
+        p.bikeMesh.userData.stand.visible = false;
+        return;
+      }
       if (p.runT >= 0) {
         const kk = Math.min(1, p.runT / p.run.dur);
         const e = kk * kk * (3 - 2 * kk);
         const fx = p.run.dest[0] - p.run.from[0], fz = p.run.dest[1] - p.run.from[1];
+        if (p.bikeMesh) {
+          /* a bike comes in fast and brakes into his spot */
+          const eb = 1 - Math.pow(1 - kk, 2.2);
+          p.x = p.run.from[0] + fx * eb;
+          p.z = p.run.from[1] + fz * eb;
+          p.y = 0.98;
+          p.expose = 1;
+          p.coverTop = undefined;
+          p.bikeYaw = Math.atan2(fx, fz);
+          posePost(p, cam, dt);
+          applyRidePose(p, p.bikeYaw, Math.sin(kk * Math.PI) * 0.12 * (fx > 0 ? -1 : 1));
+          const spd = (1 - kk) * 2.2 + 0.2;
+          (p.bikeMesh.userData.wheels || []).forEach((w) => { w.rotation.x += dt * 20 * spd; });
+          p.bikeMesh.userData.stand.visible = false;
+          if (Math.random() < 0.25) smokeAt(ctx, p.x - Math.sin(p.bikeYaw) * 0.9, 0.5, p.z - Math.cos(p.bikeYaw) * 0.9, 0x8a8478);
+          return;
+        }
         p.x = p.run.from[0] + fx * e;
         p.z = p.run.from[1] + fz * e;
         p.y = 0.3;
@@ -8105,6 +8345,7 @@
       /* arrived: take up the cover he ran to */
       if (p.runT < p.run.dur + 0.001) {
         p.runT = p.run.dur + 1;
+        if (p.bikeMesh) { dropBike(ctx, p, false); p.y = 0.3; if (p.bikeYaw != null) gun("dry"); }
         p.coverTop = p.coverTopSaved;
         p.state = "hidden";
         p.stateT = 0.4;
@@ -8237,6 +8478,123 @@
 
   /* a running soldier: strides from the hip, shins folding, arms pumping,
      rifle carried low, and he faces where he is going */
+  /* (v19) a military motorcycle, modelled in parts: spoked wheels with
+     tyres and hubs, a double-cradle frame, tank with filler cap, saddle,
+     a finned single-cylinder engine with its exhaust run, front fork and
+     handlebar with grips and mirrors, a headlamp, mudguards and a rear rack
+     with a jerrycan. Built facing +Z, about 2.1 m long. */
+  function makeMotorbike() {
+    makeSol();
+    const g = new T.Group();
+    const olive = new T.MeshStandardMaterial({ color: 0x3e4c22, roughness: 0.7, metalness: 0.05 });
+    const oliveD = new T.MeshStandardMaterial({ color: 0x262e16, roughness: 0.75, metalness: 0.05 });
+    const steel = new T.MeshStandardMaterial({ color: 0x70767c, roughness: 0.4, metalness: 0.5 });
+    const black = new T.MeshStandardMaterial({ color: 0x141618, roughness: 0.7, metalness: 0.2 });
+    const tyre = SOL.tire || black;
+    const B = (w, h, d, x, y, z, m, rx, ry, rz) => { const o = new T.Mesh(new T.BoxGeometry(w, h, d), m); o.position.set(x, y, z); o.rotation.set(rx || 0, ry || 0, rz || 0); o.castShadow = true; g.add(o); return o; };
+    const C = (rt, rb, h, x, y, z, m, seg, rx, rz) => { const o = new T.Mesh(new T.CylinderGeometry(rt, rb, h, seg || 12), m); o.position.set(x, y, z); o.rotation.set(rx || 0, 0, rz || 0); o.castShadow = true; g.add(o); return o; };
+    const wheel = (z) => {
+      const w = new T.Group();
+      w.position.set(0, 0.34, z);
+      g.add(w);
+      const t = new T.Mesh(new T.TorusGeometry(0.28, 0.075, 8, 18), tyre); t.rotation.y = Math.PI / 2; w.add(t);
+      const rim = new T.Mesh(new T.TorusGeometry(0.22, 0.018, 6, 18), steel); rim.rotation.y = Math.PI / 2; w.add(rim);
+      const hub = new T.Mesh(new T.CylinderGeometry(0.06, 0.06, 0.14, 10), steel); hub.rotation.z = Math.PI / 2; w.add(hub);
+      for (let i = 0; i < 12; i++) { const sp = new T.Mesh(new T.BoxGeometry(0.008, 0.42, 0.008), steel); sp.rotation.x = i * Math.PI / 12; w.add(sp); }
+      return w;
+    };
+    const wf = wheel(0.72), wr = wheel(-0.68);
+    B(0.06, 0.06, 1.2, 0, 0.62, 0.02, oliveD, 0.28);            /* frame down tube */
+    B(0.06, 0.06, 1.1, 0, 0.82, -0.18, oliveD, -0.08);          /* top tube */
+    B(0.05, 0.05, 0.7, 0.1, 0.48, -0.42, oliveD, 0.5);          /* swingarm L */
+    B(0.05, 0.05, 0.7, -0.1, 0.48, -0.42, oliveD, 0.5);
+    B(0.26, 0.2, 0.5, 0, 0.96, 0.22, olive);                    /* tank */
+    B(0.2, 0.06, 0.4, 0, 1.07, 0.22, olive);
+    C(0.035, 0.035, 0.03, 0, 1.11, 0.28, steel, 10);             /* filler cap */
+    B(0.24, 0.08, 0.5, 0, 0.94, -0.28, black);                   /* saddle */
+    B(0.2, 0.1, 0.12, 0, 0.98, -0.5, black);
+    B(0.24, 0.26, 0.3, 0, 0.5, 0.05, oliveD);                    /* crankcase */
+    for (let i = 0; i < 5; i++) B(0.2, 0.025, 0.2, 0, 0.66 + i * 0.045, 0.16, steel); /* cylinder fins */
+    B(0.12, 0.08, 0.12, 0, 0.9, 0.16, steel);
+    C(0.035, 0.035, 0.9, 0.14, 0.42, -0.32, steel, 8, Math.PI / 2 - 0.12); /* exhaust */
+    C(0.055, 0.05, 0.36, 0.15, 0.48, -0.78, steel, 10, Math.PI / 2 - 0.12); /* silencer */
+    [-0.07, 0.07].forEach((x) => B(0.035, 0.035, 0.68, x, 0.66, 0.66, steel, -0.42)); /* fork */
+    B(0.2, 0.05, 0.08, 0, 1.0, 0.56, oliveD);                    /* yoke */
+    B(0.66, 0.03, 0.03, 0, 1.12, 0.5, steel);                    /* handlebar */
+    [-1, 1].forEach((sx) => {
+      B(0.1, 0.045, 0.045, sx * 0.34, 1.12, 0.5, black);          /* grips */
+      B(0.012, 0.18, 0.012, sx * 0.26, 1.21, 0.52, steel);         /* mirror stalks */
+      B(0.08, 0.05, 0.02, sx * 0.26, 1.31, 0.53, steel);
+    });
+    C(0.09, 0.1, 0.1, 0, 0.96, 0.66, black, 12, Math.PI / 2);    /* headlamp */
+    const lens = new T.Mesh(new T.CircleGeometry(0.08, 12), new T.MeshBasicMaterial({ color: 0xfff1c8 })); lens.position.set(0, 0.96, 0.715); g.add(lens);
+    B(0.16, 0.025, 0.42, 0, 0.66, 0.76, olive, 0.25);            /* front guard */
+    B(0.18, 0.025, 0.5, 0, 0.7, -0.7, olive, -0.35);             /* rear guard */
+    B(0.26, 0.03, 0.34, 0, 1.0, -0.76, oliveD);                  /* rack */
+    B(0.2, 0.28, 0.1, 0, 1.16, -0.82, olive);                    /* jerrycan */
+    B(0.08, 0.05, 0.05, 0, 1.33, -0.82, olive);
+    B(0.05, 0.28, 0.05, 0.12, 0.2, -0.05, steel, 0, 0, 0.4);     /* side stand */
+    const tail = new T.Mesh(new T.BoxGeometry(0.08, 0.04, 0.02), SOL.lampRed); tail.position.set(0, 0.86, -0.95); g.add(tail);
+    g.userData.wheels = [wf, wr];
+    g.userData.stand = g.children[g.children.length - 2];
+    
+    return g;
+  }
+  /* rider on the saddle: knees up, hands on the bars, leaning in */
+  function applyRidePose(p, yaw, lean) {
+    const u = p.mesh.userData;
+    if (u.legL) u.legL.rotation.x = -1.25;
+    if (u.legR) u.legR.rotation.x = -1.25;
+    if (u.shinL) u.shinL.rotation.x = 1.35;
+    if (u.shinR) u.shinR.rotation.x = 1.35;
+    if (u.armL) u.armL.rotation.set(-1.25, 0, 0.18);
+    if (u.armR) u.armR.rotation.set(-1.25, 0, -0.18);
+    if (u.rifle) { u.rifle.position.set(-0.24, 1.05, -0.1); u.rifle.rotation.set(0.9, Math.PI, 0.3); }
+    if (u.body) { u.body.position.y = 0.0; u.body.rotation.x = 0.28; u.body.rotation.z = 0; u.body.scale.y = 1; }
+    if (u.headG) u.headG.rotation.x = -0.2;
+    p.mesh.rotation.y = yaw;
+    p.mesh.rotation.z = lean || 0;
+  }
+  const crashed = [];
+  function dropBike(ctx, p, crash) {
+    const b = p.bikeMesh;
+    if (!b || !b.parent) return;
+    b.updateMatrixWorld(true);
+    const wp = new T.Vector3(), wq = new T.Quaternion(), ws = new T.Vector3();
+    b.matrixWorld.decompose(wp, wq, ws);
+    b.parent.remove(b);
+    b.position.copy(wp); b.quaternion.copy(wq); b.scale.copy(ws);
+    ctx.scene.add(b);
+    p.bikeMesh = null;
+    p.mesh.rotation.z = 0;
+    if (crash) {
+      const yaw = p.bikeYaw || 0;
+      b.userData.v = new T.Vector3(Math.sin(yaw) * 7, 0, Math.cos(yaw) * 7);
+      b.userData.spin = (Math.random() < 0.5 ? -1 : 1) * (2 + Math.random() * 2);
+      b.userData.t = 0;
+      crashed.push(b);
+      gun("clank");
+    } else {
+      /* parked on its side stand */
+      b.rotation.z = 0.18;
+      b.position.y = 0.34;
+    }
+    window.__bikes = (window.__bikes || 0) + 1;
+  }
+  function stepCrashed(ctx, dt) {
+    for (let i = crashed.length - 1; i >= 0; i--) {
+      const b = crashed[i], u = b.userData;
+      u.t += dt;
+      b.position.addScaledVector(u.v, dt);
+      u.v.multiplyScalar(Math.max(0, 1 - dt * 2.2));
+      b.rotation.z = Math.min(Math.PI / 2 - 0.1, b.rotation.z + dt * 3.4);
+      b.rotation.y += u.spin * dt * (u.v.length() / 7);
+      b.position.y = 0.3 + 0.12 * Math.max(0, Math.sin(u.t * 9)) * Math.max(0, 1 - u.t);
+      if (u.t < 0.8 && Math.random() < 0.5) burst(ctx.scene, b.position.x, 0.4, b.position.z, false);
+      if (u.v.length() < 0.05) crashed.splice(i, 1);
+    }
+  }
+
   function applyRunGait(p, faceYaw) {
     const u = p.mesh.userData;
     const ph = p.runPhase;
@@ -8790,6 +9148,7 @@
     stepChunks(dt);
     stepWeather(ctx, dt);
     stepFallers(dt);
+    stepCrashed(ctx, dt);
     stepNades(ctx, dt);
     /* the SMG keeps firing while the trigger is held */
     if (holding && weapon === "smg" && active && !ended && phase !== "intro") fire(ctx);
@@ -9874,6 +10233,240 @@
       trunks: trunks2
     };
     window.__stage2 = { landCovers: landCovers.length, walkBlockers: walkBlockers.length };
+    return dress;
+  }
+
+  /* ---------------- STAGE 5: 압록강 · 백두산 ---------------- */
+  function dressPaektu(ctx) {
+    makeSol();
+    stage2Mats();
+    const S = new T.Group();
+    S.name = "battlefield5";
+    ctx.scene.add(S);
+    const sky = makeSkyDome();
+    sky.geometry.dispose();
+    sky.geometry = new T.SphereGeometry(300, 24, 16);
+    sky.position.set(0, 0, 60);
+    S.add(sky);
+    ctx.scene.background = new T.Color(0x5aa6ec).convertSRGBToLinear();
+    ctx.scene.fog = new T.Fog(0xcfe2f2, 140, 520);
+    if (ctx.scene.fog.color.convertSRGBToLinear) ctx.scene.fog.color.convertSRGBToLinear();
+    try { buildSceneEnv(ctx); if (window.__mgEnv) ctx.scene.environment = window.__mgEnv; } catch (e) {}
+    if (ctx.LT) {
+      const LT = ctx.LT;
+      if (LT.hemi) { LT.hemi.intensity = 0.34; LT.hemi.color.setHex(0xd4e6fa); LT.hemi.groundColor && LT.hemi.groundColor.setHex(0x7a8a6a); }
+      if (LT.amb) { LT.amb.intensity = 0.08; }
+      if (LT.key) { LT.key.intensity = 2.25; LT.key.color.setHex(0xfff4e0); }
+      if (LT.moon) { LT.moon.intensity = 0.1; }
+      if (LT.rim) { LT.rim.intensity = 0.4; }
+    }
+    if (ctx.renderer) ctx.renderer.toneMappingExposure = 1.08;
+    const vm = voxMats();
+    const R = rng(5555);
+    const box = (w, h, d, x, y, z, m, opt) => {
+      const o = new T.Mesh(new T.BoxGeometry(w, h, d), m);
+      o.position.set(x, y, z);
+      o.castShadow = !(opt && opt.noCast);
+      o.receiveShadow = true;
+      if (opt && opt.wall) o.userData.wall = 1;
+      if (opt && opt.noBlock) o.userData.noBlock = 1;
+      if (opt && opt.rx) o.rotation.x = opt.rx;
+      if (opt && opt.ry) o.rotation.y = opt.ry;
+      if (opt && opt.rz) o.rotation.z = opt.rz;
+      S.add(o);
+      return o;
+    };
+    /* ---- ground: two banks either side of the gorge, a trail on each ---- */
+    const gT = vm.grass.map.clone(); gT.needsUpdate = true; gT.wrapS = gT.wrapT = T.RepeatWrapping; gT.repeat.set(60, 40);
+    const grassM = new T.MeshStandardMaterial({ map: gT, color: 0xc0d6a4, roughness: 0.96 });
+    const plane = (w, d, x, z, m, y) => { const o = new T.Mesh(new T.PlaneGeometry(w, d), m); o.rotation.x = -Math.PI / 2; o.position.set(x, y == null ? 0.24 : y, z); o.receiveShadow = true; o.userData.noBlock = 1; S.add(o); return o; };
+    plane(400, 160, 0, -72, grassM);
+    const gN = new T.MeshStandardMaterial({ map: gT, color: 0xb4c69a, roughness: 0.96 });
+    plane(400, 70, 0, 67, gN);
+    const trailT = ctex("trailDirt", 128, 128, (g, w, h) => {
+      const r = rng(41);
+      g.fillStyle = "#8a7558"; g.fillRect(0, 0, w, h);
+      const cols = ["#7a6548", "#9a8566", "#6e5a40", "#a8957a", "#857055"];
+      for (let i = 0; i < 700; i++) { g.fillStyle = cols[(r() * 5) | 0]; g.fillRect((r() * 16 | 0) * 8, (r() * 16 | 0) * 8, 8, 8); }
+    });
+    const trM = (rx, ry) => { const t = trailT.clone(); t.needsUpdate = true; t.wrapS = t.wrapT = T.RepeatWrapping; t.repeat.set(rx, ry); return new T.MeshStandardMaterial({ map: t, roughness: 0.95 }); };
+    plane(7, 54, 0, -19, trM(2, 14), 0.26);
+    plane(9, 64, 3, 66, trM(2, 16), 0.26);
+    /* ---- the gorge: rock walls down to the river ---- */
+    const VR = voxBatch();
+    for (let x = -160; x <= 160; x += 2.4) {
+      [[8.2, 1], [31.8, -1]].forEach(([z0, sgn]) => {
+        if (Math.abs(x) < 3.6) return;
+        for (let k = 0; k < 2; k++) {
+          const hh = 2.4 + R() * 0.8;
+          VR.cube(vm.rock, x + (R() - 0.5), 0.3 - hh / 2 + k * 0.1, z0 + sgn * (k * 1.6 + R() * 0.6), 2.6, hh, 2.2 + R(), [0xffffff, 0xd8d8d0, 0xc4c6bc][(R() * 3) | 0], R() * 0.3);
+        }
+      });
+    }
+    /* boulders on the river and the banks */
+    for (let i = 0; i < 70; i++) {
+      const x = (R() - 0.5) * 120, z = 10 + R() * 20;
+      if (Math.abs(x) < 5) continue;
+      const r = 0.6 + R() * 1.6;
+      VR.cube(vm.rock, x, -1.6 + r * 0.3, z, r * 1.6, r, r * 1.3, [0xffffff, 0xe4e4dc][i % 2], R() * 3);
+    }
+    const water = new T.Mesh(new T.PlaneGeometry(400, 26), new T.MeshBasicMaterial({ color: 0x2f6f90 }));
+    water.rotation.x = -Math.PI / 2; water.position.set(0, -1.7, 20); water.userData.noBlock = 1;
+    S.add(water);
+    /* foam streaks */
+    for (let i = 0; i < 40; i++) {
+      const fm = new T.Mesh(new T.PlaneGeometry(2 + R() * 6, 0.25), new T.MeshBasicMaterial({ color: 0xe8f4fa, transparent: true, opacity: 0.55, depthWrite: false }));
+      fm.rotation.x = -Math.PI / 2; fm.position.set((R() - 0.5) * 140, -1.66, 11 + R() * 18); fm.userData.noBlock = 1;
+      S.add(fm);
+    }
+    /* ---- the steel truss bridge ---- */
+    {
+      const steel = new T.MeshStandardMaterial({ color: 0x3c4148, roughness: 0.55, metalness: 0.7 });
+      const steelD = new T.MeshStandardMaterial({ color: 0x2a2e33, roughness: 0.6, metalness: 0.6 });
+      const stoneP = repMat(SOL.gateStone, 1, 2);
+      box(6.4, 0.5, 30, 0, 0.06, 20, steelD, { noBlock: true });
+      box(5.4, 0.06, 30, 0, 0.33, 20, trM(2, 8), { noCast: true, noBlock: true });
+      [13.5, 26.5].forEach((z) => { box(4.0, 4.6, 2.6, 0, -2.0, z, stoneP); box(4.4, 0.4, 3.0, 0, 0.1, z, stoneP); });
+      [-3.1, 3.1].forEach((x) => {
+        box(0.26, 0.3, 30, x, 0.45, 20, steel);                                   /* bottom chord */
+        box(0.26, 0.3, 30, x, 5.2, 20, steel);                                    /* top chord */
+        for (let z = 5.2; z <= 35; z += 3.6) {
+          box(0.22, 4.8, 0.22, x, 2.8, z, steel);                                 /* verticals */
+          if (z + 3.6 <= 35.1) {
+            const d = box(0.18, 6.0, 0.18, x, 2.8, z + 1.8, steelD);               /* diagonals */
+            d.rotation.x = ((Math.round((z - 5.2) / 3.6) % 2) ? 1 : -1) * 0.64;
+          }
+          for (let r = 0; r < 3; r++) box(0.05, 0.05, 0.05, x + (x > 0 ? -0.14 : 0.14), 0.7 + r * 1.6, z, SOL.steel || steel, { noCast: true });
+        }
+        box(0.08, 0.08, 30, x * 0.94, 1.25, 20, steelD, { noCast: true });       /* handrail */
+      });
+      for (let z = 5.2; z <= 35; z += 3.6) box(6.4, 0.22, 0.22, 0, 5.2, z, steel); /* top cross beams */
+      for (let z = 7; z <= 33; z += 7.2) { const xb = box(0.16, 0.16, 7.4, 0, 5.3, z, steelD); xb.rotation.y = Math.PI / 2 - 0.85; }
+    }
+    /* ---- the boundary stele, posts and the Paektu board ---- */
+    const stele = (x, z, key, text) => {
+      const t = ctex(key, 96, 256, (g, w, h) => {
+        g.fillStyle = "#c9c4b6"; g.fillRect(0, 0, w, h);
+        const r = rng(17);
+        for (let i = 0; i < 160; i++) { g.fillStyle = r() < 0.5 ? "#b8b3a4" : "#d6d1c4"; g.fillRect((r() * 12 | 0) * 8, (r() * 32 | 0) * 8, 8, 8); }
+        g.fillStyle = "#3a3630"; g.font = "900 58px 'Malgun Gothic', 'Apple SD Gothic Neo', serif"; g.textAlign = "center";
+        [...text].forEach((c, i) => g.fillText(c, w / 2, 70 + i * 70));
+      }, { smooth: true });
+      const m = new T.MeshStandardMaterial({ map: t, roughness: 0.85 });
+      const side = repMat(SOL.gateStone, 1, 2);
+      const o = new T.Mesh(new T.BoxGeometry(1.2, 3.4, 0.8), [side, side, side, side, side, m]);
+      o.position.set(x, 0.3 + 1.7, z); o.rotation.y = Math.PI; o.castShadow = true; o.userData.wall = 1;
+      S.add(o);
+      box(1.8, 0.4, 1.4, x, 0.5, z, side);
+    };
+    stele(-6.0, -30.0, "yaluStele", "압록강");
+    const pbTex = boardTex("paektuBoard", { bg: "#6f5735", seed: 9, lines: [{ t: "▲", s: 60, y: 0.3 }, { t: "백두산", s: 56, y: 0.58 }, { t: "(2,744m)", s: 30, y: 0.83 }] });
+    S.add(makeSign(-5.6, 62.0, 0.15, pbTex, 3.0, 1.9, 0.3, 2.2));
+    S.add(makeSign(6.0, -14.0, -0.1, boardTex("paektuBoard2", { bg: "#6f5735", seed: 5, lines: [{ t: "국경 경비 구역", s: 34, y: 0.4 }, { t: "출입 통제", s: 40, y: 0.7 }] }), 2.6, 1.6, 0.3, 1.8));
+    /* ---- a wooden watchtower with a flag on the plateau ---- */
+    {
+      const wood = SOL.wood || SOL.woodDark;
+      const tx = -13.0, tz = 62.0;
+      [-1, 1].forEach((a) => [-1, 1].forEach((b) => box(0.32, 7.2, 0.32, tx + a * 1.5, 3.9, tz + b * 1.5, wood, { rz: -a * 0.06, rx: b * 0.06 })));
+      for (let y = 1.6; y < 7; y += 2.0) [-1, 1].forEach((b) => { const d = box(0.16, 3.6, 0.16, tx, y + 0.9, tz + b * 1.5, wood); d.rotation.z = 0.9; });
+      box(4.2, 0.3, 4.2, tx, 7.5, tz, wood);
+      [-1, 1].forEach((a) => { box(4.2, 0.9, 0.12, tx, 8.1, tz + a * 2.0, wood); box(0.12, 0.9, 4.2, tx + a * 2.0, 8.1, tz, wood); });
+      [-1, 1].forEach((a) => [-1, 1].forEach((b) => box(0.16, 2.4, 0.16, tx + a * 1.9, 9.0, tz + b * 1.9, wood)));
+      const roof = box(5.0, 0.3, 5.0, tx, 10.3, tz, SOL.woodDark || wood);
+      const roof2 = box(3.4, 0.6, 3.4, tx, 10.7, tz, SOL.woodDark || wood);
+      const pole = new T.Mesh(new T.CylinderGeometry(0.06, 0.07, 4.6, 8), SOL.metalDark); pole.position.set(tx + 1.9, 12.4, tz + 1.9); S.add(pole);
+      const f = new T.Mesh(new T.PlaneGeometry(2.4, 1.6), SOL.flagKP); f.position.set(tx + 0.7, 13.6, tz + 1.9); f.rotation.y = Math.PI; f.userData.noBlock = 1; S.add(f);
+      const f2 = new T.Mesh(new T.PlaneGeometry(2.4, 1.6), SOL.flagKP); f2.position.set(tx + 0.7, 13.6, tz + 1.92); f2.userData.noBlock = 1; S.add(f2);
+    }
+    /* ---- the crater: Cheonji below the plateau edge, ringed by peaks ---- */
+    {
+      const cx = 0, cz = 178, lakeR = 66;
+      const lake = new T.Mesh(new T.CircleGeometry(lakeR + 6, 40), new T.MeshBasicMaterial({ color: 0x1f5a88, fog: false }));
+      lake.rotation.x = -Math.PI / 2; lake.position.set(cx, -1.3, cz); lake.userData.noBlock = 1;
+      S.add(lake);
+      const VM = voxBatch();
+      const cell = 7;
+      for (let x = -170; x <= 170; x += cell) for (let z = 90; z <= 330; z += cell) {
+        const dx = x - cx, dz = z - cz, r = Math.hypot(dx, dz);
+        if (r < lakeR - 2 || r > 150) continue;
+        const th = Math.atan2(dx, dz); /* 0 = far side, ±π = near side */
+        const near = Math.max(0, Math.cos(th + Math.PI)); /* 1 on the player's side */
+        let amp = 58 + 22 * Math.sin(th * 3 + 1.1) + 10 * Math.sin(th * 7 + 0.4);
+        amp = amp * Math.pow(1 - near, 1.6);
+        const ring = Math.exp(-Math.pow((r - 98) / 36, 2));
+        let h = amp * ring + 6 * Math.sin(x * 0.11) * Math.cos(z * 0.09) * ring;
+        if (h < 5 && z < 150) continue; /* keep the near rim open so the lake shows */
+        const hh = Math.round(h / 3) * 3;
+        const base = -2.5;
+        if (hh - base < 1) continue;
+        const kk = hh / 80;
+        const inner = r < lakeR + 16;
+        const col = kk > 0.62 ? (R() < 0.2 ? 0xdfe6ec : 0xffffff) : kk > 0.34 ? [0x9a948a, 0x8a847a, 0xa8a296][(R() * 3) | 0] : inner ? [0x7a6a58, 0x6c5e4e, 0x86765f][(R() * 3) | 0] : [0x6a7a50, 0x5c6c46, 0x748656][(R() * 3) | 0];
+        const mat = kk > 0.34 || inner ? vm.rock : vm.grass;
+        VM.cube(kk > 0.62 ? vm.plain : mat, x, base + (hh - base) / 2, z, cell, hh - base, cell, col);
+      }
+      /* a cliff of rock down from the plateau edge to the water */
+      for (let x = -90; x <= 90; x += 3) VM.cube(vm.rock, x, -1.1, 104 + R() * 2, 3.2, 2.8, 4 + R() * 3, [0xffffff, 0xd6d6ce][(R() * 2) | 0]);
+      VM.flush(S, "paektu");
+      /* far ranges, hazy */
+      const VH = voxBatch();
+      voxHill(VH, -170, 120, 160, 120, 46, 61, { cell: 8, base: -4 });
+      voxHill(VH, 170, 130, 160, 120, 52, 62, { cell: 8, base: -4 });
+      VH.flush(S, "ranges");
+    }
+    /* ---- forest, rocks and snow on the trail ---- */
+    const VT = voxBatch();
+    const trunks = [];
+    const pts = [];
+    if (curve) for (let i = 0; i <= 120; i++) pts.push(curve.getPointAt(i / 120));
+    const clear = (x, z, r) => {
+      for (let i = 0; i < pts.length; i++) { const dx = pts[i].x - x, dz = pts[i].z - z; if (dx * dx + dz * dz < r * r) return false; }
+      if (z > 4 && z < 36) return false;
+      if (z > 98) return false;
+      if (Math.abs(x + 13) < 5 && Math.abs(z - 62) < 5) return false;
+      if (Math.abs(x + 6) < 3 && Math.abs(z + 30) < 3) return false;
+      return true;
+    };
+    let placed = 0;
+    for (let tries = 0; tries < 1400 && placed < 190; tries++) {
+      const x = (R() - 0.5) * 140, z = -80 + R() * 176;
+      if (!clear(x, z, 8.0)) continue;
+      const h = (z > 40 ? 4 : 7) + R() * 6;
+      if (R() < 0.85) voxPine(VT, x, 0.25, z, h, tries + 9);
+      else voxTree(VT, x, 0.25, z, h * 0.55, tries + 3, { rx: 1.8 + R() * 0.6, ry: 1.5, cube: 0.6, tint: [0xd2e4bc, 0xe8f0c8, 0xc8dca8] });
+      trunks.push([x, z]);
+      placed++;
+    }
+    VT.flush(S, "paektuForest");
+    const VS = voxBatch();
+    for (let i = 0; i < 90; i++) {
+      const x = (R() - 0.5) * 70, z = 36 + R() * 64;
+      if (!clear(x, z, 4.6)) continue;
+      const r = 0.7 + R() * 1.6;
+      VS.cube(vm.rock, x, 0.25 + r * 0.4, z, r * 1.5, r * 0.9, r * 1.2, [0xffffff, 0xe0e0d8, 0xcfd1c8][i % 3], R() * 3, { cast: true });
+      if (R() < 0.5) VS.cube(vm.rock, x + r * 0.5, 0.25 + r * 0.9, z, r * 0.8, r * 0.6, r * 0.8, 0xf0f0ea, R() * 3, { cast: true });
+      if (R() < 0.4) VS.cube(vm.plain, x, 0.25 + r * 0.9 + 0.05, z, r * 1.2, 0.12, r * 1.0, 0xf6f9fc, R() * 3);
+    }
+    for (let i = 0; i < 40; i++) { const x = (R() - 0.5) * 80, z = 50 + R() * 48; if (!clear(x, z, 3)) continue; VS.cube(vm.plain, x, 0.27, z, 2 + R() * 4, 0.06, 1.5 + R() * 3, 0xf4f7fa, R()); }
+    VS.flush(S, "plateauRocks");
+    landCovers = [];
+    [[-3.6, 66.4], [1.8, 67.6], [5.6, 66.0], [9.2, 80.0], [3.0, 81.8]].forEach(([x, z]) => { const c = landCover(x, z, 2.2); S.add(c.g); landCovers.push(c); });
+    const clouds = [];
+    for (let i = 0; i < 9; i++) { const c = makeCloud(-120 + i * 30, 70 + Math.random() * 20, 130 + (i % 3) * 30, 6 + Math.random() * 3); c.scale.y = 0.34; S.add(c); clouds.push(c); }
+    const ally = makeAlly();
+    ally.position.set(4.6, 0.3, -41.6);
+    S.add(ally);
+    const flags = [];
+    S.traverse((o) => { if (o.userData && o.userData.cloth) flags.push(o); });
+    walkBlockers = [];
+    S.traverse((o) => {
+      if (!o.isMesh) return;
+      if (o.userData && (o.userData.wall || o.userData.solid)) { const bb = new T.Box3().setFromObject(o); if (bb.max.y > 0.6) walkBlockers.push(bb); }
+    });
+    if (coverRoot) coverRoot.traverse((o) => { if (o.userData && o.userData.cover) walkBlockers.push(new T.Box3().setFromObject(o)); });
+    landCovers.forEach((c) => walkBlockers.push(new T.Box3().setFromObject(c.g)));
+    applyMood(ctx, S, sky, clouds, moodOverride() || "day");
+    dress = { root: S, sky, flags, clouds, barrels: [], ally, truck1: null, trunks };
     return dress;
   }
 
