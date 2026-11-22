@@ -1,4 +1,4 @@
-# 지금 바로 멸공 — 공동작업 인수인계 (v6, 2026-11-22)
+# 지금 바로 멸공 — 공동작업 인수인계 (v8, 2026-11-22)
 
 > 이 문서 하나로 다른 에이전트(Cursor · Claude Code · Codex 등)가 `main`에서 바로 이어받을 수 있게 쓴 문서다.
 > 코드를 고쳤으면 **같은 커밋에서 이 문서도 같이 갱신**한다.
@@ -12,10 +12,10 @@
 | 영어 페이지 | https://hwani27.github.io/hwani-gallery/baro-baro-myeolgong/en.html |
 | 갤러리 카드 | `index.html`의 `baro-baro-myeolgong/` 카드 → `thumb.png` |
 | 폴더 | `work/hwani-gallery/baro-baro-myeolgong/` (완전 독립 빌드) |
-| 현재 버전 | **v7** (v7.1: 점사 피해량 15/22 복원, `?v=8`) — 엄폐 일치(보이는 만큼만 맞는다) · 적 사격 모션 · 아군 걷기 · 캐릭터 디테일 · 태극기 |
-| v7 브랜치 | `fix/myeolgong-v6-combat-polish` → PR (아래 3절) |
+| 현재 버전 | **v8** (`?v=9`) — **Stage 2: DMZ · 판문점(JSA)** 추가 (아래 3절). v7.1의 엄폐 일치·적 사격 모션·태극기 위에 얹었다 |
+| 스테이지 | `STAGES` 표: 1 = 서울 시가지(기존), 2 = DMZ·판문점. 타이틀의 두 버튼 / Stage 1 클리어 결과의 `다음 작전` 버튼으로 진입 |
 | v6 커밋 | `3df8b62` — full 1st-person arms/torso, adaptive portrait FOV, barrel tracks the aim point |
-| 캐시 버스터 | `?v=8` (index.html·en.html 세 줄) |
+| 캐시 버스터 | `?v=9` (index.html·en.html 세 줄) |
 | 로컬 실행 | `cd work/hwani-gallery && python3 -m http.server 8133` → `http://127.0.0.1:8133/baro-baro-myeolgong/index.html` |
 
 **코드를 고치면 반드시**: `index.html`·`en.html`의 `engine.js?v=`, `gun-sfx.js?v=`, `rail.js?v=` 세 줄을 **한꺼번에** 한 단계 올린다. 안 올리면 아이폰 Safari가 옛 파일을 계속 쓴다(캐시).
@@ -27,7 +27,7 @@
 | `index.html` | 한국어 페이지: `<canvas id="mgCanvas">` + 타이틀 오버레이(`#mgTitle`) + 스크립트 3줄 + 캐시 버스터 | 캐시 버스터 위치. `en.html`과 같은 구조를 유지 |
 | `en.html` | 영어 페이지(문구만 다름) | 위와 동일하게 버전 올릴 것 |
 | `engine.js` | 렌더러/씬/카메라(초기 fov 58)/조명/프레임 루프/점수 팝업/사운드 토글/리사이즈/컨텍스트 로스트 처리 | 게임 로직 없음. `RAIL.frame(ctx)`를 매 프레임 호출만 한다 |
-| `rail.js` | **게임 전부**: 절차적 텍스처(`ctex`), 코스(`PATH_PTS`), 웨이브(`WAVE_DEFS`), 적 상태머신, 가림막, 아군, 픽업, 보스, HUD(canvas), 결과 화면, 1인칭 뷰모델(권총+팔+조준) | 대부분의 작업이 여기서 일어난다. 4000줄 |
+| `rail.js` | **게임 전부**: 절차적 텍스처(`ctex`), 스테이지 표(`STAGES` — Stage 1 서울 / Stage 2 DMZ·판문점), 코스, 웨이브, 적 상태머신, 가림막, 아군, 픽업, 보스, HUD(canvas), 무전 UI, 결과 화면, 1인칭 뷰모델 | 대부분의 작업이 여기서 일어난다. 약 6,900줄 |
 | `gun-sfx.js` | 절차적 총성·재장전·폭발·피격/사망 육성 + 내장 전투 BGM | 샘플 파일 없음. 전부 합성 |
 | `three.min.js` | three.js **r128** 원본 그대로 | **수정 금지** |
 | `thumb.png` | 갤러리 카드 썸네일 640×360 | 화면 인상이 바뀌면 갱신 |
@@ -35,6 +35,9 @@
 | `HANDOFF.md` | 이 문서 | **갱신 필수** |
 
 ## 2. 지금 되는 것 (검증 완료)
+
+- **Stage 1(서울) 1판** — 4웨이브 + 보스, 기존 그대로.
+- **Stage 2(DMZ·판문점) 1판** — 카메라 인트로 → DMZ 철책 교전(헬기) → 공수 강하 → 판문점 게이트 → JSA 광장(헬기·낙하산) → 중장갑차 보스. 무전 UI·보스 게이지·`!` 카운트다운 링 포함. (3절)
 
 - 4웨이브 + 보스 1판 완주 → `작전 성공` 결과 화면 → `다시 하기` 재시작.
 - 적: `hidden → peek → fire(점사) → duck` 상태머신. 엄폐 중에는 **실제로 가려지고**, 보이는 부분만 맞는다(아래 3-2). 피격 시 즉시 엄폐.
@@ -44,7 +47,64 @@
 - 쓰러짐 4방향(뒤·앞·좌·우), 피격 육성/비명 SFX, 기름통 폭발, 픽업(탄약·보급·목숨).
 - PC: 마우스 조준·좌클릭 발사·`R`(또는 `r`) 재장전 / 모바일: 탭 지점 발사·우하단 `R` 버튼.
 
-## 3. 이번 라운드 (v7) — 보이는 만큼만 맞는다 · 적 사격 모션 · 아군 걷기 · 캐릭터 디테일 · 태극기
+## 3. 이번 라운드 (v8) — Stage 2: DMZ · 판문점(JSA)
+
+Stage 1(서울)은 손대지 않았고, 그 뒤에 **Stage 2**를 붙였다. 두 스테이지는 같은 엔진·같은 전투 규격을 쓰고 데이터만 다르다.
+
+### 3-1. 스테이지 선택 구조
+- `STAGES = { 1: {...}, 2: {...} }` — 각 항목이 `path`(카메라 레일), `waves`(`WAVE_DEFS`), `boss`(`BOSS_DEF`), `clock`, `label`, `dress`("city"|"dmz"), `bossKind`("man"|"apc"), `introCam`/`introDur`/`introLines`를 가진다.
+- `setStage(n)`이 `PATH_PTS`·`WAVE_DEFS`·`BOSS_DEF`·`CLOCK0`을 갈아끼우고 `curve`를 버려 레일을 다시 만든다. `RAIL.begin(ctx, n)` · `MG.playStage(n)` · `MG.playAgain()`(현재 스테이지 재시작).
+- UI: `index.html`/`en.html`의 `#mgStart`(1-1) · `#mgStart2`(2-1). Stage 1 클리어 결과 카드에 `다음 작전 · DMZ·판문점` 버튼(`data-act=next` → `MG.playStage(2)`), Stage 2 클리어는 `작전 성공 · JSA 확보`.
+- HUD 우상단은 `STAGE.label` + 구역 라벨(`DMZ`/`JSA`), 보스전에는 TIME 아래 **보스 체력 게이지**(`BOSS` + %)가 뜬다.
+
+### 3-2. 연출 — 카메라 인트로 + 무전
+- `phase === "intro"`: `STAGE.introCam`(`[from xyz + from look, to xyz + to look]`)을 3.8초에 걸쳐 스무스스텝으로 이동. **실시간(performance.now) 기준**이라 프레임이 느린 기기에서도 길이가 늘어나지 않는다. 인트로 동안 권총 뷰모델은 숨긴다.
+- `radio(text, ms)` → `#railRadio` 패널(하단, 무전 · COMMAND, 남은 시간 바). 인트로 대사 2줄, 웨이브 진입 대사(`WAVE_DEFS[].radio`), 보스 진입 대사. Stage 2 대사:
+  - 인트로: "여기는 본부. 서울 도심 탈환에 성공했다. 수고했다." → "지금 즉시 비무장지대(DMZ) 남방한계선을 돌파해 판문점(JSA)을 확보하라!"
+  - DMZ 철책: "남방한계선 철책 돌파! 전방 도로에 적 보병, 교전 개시!"
+  - 공수 강하: "적 공수부대가 상공에서 강하 중이다! 낙하산과 사수를 노려라!"
+  - 판문점 진입(체크포인트): "판문점 광장 진입! 적 헬기와 공수부대가 상공에 포착됐다! 위쪽 경계!"
+  - JSA 중앙 / 보스: "JSA 중앙이다! 중장갑 차량이 접근한다, 엄폐물 뒤로!" / "중장갑 차량 확인! 호위 병력 분리, 측면을 노려라!"
+
+### 3-3. 배경 (`dressStage2`)
+- **DMZ**: 흙길(바퀴 자국 텍스처 `soilTex` + bump) · 이중 철책 4줄(기둥+철조 4가닥+콘체르티나 X + **알파 테스트 철망 평면**) · `DMZ 비무장지대 / Demilitarized Zone`·`민통선 CIVILIAN CONTROL LINE`·`지뢰 MINE` 표지판(양면 인쇄) · 모래주머니 진지 · 용치(대전차 장애물) · GP/GOP 감시초소(캐모 초소 + 서치라이트) · 지프/트럭/난파 트럭 · 측면 삼림 · 지뢰 팻말 · 원경 산악 능선(안개).
+- **판문점(JSA)**: 판문점 게이트(기둥+빔+표지) · 콘크리트 광장 · **MDL 군사분계선**(콘크리트 경계 + 흰 점선) · 하늘색 회담장 T1/T2/T3(패널 텍스처 + 흰 파시아 + 유리창 반사) · **판문각**(석조 3층 + 단청 처마 텍스처 + 계단) · **자유의집**(백색 주랑) · 태극기·유엔기 게양대 · 콘크리트 엄폐물 · 지프/트럭 · 가로등.
+- 재질: `stage2Mats()`가 Phong 재질(`bumpMap` + specular)을 만든다 — 흙/모래주머니/콘크리트/청색 패널/금속/헬기 도색. Lambert는 bumpMap을 지원하지 않으므로 큰 표면은 Phong.
+- 조명/톤: `renderer.toneMapping = ACESFilmicToneMapping`(exposure 1.12), `PCFSoftShadowMap`은 `engine.js`에서 한 번만 설정(두 스테이지 공통). Stage 2는 `Fog(0xc3d4dc, 80, 230)` + 능선 5겹으로 원근을 만든다.
+
+### 3-4. 신규 적 기믹 (모두 기존 `foe` 히트박스·`!` 예고·헤드샷 규격 위에서 동작)
+- **선회 헬리콥터** (`makeHeliModel`/`makeHeliPost`/`stepHeli`): 좌우로 선회(궤도), 메인/테일 로터 회전, 열린 도어의 사수가 `!` 카운트다운 후 사격. HP 9, 3 이하에서 연기 + 사수 무력화, 0이면 꼬리를 돌며 추락 후 폭발(+600). `p.air = "heli"` → 벽/바닥 판정에서 빠지고 `airDamage()`로 처리.
+- **낙하산 공중 적** (`makeParaModel`/`makeParaPost`/`stepPara`): 복셀 캐노피 + 8줄 서스펜션, 하강하며 사격. **캐노피(몸 위 1.55 m 이상)를 맞으면 `cutChute()`** — 낙하산이 찢어지며 급강하해 착지 시 사망. 본체 헤드샷/바디샷도 가능(헤드 2배). 살아서 착지하면 `landPara()`가 가까운 모래주머니를 골라 `moveTo`로 걸어가 엄폐 사격(`walkMove`/`walkPose`).
+- **지상 이동 적**: `{ run: true, route: [[lat,dep],[lat,dep]], spd }` → 웨이포인트 사이를 달리고 서서 2점사. 이동은 `canWalk()`(벽·엄폐물 Box3)로 매 스텝 검사해 **벽을 관통하지 않는다**(막히면 축 슬라이드, 1.4초 막히면 경로 재선택).
+- **보스 — 중장갑 차량** (`makeAPCModel`/`stageBoss2`/`stepBoss2`): 판문점 광장에서 3개 엄폐물 사이를 **점프 이동**(포물선), HP 12, 터렛 상단 타격은 **3배**(4발), **2연속 위협 사격**(16 → 0.5초 → 22), `!` 링 + 체력 게이지. 격파 시 폭발 연쇄 + `finish(true)`.
+
+### 3-5. 전투 규격 호환
+- `!` 마커를 새로 그렸다: `placeTag()`가 상태별로 **초록(<45%) → 주황(<78%) → 빨강(≥78%, 펄스)** 색과 함께 **카운트다운 링**(`--rtp`, `conic-gradient`)을 갱신한다. 지상병·헬기 사수·낙하산·보스 모두 같은 함수.
+- 헤드샷 배율을 실제 피해량으로 넣었다: `dmg = head ? (boss ? 3 : 2) : 1` (`window.__lastDmg`로 확인).
+- `fire()` 순서: 캐노피 → airframe(`airDamage`) → 기존 지상 판정. 공중 유닛은 `occluders()`(벽/엄폐물)과 별개로 처리된다.
+- 화면비: 상공 기믹은 웨이브별 `look.y`(2.6~2.7)로 카메라를 살짝 올려 16:9(58°)·9:16(82°) 모두 화면 안에 들어온다. 헤드리스 실측 ndc: 16:9 헬기 y 0.48~0.62, 낙하산 y 0.24~0.33 / 9:16 헬기 y 0.36, 낙하산 y 0.14~0.20 — 전부 `|x|,|y| < 1`.
+
+### 3-6. 협업 시 주의
+- 웨이브 구역은 **카메라 정지점과 3 m 이상 떨어뜨린다**. Stage 2는 `hold` 간격을 14~18 m로 벌려 두었다(전 웨이브 가림막이 다음 정지점에 겹치면 사격이 가림막에 막히고 `!` 위치도 어긋난다 — v8에서 실제로 겪은 문제).
+- `WAVES2`의 공중 유닛은 멤버에 `air: "heli" | "para"`를 반드시 넣는다(`role: "para"`만으로는 지상병이 된다).
+- 스크린샷: `preview/stage2-dmz.png` · `stage2-paras.png` · `stage2-jsa.png` · `stage2-jsa-portrait.png`.
+
+### 3-7. v8 검증 (headless Chromium + SwiftShader)
+| 시나리오 | 결과 |
+|---|---|
+| 1280×720 Stage 2 완주 | 오류 0, 콘솔/페이지 에러 0, `__railErrs` 0, `__frameErr` null |
+| 390×844 Stage 2 완주 | 오류 0, 22개 체크 전부 통과, `작전 성공 · JSA 확보` |
+| 인트로 | `phase=intro` 3.8초, 무전 2줄, 이후 `move` → `fight` |
+| 헬기 | 16:9 ndc y 0.55 / 9:16 0.36 (뷰 안), 실탄 9발로 격추(`__heliDown` 1) |
+| `!` 예고 | 초록/주황/빨강 + urgent 상태 확인(`__railDbg.threat`) |
+| 헤드샷 | 지상병 `head:true, dmg:2` / 보스 `dmg:3` (터렛 4발에 격파) |
+| 낙하산 | 캐노피 격발 → `__chuteCuts` 1, 착지 후 `__paraLanded` 1 이상, 엄폐 이동 |
+| 보스 | `__bossDown` 1, 결과 카드 `작전 성공 · JSA 확보` |
+| 지오메트리 | `__stage2.landCovers` 8 · `walkBlockers` 35 |
+
+> 헤드리스 SwiftShader는 4~6 fps라 시간 기반 검증(낙하산 착지·웨이브 전환)은 `window.__railSpeed`(시간 배속)로 돌려야 한다. 실기기 60 fps 기준 낙하산 착지는 약 6초.
+
+## 3-1. 이전 라운드 (v7) — 보이는 만큼만 맞는다 · 적 사격 모션 · 아군 걷기 · 캐릭터 디테일 · 태극기
 
 사용자 제보: *"렌더링 시점이 제각각이라 적이 숨어있는 벽이 나중에 갑자기 생겨남"*, *"적이 가만히 서있는 것 같음, 총쏘는 모션"*, *"숨어있는데 다 보이고, 쏘면 명중으로 인정 안 됨"*, *"컴퓨터로 R 누르면 재장전"*, *"아군이 미끄러져감"*, *"캐릭터 디테일"*, *"태극기가 가짜"*.
 
@@ -177,8 +237,10 @@
 1. **음수 점수 표기** — `drawHud()`의 `score = (neg ? "-" : "") + String(scv).padStart(neg ? 6 : 7, "0")`. `FONT` 맵에는 `-` 글리프가 없어(숫자·A~Z만) 마이너스가 그려지지 않고, 음수일 때 자리수도 6자리로 줄어 숫자가 밀린다. 사용자는 `000-250` 같은 표기를 봤다고 제보. → `FONT`에 `-` 추가 + 음수/양수 자리수 통일(7자리) + 결과 카드 점수 포맷도 함께 확인.
 2. **카운트다운에 `0.7` 같은 소수 문자열** — 사용자 제보. `drawHud()`의 `time`은 `Math.ceil(clock)`이라 정수여야 하는데 소수가 보임. `clock`을 반올림 없이 blit하는 다른 경로나 결과 카드/점수 팝업에서 소수가 새는지 확인(검증 전).
 3. **보스 메시가 결과 화면 뒤에 남음** — `#railResult`의 배경이 `rgba(4,8,16,.72)` 반투명이라 결과 카드 뒤로 보스/월드가 비친다. 결과 표시 전에 씬 정리 또는 오버레이 불투명도 상향.
-4. **스테이지 1-2 이후 없음** — 지금은 1-1 한 판 + 보스. 다음 스테이지는 각자 `PATH_PTS` + `WAVE_DEFS` 묶음으로 추가.
-5. **수류탄 없음**, 랭킹/기록 저장 없음(`localStorage` 새로 구현), 입대 튜토리얼·서울→DMZ→개성→평양 스토리 없음.
+4. **Stage 3(개성·평양) 없음** — `STAGES`에 `path`/`waves`/`boss`/`dress` 묶음을 하나 더 넣고 `setStage(3)`만 연결하면 된다. `dressStage3`는 `dressBattlefield`의 분기에 추가.
+5. **수류탄 없음**, 랭킹/기록 저장 없음(`localStorage` 새로 구현), 입대 튜토리얼 없음.
+6. **보스 게이지 위치** — 세로 화면에서 TIME과 겹치지 않게 `m + 34·sc`에 그린다. HUD를 더 얹으면 이 값을 조정할 것.
+7. **Stage 2 인트로 중 사격** — 인트로 3.8초 동안에도 `pointerdown` 사격은 열려 있다(탄은 소모). 필요하면 `phase === "intro"`에서 `fire()`를 막는다.
 
 ## 8. 검증하는 법
 
@@ -212,6 +274,20 @@
    가려진 병사의 가슴을 쏘면 `miss`+`blocked`, 노출된 병사를 쏘면 `foe`+hp 감소.
 7. **모델 확인**: `__mk.soldier(role)`·`__mk.ally()`·`__mk.rifle()`로 새 모델을 만들어 씬에 붙이면 플레이 없이 외형을 볼 수 있다(역할: weak/tough/throw/boss/hostage).
 8. **가림막 팝인 없음**: `__railCtx.scene.getObjectByName("covers")`의 자식 수가 시작부터 끝까지 그대로여야 한다(22개: 4웨이브 + 보스 3).
+
+Stage 2 확인용 (v8):
+   ```js
+   RAIL.stage                     // 1 | 2
+   RAIL.air()                     // [{kind:'heli'|'para'|'apc', hp, y, ndc:[x,y], inView, chute, aim}]
+   __railDbg.air                  // 같은 값 (매 프레임)
+   __railDbg.threat               // "weak:#3ee06a:-,heli:#ff2a1a:U" (역할:색:urgent)
+   __railDbg.stage / stageLabel   // 2 / "STAGE 2-1"
+   __chuteCuts / __paraLanded / __heliDown / __bossDown
+   __lastDmg                      // {role, head, dmg} (지상·공중 공통)
+   RAIL.killWave()                // 현재 웨이브 전멸(테스트용)
+   RAIL.shootAt(x, y)             // 화면 좌표로 한 발(테스트용, fire() 그대로)
+   ```
+8. **Stage 2 인트로 스킵**: `window.__railPhase === "intro"`에서 `__railSpeed`는 인트로에 영향이 없다(실시간 기준). 바로 전투를 보려면 인트로가 끝날 때까지 기다린다.
 
 디버그 훅: `__railDbg`(phase/waveI/u/cam/posts/alive/exposed/states/staged/cover/ally/falls/grunts), `__aimSpot`, `__pistol`, `__pistolAim`, `__pistolBody`, `__gunAim`, `__aimTarget`, `__aimN`, `__posts`, `__mk`(모델 팩토리), `__lastShot`, `__lastBlocked`, `__railSpeed`(시간 배속), `__texSizes`.
 

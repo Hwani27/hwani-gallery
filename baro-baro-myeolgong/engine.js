@@ -64,7 +64,11 @@
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
   if (T.sRGBEncoding) renderer.outputEncoding = T.sRGBEncoding;
   renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = T.PCFShadowMap;
+  renderer.shadowMap.type = T.PCFSoftShadowMap;
+  if (T.ACESFilmicToneMapping !== undefined) {
+    renderer.toneMapping = T.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.12;
+  }
   renderer.setClearColor(0x8ec7ee, 1);
 
   const scene = new T.Scene();
@@ -192,13 +196,13 @@
     try { window.GunSFX && window.GunSFX.unlock(); } catch (e) {}
   }
 
-  function play() {
+  function play(stageId) {
     unlock();
     if (titleEl) titleEl.classList.remove("show");
     document.documentElement.classList.add("mg-playing");
     state.mode = "play";
     let ok = false;
-    try { ok = !!(window.RAIL && window.RAIL.begin(ctx)); } catch (err) { window.__beginErr = String(err && err.stack || err); }
+    try { ok = !!(window.RAIL && window.RAIL.begin(ctx, stageId || 1)); } catch (err) { window.__beginErr = String(err && err.stack || err); }
     if (!ok) {
       state.mode = "title";
       if (titleEl) titleEl.classList.add("show");
@@ -218,7 +222,8 @@
     get state() { return state.mode; },
     ctx: ctx,
     play: play,
-    playAgain: play,
+    playStage: play,
+    playAgain: function () { play(window.RAIL && window.RAIL.stage ? window.RAIL.stage : 1); },
     toTitle: toTitle
   };
 
@@ -226,7 +231,15 @@
     startBtn.addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();
-      play();
+      play(1);
+    });
+  }
+  const start2 = document.getElementById("mgStart2");
+  if (start2) {
+    start2.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      play(2);
     });
   }
 

@@ -121,9 +121,30 @@
       #railResult .btns button{flex:1 1 130px;min-height:52px;border-radius:12px;border:2px solid #6d7a52;background:#222b1c;color:#eef1e6;font:900 16px/1 Pretendard,system-ui,sans-serif;letter-spacing:.02em;cursor:pointer;touch-action:manipulation}
       #railResult .btns button.primary{background:#3d4a22;border-color:#d8c98a;color:#fff}
       #railResult .btns button:active{transform:translateY(1px)}
-      .railThreat{position:fixed;z-index:39;pointer-events:none;transform:translate(-50%,-50%);width:20px;height:20px;border-radius:50%;border:2px solid #ff6a3c;background:rgba(92,12,4,.85);box-shadow:0 0 9px rgba(255,90,50,.55);color:#fff;font:900 13px/16px ui-monospace,monospace;text-align:center;opacity:.95}
-      .railThreat.urgent{border-color:#ff2a1a;background:rgba(150,10,0,.8);color:#fff;box-shadow:0 0 16px rgba(255,40,20,.95);animation:railPulse .42s steps(2,end) infinite}
+      .railThreat{position:fixed;z-index:39;pointer-events:none;transform:translate(-50%,-50%);width:26px;height:26px;border-radius:50%;opacity:.97}
+      .railThreat .rtArc{position:absolute;left:-7px;top:-7px;width:40px;height:40px;border-radius:50%;
+        background:conic-gradient(var(--rtc) calc(var(--rtp) * 1%),rgba(8,10,8,.55) 0);
+        box-shadow:0 0 10px rgba(0,0,0,.45)}
+      .railThreat .rtDot{position:absolute;inset:0;border-radius:50%;display:grid;place-items:center;
+        background:radial-gradient(circle at 50% 38%,rgba(48,14,8,.98),rgba(10,6,4,.98));
+        border:2px solid var(--rtc);color:#fff;font:900 15px/1 ui-monospace,monospace;
+        box-shadow:0 0 9px var(--rtc),inset 0 0 6px rgba(0,0,0,.7)}
+      .railThreat.urgent .rtDot{border-color:#ff2a1a;color:#fff;animation:railPulse .42s steps(2,end) infinite}
       @keyframes railPulse{0%{transform:translate(-50%,-50%) scale(1)}50%{transform:translate(-50%,-50%) scale(1.22)}100%{transform:translate(-50%,-50%) scale(1)}}
+      #railRadio{position:fixed;left:50%;bottom:max(18px,env(safe-area-inset-bottom));transform:translateX(-50%) translateY(16px);z-index:46;
+        width:min(680px,calc(100% - 28px));pointer-events:none;opacity:0;transition:opacity .22s ease,transform .22s ease;
+        border:2px solid rgba(160,206,120,.55);border-radius:12px;padding:11px 14px 12px;
+        background:linear-gradient(180deg,rgba(10,20,12,.9),rgba(6,12,8,.94));
+        box-shadow:0 10px 30px rgba(0,0,0,.55),inset 0 0 22px rgba(80,190,90,.12);
+        font-family:Pretendard,system-ui,"Malgun Gothic",sans-serif}
+      #railRadio.show{opacity:1;transform:translateX(-50%) translateY(0)}
+      #railRadio .rdTop{display:flex;align-items:center;gap:8px;margin:0 0 6px;
+        font:900 10px/1 ui-monospace,monospace;letter-spacing:.24em;color:#8fe07a}
+      #railRadio .rdTop i{width:7px;height:7px;border-radius:50%;background:#5ce04e;box-shadow:0 0 8px #5ce04e;animation:railBlip 1.1s steps(2,end) infinite}
+      @keyframes railBlip{0%{opacity:.25}50%{opacity:1}100%{opacity:.25}}
+      #railRadio p{margin:0;font-size:clamp(13px,3.4vw,15px);line-height:1.42;color:#eef6e2;text-shadow:0 1px 0 rgba(0,0,0,.7)}
+      #railRadio .rdBar{margin-top:8px;height:3px;background:rgba(120,180,100,.22);border-radius:2px;overflow:hidden}
+      #railRadio .rdBar b{display:block;height:100%;width:0;background:linear-gradient(90deg,#7ce05a,#d8e86a)}
       .mgPop{position:fixed;z-index:42;pointer-events:none;transform:translate(-50%,-50%);font:900 20px/1 ui-monospace,monospace;color:#ffe14a;text-shadow:0 2px 0 #201a00,0 0 8px rgba(255,225,74,.5);animation:mgPopUp .8s ease-out forwards}
       .mgPop.bad{color:#ff7a66;text-shadow:0 2px 0 #2a0000,0 0 8px rgba(255,60,40,.5)}
       @keyframes mgPopUp{0%{opacity:0;transform:translate(-50%,-50%) scale(.7)}18%{opacity:1;transform:translate(-50%,-58%) scale(1.06)}100%{opacity:0;transform:translate(-50%,-118%) scale(1)}}
@@ -245,8 +266,27 @@
     const tw = textW(time, sc * 2);
     blit(g, "TIME", (w - textW("TIME", sc)) / 2, m, sc, "#ffe14a", "#2a2204");
     blit(g, time, (w - tw) / 2, m + 10 * sc, sc * 2, "#ffe14a", "#1a1402");
-    const stage = "STAGE 1-1";
+    const stage = (STAGE && STAGE.label) || "STAGE 1-1";
     blit(g, stage, w - m - textW(stage, sc), m, sc, "#f7f7f7", "#111");
+    const zone = (wave && wave.def && wave.def.zone) || (phase === "boss" ? "JSA" : "");
+    if (zone) blit(g, zone, w - m - textW(zone, sc * 0.8), m + 9 * sc, sc * 0.8, "#d6e8b4", "#141a10");
+    /* armoured boss gauge, straight under the clock */
+    if (phase === "boss" && bossPost && bossPost.hpMax) {
+      const k = Math.max(0, Math.min(1, (bossPost.e.hp || 0) / bossPost.hpMax));
+      const bw = Math.min(w * 0.54, 340), bh = 15 * sc;
+      const bx = (w - bw) / 2, by = m + 34 * sc;
+      g.fillStyle = "rgba(6,10,8,.78)";
+      g.fillRect(bx - 3 * sc, by - 3 * sc, bw + 6 * sc, bh + 6 * sc);
+      g.fillStyle = "#2a0f0c";
+      g.fillRect(bx, by, bw, bh);
+      g.fillStyle = k > 0.5 ? "#e8432c" : k > 0.22 ? "#ff8a2a" : "#ffd34a";
+      g.fillRect(bx, by, bw * k, bh);
+      g.fillStyle = "rgba(255,255,255,.22)";
+      g.fillRect(bx, by, bw * k, 3 * sc);
+      blit(g, "BOSS", bx, by + bh + 5 * sc, sc * 0.8, "#ffb0a0", "#2a0c0c");
+      const pct = Math.round(k * 100) + "%";
+      blit(g, pct, bx + bw - textW(pct, sc * 0.8), by + bh + 5 * sc, sc * 0.8, "#ffd6c8", "#2a0c0c");
+    }
     blit(g, "HP " + hp, m, m + 20 * sc, sc, "#ff8a7a", "#2a0c0c");
     blit(g, "X" + lives, m + textW("HP 100 ", sc), m + 20 * sc, sc, "#fff", "#111");
     const by = h - m - 12 * sc;
@@ -2262,19 +2302,19 @@
      whole course is rebuilt from scratch on 작전 개시 / 다시 하기.
      ============================================================ */
 
-  const ROLE = { weak: 1, throw: 1, tough: 1, hostage: 1, boss: 1 };
+  const ROLE = { weak: 1, throw: 1, tough: 1, hostage: 1, boss: 1, para: 1 };
   function roleOf(kind) { return ROLE[kind] ? kind : "weak"; }
-  function roleHp(role) { return role === "tough" ? 3 : role === "throw" ? 2 : role === "boss" ? 8 : 1; }
-  function roleAim(role) { return role === "weak" ? 1.95 : role === "throw" ? 2.25 : role === "tough" ? 2.65 : role === "boss" ? 1.85 : 99; }
+  function roleHp(role) { return role === "tough" ? 3 : role === "throw" || role === "para" ? 2 : role === "boss" ? 8 : 1; }
+  function roleAim(role) { return role === "weak" ? 1.95 : role === "throw" ? 2.25 : role === "para" ? 2.35 : role === "tough" ? 2.65 : role === "boss" ? 1.85 : 99; }
   function roleScale(role) { return role === "tough" || role === "boss" ? 1.5 : 1.28; }
 
-  const CLOCK0 = 200;
+  let CLOCK0 = 200;
   const CAM_Y = 1.68;
   const GATE_Z = 57.6;
   const YARD_MID = -39;
 
   /* camera rail: platform -> corner -> alley -> corner -> courtyard -> gate */
-  const PATH_PTS = [
+  const PATH1 = [
     [0, -10], [0, -4], [0, 2], [0, 8], [0, 14], [0, 17.4],
     [-1.4, 20.4], [-4.8, 23.0], [-10.2, 24.0], [-17, 24.0], [-24, 24.1],
     [-29.2, 25.3], [-33.4, 27.4], [-37.2, 30.8], [-39, 35.0], [-39, 42], [-39, 47]
@@ -2282,7 +2322,7 @@
 
   /* wave layout. lat = metres to the side, dep = metres down the zone's
      own forward axis, elev = platform height for elevated posts. */
-  const WAVE_DEFS = [
+  const WAVES1 = [
     {
       id: 1, name: "plaza", hold: [0, 5.6], yaw: 0, look: [0, 1.45, 16.5], time: 26,
       picks: [[-5.0, 7.2, "ammo"], [5.2, 8.0, "supply"]],
@@ -2332,10 +2372,120 @@
     }
   ];
 
-  const BOSS_DEF = {
+  const BOSS1 = {
     hold: [YARD_MID, 45.5], look: [YARD_MID, 1.7, 55.0],
     spots: [[-4.2, 10.4], [0, 9.6], [4.2, 10.4]]
   };
+
+  /* ============================================================
+     STAGE 2 — DMZ · 판문점(JSA)
+     The rail runs north up an unpaved tactical road between the double
+     barbed-wire fences of the DMZ, through the checkpoint gate, and into
+     the Panmunjom joint security area: the blue conference halls, the MDL
+     concrete line, Panmungak and Freedom House. Air gimmicks (a circling
+     helicopter with a door gunner, paratroopers under canopy) carry the
+     upper half of the frame; the boss is an armoured vehicle on the plaza.
+     ============================================================ */
+  const PATH2 = [
+    [0, -12], [0, -6], [0, 0], [0, 6], [0, 12], [0, 18], [0, 22],
+    [-2, 27], [-6, 31], [-10.5, 35], [-15, 39], [-17.5, 44], [-18, 49], [-18, 54]
+  ];
+
+  const WAVES2 = [
+    {
+      id: 1, zone: "DMZ", hold: [0, 0], yaw: 0, look: [0, 1.7, 13.5], time: 26,
+      radio: "남방한계선 철책 돌파! 전방 도로에 적 보병, 교전 개시!",
+      picks: [[-4.2, 6.6, "ammo"], [4.6, 7.4, "supply"]],
+      members: [
+        { role: "weak", lat: -4.3, dep: 9.4, cover: "sandbag" },
+        { role: "tough", lat: -0.3, dep: 12.6, cover: "barrier" },
+        { role: "weak", lat: 4.4, dep: 10.2, cover: "crate" },
+        { role: "throw", lat: 2.4, dep: 13.8, cover: "bunker" },
+        { air: "heli", lat: 1.2, dep: 24.0, y: 9.0, orbit: 6.0 }
+      ]
+    },
+    {
+      id: 2, zone: "DMZ", hold: [0, 22], yaw: 0, look: [0.4, 2.7, 35], time: 28,
+      radio: "적 공수부대가 상공에서 강하 중이다! 낙하산과 사수를 노려라!",
+      picks: [[-2.2, 6.2, "ammo"], [2.6, 7.0, "life"]],
+      members: [
+        { role: "weak", lat: -5.7, dep: 7.8, cover: "sandbag" },
+        { role: "tough", lat: 5.3, dep: 8.6, cover: "crate" },
+        { air: "para", role: "para", lat: -4.4, dep: 15.0, y: 6.6, land: [-6.4, 11.4] },
+        { air: "para", role: "para", lat: 1.2, dep: 16.4, y: 7.4, land: [0.4, 12.6] },
+        { air: "para", role: "para", lat: 5.6, dep: 14.8, y: 7.0, land: [5.2, 11.8] },
+        { air: "para", role: "para", lat: -1.2, dep: 18.6, y: 7.8, land: [-2.4, 13.6] }
+      ]
+    },
+    {
+      id: 3, zone: "JSA", hold: [-15, 39], yaw: -0.32, look: [-18, 1.9, 55], time: 28,
+      radio: "판문점 광장 진입! 적 헬기와 공수부대가 상공에 포착됐다! 위쪽 경계!",
+      picks: [[-3.0, 5.6, "ammo"], [3.2, 6.4, "ammo"]],
+      members: [
+        { role: "weak", lat: -4.6, dep: 7.2, elev: 1.05, cover: "truckbed" },
+        { role: "tough", lat: 3.6, dep: 9.2, cover: "barrier" },
+        { role: "weak", lat: 0.2, dep: 6.6, cover: "sandbag" },
+        { role: "weak", lat: -6.2, dep: 10.6, cover: "crate" },
+        { role: "throw", run: true, lat: -6.4, dep: 10.8, route: [[-6.4, 10.8], [6.2, 12.0]], spd: 2.5 }
+      ]
+    },
+    {
+      id: 4, zone: "JSA", hold: [-18, 52], yaw: 0, look: [-18, 2.2, 66], time: 30,
+      radio: "JSA 중앙이다! 중장갑 차량이 접근한다, 엄폐물 뒤로!",
+      picks: [[-4.4, 5.8, "supply"], [4.6, 6.2, "life"]],
+      members: [
+        { role: "tough", lat: -6.4, dep: 7.4, cover: "heavy" },
+        { role: "weak", lat: -2.6, dep: 9.6, cover: "barrier" },
+        { role: "throw", lat: 2.8, dep: 8.8, cover: "crate" },
+        { role: "weak", lat: 6.2, dep: 7.6, cover: "sandbag" },
+        { air: "para", role: "para", lat: -3.0, dep: 14.0, y: 6.4, land: [-6.0, 12.4] },
+        { air: "para", role: "para", lat: 4.0, dep: 14.6, y: 6.8, land: [4.4, 12.8] },
+        { air: "heli", lat: -2.2, dep: 20.0, y: 9.2, orbit: 5.4 }
+      ]
+    }
+  ];
+
+  const BOSS2 = {
+    hold: [-18, 52], look: [-18, 2.4, 64],
+    spots: [[-5.6, 12.6], [-0.6, 11.8], [4.6, 12.4]]
+  };
+
+  const STAGES = {
+    1: {
+      id: 1, label: "STAGE 1-1", clock: 200, path: PATH1, waves: WAVES1, boss: BOSS1,
+      dress: "city", bossKind: "man", intro: null
+    },
+    2: {
+      id: 2, label: "STAGE 2-1", clock: 240, path: PATH2, waves: WAVES2, boss: BOSS2,
+      dress: "dmz", bossKind: "apc",
+      introDur: 3.8,
+      introCam: [[6.8, 5.4, -13.4, 0.5, 8.6, 26.0], [0, 1.68, -10.0, 0, 1.55, 3.5]],
+      introLines: [
+        { t: 0.45, text: "여기는 본부. 서울 도심 탈환에 성공했다. 수고했다." },
+        { t: 2.05, text: "지금 즉시 비무장지대(DMZ) 남방한계선을 돌파해 판문점(JSA)을 확보하라!" }
+      ]
+    }
+  };
+  let STAGE = STAGES[1];
+  let stageId = 1;
+  let PATH_PTS = STAGE.path;
+  let WAVE_DEFS = STAGE.waves;
+  let BOSS_DEF = STAGE.boss;
+
+  function setStage(n) {
+    stageId = n === 2 ? 2 : 1;
+    STAGE = STAGES[stageId];
+    PATH_PTS = STAGE.path;
+    WAVE_DEFS = STAGE.waves;
+    BOSS_DEF = STAGE.boss;
+    CLOCK0 = STAGE.clock;
+    curve = null;
+    waves.length = 0;
+    bossPost = null;
+    bossStage = null;
+    pathU = 0;
+    bossU = 0;
+  }
 
   /* ---------------- rail helpers ---------------- */
   let curve = null;
@@ -2597,7 +2747,9 @@
   function roleTag(el) {
     const d = document.createElement("div");
     d.className = "railThreat";
-    d.textContent = "!";
+    d.innerHTML = "<i class='rtArc'></i><b class='rtDot'>!</b>";
+    d.style.setProperty("--rtp", "0");
+    d.style.setProperty("--rtc", "#3ee06a");
     document.body.appendChild(d);
     el._tag = d;
     return d;
@@ -2767,7 +2919,13 @@
     return [f1, f2];
   }
 
+  /* the course dressing belongs to the stage: the city of stage 1, or the
+     DMZ wire and the Panmunjom plaza of stage 2 */
   function dressBattlefield(ctx) {
+    return STAGE && STAGE.dress === "dmz" ? dressStage2(ctx) : dressStage1(ctx);
+  }
+
+  function dressStage1(ctx) {
     makeSol();
     const S = new T.Group();
     S.name = "battlefield";
@@ -3212,6 +3370,12 @@
     coverGroups = [];
     coverTarget = null;
     wallList = [];
+    landCovers = [];
+    walkBlockers = [];
+    if (radioEl) { radioEl.classList.remove("show"); }
+    radioHideAt = 0;
+    introT = 0;
+    introLineI = 0;
     waves.forEach((w) => { w.staged = null; w.covers = null; });
   }
 
@@ -3296,7 +3460,7 @@
     if (ctx.pl) ctx.pl.inv = 99999;
   }
 
-  function begin(ctx) {
+  function begin(ctx, stageIdIn) {
     if (!ctx || !ctx.scene || !ctx.camera) return false;
     // pick the GPU's anisotropic limit before any texture is painted
     try {
@@ -3307,6 +3471,7 @@
     if (!booted) boot(ctx);
     SCENE = ctx.scene;
     clearStage(ctx);
+    setStage(stageIdIn || 1);
     resetNumbers(ctx);
     buildWaves();
     coverRoot = new T.Group();
@@ -3325,13 +3490,28 @@
     try { stageWave(waves[0]); } catch (err) { window.__stageErr = String(err && err.stack || err); }
     const cam = ctx.camera;
     cam.near = 0.06; cam.fov = viewFov(); cam.far = 320;
-    const p0 = pathAt(0);
-    cam.position.set(p0.x, CAM_Y, p0.z);
-    const a0 = pathAt(7 / pathLen);
-    cam.lookAt(a0.x, 1.45, a0.z);
-    cam.updateProjectionMatrix();
-    lookSmooth.set(a0.x, 1.45, a0.z);
-    phase = "move";
+    introT = 0;
+    introT0 = performance.now();
+    introLineI = 0;
+    if (STAGE.introCam) {
+      /* a short cinematic: the camera drops out of the sky over the wire and
+         settles onto the rail while command opens the stage on the radio */
+      const a = STAGE.introCam[0];
+      cam.position.set(a[0], a[1], a[2]);
+      cam.lookAt(a[3], a[4], a[5]);
+      cam.updateProjectionMatrix();
+      lookSmooth.set(a[3], a[4], a[5]);
+      phase = "intro";
+      if (radioEl) radioEl.classList.remove("show");
+      radioHideAt = 0;
+    } else {
+      const p0 = pathAt(0);
+      cam.position.set(p0.x, CAM_Y, p0.z);
+      const a0 = pathAt(7 / pathLen);
+      cam.lookAt(a0.x, 1.45, a0.z);
+      lookSmooth.set(a0.x, 1.45, a0.z);
+      phase = "move";
+    }
     active = true;
     staged = true;
     t0 = performance.now();
@@ -3374,6 +3554,8 @@
      instead of popping into an empty street when the camera arrives. */
   function makePost(w, m, i) {
     const role = roleOf(m.role);
+    if (m.air === "heli") return makeHeliPost(w, m, i);
+    if (m.air === "para") return makeParaPost(w, m, i);
     const p = waveXY(w, m.lat || 0, m.dep || 8);
     const sc = roleScale(role);
     const post = {
@@ -3397,6 +3579,20 @@
       knock: 0, recoil: 0, armK: 0, shotT: 0, burstN: 0,
       hideFrac: 0.4, peekX: 0
     };
+    if (m.run && m.route) {
+      /* an assault trooper who runs the open ground between two waypoints:
+         he has no cover prop of his own, and every step is checked against
+         the walls and props so he never runs through a fence */
+      post.runner = { route: m.route.map(([la, de]) => waveXY(w, la, de)), i: 1 };
+      post.spd = m.spd || 2.5;
+      const r0 = waveXY(w, m.route[0][0], m.route[0][1]);
+      post.x = r0.x;
+      post.z = r0.z;
+      post.y = 0.3;
+      post.pathI = 0;
+      post.wait = 1.0 + Math.random() * 0.8;
+      post.state = "run";
+    }
     let sm = null;
     try { sm = makeSoldier(role); } catch (err) { window.__soldierErr = String(err && err.message || err); }
     if (sm && SCENE) {
@@ -3415,6 +3611,10 @@
     posts.push(post);
     if (role === "hostage") {
       post.expose = 1;
+    } else if (post.runner) {
+      post.expose = 1;
+      roleTag(post.e);
+      if (post.e._tag) post.e._tag.style.display = "none";
     } else {
       post.coverG = w && w.covers ? w.covers[i] : null;
       if (!post.coverG) {
@@ -3455,14 +3655,29 @@
     curLook = { x: w.look.x, y: w.look.y, z: w.look.z };
     pathU = w.u;
     w.staged.forEach((p, i) => {
+      if (!p) return;
       p.live = true;
-      p.state = p.role === "hostage" ? "civ" : "hidden";
+      if (p.air === "heli" || p.air === "apc") {
+        p.aim = (p.aimMax || 2.4) * (0.55 + Math.random() * 0.45);
+        p.burstN = 0;
+        p.state = p.air === "heli" ? "hover" : "hidden";
+        if (p.e._tag) p.e._tag.style.display = "none";
+        return;
+      }
+      if (p.air === "para") {
+        p.state = "drop";
+        p.aim = (p.aimMax || 2.4) * (0.7 + Math.random() * 0.5);
+        p.burstN = 0;
+        return;
+      }
+      p.state = p.role === "hostage" ? "civ" : (p.runner ? "run" : "hidden");
       p.stateT = 0.7 + i * 0.42 + Math.random() * 0.7 + i * 0.12;
-      p.expose = p.role === "hostage" ? 1 : 0;
+      p.expose = p.role === "hostage" || p.runner ? 1 : 0;
       p.aim = p.aimMax;
       p.burstN = 0;
       p.recoil = 0;
     });
+    if (w.def && w.def.radio) radio(w.def.radio, 4600);
     window.__railPhase = "fight";
   }
 
@@ -3470,6 +3685,7 @@
      yard he starts from */
   function stageBoss() {
     if (bossStage) return bossStage;
+    if (STAGE.bossKind === "apc") return stageBoss2();
     const w = { yaw: 0, hold: bossHold, covers: bossCovers };
     const spot = BOSS_DEF.spots[1];
     const post = makePost(w, { role: "boss", lat: spot[0], dep: spot[1], cover: "heavy" }, 1);
@@ -3500,9 +3716,12 @@
       post.live = true;
       post.state = "hidden";
       post.stateT = 1.2;
-      post.expose = 0;
+      post.expose = post.air === "apc" ? 1 : 0;
       post.aim = post.aimMax;
+      post.burstN = 0;
+      post.moveT = post.air === "apc" ? 3.2 : undefined;
     }
+    if (STAGE.bossKind === "apc") radio("중장갑 차량 확인! 호위 병력 분리, 측면을 노려라!", 4800);
     window.__railPhase = "boss";
   }
 
@@ -3594,20 +3813,29 @@
     const s3 = lives >= 3;
     const stars = "★".repeat([s1, s2, s3].filter(Boolean).length) + "☆".repeat(3 - [s1, s2, s3].filter(Boolean).length);
     const ko = (document.documentElement.lang || "").startsWith("ko");
+    const nextB = cleared && stageId === 1
+      ? "<button class=primary data-act=next>" + (ko ? "다음 작전 · DMZ·판문점" : "NEXT · DMZ & PANMUNJOM") + "</button>"
+      : "";
+    const head = cleared
+      ? (stageId === 2 ? (ko ? "작전 성공 · JSA 확보" : "MISSION CLEAR · JSA SECURED") : (ko ? "작전 성공" : "MISSION CLEAR"))
+      : (ko ? "작전 실패" : "MISSION FAILED");
     const box = document.createElement("div");
     box.id = "railResult";
     box.className = "show";
-    box.innerHTML = "<div class=card><h2>" + (cleared ? (ko ? "작전 성공" : "MISSION CLEAR") : (ko ? "작전 실패" : "MISSION FAILED")) +
-      "</h2><div class=stars>" + stars + "</div><p>" + (ko ? "점수" : "SCORE") + " " + (((ctx.G && ctx.G.score) || 0)) +
+    box.innerHTML = "<div class=card><h2>" + head +
+      "</h2><div class=stars>" + stars + "</div><p>" + (ko ? "스테이지" : "STAGE") + " " + (STAGE.label || "1-1") +
+      "</p><p>" + (ko ? "점수" : "SCORE") + " " + (((ctx.G && ctx.G.score) || 0)) +
       "</p><p>" + (ko ? "명중률" : "ACCURACY") + " " + Math.round(acc * 100) + "%</p><p>" + (ko ? "보급" : "SUPPLY") + " " + got + "/" + tot +
-      "</p><p>COMBO " + bestCombo + "</p><div class=btns><button class=primary data-act=again>" + (ko ? "다시 하기" : "PLAY AGAIN") +
+      "</p><p>COMBO " + bestCombo + "</p><div class=btns>" + nextB + "<button" + (nextB ? "" : " class=primary") + " data-act=again>" + (ko ? "다시 하기" : "PLAY AGAIN") +
       "</button><button data-act=title>" + (ko ? "타이틀" : "TITLE") + "</button></div></div>";
     box.addEventListener("click", (e) => {
       const b = e.target && e.target.closest ? e.target.closest("button[data-act]") : null;
       if (!b) return;
       e.preventDefault();
       e.stopPropagation();
-      if (b.getAttribute("data-act") === "again") { try { window.MG && window.MG.playAgain(); } catch (err) {} }
+      const act = b.getAttribute("data-act");
+      if (act === "again") { try { window.MG && window.MG.playAgain(); } catch (err) {} }
+      else if (act === "next") { try { window.MG && window.MG.playStage(2); } catch (err) {} }
       else { try { window.MG && window.MG.toTitle(); } catch (err) {} }
     });
     document.body.appendChild(box);
@@ -3905,6 +4133,17 @@
       return;
     }
     window.__lastShot = { sort: hit.sort, role: (hit.extra && hit.extra.role) || null };
+    /* a canopy above his head takes the round first: the chute tears and he
+       drops; the airframe and the armour take their own damage table */
+    if (hit.extra && hit.extra.air === "para" && hit.extra.chuteOn && hit.at.y > hit.extra.y + 1.55) {
+      window.__lastShot = { sort: "canopy", role: "para" };
+      cutChute(ctx, hit.extra);
+      return;
+    }
+    if (hit.extra && (hit.extra.air === "heli" || hit.extra.air === "apc")) {
+      airDamage(ctx, hit.extra, hit.at, hit.box);
+      return;
+    }
     // the shot just landed: snap the muzzle onto that exact point for a beat
     aimSnapPt.copy(hit.at);
     aimSnapAt = now;
@@ -3951,7 +4190,10 @@
     burst(ctx.scene, hit.at.x, hit.at.y, hit.at.z, (p.e.hp || 1) <= 1);
     p.hitFlash = 0.09;
     p.knock = 0.16;
-    p.e.hp = (p.e.hp || 1) - 1;
+    /* head shot pays twice, and three times on the boss */
+    const dmg = head ? (p.role === "boss" ? 3 : 2) : 1;
+    window.__lastDmg = { role: p.role, head: head, dmg: dmg };
+    p.e.hp = (p.e.hp || 1) - dmg;
     if (p.e.hp > 0) {
       // suppressed: he drops back behind cover instead of standing there
       p.state = "duck";
@@ -4040,7 +4282,11 @@
   }
 
   function stepPost(p, ctx, dt) {
-    if (!p.mesh || p.live === false || p.e.alive === false) return;
+    if (!p.mesh) return;
+    if (p.air === "heli") { stepHeli(p, ctx, dt); return; }
+    if (p.air === "apc") { if (p.e.alive === false) { stepDyingVehicle(p, ctx, dt); return; } stepBoss2(p, ctx, dt); return; }
+    if (p.live === false || p.e.alive === false) return;
+    if (p.air === "para") { stepPara(p, ctx, dt); return; }
     const cam = ctx.camera.position;
 
     if (p.role === "hostage") {
@@ -4052,6 +4298,26 @@
 
     p.breath += dt * 1.7;
     p.bob += dt * 2.4;
+
+    /* a trooper running the open ground: waypoint to waypoint, stopped at
+       walls, firing from a stand between dashes */
+    if (p.runner) { stepRunner(p, ctx, dt); return; }
+
+    /* a paratrooper who survived the drop walks to his sandbags and then
+       falls into the same cover machine as everyone else */
+    if (p.moveTo) {
+      const arrived = walkMove(p, dt);
+      if (!arrived) {
+        p.expose = 1;
+        posePost(p, cam, dt);
+        walkPose(p, dt);
+        placeTag(p, ctx, 1, false);
+        return;
+      }
+      p.state = "peek";
+      p.stateT = 0.15;
+      p.expose = Math.min(p.expose, 0.3);
+    }
 
     // cover state machine: hidden -> peek -> fire (burst) -> duck -> hidden
     p.stateT -= dt;
@@ -4120,17 +4386,11 @@
       p.nextThrow -= dt;
       if (p.nextThrow <= 0) { p.nextThrow = 1.4; throwShot(ctx, p); }
     }
-    if (p.e._tag && p.e._tag.style.display !== "none") {
-      const v = new T.Vector3(p.mesh.position.x, p.visTop + 0.55, p.mesh.position.z);
-      v.project(ctx.camera);
-      p.e._tag.style.left = ((v.x * 0.5 + 0.5) * innerWidth) + "px";
-      p.e._tag.style.top = ((-v.y * 0.5 + 0.5) * innerHeight) + "px";
-      const urgent = p.state === "fire" && p.aim < Math.min(0.85, p.aimMax * 0.42);
-      if (urgent !== p.e._tagUrgent) {
-        p.e._tagUrgent = urgent;
-        p.e._tag.classList.toggle("urgent", urgent);
-      }
-    }
+    /* `!` over his head: green as he starts to come out, orange as the aim
+       closes, red and pulsing on the last beat, with a ring that runs down */
+    const aiming = p.state === "fire" || p.state === "peek";
+    const prog = p.state === "fire" ? Math.max(0, Math.min(1, 1 - p.aim / Math.max(0.001, p.aimMax))) : 0;
+    placeTag(p, ctx, prog, aiming);
   }
 
   /* an enemy round: muzzle flash at his barrel, a tracer back at the camera,
@@ -4261,7 +4521,27 @@
     let lookGoal = null;
     let arrived = false;
     if (!ended) {
-      if (phase === "move" || phase === "toBoss") {
+      if (phase === "intro") {
+        /* 3.8 s of camera intro with the radio open */
+        introT = (nowMs - introT0) / 1000;
+        const a = STAGE.introCam[0], b = STAGE.introCam[1];
+        const k = Math.min(1, introT / (STAGE.introDur || 3.6));
+        const e = k * k * (3 - 2 * k);
+        cam.position.set(a[0] + (b[0] - a[0]) * e, a[1] + (b[1] - a[1]) * e, a[2] + (b[2] - a[2]) * e);
+        lookGoal = {
+          x: a[3] + (b[3] - a[3]) * e,
+          y: a[4] + (b[4] - a[4]) * e,
+          z: a[5] + (b[5] - a[5]) * e
+        };
+        (STAGE.introLines || []).forEach((ln, li) => {
+          if (li >= introLineI && introT >= ln.t) { radio(ln.text, 4400); introLineI = li + 1; }
+        });
+        if (introT >= (STAGE.introDur || 3.6)) {
+          phase = "move";
+          pathU = 0;
+          window.__railPhase = "move";
+        }
+      } else if (phase === "move" || phase === "toBoss") {
         const goalU = phase === "toBoss" ? bossU : (waves[waveI] ? waves[waveI].u : bossU);
         pathU = Math.min(goalU, pathU + (7.4 * dt) / pathLen);
         const p = pathAt(pathU);
@@ -4307,7 +4587,7 @@
     }
     const sway = Math.sin(nowMs / 2400) * 0.0016;
     cam.position.x += sx;
-    cam.position.y = CAM_Y + sy + Math.sin(nowMs / 1700) * 0.006;
+    if (phase !== "intro") cam.position.y = CAM_Y + sy + Math.sin(nowMs / 1700) * 0.006;
     cam.lookAt(lookSmooth.x, lookSmooth.y + sway, lookSmooth.z);
     cam.near = 0.06;
     cam.fov = viewFov();
@@ -4329,7 +4609,8 @@
         return true;
       });
       const left = livingHostiles().length;
-      if (left === 0 || (waveT <= 0 && phase !== "boss")) endWave(ctx);
+      const falling = posts.some((p) => p.air === "heli" && p.e.alive === false && p.mesh && p.mesh.visible !== false);
+      if (!falling && (left === 0 || (waveT <= 0 && phase !== "boss"))) endWave(ctx);
     } else if (phase === "move" || phase === "toBoss") {
       stepAlly(ctx, dt);
     }
@@ -4416,6 +4697,7 @@
     recoil = Math.max(0, recoil - 0.08);
     if (reloadK > 0) reloadK = Math.max(0, reloadK - dt / 0.44);
     if (pistol && pistolBase) {
+      if (pistol.visible === (phase === "intro")) pistol.visible = phase !== "intro";
       const asp = innerWidth / Math.max(1, innerHeight);
       const tHalf = Math.tan((cam.fov * Math.PI) / 360) * Math.abs(pistolBase.z);
       const halfW = tHalf * asp;
@@ -4542,6 +4824,7 @@
       try { if (active && !ended && window.GunSFX && window.GunSFX.bgm) window.GunSFX.bgm(true, phase === "boss"); } catch (e) {}
     }
     if (combo > 0 && performance.now() / 1000 - (window.__comboAt || 0) > 2.2) combo = 0;
+    radioTick(nowMs);
     ensureHud((ctx.G && ctx.G.score) || 0);
     if (!window.__railIdle && t > 0.4) window.__railIdle = 1;
     window.__railPhase = phase;
@@ -4561,6 +4844,13 @@
         .map((p) => (p.fall ? p.fall.dir : "?") + "@" + p.mesh.rotation.x.toFixed(2) + "/" + p.mesh.rotation.z.toFixed(2))
         .join("|"),
       grunts: window.__grunts || 0, gruntsFatal: window.__gruntsFatal || 0,
+      stage: stageId, stageLabel: STAGE.label,
+      air: airReport(ctx),
+      radio: window.__radio ? String(window.__radio.text).slice(0, 30) : "",
+      chuteCuts: window.__chuteCuts || 0, landed: window.__paraLanded || 0,
+      heliDown: window.__heliDown || 0, bossDown: window.__bossDown || 0,
+      threat: posts.filter((p) => p.e && p.e._tag && p.e._tag.style.display !== "none")
+        .map((p) => (p.role || "?") + ":" + (p.e._tagCol || "?") + ":" + (p.e._tagUrgent ? "U" : "-")).join(","),
       texes: window.__texSizes ? Object.keys(window.__texSizes).length : 0,
       errs: (window.__railErrs || []).length
     };
@@ -4573,6 +4863,12 @@
       window.__aimSpot = { x: (v.x * 0.5 + 0.5) * innerWidth, y: (-v.y * 0.5 + 0.5) * innerHeight };
     } else window.__aimSpot = null;
     window.__pickupSpot = null;
+    window.__pickupPts = pickups.filter((p) => !p.taken && p.mesh).map((p) => {
+      const v = new T.Vector3();
+      p.mesh.getWorldPosition(v);
+      v.project(cam);
+      return { x: (v.x * 0.5 + 0.5) * innerWidth, y: (-v.y * 0.5 + 0.5) * innerHeight };
+    });
     let bestItem = 9999;
     pickups.forEach((item) => {
       if (item.taken || !item.mesh || item.mesh.visible === false) return;
@@ -4587,10 +4883,1604 @@
     });
   }
 
+  /* ============================================================
+     STAGE 2 RUNTIME — radio, threat rings, air units, JSA boss
+     ============================================================ */
+
+  let radioEl = null;
+  let radioHideAt = 0;
+  let radioDur = 4600;
+  let introT = 0;
+  let introT0 = 0;
+  let introLineI = 0;
+  let landCovers = [];
+  let walkBlockers = [];
+
+  /* one `!` marker: the ring drains as the aim closes and the colour walks
+     green -> orange -> red, the same for a man, a canopy or a helicopter */
+  function placeTag(p, ctx, prog, on) {
+    const d = p.e && p.e._tag;
+    if (!d) return;
+    if (!on) { if (d.style.display !== "none") d.style.display = "none"; return; }
+    const x = p.mesh ? p.mesh.position.x : p.x;
+    const z = p.mesh ? p.mesh.position.z : p.z;
+    const y = (p.visTop !== undefined ? p.visTop : p.y + 1.7) + 0.5;
+    tmpV.set(x, y, z);
+    tmpV.project(ctx.camera);
+    if (tmpV.z > 1) { d.style.display = "none"; return; }
+    d.style.display = "";
+    d.style.left = (tmpV.x * 0.5 + 0.5) * innerWidth + "px";
+    d.style.top = (-tmpV.y * 0.5 + 0.5) * innerHeight + "px";
+    const pr = Math.max(0, Math.min(1, prog || 0));
+    d.style.setProperty("--rtp", (pr * 100).toFixed(1));
+    const col = pr < 0.45 ? "#3ee06a" : pr < 0.78 ? "#ffb02e" : "#ff2a1a";
+    d.style.setProperty("--rtc", col);
+    const urgent = pr >= 0.78;
+    if (urgent !== p.e._tagUrgent) { p.e._tagUrgent = urgent; d.classList.toggle("urgent", urgent); }
+    p.e._tagCol = col;
+  }
+
+  function radioNode() {
+    if (radioEl) return radioEl;
+    radioEl = document.createElement("div");
+    radioEl.id = "railRadio";
+    radioEl.innerHTML = "<p class='rdTop'><i></i>무전 · COMMAND</p><p class='rdLine'></p><div class='rdBar'><b></b></div>";
+    document.body.appendChild(radioEl);
+    return radioEl;
+  }
+
+  function radio(text, ms) {
+    if (!text) return;
+    const el = radioNode();
+    const line = el.querySelector(".rdLine");
+    if (line) line.textContent = text;
+    radioEl.classList.add("show");
+    radioDur = ms || 4600;
+    radioHideAt = performance.now() + radioDur;
+    window.__radio = { text: text, at: Math.round(performance.now()), dur: radioDur };
+    window.__radioCount = (window.__radioCount || 0) + 1;
+  }
+
+  function radioTick(now) {
+    if (!radioEl || !radioHideAt) return;
+    const left = radioHideAt - now;
+    const bar = radioEl.querySelector(".rdBar b");
+    if (bar) bar.style.width = Math.max(0, Math.min(100, (left / radioDur) * 100)) + "%";
+    if (left <= 0) { radioEl.classList.remove("show"); radioHideAt = 0; }
+  }
+
+  /* ---------------- walking on the ground ---------------- */
+
+  function canWalk(x, z) {
+    for (let i = 0; i < walkBlockers.length; i++) {
+      const b = walkBlockers[i];
+      if (b.max.y < 0.75) continue;
+      if (x > b.min.x - 0.42 && x < b.max.x + 0.42 && z > b.min.z - 0.42 && z < b.max.z + 0.42) return false;
+    }
+    return true;
+  }
+
+  function walkMove(p, dt) {
+    const t = p.moveTo;
+    if (!t) { p.moving = false; return true; }
+    const dx = t.x - p.x, dz = t.z - p.z;
+    const d = Math.hypot(dx, dz);
+    if (d < 0.3) { p.moveTo = null; p.moving = false; return true; }
+    const sp = t.sp || p.spd || 3.2;
+    const step = Math.min(d, sp * dt);
+    let nx = p.x + (dx / d) * step, nz = p.z + (dz / d) * step;
+    if (!canWalk(nx, nz)) {
+      if (canWalk(nx, p.z)) nz = p.z;
+      else if (canWalk(p.x, nz)) nx = p.x;
+      else { nx = p.x; nz = p.z; }
+    }
+    const moved = Math.hypot(nx - p.x, nz - p.z);
+    p.x = nx;
+    p.z = nz;
+    p.walk = (p.walk || 0) + moved * 2.8;
+    p.moving = moved > 0.0004;
+    if (moved < sp * dt * 0.3) p.blockT = (p.blockT || 0) + dt; else p.blockT = 0;
+    if (p.blockT > 1.4) { p.moveTo = null; p.blockT = 0; }
+    return false;
+  }
+
+  function walkPose(p, dt) {
+    const u = p.mesh && p.mesh.userData;
+    if (!u) return;
+    const ph = p.walk || 0;
+    const sw = Math.sin(ph) * 0.5;
+    if (u.legL) u.legL.rotation.x = sw + 0.1;
+    if (u.legR) u.legR.rotation.x = -sw + 0.1;
+    if (u.shinL) u.shinL.rotation.x = Math.max(0, -Math.sin(ph - 0.6)) * 0.95;
+    if (u.shinR) u.shinR.rotation.x = Math.max(0, -Math.sin(ph + Math.PI - 0.6)) * 0.95;
+    if (p.body) {
+      p.body.position.y = Math.abs(Math.sin(ph)) * 0.045;
+      p.body.rotation.x = 0.06;
+    }
+  }
+
+  /* an assault trooper: waypoint to waypoint over open ground, stopping to
+     put a two-round burst at the player before he moves again */
+  function stepRunner(p, ctx, dt) {
+    const cam = ctx.camera.position;
+    if (p.moveTo) {
+      const arrived = walkMove(p, dt);
+      if (arrived) { p.wait = 1.1 + Math.random() * 0.9; p.aim = p.aimMax * 0.75; p.burstN = 0; }
+    } else {
+      p.wait -= dt;
+      p.aim -= dt;
+      if (p.burstN > 0) {
+        p.shotT -= dt;
+        if (p.shotT <= 0) {
+          enemyFire(ctx, p, p.burstN === 2 ? 12 : 0);
+          p.burstN--;
+          p.shotT = 0.16;
+        }
+      } else if (p.aim <= 0) {
+        p.burstMax = 2;
+        p.burstN = 2;
+        p.shotT = 0.02;
+        p.aim = p.aimMax + 0.5;
+      }
+      if (p.wait <= 0 && p.burstN === 0) {
+        p.runner.i = (p.runner.i + 1) % p.runner.route.length;
+        const rt = p.runner.route[p.runner.i];
+        p.moveTo = { x: rt.x, z: rt.z, sp: p.spd };
+      }
+    }
+    p.expose = 1;
+    p.state = p.moveTo ? "run" : "fire";
+    p.breath += dt * 1.7;
+    posePost(p, cam, dt);
+    if (p.moveTo) walkPose(p, dt);
+    const prog = p.moveTo ? 0 : Math.max(0, Math.min(1, 1 - p.aim / Math.max(0.001, p.aimMax)));
+    placeTag(p, ctx, prog, !p.moveTo);
+  }
+
+  /* ---------------- materials for the DMZ / JSA set ---------------- */
+
+  function bumpTex(key, size, seed, amp) {
+    return ctex(key, size, size, (g, w, h) => {
+      const R = rng(seed);
+      g.fillStyle = "#7f7f7f";
+      g.fillRect(0, 0, w, h);
+      const n = Math.round((w * h) / 46);
+      for (let i = 0; i < n; i++) {
+        const v = Math.max(0, Math.min(255, Math.round(128 + (R() - 0.5) * 210 * (amp || 0.6))));
+        g.fillStyle = "rgb(" + v + "," + v + "," + v + ")";
+        const s = 1 + R() * 3;
+        g.fillRect(R() * w, R() * h, s, s);
+      }
+    });
+  }
+
+  function surf(tex, rx, ry, o) {
+    const opt = o || {};
+    const t = tex.clone();
+    t.wrapS = t.wrapT = T.RepeatWrapping;
+    t.repeat.set(rx || 1, ry || 1);
+    t.anisotropy = Math.max(1, Math.min(8, MAXANISO));
+    t.needsUpdate = true;
+    const m = new T.MeshPhongMaterial({ map: t, shininess: opt.shine == null ? 4 : opt.shine, specular: new T.Color(opt.spec == null ? 0x191914 : opt.spec) });
+    if (opt.bump) {
+      const bt = opt.bump.clone();
+      bt.wrapS = bt.wrapT = T.RepeatWrapping;
+      bt.repeat.set(rx || 1, ry || 1);
+      bt.anisotropy = Math.max(1, Math.min(8, MAXANISO));
+      bt.needsUpdate = true;
+      m.bumpMap = bt;
+      m.bumpScale = opt.bumpScale == null ? 0.1 : opt.bumpScale;
+    }
+    if (opt.color != null) m.color.setHex(opt.color);
+    if (m.color.convertSRGBToLinear) m.color.convertSRGBToLinear();
+    return m;
+  }
+
+  function soilTex() {
+    return ctex("soil2", 512, 512, (g, w, h) => {
+      const R = rng(57);
+      g.fillStyle = "#8b7550";
+      g.fillRect(0, 0, w, h);
+      for (let i = 0; i < 4200; i++) {
+        const r = R();
+        const c = r < 0.4 ? "#7a6544" : r < 0.7 ? "#9c8760" : r < 0.92 ? "#6e5b3d" : "#b6a179";
+        g.fillStyle = c;
+        const s = 2 + R() * 7;
+        g.fillRect(R() * w, R() * h, s, s * (0.5 + R()));
+      }
+      /* two worn wheel ruts, lighter and packed */
+      [0.3, 0.7].forEach((u) => {
+        g.fillStyle = "rgba(196,180,146,.42)";
+        g.fillRect(u * w - 26, 0, 52, h);
+        g.fillStyle = "rgba(120,102,74,.35)";
+        g.fillRect(u * w - 34, 0, 9, h);
+        g.fillRect(u * w + 25, 0, 9, h);
+      });
+      for (let i = 0; i < 320; i++) {
+        const x = R() * w, y = R() * h, s = 1 + R() * 3;
+        g.fillStyle = R() < 0.5 ? "#5f5038" : "#c8bfa8";
+        g.fillRect(x, y, s, s);
+      }
+    });
+  }
+
+  function bluePanelTex() {
+    return ctex("bluePanel", 256, 256, (g, w, h) => {
+      const R = rng(83);
+      g.fillStyle = "#3d93c4";
+      g.fillRect(0, 0, w, h);
+      for (let y = 0; y < h; y += 32) {
+        g.fillStyle = y % 64 ? "#3f97c9" : "#3a8dbd";
+        g.fillRect(0, y, w, 30);
+        g.fillStyle = "rgba(18,52,72,.55)";
+        g.fillRect(0, y + 30, w, 2);
+        g.fillStyle = "rgba(255,255,255,.13)";
+        g.fillRect(0, y + 1, w, 2);
+        for (let x = 6; x < w; x += 16) {
+          g.fillStyle = "rgba(20,58,78,.45)";
+          g.fillRect(x, y + 4, 2, 2);
+        }
+      }
+      for (let i = 0; i < 900; i++) {
+        g.fillStyle = "rgba(255,255,255," + (0.02 + R() * 0.05) + ")";
+        g.fillRect(R() * w, R() * h, 1 + R() * 2, 1 + R() * 2);
+      }
+      for (let i = 0; i < 26; i++) {
+        g.fillStyle = "rgba(30,52,60," + (0.05 + R() * 0.08) + ")";
+        g.fillRect(R() * w, R() * h * 0.7, 6 + R() * 30, 3 + R() * 10);
+      }
+    });
+  }
+
+  function dancheongTex() {
+    /* the painted eave band (단청): green ground, red and blue merlons */
+    return ctex("dancheong", 256, 64, (g, w, h) => {
+      g.fillStyle = "#1f5b45";
+      g.fillRect(0, 0, w, h);
+      for (let x = 0; x < w; x += 32) {
+        g.fillStyle = "#b8402f";
+        g.fillRect(x + 4, 8, 16, h - 16);
+        g.fillStyle = "#e0c86a";
+        g.fillRect(x + 8, 14, 8, h - 28);
+        g.fillStyle = "#2a6f9c";
+        g.fillRect(x + 22, 12, 6, h - 24);
+      }
+      g.fillStyle = "#e8e2cf";
+      g.fillRect(0, 0, w, 4);
+      g.fillRect(0, h - 4, w, 4);
+    });
+  }
+
+  function stage2Mats() {
+    if (SOL.s2) return;
+    SOL.s2 = 1;
+    const ph = (o) => { const m = new T.MeshPhongMaterial(o); if (m.color && m.color.convertSRGBToLinear) m.color.convertSRGBToLinear(); return m; };
+    SOL.glassP = ph({ color: 0x1b2c37, shininess: 130, specular: new T.Color(0x9dc4d8), emissive: new T.Color(0x0a1418) });
+    SOL.lightP = new T.MeshPhongMaterial({ color: 0xfff3c4, emissive: new T.Color(0xffe9a0), emissiveIntensity: 0.9 });
+    SOL.blueP = surf(bluePanelTex(), 1, 1, { shine: 26, spec: 0x33454e, bump: bumpTex("bpBump", 128, 87, 0.5), bumpScale: 0.06 });
+    SOL.whiteP = ph({ color: 0xe8e6dc, shininess: 30, specular: new T.Color(0x555048) });
+    SOL.stoneP = surf(blockTex("stone2", "#c3bcac", "#5e584c", ["#ddd6c5", "#aca492", "#948c7c"], 15), 2, 2, { shine: 6, spec: 0x22221e, bump: bumpTex("stBump", 128, 17, 0.7), bumpScale: 0.14 });
+    SOL.steelP = ph({ color: 0x8b939c, shininess: 70, specular: new T.Color(0xcfd6dc), bumpMap: bumpTex("mtBump", 128, 23, 0.5), bumpScale: 0.03 });
+    SOL.camoP = ph({ color: 0x4a5730, shininess: 8, specular: new T.Color(0x24261c), map: ctex("helipaint", 128, 128, (g, w, h) => {
+      const R = rng(93);
+      g.fillStyle = "#4a5730";
+      g.fillRect(0, 0, w, h);
+      for (let i = 0; i < 90; i++) {
+        g.fillStyle = i % 3 ? "#3b4626" : "#59683a";
+        g.fillRect(R() * w, R() * h, 10 + R() * 22, 8 + R() * 16);
+      }
+    }) });
+    SOL.sandP = ph({ color: 0xcfc19c, shininess: 2, specular: new T.Color(0x1b1810), map: SOL.sand && SOL.sand.map ? SOL.sand.map : null, bumpMap: bumpTex("sbBump", 128, 29, 0.8), bumpScale: 0.16 });
+  }
+
+  /* ---------------- small set pieces ---------------- */
+
+  function boardTex(key, o) {
+    return ctex(key, 320, 200, (g, w, h) => {
+      g.fillStyle = o.bg || "#6f5735";
+      g.fillRect(0, 0, w, h);
+      const R = rng(o.seed || 11);
+      for (let y = 0; y < h; y += 40) {
+        g.fillStyle = y % 80 ? "rgba(0,0,0,.10)" : "rgba(255,255,255,.05)";
+        g.fillRect(0, y, w, 2);
+      }
+      for (let i = 0; i < 260; i++) {
+        g.fillStyle = "rgba(60,42,22," + (0.04 + R() * 0.08) + ")";
+        g.fillRect(R() * w, R() * h, 2 + R() * 16, 1 + R() * 3);
+      }
+      g.strokeStyle = o.edge || "#3b2c19";
+      g.lineWidth = 12;
+      g.strokeRect(6, 6, w - 12, h - 12);
+      g.textAlign = "center";
+      g.textBaseline = "middle";
+      (o.lines || []).forEach((l) => {
+        g.fillStyle = l.c || "#f4efe2";
+        g.font = (l.b ? "900 " : "700 ") + (l.s || 44) + "px 'Arial Narrow', Arial, 'Malgun Gothic', sans-serif";
+        g.fillText(l.t, w / 2, h * l.y);
+      });
+    });
+  }
+
+  function makeSign(x, z, rot, tex, bw, bh, y0, postH) {
+    makeSol();
+    const g = new T.Group();
+    const y = y0 === undefined ? 0.3 : y0;
+    const ph = postH || 2.0;
+    part(g, 0.16, ph, 0.16, -bw / 2 + 0.14, ph / 2, 0, SOL.woodDark);
+    part(g, 0.16, ph, 0.16, bw / 2 - 0.14, ph / 2, 0, SOL.woodDark);
+    /* the painted face goes on both sides of the board: the rail approaches
+       from the south, and a sign turned away is only a wooden slab */
+    const face = new T.MeshPhongMaterial({ map: tex, shininess: 6, specular: 0x22201a });
+    const board = new T.Mesh(new T.BoxGeometry(bw, bh, 0.14), [SOL.woodDark, SOL.woodDark, SOL.woodDark, SOL.woodDark, face, face]);
+    board.position.set(0, ph - bh / 2 + 0.06, 0);
+    board.castShadow = true;
+    board.receiveShadow = true;
+    g.add(board);
+    g.position.set(x, y, z);
+    g.rotation.y = rot || 0;
+    g.userData.solid = 1;
+    g.userData.wall = 1;
+    return g;
+  }
+
+  function chainTex() {
+    return ctex("chainlink", 128, 128, (g, w, h) => {
+      g.clearRect(0, 0, w, h);
+      g.strokeStyle = "rgba(196,200,198,.95)";
+      g.lineWidth = 3;
+      const s = 16;
+      for (let i = -h; i < w + h; i += s) {
+        g.beginPath();
+        g.moveTo(i, 0);
+        g.lineTo(i + h, h);
+        g.stroke();
+        g.beginPath();
+        g.moveTo(i, h);
+        g.lineTo(i + h, 0);
+        g.stroke();
+      }
+      g.strokeStyle = "rgba(120,128,126,.65)";
+      g.lineWidth = 1;
+      for (let i = -h; i < w + h; i += s) {
+        g.beginPath();
+        g.moveTo(i + 2, 0);
+        g.lineTo(i + h + 2, h);
+        g.stroke();
+      }
+    });
+  }
+
+  function makeFence(x, z0, z1, h) {
+    makeSol();
+    stage2Mats();
+    const g = new T.Group();
+    const H = h || 2.0;
+    const step = 2.8;
+    for (let z = z0; z <= z1 + 0.01; z += step) {
+      part(g, 0.15, H, 0.15, 0, H / 2, z, SOL.woodDark);
+      part(g, 0.26, 0.1, 0.26, 0, H, z, SOL.stoneDark);
+    }
+    [-0.12, -0.52, -0.92, -1.32].forEach((dy) => {
+      const strand = part(g, 0.045, 0.045, z1 - z0, 0, H + dy, (z0 + z1) / 2, SOL.steel);
+      strand.castShadow = false;
+    });
+    /* the woven mesh itself, one alpha-tested plane per run */
+    if (!SOL.chain) {
+      SOL.chain = new T.MeshPhongMaterial({ map: chainTex(), transparent: true, alphaTest: 0.32, side: T.DoubleSide, shininess: 22, specular: new T.Color(0x8b949a) });
+    }
+    const net = new T.Mesh(new T.PlaneGeometry(z1 - z0, H * 0.94), SOL.chain);
+    net.rotation.y = Math.PI / 2;
+    net.position.set(0, H * 0.48, (z0 + z1) / 2);
+    const nm = SOL.chain.map.clone();
+    nm.wrapS = nm.wrapT = T.RepeatWrapping;
+    nm.repeat.set(Math.max(1, (z1 - z0) / 1.6), 1.4);
+    nm.needsUpdate = true;
+    net.material = SOL.chain.clone();
+    net.material.map = nm;
+    g.add(net);
+    /* three strands of concertina laid along the top */
+    for (let z = z0 + 0.8; z < z1; z += 2.1) {
+      const a = part(g, 0.95, 0.07, 0.07, 0, H - 0.18, z, SOL.steel);
+      a.rotation.y = 0.62;
+      const b = part(g, 0.95, 0.07, 0.07, 0, H - 0.18, z, SOL.steel);
+      b.rotation.y = -0.62;
+      const c = part(g, 0.7, 0.06, 0.06, 0, H - 1.05, z + 0.35, SOL.steel);
+      c.rotation.y = 0.9;
+      c.rotation.z = 0.42;
+    }
+    g.position.set(x, 0.3, 0);
+    g.userData.solid = 1;
+    return g;
+  }
+
+  function makeTeeth(x, z, n, along) {
+    makeSol();
+    const g = new T.Group();
+    for (let i = 0; i < n; i++) {
+      const px = along ? x + i * 1.5 : x;
+      const pz = along ? z : z + i * 1.5;
+      part(g, 0.92, 0.5, 0.92, px, 0.25, pz, SOL.concrete);
+      const mid = part(g, 0.66, 0.5, 0.66, px, 0.7, pz, SOL.concrete);
+      mid.rotation.y = Math.PI / 4;
+      const tip = part(g, 0.34, 0.36, 0.34, px, 1.06, pz, SOL.stoneDark);
+      tip.rotation.y = Math.PI / 4;
+    }
+    g.userData.solid = 1;
+    return g;
+  }
+
+  function makeGP(x, z, h) {
+    makeSol();
+    const g = new T.Group();
+    [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sz]) => {
+      part(g, 0.18, h, 0.18, (sx * 1.0), h / 2, (sz * 1.0), SOL.woodDark);
+      const br = part(g, 0.1, 1.6, 0.1, sx * 1.0, h * 0.45, sz * 1.0);
+      br.rotation.x = sx * sz * 0.35;
+    });
+    part(g, 2.7, 0.2, 2.7, 0, h, 0, SOL.wood);
+    part(g, 2.1, 1.55, 2.1, 0, h + 0.95, 0, SOL.camoDark);
+    part(g, 2.32, 0.16, 2.32, 0, h + 1.8, 0, SOL.oliveDark);
+    const win = new T.MeshPhongMaterial({ color: 0x101c22, shininess: 90, specular: new T.Color(0x6f97ad) });
+    part(g, 1.65, 0.52, 0.1, 0, h + 1.05, 1.06, win);
+    part(g, 1.65, 0.52, 0.1, 0, h + 1.05, -1.06, win);
+    part(g, 0.1, 0.52, 1.65, 1.06, h + 1.05, 0, win);
+    part(g, 0.1, 0.9, 1.3, -1.06, h + 0.55, 0, SOL.black);
+    part(g, 0.1, 0.5, 0.1, 0.95, h + 2.1, 0, SOL.black);
+    const lamp = part(g, 0.36, 0.3, 0.32, 0.95, h + 2.35, 0.22, SOL.steelP);
+    lamp.rotation.x = -0.45;
+    part(g, 0.26, 0.24, 0.06, 0.95, h + 2.32, 0.4, SOL.lightP);
+    const sb = makeSandbags(0, 1.7, 3.0, 2);
+    g.add(sb);
+    g.position.set(x, 0.3, z);
+    g.userData.solid = 1;
+    g.userData.wall = 1;
+    return g;
+  }
+
+  function makeJeep(x, z, rot) {
+    makeSol();
+    stage2Mats();
+    const g = new T.Group();
+    part(g, 2.95, 0.52, 1.55, 0, 0.72, 0, SOL.oliveDark);
+    part(g, 1.15, 0.4, 1.42, 0, 1.12, 0.62, SOL.olive);
+    part(g, 1.9, 0.14, 1.42, 0, 1.02, -0.32, SOL.oliveDark);
+    part(g, 0.1, 0.34, 1.4, 0, 1.32, 0.16, SOL.glassP);
+    part(g, 0.08, 0.5, 1.44, 0, 1.28, -0.02, SOL.oliveDark);
+    /* seats, dash, roll bar, spare wheel, lights */
+    part(g, 0.55, 0.14, 0.6, -0.28, 0.98, 0.24, SOL.black);
+    part(g, 0.55, 0.14, 0.6, 0.42, 0.98, 0.24, SOL.black);
+    part(g, 1.1, 0.28, 0.3, 0, 1.02, 0.5, SOL.black);
+    [-0.14, 0.14].forEach((sx) => part(g, 0.07, 0.62, 0.07, sx, 1.3, -0.55, SOL.steel));
+    part(g, 0.3, 0.05, 0.05, 0, 1.58, -0.55, SOL.steel);
+    const spare = new T.Mesh(new T.CylinderGeometry(0.34, 0.34, 0.2, 10), SOL.tire);
+    spare.rotation.x = Math.PI / 2;
+    spare.position.set(0, 0.95, -0.86);
+    g.add(spare);
+    [-0.62, 0.62].forEach((sx) => {
+      part(g, 0.16, 0.16, 0.06, sx, 1.02, 0.79, SOL.lightP);
+      part(g, 0.14, 0.12, 0.06, sx * 0.9, 0.86, -0.79, SOL.red);
+    });
+    part(g, 0.36, 0.6, 1.58, 0, 0.5, 0, SOL.oliveDark);
+    [-1.0, 0.95].forEach((wx) => {
+      [-0.78, 0.78].forEach((wz) => {
+        const w = new T.Mesh(new T.CylinderGeometry(0.38, 0.38, 0.26, 12), SOL.tire);
+        w.rotation.x = Math.PI / 2;
+        w.position.set(wx, 0.66, wz);
+        w.castShadow = true;
+        g.add(w);
+        const hub = new T.Mesh(new T.CylinderGeometry(0.16, 0.16, 0.28, 8), SOL.steelP);
+        hub.rotation.x = Math.PI / 2;
+        hub.position.set(wx, 0.66, wz);
+        g.add(hub);
+      });
+    });
+    /* the door star, like the truck in stage 1 */
+    const star = new T.Mesh(new T.PlaneGeometry(0.4, 0.4), SOL.star);
+    star.position.set(0.62, 0.9, 0.79);
+    g.add(star);
+    g.position.set(x, 0.3, z);
+    g.rotation.y = rot || 0;
+    g.userData.solid = 1;
+    return g;
+  }
+
+  function makeBlueHall(x, z, bw, bd, bh, rot) {
+    makeSol();
+    stage2Mats();
+    const g = new T.Group();
+    const wall = new T.Mesh(new T.BoxGeometry(bw, bh, bd), surf(bluePanelTex(), Math.max(1, Math.round(bw / 2.4)), Math.max(1, Math.round(bh / 2.4)), { shine: 30, spec: 0x3a4c58, bump: bumpTex("bpBump", 128, 87, 0.5), bumpScale: 0.05 }));
+    wall.position.y = bh / 2;
+    wall.castShadow = true;
+    wall.receiveShadow = true;
+    wall.userData.wall = 1;
+    g.add(wall);
+    /* white fascia, two stepped caps and a shallow gable */
+    part(g, bw + 0.4, 0.22, bd + 0.4, 0, bh + 0.1, 0, SOL.whiteP);
+    part(g, 0.22, 0.22, bd + 0.5, 0, bh + 0.3, 0, SOL.whiteP);
+    part(g, 0.22, 0.22, bd + 0.5, 0, bh + 0.3, 0, SOL.whiteP);
+    part(g, bw + 0.34, 0.18, 0.2, 0, bh + 0.3, bd / 2 + 0.1, SOL.whiteP);
+    part(g, bw + 0.34, 0.18, 0.2, 0, bh + 0.3, -bd / 2 - 0.1, SOL.whiteP);
+    /* glazing band, door and a small step */
+    const nw = Math.max(2, Math.round(bw / 1.4));
+    for (let i = 0; i < nw; i++) {
+      const px = -bw / 2 + (bw / nw) * (i + 0.5);
+      part(g, bw / nw - 0.28, 0.72, 0.07, px, bh * 0.62, bd / 2 + 0.02, SOL.glassP);
+      part(g, bw / nw - 0.28, 0.06, 0.09, px, bh * 0.62 - 0.4, bd / 2 + 0.03, SOL.whiteP);
+    }
+    part(g, 0.9, 1.5, 0.1, 0, 0.75, bd / 2 + 0.03, SOL.whiteP);
+    part(g, 0.74, 1.34, 0.12, 0, 0.72, bd / 2 + 0.06, SOL.glassP);
+    part(g, bw * 0.7, 0.12, 0.5, 0, 0.34, bd / 2 + 0.28, SOL.concrete);
+    part(g, bw * 0.5, 0.12, 0.4, 0, 0.22, bd / 2 + 0.55, SOL.concrete);
+    /* roof detail: a vent and a small antenna */
+    part(g, 0.6, 0.32, 0.6, bw * 0.24, bh + 0.4, -bd * 0.2, SOL.steelP);
+    part(g, 0.06, 1.1, 0.06, -bw * 0.3, bh + 0.75, -bd * 0.25, SOL.black);
+    g.position.set(x, 0.3, z);
+    g.rotation.y = rot || 0;
+    g.userData.solid = 1;
+    g.userData.wall = 1;
+    return g;
+  }
+
+  function makePanmungak(x, z) {
+    makeSol();
+    stage2Mats();
+    const g = new T.Group();
+    const W = 16, D = 9, H = 8.4;
+    const body = part(g, W, H, D, 0, H / 2, 0, SOL.stoneP);
+    body.userData.wall = 1;
+    body.castShadow = true;
+    /* three floors of window bands with columns between them */
+    for (let fl = 0; fl < 3; fl++) {
+      const y = 1.5 + fl * 2.4;
+      part(g, W + 0.2, 0.22, D + 0.2, 0, y + 1.05, 0, SOL.stoneDark);
+      for (let i = 0; i < 9; i++) {
+        const px = -W / 2 + 1.0 + i * 1.75;
+        part(g, 0.95, 1.25, 0.1, px, y + 0.5, D / 2 + 0.04, SOL.glassP);
+        part(g, 0.16, 1.55, 0.22, px - 1.0, y + 0.55, D / 2 + 0.06, SOL.stoneDark);
+      }
+    }
+    /* the central raised block and the grand stair */
+    const mid = part(g, 6.4, H + 2.6, 2.2, 0, (H + 2.6) / 2, D / 2 - 0.6, SOL.stoneP);
+    mid.userData.wall = 1;
+    for (let i = 0; i < 6; i++) part(g, 0.85, 1.15, 0.1, -2.4 + i * 0.96, H + 1.1, D / 2 + 0.52, SOL.glassP);
+    for (let i = 0; i < 5; i++) part(g, 7.6 - i * 0.9, 0.26, 0.7, 0, 0.12 + i * 0.26, D / 2 + 1.0 + i * 0.55, SOL.concrete);
+    /* painted eaves over the central block */
+    const eave = new T.Mesh(new T.BoxGeometry(7.2, 0.42, 2.8), new T.MeshPhongMaterial({ map: dancheongTex(), shininess: 12, specular: 0x2a2a22 }));
+    eave.position.set(0, H + 2.5, D / 2 - 0.5);
+    eave.castShadow = true;
+    g.add(eave);
+    const roof = part(g, 7.8, 0.3, 3.2, 0, H + 2.75, D / 2 - 0.5, SOL.stoneDark);
+    roof.rotation.x = 0.02;
+    /* flag mast on the roof */
+    part(g, 0.1, 3.2, 0.1, 4.6, H + 1.5, 0, SOL.steelP);
+    g.position.set(x, 0.3, z);
+    g.userData.solid = 1;
+    g.userData.wall = 1;
+    return g;
+  }
+
+  function makeFreedomHouse(x, z, rot) {
+    makeSol();
+    stage2Mats();
+    const g = new T.Group();
+    const W = 9.2, D = 7, H = 6.6;
+    const body = part(g, W, H, D, 0, H / 2, 0, SOL.whiteP);
+    body.userData.wall = 1;
+    body.castShadow = true;
+    /* a columned pavilion front */
+    for (let i = 0; i < 5; i++) {
+      const px = -W / 2 + 1.0 + i * 1.8;
+      part(g, 0.42, H * 0.72, 0.42, px, H * 0.36, D / 2 + 0.9, SOL.whiteP);
+    }
+    part(g, W * 0.92, 0.5, 1.4, 0, H * 0.76, D / 2 + 0.7, SOL.whiteP);
+    part(g, W * 0.96, 0.3, 1.6, 0, H * 0.84, D / 2 + 0.7, SOL.stoneDark);
+    for (let i = 0; i < 4; i++) {
+      const px = -W / 2 + 1.6 + i * 2.0;
+      part(g, 1.1, 1.7, 0.12, px, 1.5, D / 2 + 0.04, SOL.glassP);
+    }
+    part(g, W * 0.8, 0.16, 1.9, 0, 0.16, D / 2 + 1.0, SOL.concrete);
+    g.position.set(x, 0.3, z);
+    g.rotation.y = rot || 0;
+    g.userData.solid = 1;
+    g.userData.wall = 1;
+    return g;
+  }
+
+  function makeRidge(x, z, w, h, d, col, col2) {
+    const g = new T.Group();
+    const m = new T.MeshPhongMaterial({ color: col, shininess: 1, specular: new T.Color(0x151a16) });
+    m.color.convertSRGBToLinear();
+    const m2 = new T.MeshPhongMaterial({ color: col2 || col, shininess: 1, specular: new T.Color(0x151a16) });
+    m2.color.convertSRGBToLinear();
+    part(g, w, h, d, 0, h / 2, 0, m);
+    part(g, w * 0.62, h * 0.55, d * 0.8, w * 0.18, h + h * 0.27, 0, m2);
+    part(g, w * 0.4, h * 0.4, d * 0.7, -w * 0.22, h + h * 0.2, -d * 0.1, m2);
+    /* a treeline of dark boxes along the crest */
+    const R = rng(Math.round(w + h));
+    for (let i = 0; i < 16; i++) {
+      const s = 2 + R() * 4;
+      part(g, s, s * 0.8, s, (R() - 0.5) * w * 0.8, h * 0.9 + R() * h * 0.2, (R() - 0.5) * d * 0.5, m2);
+    }
+    g.position.set(x, 0, z);
+    return g;
+  }
+
+  function flagUN() {
+    return ctex("flagUN", 384, 256, (g, w, h) => {
+      g.fillStyle = "#4b92d2";
+      g.fillRect(0, 0, w, h);
+      g.strokeStyle = "rgba(255,255,255,.85)";
+      g.lineWidth = 5;
+      g.strokeRect(7, 7, w - 14, h - 14);
+      const cx = w / 2, cy = h / 2, r = 66;
+      g.strokeStyle = "#fff";
+      g.lineWidth = 7;
+      g.beginPath();
+      g.arc(cx, cy, r, 0, Math.PI * 2);
+      g.stroke();
+      g.lineWidth = 4;
+      for (let i = 0; i < 4; i++) {
+        const rr = r * (0.28 + i * 0.19);
+        g.beginPath();
+        g.ellipse(cx, cy, r, rr, 0, 0, Math.PI * 2);
+        g.stroke();
+      }
+      for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * Math.PI * 2;
+        g.beginPath();
+        g.moveTo(cx, cy);
+        g.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
+        g.stroke();
+      }
+      g.fillStyle = "#e9f2f8";
+      g.beginPath();
+      g.arc(cx, cy, 8, 0, Math.PI * 2);
+      g.fill();
+    });
+  }
+
+  function makeFlagEx(kind, x, y, z, w, h) {
+    makeSol();
+    if (!SOL.flagUN) SOL.flagUN = new T.MeshPhongMaterial({ map: flagUN(), side: T.DoubleSide, shininess: 4 });
+    const g = new T.Group();
+    const poleH = (h || 1.5) + 0.6;
+    const pole = new T.Mesh(new T.CylinderGeometry(0.05, 0.05, poleH, 8), SOL.steelP || SOL.woodDark);
+    pole.position.set(-w / 2 - 0.06, poleH / 2 - 0.5, 0);
+    pole.castShadow = true;
+    g.add(pole);
+    const mat = kind === "un" ? SOL.flagUN : kind === "kp" ? SOL.flagKP : SOL.flagKR;
+    const cloth = new T.Mesh(new T.PlaneGeometry(w, h), mat);
+    g.add(cloth);
+    g.position.set(x, y, z);
+    g.userData.cloth = cloth;
+    g.userData.ph = Math.random() * 6;
+    return g;
+  }
+
+  function landCover(x, z, w) {
+    makeSol();
+    const g = makeSandbags(0, 0, w || 2.2, 3);
+    g.position.set(x, 0.3, z);
+    g.rotation.y = (Math.random() - 0.5) * 0.5;
+    g.userData.cover = 1;
+    g.userData.solid = 1;
+    const bb = new T.Box3().setFromObject(g);
+    return { g, cx: (bb.min.x + bb.max.x) / 2, cz: (bb.min.z + bb.max.z) / 2, topY: bb.max.y, used: false };
+  }
+
+  /* ---------------- the DMZ -> JSA set ---------------- */
+
+  function dressStage2(ctx) {
+    makeSol();
+    stage2Mats();
+    const S = new T.Group();
+    S.name = "battlefield2";
+    ctx.scene.add(S);
+
+    const sky = makeSkyDome();
+    sky.geometry.dispose();
+    sky.geometry = new T.SphereGeometry(180, 24, 16);
+    sky.position.set(0, 0, 30);
+    S.add(sky);
+    ctx.scene.background = new T.Color(0x9dbfd6).convertSRGBToLinear();
+    ctx.scene.fog = new T.Fog(0xc3d4dc, 80, 230);
+    if (ctx.scene.fog.color && ctx.scene.fog.color.convertSRGBToLinear) ctx.scene.fog.color.convertSRGBToLinear();
+    if (ctx.LT) {
+      const LT = ctx.LT;
+      if (LT.hemi) { LT.hemi.intensity = 0.58; LT.hemi.color.setHex(0xd7e8f6); LT.hemi.groundColor && LT.hemi.groundColor.setHex(0x6d6a4c); }
+      if (LT.amb) { LT.amb.intensity = 0.26; LT.amb.color && LT.amb.color.setHex(0xb6cbdb); }
+      if (LT.key) { LT.key.intensity = 1.02; LT.key.color.setHex(0xfff2d4); }
+      if (LT.moon) { LT.moon.intensity = 0.12; }
+      if (LT.rim) { LT.rim.intensity = 0.3; LT.rim.color && LT.rim.color.setHex(0xffd0a4); }
+    }
+
+    /* ---- ground: dirt everywhere, the tactical road on top ---- */
+    const dirt = surf(soilTex(), 30, 30, { shine: 1, spec: 0x120f0a, bump: bumpTex("soilB", 256, 61, 0.9), bumpScale: 0.16 });
+    const ground = new T.Mesh(new T.PlaneGeometry(300, 300), dirt);
+    ground.rotation.x = -Math.PI / 2;
+    ground.position.set(0, 0.24, 34);
+    ground.receiveShadow = true;
+    S.add(ground);
+
+    const roadMat = surf(soilTex(), 1, 6, { shine: 2, spec: 0x1a160f, bump: bumpTex("soilB", 256, 61, 0.9), bumpScale: 0.2 });
+    const road1 = new T.Mesh(new T.PlaneGeometry(8.6, 50), roadMat);
+    road1.rotation.x = -Math.PI / 2;
+    road1.position.set(0, 0.28, 8);
+    road1.receiveShadow = true;
+    S.add(road1);
+    const road2 = new T.Mesh(new T.PlaneGeometry(9.0, 20), surf(soilTex(), 1, 3, { shine: 2, spec: 0x1a160f, bump: bumpTex("soilB", 256, 61, 0.9), bumpScale: 0.2 }));
+    road2.rotation.x = -Math.PI / 2;
+    road2.rotation.z = -0.62;
+    road2.position.set(-9.6, 0.281, 32);
+    road2.receiveShadow = true;
+    S.add(road2);
+    /* the JSA concrete apron */
+    const conc = surf(concreteTex("conc2", "#b9b7ad", 31), 9, 8, { shine: 10, spec: 0x2a2924, color: 0xd9d5c7, bump: bumpTex("cnBump", 256, 71, 0.6), bumpScale: 0.1 });
+    const plaza = new T.Mesh(new T.PlaneGeometry(46, 42), conc);
+    plaza.rotation.x = -Math.PI / 2;
+    plaza.position.set(-18, 0.30, 61);
+    plaza.receiveShadow = true;
+    S.add(plaza);
+
+    /* ---- fences: double barbed line both sides of the road ---- */
+    S.add(makeFence(-6.4, -13, 30, 2.05));
+    S.add(makeFence(6.4, -13, 30, 2.05));
+    S.add(makeFence(-10.8, -13, 34, 1.85));
+    S.add(makeFence(10.8, -13, 34, 1.85));
+
+    /* ---- north-bound road signs ---- */
+    const dmzTex = boardTex("dmzBoard", {
+      bg: "#6f5735", seed: 3,
+      lines: [
+        { t: "DMZ", s: 62, y: 0.33 },
+        { t: "비무장지대", s: 34, y: 0.63 },
+        { t: "Demilitarized Zone", s: 20, y: 0.85 }
+      ]
+    });
+    const s1 = makeSign(-4.9, 10.2, 0.12, dmzTex, 3.0, 1.85, 0.3, 2.5);
+    S.add(s1);
+    const cclTex = boardTex("cclBoard", {
+      bg: "#5f5a48", seed: 7,
+      lines: [
+        { t: "민통선", s: 52, y: 0.34, c: "#f6efd8" },
+        { t: "CIVILIAN CONTROL LINE", s: 18, y: 0.64, c: "#e7dfc6" },
+        { t: "출입금지", s: 26, y: 0.86, c: "#e8b04a" }
+      ]
+    });
+    S.add(makeSign(5.3, 3.4, -0.16, cclTex, 2.6, 1.5, 0.3, 2.2));
+    const mineTex = boardTex("mineBoard", {
+      bg: "#c9c3ae", seed: 13, edge: "#8f2a1c",
+      lines: [
+        { t: "지뢰", s: 58, y: 0.34, c: "#8f2a1c" },
+        { t: "MINE", s: 34, y: 0.68, c: "#8f2a1c" }
+      ]
+    });
+    S.add(makeSign(-6.8, 11.2, 0.2, mineTex, 1.5, 1.1, 0.3, 1.5));
+
+    /* ---- dragon's teeth and bunkers ---- */
+    S.add(makeTeeth(-4.9, 16.2, 4, false));
+    S.add(makeTeeth(4.9, 16.2, 4, false));
+    S.add(makeTeeth(-11.4, 24.0, 3, true));
+    S.add(makeGP(8.6, 19.6, 6.6));
+    S.add(makeGP(-12.6, 27.4, 5.4));
+    S.add(makeSandbags(-5.4, 7.6, 2.6, 3));
+    S.add(makeSandbags(5.6, 12.4, 2.2, 3));
+    S.add(makeSandbags(-8.4, 18.2, 3.0, 3));
+    S.add(makeCrate(8.2, 6.4, 0.85));
+    S.add(makeCrate(-8.8, 9.4, 0.7));
+    S.add(makeBarrier(7.2, 23.2));
+    S.add(makeTruck(9.2, 27.6));
+    S.add(makeJeep(-10.6, 14.6, 0.5));
+    S.add(makeJeep(5.4, 25.4, -1.2));
+    S.add(makeFlagEx("kp", 8.6, 9.4, 19.6, 1.9, 1.3));
+
+    /* the minefield warning posts every few metres along the wire */
+    for (let z = -8; z < 28; z += 7.5) {
+      S.add(makeSign(-9.9, z, 0.06, mineTex, 1.1, 0.8, 0.3, 1.2));
+    }
+
+    /* ---- the checkpoint gate into the JSA ---- */
+    part(S, 1.4, 4.2, 1.4, -24.2, 2.4, 43.0, SOL.concrete);
+    part(S, 1.4, 4.2, 1.4, -11.4, 2.4, 43.0, SOL.concrete);
+    part(S, 13.6, 0.7, 1.0, -17.8, 4.55, 43.0, SOL.concrete);
+    const jsaTex = boardTex("jsaBoard", {
+      bg: "#243b46", seed: 17, edge: "#d9d3c0",
+      lines: [
+        { t: "판문점", s: 34, y: 0.34, c: "#f2eeda" },
+        { t: "PANMUNJOM  JSA", s: 20, y: 0.62, c: "#cfe0e6" },
+        { t: "공동경비구역", s: 20, y: 0.84, c: "#cfe0e6" }
+      ]
+    });
+    const jsaSign = makeSign(-17.8, 43.0, 0, jsaTex, 5.2, 1.5, 3.85, 1.6);
+    S.add(jsaSign);
+
+    /* ---- JSA: the MDL line, the blue halls, Panmungak, Freedom House ---- */
+    const mdl = part(S, 25.5, 0.24, 0.62, -18, 0.42, 60.0, SOL.concrete);
+    mdl.castShadow = false;
+    for (let i = 0; i < 25; i++) {
+      part(S, 0.5, 0.28, 0.7, -30 + i * 1.0, 0.44, 60.0, i % 2 ? SOL.whiteP : SOL.concrete).castShadow = false;
+    }
+    S.add(makeBlueHall(-27.4, 68.4, 4.2, 4.8, 2.9, 0));
+    S.add(makeBlueHall(-18.2, 68.7, 3.6, 4.4, 2.7, 0.02));
+    S.add(makeBlueHall(-8.8, 68.4, 4.2, 4.8, 2.9, -0.02));
+    S.add(makePanmungak(-18, 84.5));
+    S.add(makeFreedomHouse(-33.0, 53.5, 0.18));
+    const krFlag = makeFlagEx("kr", -26.6, 6.2, 50.4, 2.4, 1.6);
+    const unFlag = makeFlagEx("un", -9.4, 6.2, 50.4, 2.4, 1.6);
+    S.add(krFlag, unFlag);
+    /* flag poles */
+    part(S, 0.1, 8.4, 0.1, -27.8, 4.2, 50.4, SOL.steelP);
+    part(S, 0.1, 8.4, 0.1, -8.2, 4.2, 50.4, SOL.steelP);
+
+    /* plaza furniture: concrete blocks, jeeps, a truck, lamps, a bench row */
+    [[-27.6, 57.6], [-9.0, 58.2], [-25.2, 64.4], [-10.8, 65.0]].forEach(([x, z], i) => {
+      const b = part(S, 2.0, 0.9, 0.9, x, 0.75, z, SOL.concrete);
+      b.userData.wall = 1;
+      b.userData.solid = 1;
+      b.castShadow = true;
+    });
+    S.add(makeJeep(-31.0, 65.6, 0.2));
+    S.add(makeJeep(-5.2, 65.0, -0.4));
+    S.add(makeTruck(-26.4, 67.0));
+    S.add(makeTruck(-9.6, 66.8));
+    S.add(makeFence(-33.4, 47.0, 61.0, 1.6));
+    S.add(makeFence(-2.6, 47.0, 61.0, 1.6));
+    for (let i = 0; i < 4; i++) {
+      const lx = -31.0 + i * 8.6;
+      part(S, 0.16, 4.0, 0.16, lx, 2.0, 60.4, SOL.steelP);
+      part(S, 0.5, 0.2, 0.5, lx, 4.0, 60.4, SOL.steelP);
+      part(S, 0.34, 0.12, 0.34, lx, 3.9, 60.4, SOL.lightP);
+    }
+    S.add(makeSandbags(-33.0, 64.0, 3.2, 3));
+    S.add(makeCrate(-4.4, 61.2, 0.8));
+    S.add(makeBarrier(-34.6, 51.0));
+
+    /* ---- valley ridges and haze so the horizon never ends in sky ---- */
+    S.add(makeRidge(0, 138, 170, 20, 46, 0x5b7560, 0x6a8768));
+    S.add(makeRidge(-96, 124, 90, 15, 38, 0x5a7462, 0x6a866c));
+    S.add(makeRidge(92, 130, 84, 16, 36, 0x55705a, 0x66825f));
+    S.add(makeRidge(52, 108, 42, 10, 28, 0x627e5c, 0x728e6a));
+    S.add(makeRidge(-62, 104, 40, 9, 26, 0x5f7b59, 0x6f8b67));
+    for (let i = 0; i < 14; i++) {
+      const R = rng(i * 31 + 5);
+      const tx = -30 + R() * 60, tz = -6 + R() * 36;
+      if (Math.abs(tx) < 9.4) continue;
+      if (tx < -4 && tx > -34 && tz > 38) continue;
+      const t = new T.Group();
+      part(t, 0.36, 2.1, 0.36, 0, 1.05, 0, SOL.woodDark);
+      const leaf = new T.Mesh(new T.BoxGeometry(2.0, 1.4, 2.0), SOL.grass);
+      leaf.position.y = 2.6;
+      leaf.castShadow = true;
+      t.add(leaf);
+      t.position.set(tx, 0.3, tz);
+      S.add(t);
+    }
+
+    /* a dense treeline hugging both sides of the corridor (the reference has
+       the road cut through forest), plus grass tufts on the verges */
+    for (let i = 0; i < 34; i++) {
+      const R = rng(i * 17 + 3);
+      const side = i % 2 ? 1 : -1;
+      const tx = side * (12.0 + R() * 24);
+      const tz = -10 + R() * 40;
+      if (tz > 30) continue;
+      const t = new T.Group();
+      const th = 2.4 + R() * 1.8;
+      part(t, 0.42, th, 0.42, 0, th / 2, 0, SOL.woodDark);
+      const lw = 2.4 + R() * 1.4;
+      const l1 = new T.Mesh(new T.BoxGeometry(lw, 1.6 + R() * 0.9, lw), i % 3 ? SOL.grass : SOL.camo);
+      l1.position.y = th + 0.5;
+      l1.castShadow = true;
+      t.add(l1);
+      const l2 = new T.Mesh(new T.BoxGeometry(lw * 0.7, 1.2, lw * 0.7), SOL.grass);
+      l2.position.y = th + 1.5;
+      t.add(l2);
+      t.rotation.y = R() * 3;
+      t.position.set(tx, 0.3, tz);
+      S.add(t);
+    }
+    for (let i = 0; i < 40; i++) {
+      const R = rng(i * 7 + 19);
+      const side = i % 2 ? 1 : -1;
+      const gx = side * (4.9 + R() * 3.2);
+      const gz = -8 + R() * 40;
+      if (gz > 31) continue;
+      const tuft = part(S, 0.7 + R() * 0.6, 0.16 + R() * 0.14, 0.7 + R() * 0.5, gx, 0.34, gz, SOL.grass);
+      tuft.castShadow = false;
+    }
+    /* wrecked truck and a collapsed wire section on the verge */
+    const wreck = makeTruck(-13.4, 20.6);
+    wreck.rotation.y = 1.1;
+    wreck.rotation.z = 0.16;
+    S.add(wreck);
+
+    /* ---- sandbags a paratrooper can land behind ---- */
+    landCovers = [];
+    [[-7.6, 32.4], [0.6, 33.2], [6.2, 32.8], [-2.4, 34.4], [-24.0, 62.4], [-13.6, 63.0], [-6.8, 62.0], [-19.6, 64.0]].forEach(([x, z]) => {
+      const c = landCover(x, z, 2.2);
+      S.add(c.g);
+      landCovers.push(c);
+    });
+
+    /* ---- the truck and jeep the JSA gunners stand on ---- */
+    if (waves && waves[2]) {
+      const w = waves[2];
+      const t = waveXY(w, -4.6, 8.4);
+      const tr = makeTruck(t.x, t.z);
+      tr.rotation.y = w.yaw + 0.12;
+      S.add(tr);
+    }
+    if (waves && waves[3]) {
+      const w = waves[3];
+      const j = waveXY(w, 6.2, 8.4);
+      const je = makeJeep(j.x, j.z, w.yaw + 0.3);
+      S.add(je);
+    }
+
+    /* ---- clouds ---- */
+    const clouds = [];
+    for (let i = 0; i < 9; i++) {
+      const c = makeCloud(-70 + i * 17 + Math.random() * 8, 12 + Math.random() * 5, 20 + (i % 3) * 14 + Math.random() * 6, 2.6 + Math.random() * 1.8);
+      S.add(c);
+      clouds.push(c);
+    }
+
+    /* ---- our rifleman, on the near left of the rail ---- */
+    const ally = makeAlly();
+    ally.position.set(4.6, 0.3, -7.6);
+    ally.rotation.y = 0.4;
+    S.add(ally);
+
+    const flags = [];
+    S.traverse((o) => { if (o.userData && o.userData.cloth) flags.push(o); });
+
+    /* ---- walls for bullets, obstacles for feet ---- */
+    walkBlockers = [];
+    S.traverse((o) => {
+      if (!o.isMesh) return;
+      if (o.userData && (o.userData.wall || o.userData.solid)) {
+        const bb = new T.Box3().setFromObject(o);
+        if (bb.max.y > 0.6) walkBlockers.push(bb);
+      }
+    });
+    if (coverRoot) {
+      coverRoot.traverse((o) => {
+        if (o.userData && o.userData.cover) {
+          walkBlockers.push(new T.Box3().setFromObject(o));
+        }
+      });
+    }
+    landCovers.forEach((c) => walkBlockers.push(new T.Box3().setFromObject(c.g)));
+
+    dress = {
+      root: S, sky, flags, clouds, barrels: [], ally,
+      truck1: waves && waves[2] ? waveXY(waves[2], -4.6, 8.4) : null
+    };
+    window.__stage2 = { landCovers: landCovers.length, walkBlockers: walkBlockers.length };
+    return dress;
+  }
+
+  /* ---------------- the helicopter ---------------- */
+
+  function makeHeliModel() {
+    makeSol();
+    stage2Mats();
+    const g = new T.Group();
+    const b = new T.Group();
+    g.add(b);
+    const camo = SOL.camoP;
+    /* cabin, nose, engine deck and tail boom */
+    part(b, 1.6, 1.35, 3.3, 0, 0, 0, camo);
+    part(b, 1.42, 0.5, 1.3, 0, 0.78, -0.1, camo);
+    part(b, 1.1, 0.8, 0.9, 0, -0.12, 1.85, camo);
+    part(b, 0.86, 0.52, 0.5, 0, 0.3, 1.95, SOL.glassP);
+    part(b, 1.34, 0.62, 0.16, 0, 0.34, 1.58, SOL.glassP);
+    part(b, 1.34, 0.6, 0.14, 0, 0.3, -1.28, SOL.glassP);
+    part(b, 0.46, 0.46, 3.0, 0, 0.44, -2.9, camo);
+    part(b, 0.16, 1.2, 0.72, 0, 0.98, -4.0, camo);
+    part(b, 1.0, 0.1, 0.5, 0, 0.44, -3.9, camo);
+    /* exhausts and engine grille */
+    [-0.52, 0.52].forEach((sx) => part(b, 0.24, 0.22, 0.5, sx, 0.72, -0.9, SOL.steelP));
+    part(b, 0.9, 0.06, 1.0, 0, 1.03, -0.5, SOL.steelP);
+    /* skids */
+    [-1, 1].forEach((sx) => {
+      part(b, 0.13, 0.11, 2.9, sx * 0.8, -0.98, 0.1, SOL.steelP);
+      part(b, 0.1, 0.46, 0.1, sx * 0.8, -0.74, 0.92, SOL.steelP);
+      part(b, 0.1, 0.46, 0.1, sx * 0.8, -0.74, -0.72, SOL.steelP);
+      part(b, 0.12, 0.1, 0.5, sx * 0.8, -0.92, 1.3, SOL.steelP);
+    });
+    /* the open side door with the door gunner in it */
+    part(b, 0.12, 1.0, 1.25, 0.79, -0.1, 0.3, SOL.black);
+    const gunner = makeSoldier("weak");
+    gunner.scale.setScalar(0.62);
+    gunner.position.set(0.52, -0.62, 0.28);
+    gunner.rotation.y = Math.PI * 0.5;
+    b.add(gunner);
+    part(b, 0.18, 0.18, 0.18, 0.92, 0.05, 0.5, SOL.gunmetal);
+    const gun = new T.Group();
+    gun.position.set(1.02, 0.02, 0.34);
+    b.add(gun);
+    part(gun, 0.12, 0.12, 1.0, 0, 0, 0.45, SOL.gunmetal);
+    part(gun, 0.18, 0.2, 0.26, 0, 0, 0.05, SOL.black);
+    part(gun, 0.08, 0.14, 0.3, 0, -0.2, -0.1, SOL.black);
+    const mz = new T.Object3D();
+    mz.position.set(0, 0, 1.0);
+    gun.add(mz);
+    g.userData.muzzle = mz;
+    /* main rotor and tail rotor */
+    part(b, 0.18, 0.52, 0.18, 0, 1.06, -0.12, SOL.steelP);
+    const rotor = new T.Group();
+    rotor.position.set(0, 1.34, -0.12);
+    b.add(rotor);
+    part(rotor, 0.36, 0.16, 0.36, 0, 0, 0, SOL.steelP);
+    for (let i = 0; i < 3; i++) {
+      const bl = part(rotor, 6.8, 0.07, 0.34, 0, 0, 0, SOL.oliveDark);
+      bl.rotation.y = (i * Math.PI) / 1.5;
+      bl.castShadow = true;
+    }
+    const tail = new T.Group();
+    tail.position.set(0.18, 0.98, -4.0);
+    b.add(tail);
+    for (let i = 0; i < 2; i++) {
+      const bl = part(tail, 0.06, 1.7, 0.17, 0, 0, 0, SOL.oliveDark);
+      bl.rotation.x = (i * Math.PI) / 1;
+      bl.rotation.z = 0.2;
+    }
+    part(tail, 0.14, 0.14, 0.14, 0.12, 0, 0, SOL.steelP);
+    /* markings */
+    const star = new T.Mesh(new T.PlaneGeometry(0.46, 0.46), SOL.star);
+    star.position.set(0.82, 0.18, -0.5);
+    star.rotation.y = Math.PI / 2;
+    b.add(star);
+    g.userData.rotor = rotor;
+    g.userData.tail = tail;
+    g.userData.gunner = gunner;
+    g.userData.body = b;
+    return g;
+  }
+
+  function makeHeliPost(w, m, i) {
+    const p0 = waveXY(w, m.lat || 0, m.dep || 18);
+    const g = makeHeliModel();
+    const hp = 9;
+    const post = {
+      e: { kind: "heli", mesh: g, alive: true, hp: hp, h: 3, _tag: null },
+      role: "heli", air: "heli", i,
+      x: p0.x, z: p0.z, y: m.y || 8.6,
+      cx: p0.x, cz: p0.z, baseY: m.y || 8.6,
+      orbitR: m.orbit || 5.0, orbitT: Math.random() * 6.28, orbitW: m.ow || 0.42,
+      hpMax: hp, gunnerAlive: true,
+      aim: 2.8, aimMax: 2.8, burstN: 0, shotT: 0,
+      live: false, state: "hover", expose: 1, smokeT: 0,
+      bob: Math.random() * 6, walk: 0, moving: false,
+      fallV: 0, spin: 0, dying: 0, visTop: 0
+    };
+    g.position.set(post.x, post.y, post.z);
+    if (SCENE) SCENE.add(g);
+    post.mesh = g;
+    post.body = null;
+    post.visTop = post.y + 1.4;
+    roleTag(post.e);
+    if (post.e._tag) post.e._tag.style.display = "none";
+    posts.push(post);
+    return post;
+  }
+
+  function heliFire(ctx, p) {
+    const u = p.mesh && p.mesh.userData;
+    const from = new T.Vector3(p.x, p.y, p.z);
+    if (u && u.muzzle) {
+      u.muzzle.updateWorldMatrix(true, false);
+      u.muzzle.getWorldPosition(from);
+    }
+    muzzleFlash(ctx, from);
+    const cam = ctx.camera.position;
+    const toCam = new T.Vector3(cam.x - from.x, cam.y - 0.3 - from.y, cam.z - from.z);
+    const d = toCam.length() || 1;
+    toCam.multiplyScalar(Math.max(0.2, (d - 5) / d));
+    tracerTo(ctx, from, new T.Vector3(from.x + toCam.x, from.y + toCam.y, from.z + toCam.z), 0xffe0a0, 0.05);
+    gun("rifle");
+    hurtPlayer(ctx, 11);
+  }
+
+  function stepHeli(p, ctx, dt) {
+    const cam = ctx.camera.position;
+    const u = p.mesh.userData;
+    if (p.e.alive === false) {
+      /* shot down: the tail comes round, smoke pours, then it hits the dirt */
+      p.fallV -= 9.2 * dt;
+      p.y += p.fallV * dt;
+      p.spin += dt * 3.4;
+      p.mesh.position.set(p.x, p.y, p.z);
+      p.mesh.rotation.z = Math.sin(p.spin) * 0.5;
+      p.mesh.rotation.y += dt * 1.6;
+      if (u.rotor) u.rotor.rotation.y += dt * 5;
+      p.smokeT -= dt;
+      if (p.smokeT <= 0) {
+        p.smokeT = 0.06;
+        smokeAt(ctx, p.x + (Math.random() - 0.5), p.y + (Math.random() - 0.5) * 0.6, p.z + (Math.random() - 0.5), 0x2e2b28);
+      }
+      if (p.y <= 0.9) {
+        p.mesh.visible = false;
+        p.y = 0.9;
+        p.dying = 0;
+        for (let i = 0; i < 3; i++) boomAt(ctx, p.x + (Math.random() - 0.5) * 2, 0.9, p.z + (Math.random() - 0.5) * 2);
+        shake = 1.6;
+        gun("boom");
+      }
+      return;
+    }
+    p.orbitT += dt * p.orbitW;
+    const ox = p.cx + Math.sin(p.orbitT) * p.orbitR;
+    const oz = p.cz + Math.cos(p.orbitT * 0.8) * p.orbitR * 0.42;
+    p.x += (ox - p.x) * Math.min(1, dt * 1.5);
+    p.z += (oz - p.z) * Math.min(1, dt * 1.5);
+    p.bob += dt * 1.3;
+    p.y = p.baseY + Math.sin(p.bob) * 0.4;
+    p.mesh.position.set(p.x, p.y, p.z);
+    p.mesh.rotation.y = Math.atan2(cam.x - p.x, cam.z - p.z) + 0.28;
+    p.mesh.rotation.z = Math.sin(p.bob * 0.7) * 0.05 - 0.04;
+    if (u.rotor) u.rotor.rotation.y += dt * 17;
+    if (u.tail) u.tail.rotation.x += dt * 26;
+    p.visTop = p.y + 2.3;
+    if (p.live !== false) {
+      p.aim -= dt;
+      if (p.aim <= 0) {
+        heliFire(ctx, p);
+        p.aim = p.aimMax + Math.random() * 0.9;
+      }
+      if (p.e.hp <= 3) {
+        p.smokeT -= dt;
+        if (p.smokeT <= 0) { p.smokeT = 0.16; smokeAt(ctx, p.x + (Math.random() - 0.5), p.y + 0.5, p.z, 0x35322e); }
+      }
+    }
+    const prog = p.gunnerAlive ? Math.max(0, Math.min(1, 1 - p.aim / Math.max(0.001, p.aimMax))) : 0;
+    placeTag(p, ctx, prog, p.live !== false && p.gunnerAlive);
+  }
+
+  function smokeAt(ctx, x, y, z, col) {
+    const m = new T.Mesh(new T.SphereGeometry(0.16 + Math.random() * 0.12, 6, 5), new T.MeshBasicMaterial({ color: col || 0x3a3630, transparent: true, opacity: 0.5, depthWrite: false }));
+    m.position.set(x, y, z);
+    m.userData.v = new T.Vector3((Math.random() - 0.5) * 0.5, 0.35 + Math.random() * 0.4, (Math.random() - 0.5) * 0.5);
+    m.userData.life = 0.9 + Math.random() * 0.7;
+    m.userData.smoke = 1;
+    ctx.scene.add(m);
+    smokes.push(m);
+  }
+
+  function boomAt(ctx, x, y, z) {
+    for (let i = 0; i < 10; i++) {
+      const m = new T.Mesh(new T.BoxGeometry(0.09 + Math.random() * 0.1, 0.09 + Math.random() * 0.1, 0.09 + Math.random() * 0.1), new T.MeshBasicMaterial({ color: i % 3 ? 0xffa12a : 0xfff2b0 }));
+      m.position.set(x, y, z);
+      m.userData.v = new T.Vector3((Math.random() - 0.5) * 5, 1 + Math.random() * 4, (Math.random() - 0.5) * 5);
+      m.userData.life = 0.4 + Math.random() * 0.3;
+      m.userData.burn = 1;
+      ctx.scene.add(m);
+      sparks.push(m);
+    }
+    for (let i = 0; i < 3; i++) smokeAt(ctx, x + (Math.random() - 0.5), y + 0.2, z + (Math.random() - 0.5), 0x2c2924);
+  }
+
+  /* ---------------- paratroopers ---------------- */
+
+  function strut(parent, ax, ay, az, bx, by, bz, mat, thick) {
+    const dx = bx - ax, dy = by - ay, dz = bz - az;
+    const len = Math.hypot(dx, dy, dz) || 0.01;
+    const m = new T.Mesh(new T.BoxGeometry(thick || 0.035, len, thick || 0.035), mat);
+    m.position.set((ax + bx) / 2, (ay + by) / 2, (az + bz) / 2);
+    m.quaternion.setFromUnitVectors(new T.Vector3(0, 1, 0), new T.Vector3(dx / len, dy / len, dz / len));
+    parent.add(m);
+    return m;
+  }
+
+  function makeParaModel(role) {
+    makeSol();
+    stage2Mats();
+    const g = new T.Group();
+    const sm = makeSoldier(role === "para" ? "weak" : role);
+    g.add(sm);
+    Object.assign(g.userData, sm.userData);
+    const chute = new T.Group();
+    chute.position.y = 3.15;
+    g.add(chute);
+    const canopy = new T.MeshPhongMaterial({ color: 0xd8d6bc, shininess: 4, specular: new T.Color(0x2a2a24) });
+    const canopy2 = new T.MeshPhongMaterial({ color: 0xb9bd9c, shininess: 4, specular: new T.Color(0x2a2a24) });
+    const ring = (r, y, n, s, mat) => {
+      for (let i = 0; i < n; i++) {
+        const a = (i / n) * Math.PI * 2;
+        const m = part(chute, s, s * 0.42, s, Math.cos(a) * r, y, Math.sin(a) * r, i % 2 ? mat : canopy2);
+        m.rotation.y = -a;
+        m.rotation.z = 0.12;
+      }
+    };
+    ring(1.62, 0.24, 12, 0.66, canopy);
+    ring(1.12, 0.58, 9, 0.58, canopy);
+    ring(0.6, 0.84, 6, 0.5, canopy);
+    part(chute, 0.52, 0.34, 0.52, 0, 0.98, 0, canopy2);
+    /* suspension lines down to the shoulders */
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2;
+      strut(chute, Math.cos(a) * 1.5, 0.2, Math.sin(a) * 1.5, Math.cos(a) * 0.26, -1.95, Math.sin(a) * 0.26, SOL.strap, 0.03);
+    }
+    g.userData.chute = chute;
+    return g;
+  }
+
+  function makeParaPost(w, m, i) {
+    const p0 = waveXY(w, m.lat || 0, m.dep || 16);
+    const role = roleOf(m.role || "weak");
+    const g = makeParaModel(role);
+    const land = m.land ? waveXY(w, m.land[0], m.land[1]) : { x: p0.x, z: p0.z };
+    const post = {
+      e: { kind: role, mesh: g, alive: true, hp: roleHp(role), h: 1.4, _tag: null },
+      role, air: "para", i,
+      x: p0.x, z: p0.z, y: m.y || 8.4,
+      vy: -(m.vy || 1.15),
+      chuteOn: true, torn: 0,
+      landX: land.x, landZ: land.z,
+      live: false, state: "drop", expose: 1,
+      aim: roleAim(role) + 0.8, aimMax: roleAim(role) + 0.8,
+      burstN: 0, shotT: 0, burstMax: 2,
+      sway0: Math.random() * 6.28,
+      bob: Math.random() * 6, breath: Math.random() * 6, walk: 0, moving: false,
+      hideFrac: 0.35, hideMin: 0.6 + Math.random() * 0.6, peekDir: i % 2 ? 1 : -1,
+      fireMax: 1.5 + Math.random() * 0.6, stateT: 0.4, aimMax0: roleAim(role),
+      knock: 0, recoil: 0, armK: 0, visTop: 0, headTop: 1.5, scale: 1.28
+    };
+    if (SCENE) SCENE.add(g);
+    g.position.set(post.x, post.y, post.z);
+    post.mesh = g;
+    post.body = g.userData.body || null;
+    post.visTop = post.y + 2.0;
+    roleTag(post.e);
+    if (post.e._tag) post.e._tag.style.display = "none";
+    posts.push(post);
+    return post;
+  }
+
+  function cutChute(ctx, p) {
+    if (!p.chuteOn) return;
+    p.chuteOn = false;
+    p.torn = 1;
+    p.vy = -1.6;
+    if (p.mesh && p.mesh.userData && p.mesh.userData.chute) {
+      const ch = p.mesh.userData.chute;
+      ch.rotation.z = 0.9;
+      ch.scale.set(0.7, 0.5, 0.7);
+      ch.visible = false;
+    }
+    burst(ctx.scene, p.x, p.y + 2.4, p.z, false);
+    gun("hit");
+    addPts(ctx, 120);
+    window.__chuteCuts = (window.__chuteCuts || 0) + 1;
+  }
+
+  function landPara(ctx, p) {
+    p.chuteOn = false;
+    if (p.mesh && p.mesh.userData && p.mesh.userData.chute) p.mesh.userData.chute.visible = false;
+    p.y = 0.3;
+    p.mesh.position.y = 0.3;
+    p.air = null;
+    p.state = "peek";
+    p.stateT = 0.2;
+    p.expose = 1;
+    p.aimMax = p.aimMax0 || roleAim(p.role);
+    p.aim = p.aimMax;
+    /* find the nearest sandbags he can get behind and walk there */
+    const cam = ctx.camera.position;
+    let best = null, bd = 1e9;
+    landCovers.forEach((c) => {
+      if (c.used) return;
+      const d = Math.hypot(c.cx - p.x, c.cz - p.z);
+      if (d < bd) { bd = d; best = c; }
+    });
+    if (best && bd < 16) {
+      best.used = true;
+      p.coverRef = best;
+      p.coverTop = best.topY;
+      p.coverCX = best.cx;
+      p.coverCZ = best.cz;
+      const dx = best.cx - cam.x, dz = best.cz - cam.z;
+      const dd = Math.hypot(dx, dz) || 1;
+      p.moveTo = { x: best.cx - (dx / dd) * 0.95, z: best.cz - (dz / dd) * 0.95, sp: 3.4 };
+      p.spd = 3.4;
+    }
+    window.__paraLanded = (window.__paraLanded || 0) + 1;
+  }
+
+  function stepPara(p, ctx, dt) {
+    const cam = ctx.camera.position;
+    if (p.chuteOn) {
+      /* under canopy: sink slowly, sway, and keep shooting */
+      p.vy = p.torn ? p.vy - 9.4 * dt : p.vy;
+      p.y += p.vy * dt;
+      const sw = performance.now() / 1300 + p.sway0;
+      p.x += Math.cos(sw) * 0.32 * dt;
+      p.z += Math.sin(sw * 0.8) * 0.26 * dt;
+      p.mesh.position.set(p.x, p.y, p.z);
+      p.mesh.rotation.y = Math.atan2(cam.x - p.x, cam.z - p.z);
+      const ch = p.mesh.userData.chute;
+      if (ch) {
+        ch.rotation.y = Math.sin(sw) * 0.1;
+        ch.rotation.z = Math.sin(sw * 1.4) * 0.05;
+      }
+      p.visTop = p.y + 2.2;
+      if (p.chuteOn) p.visTop = p.y + 3.55;
+      if (p.live !== false) {
+        p.aim -= dt;
+        if (p.burstN > 0) {
+          p.shotT -= dt;
+          if (p.shotT <= 0) {
+            enemyFire(ctx, p, p.burstN === p.burstMax ? 9 : 0);
+            p.burstN--;
+            p.shotT = 0.17;
+          }
+        } else if (p.aim <= 0) {
+          p.burstMax = 2;
+          p.burstN = 2;
+          p.shotT = 0.02;
+        }
+      }
+      if (p.y <= 0.34) {
+        if (p.torn) {
+          p.e.hp = 0;
+          p.air = null;
+          killPost(ctx, p, 150);
+          return;
+        }
+        landPara(ctx, p);
+        return;
+      }
+      const prog = Math.max(0, Math.min(1, 1 - p.aim / Math.max(0.001, p.aimMax)));
+      placeTag(p, ctx, prog, p.live !== false);
+      return;
+    }
+    /* on the ground he fights like any other man */
+  }
+
+  /* ---------------- the armoured boss ---------------- */
+
+  function makeAPCModel() {
+    makeSol();
+    stage2Mats();
+    const g = new T.Group();
+    const b = new T.Group();
+    g.add(b);
+    const hull = SOL.camoP;
+    /* sloped hull: a low box with two chamfer boxes front and rear */
+    part(b, 3.1, 1.15, 5.4, 0, 0.95, 0, hull);
+    const nose = part(b, 3.0, 0.8, 1.1, 0, 0.82, 2.95, hull);
+    nose.rotation.x = -0.36;
+    part(b, 3.05, 0.72, 0.9, 0, 0.95, -2.9, hull);
+    part(b, 2.6, 0.3, 4.6, 0, 1.55, 0, SOL.oliveDark);
+    part(b, 0.16, 0.5, 4.2, -1.56, 1.15, 0, SOL.oliveDark);
+    part(b, 0.16, 0.5, 4.2, 1.56, 1.15, 0, SOL.oliveDark);
+    /* turret with twin barrels */
+    const tur = new T.Group();
+    tur.position.set(0, 1.75, -0.4);
+    b.add(tur);
+    part(tur, 1.7, 0.72, 1.7, 0, 0, 0, hull);
+    part(tur, 1.2, 0.4, 1.2, 0, 0.5, 0, hull);
+    part(tur, 0.5, 0.34, 0.5, 0.34, 0.3, 0.7, SOL.steelP);
+    [-0.22, 0.22].forEach((sx) => {
+      part(tur, 0.16, 0.16, 1.9, sx, 0.02, 1.5, SOL.gunmetal);
+      part(tur, 0.24, 0.24, 0.3, sx, 0.02, 2.5, SOL.black);
+    });
+    part(tur, 0.34, 0.26, 0.3, -0.44, 0.16, 1.2, SOL.black);
+    const mz = new T.Object3D();
+    mz.position.set(0, 0.02, 2.7);
+    tur.add(mz);
+    g.userData.muzzle = mz;
+    g.userData.turret = tur;
+    /* wheels, hatches, lights, mirrors */
+    [-1.9, 0.1, 1.9].forEach((wz) => {
+      [-1.62, 1.62].forEach((wx) => {
+        const w = new T.Mesh(new T.CylinderGeometry(0.52, 0.52, 0.34, 12), SOL.tire);
+        w.rotation.z = Math.PI / 2;
+        w.position.set(wx, 0.52, wz);
+        w.castShadow = true;
+        b.add(w);
+        const hub = new T.Mesh(new T.CylinderGeometry(0.22, 0.22, 0.36, 8), SOL.steelP);
+        hub.rotation.z = Math.PI / 2;
+        hub.position.set(wx, 0.52, wz);
+        b.add(hub);
+      });
+    });
+    part(b, 0.7, 0.16, 0.7, -0.8, 1.7, 1.4, SOL.oliveDark);
+    [-1, 1].forEach((sx) => {
+      part(b, 0.22, 0.22, 0.1, sx * 1.0, 1.15, 2.9, SOL.lightP);
+      part(b, 0.16, 0.4, 0.08, sx * 1.2, 1.6, 1.9, SOL.black);
+    });
+    part(b, 0.06, 0.9, 0.06, 1.4, 2.1, -1.9, SOL.black);
+    const star = new T.Mesh(new T.PlaneGeometry(0.62, 0.62), SOL.star);
+    star.position.set(1.57, 1.05, 0.2);
+    star.rotation.y = Math.PI / 2;
+    b.add(star);
+    g.userData.body = b;
+    return g;
+  }
+
+  function stageBoss2() {
+    if (bossStage) return bossStage;
+    const g = makeAPCModel();
+    const spot = BOSS_DEF.spots[1];
+    const p0 = waveXY({ yaw: 0, hold: bossHold }, spot[0], spot[1]);
+    const hp = 12;
+    const post = {
+      e: { kind: "boss", mesh: g, alive: true, hp: hp, h: 2.8, _tag: null },
+      role: "boss", air: "apc", isBoss: true, i: 1,
+      x: p0.x, z: p0.z, y: 0.3,
+      hpMax: hp, spotI: 1, live: false, state: "hidden", stateT: 1.2,
+      aim: 2.4, aimMax: 2.4, burstN: 0, shotT: 0, expose: 1,
+      jump: null, moveT: 3.2, bob: 0, walk: 0, moving: false,
+      knock: 0, recoil: 0, visTop: 0
+    };
+    g.position.set(post.x, 0.3, post.z);
+    if (SCENE) SCENE.add(g);
+    post.mesh = g;
+    post.body = null;
+    post.visTop = 2.5;
+    roleTag(post.e);
+    if (post.e._tag) post.e._tag.style.display = "none";
+    posts.push(post);
+    bossPost = post;
+    bossStage = post;
+    return post;
+  }
+
+  function stepBoss2(p, ctx, dt) {
+    const cam = ctx.camera;
+    if (p.jump) {
+      const j = p.jump;
+      j.t += dt / 0.8;
+      const k = Math.min(1, j.t);
+      p.x = j.fx + (j.tx - j.fx) * k;
+      p.z = j.fz + (j.tz - j.fz) * k;
+      p.y = 0.3 + Math.sin(Math.PI * k) * 0.95;
+      if (k >= 1) { p.jump = null; p.y = 0.3; p.moveT = 4.2 + Math.random() * 2.0; }
+    } else if (p.moveT > 0) {
+      p.moveT -= dt;
+      if (p.moveT <= 0 && p.burstN === 0) {
+        p.spotI = (p.spotI + 1 + ((Math.random() * 2) | 0)) % BOSS_DEF.spots.length;
+        const s = BOSS_DEF.spots[p.spotI];
+        const np = waveXY({ yaw: 0, hold: bossHold }, s[0], s[1]);
+        p.jump = { fx: p.x, fz: p.z, tx: np.x, tz: np.z, t: 0 };
+      }
+    }
+    /* a two-shot threat: the ring runs down, then two heavy rounds */
+    p.aim -= dt;
+    if (p.burstN > 0) {
+      p.shotT -= dt;
+      if (p.shotT <= 0) {
+        enemyFire(ctx, p, p.burstN === 2 ? 16 : 22);
+        p.burstN--;
+        p.shotT = 0.5;
+      }
+    } else if (p.aim <= 0) {
+      p.burstN = 2;
+      p.burstMax = 2;
+      p.shotT = 0.04;
+      p.aim = p.aimMax + 0.7;
+      if (p.mesh.userData && p.mesh.userData.turret) p.recoil = 1;
+    }
+    p.mesh.position.set(p.x, p.y, p.z);
+    p.mesh.rotation.y = Math.atan2(cam.position.x - p.x, cam.position.z - p.z);
+    p.mesh.rotation.z = p.jump ? Math.sin(p.jump.t * Math.PI) * 0.05 : 0;
+    if (p.recoil > 0) {
+      p.recoil = Math.max(0, p.recoil - dt * 3.2);
+      if (p.mesh.userData && p.mesh.userData.turret) p.mesh.userData.turret.position.z = -0.4 - p.recoil * 0.12;
+    }
+    p.visTop = p.y + 2.2;
+    const prog = Math.max(0, Math.min(1, 1 - p.aim / Math.max(0.001, p.aimMax)));
+    placeTag(p, ctx, prog, true);
+  }
+
+  function stepDyingVehicle(p, ctx, dt) {
+    /* the hull drops on its suspension, then a stack of explosions */
+    if (p.dying > 0) {
+      p.dying -= dt;
+      p.mesh.rotation.z = Math.min(0.42, (1 - p.dying / 1.6) * 0.42);
+      p.mesh.position.y = 0.3 - (1 - p.dying / 1.6) * 0.12;
+      p.smokeT = (p.smokeT || 0) - dt;
+      if (p.smokeT <= 0) {
+        p.smokeT = 0.12;
+        smokeAt(ctx, p.x + (Math.random() - 0.5) * 2, p.y + 1.6, p.z + (Math.random() - 0.5) * 2, 0x2b2823);
+      }
+      if (p.dying <= 0) for (let i = 0; i < 2; i++) boomAt(ctx, p.x + (Math.random() - 0.5) * 2.4, 1.0, p.z + (Math.random() - 0.5) * 2.4);
+    }
+  }
+
+  /* a round that lands on something with an engine: the canopy, the airframe,
+     the armour. Body hits on a descending man still use the normal path. */
+  function airDamage(ctx, p, at, box) {
+    if (!p || p.e.alive === false) return;
+    const h = Math.max(0.6, box.max.y - box.min.y);
+    const crit = at.y > box.min.y + h * 0.72;
+    const dmg = p.air === "apc" ? (crit ? 3 : 1) : 1;
+    p.e.hp = (p.e.hp || 1) - dmg;
+    p.hitFlash = 0.09;
+    burst(ctx.scene, at.x, at.y, at.z, dmg >= 3 || p.e.hp <= 1);
+    p.recoil = 1;
+    if (p.air === "heli") {
+      grunt(false);
+      if (p.e.hp <= 3 && p.gunnerAlive) {
+        p.gunnerAlive = false;
+        if (p.mesh.userData.gunner) p.mesh.userData.gunner.visible = false;
+      }
+    }
+    window.__lastHitAir = { kind: p.air, dmg: dmg, hp: p.e.hp, crit: crit };
+    window.__lastDmg = { role: p.role, head: crit, dmg: dmg };
+    if (p.e.hp > 0) { gun("hit"); return; }
+    if (p.air === "heli") {
+      p.e.alive = false;
+      p.fallV = -0.4;
+      p.smokeT = 0;
+      hitStop = Math.max(hitStop, 0.12);
+      flashScreen(0.5);
+      shake = 1.3;
+      gun("boom");
+      addPts(ctx, 600);
+      tagOff(p);
+      window.__heliDown = (window.__heliDown || 0) + 1;
+      return;
+    }
+    /* the armoured car goes up */
+    p.e.alive = false;
+    p.dying = 1.6;
+    hitStop = Math.max(hitStop, 0.2);
+    flashScreen(0.75);
+    shake = 1.7;
+    gun("boom");
+    addPts(ctx, 2500);
+    tagOff(p);
+    for (let i = 0; i < 3; i++) boomAt(ctx, p.x + (Math.random() - 0.5) * 2.6, p.y + 1.1 + Math.random(), p.z + (Math.random() - 0.5) * 2.6);
+    window.__bossDown = (window.__bossDown || 0) + 1;
+    finish(ctx, true);
+  }
+
+  /* what the air units look like on screen, for the viewport check */
+  function airReport(ctx) {
+    const cam = ctx.camera;
+    return posts.filter((p) => p.air).map((p) => {
+      const v = new T.Vector3(p.x, p.y, p.z).project(cam);
+      return {
+        kind: p.air, hp: p.e.hp, alive: p.e.alive !== false,
+        live: p.live !== false, y: +p.y.toFixed(2),
+        ndc: [+v.x.toFixed(2), +v.y.toFixed(2)], inView: Math.abs(v.x) < 1 && Math.abs(v.y) < 1 && v.z < 1,
+        chute: !!p.chuteOn, aim: +(p.aim || 0).toFixed(2)
+      };
+    });
+  }
+
   window.RAIL = {
     get active() { return active; },
     get staged() { return staged; },
-    begin,
+    get stage() { return stageId; },
+    begin: (ctx, n) => begin(ctx, n),
+    beginStage: (ctx, n) => begin(ctx, n),
+    /* test hooks: what the air units look like on screen, and a way to clear
+       the current wave so the later zones can be reached in a headless run */
+    air: () => (window.__railCtx ? airReport(window.__railCtx) : []),
+    shootAt: (x, y) => {
+      const ctx = window.__railCtx;
+      if (!ctx) return;
+      aimN.x = (x / innerWidth) * 2 - 1;
+      aimN.y = -(y / innerHeight) * 2 + 1;
+      try { fire(ctx); } catch (err) { window.__fireErr = String(err && err.stack || err); }
+    },
+    killWave: () => {
+      const ctx = window.__railCtx;
+      if (!ctx) return 0;
+      let n = 0;
+      posts.slice().forEach((p) => {
+        if (p.live === false || p.e.alive === false || p.role === "hostage") return;
+        n++;
+        if (p.air === "heli") { p.e.hp = 1; airDamage(ctx, p, new T.Vector3(p.x, p.y, p.z), new T.Box3(new T.Vector3(p.x - 1, p.y - 1, p.z - 1), new T.Vector3(p.x + 1, p.y + 1, p.z + 1))); }
+        else if (p.air === "apc") { p.e.hp = 1; airDamage(ctx, p, new T.Vector3(p.x, p.y + 1.2, p.z), new T.Box3(new T.Vector3(p.x - 1, p.y, p.z - 1), new T.Vector3(p.x + 1, p.y + 2, p.z + 1))); }
+        else killPost(ctx, p, 100);
+      });
+      return n;
+    },
     pause,
     frame,
     fire: () => {

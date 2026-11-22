@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#10140e">
-<meta name="description" content="Destroy Now — a block-world military rail shooter. Stage 1-1 firefight, 4 waves, boss.">
+<meta name="description" content="Destroy Now — a block-world military rail shooter. Stage 1-1 Seoul, Stage 2-1 DMZ & Panmunjom (JSA).">
 <title>Destroy Now</title>
 <style>
   :root{--khaki:#c9b871;--olive:#2f3a22}
@@ -41,6 +41,9 @@
     touch-action:manipulation}
   .tStart span{display:block;margin-top:5px;font:700 11px/1 ui-monospace,monospace;letter-spacing:.22em;color:#d6cfa4}
   .tStart:active{transform:translateY(1px);filter:brightness(1.07)}
+  .tStart.alt{margin-top:10px;min-height:56px;font-size:clamp(14px,4vw,17px);border-color:#8fa9b8;
+    background:linear-gradient(180deg,#2f4a56,#1d2f38);box-shadow:0 8px 20px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.12)}
+  .tStart.alt span{color:#a9c6d2}
   .tHint{margin:18px 0 0;font-size:13px;color:#98a28c}
   .tHint b{color:#e6e2cf;font-weight:800}
   .tSound{display:inline-flex;align-items:center;gap:8px;margin-top:18px;border:1px solid rgba(201,184,113,.45);background:rgba(255,255,255,.05);
@@ -59,13 +62,14 @@
 
 <div id="mgTitle" class="show">
   <div class="tWrap">
-    <p class="tKicker">STAGE 1-1</p>
+    <p class="tKicker">STAGE 1-1 · STAGE 2-1</p>
     <h1>Destroy <em>Now</em></h1>
     <p class="tSub">A block-world military rail shooter — Baro picks up a gun</p>
     <button id="mgStart" class="tStart" type="button">▶ Start Mission<span>STAGE 1-1</span></button>
+    <button id="mgStart2" class="tStart alt" type="button">▶ DMZ &amp; Panmunjom<span>STAGE 2-1</span></button>
     <p class="tHint">Tap/click to aim &amp; fire · <b>R</b> to reload</p>
     <button id="mgSound" class="tSound" type="button" aria-pressed="true"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M4 9h3l4-3.6v13.2L7 15H4z" fill="currentColor"/><path class="w1" d="M14.6 8.6a4.6 4.6 0 0 1 0 6.8" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round"/><path class="w2" d="M17.4 6a8.2 8.2 0 0 1 0 12" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round"/></svg><span class="tSoundTxt">Sound on</span></button>
-    <p class="tFoot">4 WAVES · RED-STAR BARRELS · COMMANDER</p>
+    <p class="tFoot">2 STAGES · DMZ WIRE · PANMUNJOM JSA</p>
   </div>
 </div>
 
@@ -73,8 +77,8 @@
 <noscript><p style="position:fixed;inset:0;display:grid;place-items:center;margin:0;background:#0b0f08;color:#eef1e6">Turn on JavaScript to start the mission.</p></noscript>
 
 <script src="three.min.js"></script>
-<script src="engine.js?v=8"></script>
-<script src="gun-sfx.js?v=8"></script>
-<script src="rail.js?v=8"></script>
+<script src="engine.js?v=9"></script>
+<script src="gun-sfx.js?v=9"></script>
+<script src="rail.js?v=9"></script>
 </body>
 </html>
