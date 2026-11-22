@@ -13,11 +13,11 @@
 | 영어 페이지 | https://hwani27.github.io/hwani-gallery/baro-baro-myeolgong/en.html |
 | 갤러리 카드 | `index.html`의 `baro-baro-myeolgong/` 카드 → `thumb.png` |
 | 폴더 | `work/hwani-gallery/baro-baro-myeolgong/` (완전 독립 빌드) |
-| 현재 버전 | **v15** (`?v=15`, 시간대·날씨 + 부서지는 유리·간판) / v14 (`?v=14`, 겹침·관통 정리) / v13 (`?v=13`, 레일 관통 수정 · 복셀 텍스처 · 나무/남산/숭례문/버스 · 파편·탄흔) / v12 (`?v=12`, 화면 후처리 `post.js` + 적 테두리 빛) / v11 (`?v=11`, 버그 수정 4건) / 이전 **v10 통합** (`?v=10`) — v10 표면(텍스처·PBR 재질·환경맵·ACES·그림자·총구 화염/탄피) 위에 **Stage 2(DMZ·판문점)** 를 함께 얹은 상태. PR #12(`feat/myeolgong-v9-seoul-polish`)를 main에 병합하며 충돌 4곳을 해소 |
-| 스테이지 | `STAGES` 표: 1 = 서울 시가지(v9 리뉴얼), 2 = DMZ·판문점. 타이틀의 두 버튼 / Stage 1 클리어 결과의 `다음 작전` 버튼으로 진입 |
+| 현재 버전 | **v16** (`?v=16`, 스테이지 연장 · Stage 3 · 무기) / v15 (`?v=15`, 시간대·날씨 + 부서지는 유리·간판) / v14 (`?v=14`, 겹침·관통 정리) / v13 (`?v=13`, 레일 관통 수정 · 복셀 텍스처 · 나무/남산/숭례문/버스 · 파편·탄흔) / v12 (`?v=12`, 화면 후처리 `post.js` + 적 테두리 빛) / v11 (`?v=11`, 버그 수정 4건) / 이전 **v10 통합** (`?v=10`) — v10 표면(텍스처·PBR 재질·환경맵·ACES·그림자·총구 화염/탄피) 위에 **Stage 2(DMZ·판문점)** 를 함께 얹은 상태. PR #12(`feat/myeolgong-v9-seoul-polish`)를 main에 병합하며 충돌 4곳을 해소 |
+| 스테이지 | `STAGES` 표: 1 = 서울(8웨이브+보스), 2 = DMZ·판문점(6웨이브+보스), 3 = 평양 진입(7웨이브+보스, 눈). 타이틀 버튼 3개(`#mgStart`/`2`/`3`), 결과의 `다음 작전`은 1→2→3. 타이틀의 두 버튼 / Stage 1 클리어 결과의 `다음 작전` 버튼으로 진입 |
 | v9 브랜치 | `feat/myeolgong-v9-seoul-polish` → PR #12 (v10도 같은 브랜치) |
 | v6 커밋 | `3df8b62` — full 1st-person arms/torso, adaptive portrait FOV, barrel tracks the aim point |
-| 캐시 버스터 | `?v=15` (index.html·en.html **네 줄**: post·engine·gun-sfx·rail) |
+| 캐시 버스터 | `?v=16` (index.html·en.html **네 줄**: post·engine·gun-sfx·rail) |
 
 | 로컬 실행 | `cd work/hwani-gallery && python3 -m http.server 8133` → `http://127.0.0.1:8133/baro-baro-myeolgong/index.html` |
 
@@ -414,6 +414,17 @@ Stage 1(서울)은 손대지 않았고, 그 뒤에 **Stage 2**를 붙였다. 두
 - **v3**: 군사 리스킨(블록 병사·가림막·기름통), HUD·결과 화면.
 - **v2**: 레일 슈터 골격(`baro-baro-jump` 엔진 위에 얹었다가 이후 완전 분리).
 - **v1**: `baro-baro-jump` HTML을 fetch/DOMParser로 재파싱해 쓰던 시절 → **지금은 금지된 구조**. 독립 빌드로 되돌리지 말 것.
+
+## 6-7. v16 — 스테이지 연장, Stage 1 연출, Stage 3, 무기 (2026-11-22)
+
+사용자 지시: "스테이지 하나당 길이 늘리기 / 1-1에도 대사·보스 체력 2와 동일하게 / 다음 스테이지도 똑같이 길게 / 무기 늘리기".
+
+- **Stage 1 (서울) 4→8웨이브**: `PATH1`이 성문에서 끝나지 않고 성문 통로(뒷벽 제거) → 뒷골목 광장 → 동쪽 대로 → 숭례문 광장까지 이어진다. 추가 웨이브: `junction`(교차로, `-4.8,23`), `backstreet`(`-39,63`), `avenue`(`-28,69.2`, 동향 yaw π/2), `sungnyemun`(`-2,60.5`). 보스는 숭례문 광장(`BOSS1.hold = [-2,60.5]`). 새 블록: 성문 뒤 서쪽(-62~-48), 북쪽 2동(z 75.4~92), 남쪽 2동(대로 남측), 비스타의 `[-20,-7,41,64]`는 상점 달린 블록으로 교체, `[-22,-7,68,88]`·`(-52,-26,62,76)` 블록 삭제. 제한 시간 360초.
+- **Stage 1 연출 = Stage 2와 동일**: 하늘에서 내려오는 인트로 카메라 + 본부 무전 2줄(`introCam`/`introLines`), 모든 웨이브 `radio`, 보스 등장 무전(`STAGE.bossRadio`), **보스 체력 게이지**(`stageBoss()`에서 `post.hpMax` 설정 → 기존 게이지가 그대로 그림). 사람 보스 체력 8→16.
+- **Stage 2 (DMZ) 4→6웨이브**: 34 m 남쪽 GOP에서 시작(`PATH2` 앞에 6점), `GOP`(0,-38)·`지뢰 지대`(0,-22, 헬기) 웨이브 추가, 철책·도로 연장, 초소 2개·지뢰 표지 추가, 인트로 카메라·아군 시작점 이동. 웨이브를 인덱스(`waves[2]`)로 찾던 곳은 `waveNamed("yard"|"jsa1"|"jsa2")`로 교체(태그 `jsa1`/`jsa2`). 제한 시간 360초.
+- **Stage 3 평양 진입** (`PATH3`/`WAVES3`/`BOSS3`/`dressStage3`, mood `snow`): 검문소 → 아파트 거리(공수부대) → 전차 정류장(헬기) → 개선 아치 → 광장 입구 → 광장(공수부대) → 광장 중앙(헬기) → 보스 장갑차. 눈 덮인 땅·질척한 도로, 회색 아파트 판상동(지붕 눈, 발코니 눈, 붉은 별 현수막), 트롤리 전선 마스트, 높이 22 m 아치, 열주 회관, 기념탑(붉은 불꽃), 피라미드형 호텔 실루엣, 깃대, 눈 쌓인 소나무. **실존 인물(동상·초상)은 넣지 않았다.** 제한 시간 380초.
+- **무기** (`WEAPONS`, `setWeapon`, `shootRay`, `throwGrenade`/`stepNades`): `fire()`를 탄약·연출 래퍼와 레이 판정 `shootRay(ctx, quiet)`로 분리. 습득 무기 상자(`picks`의 `"smg"`/`"shotgun"`/`"grenade"`)를 쏘면 획득. SMG 45발·누르고 있으면 연사(82 ms), 산탄총 8발·펠릿 7개(명중률은 1회로 계산, 전부 빗나갈 때만 콤보 끊김), 수류탄은 `G` 키/`G` 버튼(화면 R 왼쪽) → 조준점 지면(5~22 m)에 포물선 → 0.35초 뒤 드럼통급 폭발(6.5 m) + 유리·간판 파괴. 특수 무기는 재장전 없음, 다 쓰면 권총. 뷰모델은 같은 `aim` 그룹에 SMG·산탄총 파츠를 붙이고 권총 파츠를 숨긴다(총구 화염 위치도 이동). HUD: 무기명·잔탄, `GRENADE XN`. 새 소리 `GunSFX.smg()/shotgun()`. 디버그: `RAIL.giveWeapon(w)`, `RAIL.grenade()`, `window.__weapon`, `__nades`, `__nadeBooms`.
+- 검증: 세 스테이지 레일 관통 0(`tests/free.py` 방식), Stage 2·3 완주, Stage 1 보스 진입, 오류 0, 산탄총 사격으로 적 처치·SMG 연사·수류탄 폭발 확인.
 
 ## 6-8. v15 — 시간대·날씨, 부서지는 배경 (2026-11-22)
 

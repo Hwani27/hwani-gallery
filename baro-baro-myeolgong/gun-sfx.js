@@ -182,6 +182,27 @@
     thump(c, t, 320, 180, 0.03, 0.06, bus);
   }
 
+  /* the pump gun: a deep, wide blast with a long tail, then the pump */
+  function shotgun() {
+    if (muted()) return;
+    const c = ac();
+    const t = c.currentTime;
+    thump(c, t, 120, 46, 0.12, 0.34, bus);
+    band(c, t, 0.24, "lowpass", 1800, 0.7, 0.9, 0.001, 0.2, bus);
+    band(c, t + 0.005, 0.12, "bandpass", 3200, 0.9, 0.5, 0.001, 0.1, bus);
+    band(c, t + 0.34, 0.05, "bandpass", 1700, 2.2, 0.3, 0.001, 0.04, bus);
+    band(c, t + 0.44, 0.05, "bandpass", 2300, 2.2, 0.34, 0.001, 0.04, bus);
+    ping(c, t + 0.445, 3100, 0.04, 0.06, bus);
+  }
+  /* the sub-machine gun: a short, tight crack, light enough to stack */
+  function smg() {
+    if (muted()) return;
+    const c = ac();
+    const t = c.currentTime;
+    thump(c, t, 200, 80, 0.04, 0.16, bus);
+    band(c, t, 0.06, "bandpass", 2600, 0.9, 0.5, 0.0006, 0.05, bus);
+    band(c, t, 0.03, "highpass", 5200, 0.7, 0.24, 0.0005, 0.02, bus);
+  }
   /* a pane going: a bright crack, then a shower of little tinkling pings */
   function glass() {
     if (muted()) return;
@@ -588,6 +609,8 @@
     rifle,
     dry: dryFire,
     glass,
+    shotgun,
+    smg,
     clank,
     reload,
     hit,
