@@ -3997,6 +3997,7 @@
     const x = o.x, y = o.y, z = o.z;
     const rotY = Math.atan2(ax, az);
     const g = new T.Group();
+    g.name = "shopFront";
     /* glazed shopfront */
     /* the shop window is a row of separate panes (each one can be shot out)
        in front of a dim shop interior that shows through the broken ones */
@@ -6747,6 +6748,8 @@
     if (coverRoot) roots.push(coverRoot);
     if (dress && dress.root) roots.push(dress.root);
     roots.forEach((root) => root.updateMatrixWorld(true));
+    knocked.length = 0;
+    roots.forEach((root) => { root.userData.legRoot = 1; root.traverse((o) => { if (o.name && /^(cityLeg|covers-w|battlefield)/.test(o.name)) o.userData.legRoot = 1; }); });
     roots.forEach((root) => root.traverse((o) => {
       if (!o.isMesh || !o.visible || !o.geometry) return;
       if (o.userData && o.userData.noBlock) return;
@@ -6785,17 +6788,78 @@
      sit exactly on the rail at every hold). The camera just reads it. */
   const STEER_R = 0.62, STEER_STEP = 0.25, STEER_K = 41, STEER_D = 0.1;
   const _lq = new T.Vector3();
-  function blockHit(B, qx, qz) {
+  function blockHit(B, qx, qz, R) {
+    if (B.dead) return false;
     if (!B.inv) return true;
-    const lb = B.lb;
+    const lb = B.lb, RR = R || STEER_R;
     for (const y of [0.7, 1.2, 1.6]) {
       _lq.set(qx, y, qz).applyMatrix4(B.inv);
-      const rx = STEER_R / B.sx, ry = STEER_R / B.sy, rz = STEER_R / B.sz;
+      const rx = RR / B.sx, ry = RR / B.sy, rz = RR / B.sz;
       if (_lq.x > lb.min.x - rx && _lq.x < lb.max.x + rx &&
           _lq.y > lb.min.y - ry && _lq.y < lb.max.y + ry &&
           _lq.z > lb.min.z - rz && _lq.z < lb.max.z + rz) return true;
     }
     return false;
+  }
+  /* (v48) the jeep / landing craft is not a man: its bonnet or bow runs
+     ~3.8 m ahead of the camera and 2.6 m wide, so a clear line for the
+     camera alone still drove the vehicle through barriers. Chase stages
+     test the whole footprint instead. */
+  const VEH_F = [-0.4, 0.8, 2.0, 3.2, 3.9], VEH_L = [-1.3, -0.65, 0, 0.65, 1.3], VEH_R = 0.36;
+  function vehBox(px, pz, tx, tz) {
+    let a = 1e9, b = -1e9, c = 1e9, d = -1e9;
+    for (const f of [VEH_F[0], VEH_F[VEH_F.length - 1]]) for (const l of [-1.3, 1.3]) {
+      const x = px + tx * f + tz * l, z = pz + tz * f - tx * l;
+      a = Math.min(a, x); b = Math.max(b, x); c = Math.min(c, z); d = Math.max(d, z);
+    }
+    return [a - VEH_R, b + VEH_R, c - VEH_R, d + VEH_R];
+  }
+  function vehHitB(B, px, pz, tx, tz, bx) {
+    if (B.dead) return false;
+    if (!(bx[1] > B.minX && bx[0] < B.maxX && bx[3] > B.minZ && bx[2] < B.maxZ)) return false;
+    for (const f of VEH_F) for (const l of VEH_L) if (blockHit(B, px + tx * f + tz * l, pz + tz * f - tx * l, VEH_R)) return true;
+    return false;
+  }
+  /* anything the planner could not steer round (a barrier pinned at a stop)
+     is shunted off the road when the bonnet reaches it, instead of the
+     vehicle driving through it */
+  const knocked = [];
+  function vehSmash(ctx, px, pz, tx, tz) {
+    if (!railBlockers.length) return;
+    const bx = vehBox(px, pz, tx, tz);
+    let any = false;
+    for (let b = 0; b < railBlockers.length; b++) {
+      const B = railBlockers[b];
+      if (!B.o || !vehHitB(B, px, pz, tx, tz, bx)) continue;
+      let r = B.o;
+      while (r.parent && r.parent !== ctx.scene && !r.parent.userData.legRoot) {
+        const pb = new T.Box3().setFromObject(r.parent), sz = pb.getSize(new T.Vector3());
+        if (sz.x > 6.5 || sz.z > 6.5 || sz.y > 4) break;
+        r = r.parent;
+      }
+      railBlockers.forEach((C) => { if (C.o) { let q = C.o; while (q) { if (q === r) { C.dead = true; break; } q = q.parent; } } });
+      ctx.scene.attach(r);
+      const cx = new T.Box3().setFromObject(r).getCenter(new T.Vector3());
+      const side = ((cx.x - px) * tz - (cx.z - pz) * tx) >= 0 ? 1 : -1;
+      knocked.push({ o: r, t: 0, vx: tx * 5.5 + tz * side * 6.5, vz: tz * 5.5 - tx * side * 6.5, vy: 4.2, sp: (Math.random() - 0.5) * 9, sr: side * 6 });
+      const wi = wallList.indexOf(r); if (wi >= 0) wallList.splice(wi, 1);
+      any = true;
+    }
+    if (any) {
+      try { rebuildWallBoxes(); } catch (e) {}
+      try { gun("boom"); } catch (e) {}
+      window.__smashed = (window.__smashed || 0) + 1;
+    }
+  }
+  window.__vehHit = (px, pz, tx, tz) => { const bx = vehBox(px, pz, tx, tz); return railBlockers.filter((B) => vehHitB(B, px, pz, tx, tz, bx)).length; };
+  function stepKnocked(dt) {
+    for (let i = knocked.length - 1; i >= 0; i--) {
+      const k = knocked[i];
+      k.t += dt; k.vy -= 16 * dt;
+      k.o.position.x += k.vx * dt; k.o.position.y = Math.max(-2, k.o.position.y + k.vy * dt); k.o.position.z += k.vz * dt;
+      k.o.rotation.x += k.sp * dt; k.o.rotation.z += k.sr * dt;
+      if (k.t > 1.4) { if (k.o.parent) k.o.parent.remove(k.o); knocked.splice(i, 1); }
+    }
   }
   let steerProf = null;
   function planSteer(holdUs) {
@@ -6803,6 +6867,13 @@
     if (!curve || !railBlockers.length) return;
     const N = Math.max(2, Math.ceil(pathLen / STEER_STEP));
     const mid = (STEER_K - 1) / 2;
+    /* the vehicle is only under you until the first stop (jeep) or the
+       beach (landing craft); after that it is a man on foot again */
+    let vehU = -1;
+    if (STAGE.chase) {
+      vehU = holdUs && holdUs.length ? holdUs[0] : 0;
+      if (STAGE.chase === "boat") { vehU = 1; for (let i = 0; i <= 200; i++) if (curve.getPointAt(i / 200).z > -69) { vehU = i / 200; break; } }
+    }
     const free = new Uint8Array((N + 1) * STEER_K);
     for (let i = 0; i <= N; i++) {
       const u = i / N;
@@ -6812,6 +6883,12 @@
         const o = (k - mid) * STEER_D * 2;
         const qx = p.x + nx * o, qz = p.z + nz * o;
         let ok = 1;
+        if (u <= vehU) {
+          const tx = t.x / tl, tz = t.z / tl, bx = vehBox(qx, qz, tx, tz);
+          for (let b = 0; b < railBlockers.length; b++) if (vehHitB(railBlockers[b], qx, qz, tx, tz, bx)) { ok = 0; break; }
+          free[i * STEER_K + k] = ok;
+          continue;
+        }
         for (let b = 0; b < railBlockers.length; b++) {
           const B = railBlockers[b];
           if (!(qx > B.minX - STEER_R && qx < B.maxX + STEER_R && qz > B.minZ - STEER_R && qz < B.maxZ + STEER_R)) continue;
@@ -9376,9 +9453,12 @@
     }
     const u = Math.min(1, pathU + ahead / pathLen);
     const pt = pathAt(u);
+    /* (v48) a rider or a patrol boat brings no cover: makePost's default
+       barrier used to be dropped in the road (or the sea) in front of each
+       one, and the jeep / landing craft then drove straight through it */
     const p = chase.boat
-      ? makePost({ yaw: 0, hold: { x: pt.x, z: pt.z - 2 } }, { role: k % 3 === 2 ? "tough" : "weak", lat: 0, dep: 2 }, 70 + k)
-      : makePost({ yaw: 0, hold: { x: pt.x, z: pt.z - 2 } }, { role: k % 3 === 2 ? "tough" : "weak", lat: 0, dep: 2, bike: true, run: { from: [pt.x, pt.z], dur: 99, delay: 0 } }, 70 + k);
+      ? makePost({ yaw: 0, hold: { x: pt.x, z: pt.z - 2 } }, { role: k % 3 === 2 ? "tough" : "weak", lat: 0, dep: 2, cover: "rail" }, 70 + k)
+      : makePost({ yaw: 0, hold: { x: pt.x, z: pt.z - 2 } }, { role: k % 3 === 2 ? "tough" : "weak", lat: 0, dep: 2, cover: "rail", bike: true, run: { from: [pt.x, pt.z], dur: 99, delay: 0 } }, 70 + k);
     if (chase.boat && p.mesh) {
       const bt = makeEnemyBoat();
       const sc = p.mesh.scale.x || 1;
@@ -11558,6 +11638,7 @@
         const tx = tng.x / tl, tz = tng.z / tl;
         const so = steerStep(p, tx, tz, dt, pathU);
         cam.position.set(p.x + tz * so, CAM_Y, p.z - tx * so);
+        if (chase) vehSmash(ctx, cam.position.x, cam.position.z, tx, tz);
         const ahead = pathAt(pathU + 7 / pathLen);
         const zone = phase === "toBoss" ? { x: BOSS_DEF.look[0], y: BOSS_DEF.look[1], z: BOSS_DEF.look[2] }
                                         : (waves[waveI] ? waves[waveI].look : null);
@@ -11913,6 +11994,7 @@
     stepCrashed(ctx, dt);
     if (debris.length) stepDebris(dt);
     if (dress && dress.fires && dress.fires.length) stepFires(dt);
+    if (knocked.length) stepKnocked(dt);
     stepBoomLight(dt);
     if (lampPools.length) stepLampPools(nowMs);
     if (columns.length) stepColumns(ctx, dt);
@@ -14755,7 +14837,7 @@
       if (!t) return m;
       const c = m.clone(); c.color = new T.Color(t).convertSRGBToLinear(); return c;
     });
-    const block = (side, za, zb, back) => { const G = new T.Group(); G.userData.blk = 1; S.add(G); blockIn(G, side, za, zb, back); };
+    const block = (side, za, zb, back, leg) => { const G = new T.Group(); G.userData.blk = 1; if (leg != null) G.userData.leg = leg; S.add(G); blockIn(G, side, za, zb, back); };
     const blockIn = (S, side, za, zb, back) => {
       const h = (C.low ? 5 : 8) + R() * (C.low ? 3 : (C.tall || 10)) + (zb > 30 ? 4 : 0) + (back ? 6 + R() * 8 : 0);
       const e = back ? 16 : 0;
@@ -14788,11 +14870,11 @@
         bx(S, 2.4, 0.7, 2.4, x, 0.65, z, cmat(0xb0aa9c, 0.9));
       }
     }
-    const fillRun = (a, b, sides) => {
+    const fillRun = (a, b, sides, leg) => {
       let z = a;
       while (z < b - 6) {
         const len = Math.min(b - z, 12 + R() * 8);
-        sides.forEach((sd) => { if (sd < 0 || !seaHere(z)) block(sd, z, z + len); });
+        sides.forEach((sd) => { if (sd < 0 || !seaHere(z)) block(sd, z, z + len, false, leg); });
         z += len + 0.6;
       }
     };
@@ -14806,9 +14888,13 @@
           let a = zA + 2, b = 50;
           if (k > 0) { const t = TURNS[k - 1]; a = t[0] + ((sd > 0) === (t[1] > 0) ? 14 : -13.2); }
           if (k < TURNS.length) { const t = TURNS[k]; b = t[0] + ((sd > 0) === (t[1] > 0) ? -14 : 11.5); }
-          fillRun(a, b, [sd]);
+          /* (v48) a run belongs to its own leg even where it starts back across
+             the old street: placed by its centre it stayed on the previous
+             leg and stood inside that leg's blocks, two shop fronts on one
+             facade with their signs overlapping */
+          fillRun(a, b, [sd], k);
           /* a taller row behind, so the corners do not open onto bare ground */
-          if (!C.hanok) { let z = a - 8; while (z < b + 6) { const len = 12 + R() * 10; if (sd < 0 || !seaHere(z)) block(sd, z, z + len, true); z += len + 2; } }
+          if (!C.hanok) { let z = a - 8; while (z < b + 6) { const len = 12 + R() * 10; if (sd < 0 || !seaHere(z)) block(sd, z, z + len, true, k); z += len + 2; } }
         }
       });
     }
