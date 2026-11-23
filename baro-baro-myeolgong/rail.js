@@ -2752,6 +2752,10 @@
   /* (v21) a man going down swaps to the yelling face, and a 으악! pops */
   function deathFace(p) {
     const u = p.mesh && p.mesh.userData;
+    if (u && u.kSkin && !p.deadFace) {
+      p.deadFace = 1;
+      try { const dm = kMat(u.kSkin, true); u.kMeshes.forEach((m) => { m.material = dm; }); } catch (e) {}
+    }
     if (!u || !u.head || !u.faceKey || p.deadFace) return;
     p.deadFace = 1;
     try {
@@ -3056,7 +3060,181 @@
      rifle with a real receiver, handguard, stock, magazine and optic. Every
      piece is still a box (art rule); the small detail boxes skip the shadow
      pass so the cost stays close to the old model. */
+  /* (v27) people built on Kenney's Blocky Characters (CC0): one shared rig,
+     models/characters/character.glb (head, torso, two arms, two legs; no
+     skinning, so a clone is cheap), wearing skins painted for this game —
+     North Korean infantry, a darker veteran, a modern ROK soldier and four
+     Korean civilians, each with a ">_<" twin for the moment he goes down.
+     The rig's joints are handed to the old controller under the old names
+     (armL/armR/legL/legR/headG/body), so every pose, walk, aim, ride and fall
+     keeps working. Until the rig has loaded (or with ?oldchars) the old
+     block soldier is built instead. */
+  const KCH = { ready: false, src: null, tex: {}, mat: {}, dead: {}, kit: {} };
+  const kTex = (k) => {
+    if (KCH.tex[k]) return KCH.tex[k];
+    const t = new T.TextureLoader().load("models/characters/skins/" + k + ".png");
+    t.flipY = false; t.encoding = T.sRGBEncoding; t.magFilter = T.NearestFilter;
+    t.wrapS = t.wrapT = T.RepeatWrapping; t.anisotropy = 4;
+    return (KCH.tex[k] = t);
+  };
+  const kMat = (k, dead) => {
+    const C = dead ? KCH.dead : KCH.mat, key = k + (dead ? "-dead" : "");
+    return C[k] || (C[k] = new T.MeshStandardMaterial({ map: kTex(key), roughness: 0.9, metalness: 0 }));
+  };
+  const kKit = (hex, r) => KCH.kit[hex] || (KCH.kit[hex] = new T.MeshStandardMaterial({ color: new T.Color(hex).convertSRGBToLinear(), roughness: r == null ? 0.82 : r, metalness: 0.05 }));
+  (function loadKCH() {
+    if (/[?&]oldchars/.test(location.search)) return;
+    try {
+      if (!T.GLTFLoader) return;
+      new T.GLTFLoader().load("models/characters/character.glb", (g) => { KCH.src = g.scene; KCH.ready = true; }, undefined, () => {});
+      ["nk", "nkt", "rok", "civ1", "civ2", "civ3", "civ4"].forEach((k) => { kMat(k); kMat(k, true); });
+    } catch (e) {}
+  })();
+  /* a Kalashnikov-pattern rifle in blocks: wood stock and handguard, curved
+     magazine. Built like makeRifle (barrel down -z, muzzle at the tip). */
+  function makeAK() {
+    makeSol();
+    const g = new T.Group();
+    const d = (w, h, dd, x, y, z, m, rx) => { const b = new T.Mesh(new T.BoxGeometry(w, h, dd), m); b.position.set(x, y, z); if (rx) b.rotation.x = rx; g.add(b); return b; };
+    const wood = kKit("#7a4a2a", 0.7), steel = kKit("#2b2a28", 0.5);
+    d(0.08, 0.10, 0.42, 0, 0, 0.0, steel);                 // receiver
+    d(0.075, 0.03, 0.40, 0, 0.06, 0.0, steel);             // dust cover
+    d(0.08, 0.085, 0.22, 0, -0.005, -0.32, wood);          // handguard
+    d(0.03, 0.03, 0.30, 0, 0.025, -0.55, steel);           // barrel
+    d(0.03, 0.03, 0.22, 0, 0.065, -0.36, steel);           // gas tube
+    d(0.04, 0.07, 0.03, 0, 0.07, -0.63, steel);            // front sight
+    d(0.065, 0.10, 0.08, 0, -0.12, 0.10, wood);            // grip
+    d(0.07, 0.12, 0.09, 0, -0.10, -0.08, steel, -0.25);    // magazine, curved in two
+    d(0.07, 0.11, 0.09, 0, -0.20, -0.12, steel, -0.6);
+    d(0.075, 0.12, 0.30, 0, -0.035, 0.36, wood);           // stock
+    const muzzle = new T.Object3D(); muzzle.position.set(0, 0.025, -0.72); g.add(muzzle); g.userData.muzzle = muzzle;
+    return g;
+  }
+  /* (v27) a portrait of the player's soldier for the menu, the depot and the
+     result card: one small offscreen renderer, one picture per uniform */
+  window.MGAvatar = (function () {
+    let R = null, S = null, C = null;
+    const cache = {};
+    return {
+      ready: () => KCH.ready,
+      snap(uni, pose) {
+        const key = uni + "|" + (pose || "");
+        if (cache[key]) return cache[key];
+        if (!KCH.ready) return null;
+        const tx = kTex(uni);
+        if (!tx.image || !tx.image.complete || !tx.image.naturalWidth) return null;
+        try {
+          if (!R) {
+            const cv = document.createElement("canvas"); cv.width = 240; cv.height = 300;
+            R = new T.WebGLRenderer({ canvas: cv, antialias: true, alpha: true, preserveDrawingBuffer: true });
+            R.outputEncoding = T.sRGBEncoding; R.setClearColor(0x000000, 0);
+            S = new T.Scene();
+            S.add(new T.HemisphereLight(0xe8eeff, 0x5a4a3a, 0.9));
+            const d = new T.DirectionalLight(0xfff0dc, 1.2); d.position.set(2, 4, 5); S.add(d);
+            C = new T.PerspectiveCamera(24, 240 / 300, 0.1, 50);
+          }
+          const g = kenneyPerson("ally", { uni: uni });
+          if (!g) return null;
+          g.rotation.y = -0.35;
+          if (pose === "cheer") { g.userData.armL.rotation.set(-2.9, 0, -0.2); g.userData.armR.rotation.set(-0.5, 0, 0.3); if (g.userData.rifle) g.userData.rifle.visible = false; }
+          S.add(g);
+          C.position.set(0, 1.12, 4.9); C.lookAt(0, 0.93, 0);
+          R.render(S, C);
+          S.remove(g);
+          cache[key] = R.domElement.toDataURL("image/png");
+          return cache[key];
+        } catch (e) { window.__avatarErr = String(e); return null; }
+      }
+    };
+  })();
+  const K_H = { weak: 2.3, throw: 2.3, para: 2.3, tough: 2.74, hostage: 2.27, ally: 1.88 };
+  /* the player's own uniforms (bought in the depot) and their helmets */
+  const UNI_HELM = { "u-army": "#4f5538", "u-marine": "#5a5038", "u-sf": "#1e1f1f", "u-desert": "#a8916a", "u-snow": "#dfe3e5", "u-reserve": "#4e5a34", "u-guard": "#eeebe2" };
+  function kenneyPerson(role, opt) {
+    if (!KCH.ready || role === "boss") return null;
+    makeSol();
+    const civ = role === "hostage", tough = role === "tough", ally = role === "ally";
+    const uni = opt && opt.uni;
+    const skin = uni || (ally ? "rok" : civ ? "civ" + (1 + ((Math.random() * 4) | 0)) : tough ? "nkt" : "nk");
+    const g = new T.Group(), body = new T.Group();
+    g.add(body);
+    const K = KCH.src.clone(true);
+    body.add(K);
+    const mat = kMat(skin), meshes = [];
+    K.traverse((o) => { if (o.isMesh) { o.material = mat; o.castShadow = true; o.receiveShadow = true; meshes.push(o); } });
+    const nd = (n) => K.getObjectByName(n);
+    const head = nd("head"), torso = nd("torso");
+    /* the old controller's "L" limbs hang on the -x side */
+    const armL = nd("arm-right"), armR = nd("arm-left"), legL = nd("leg-right"), legR = nd("leg-left");
+    const shinL = new T.Group(), shinR = new T.Group();
+    shinL.position.y = -0.5; shinR.position.y = -0.5; legL.add(shinL); legR.add(shinR);
+    /* head gear, in the head's own units (the head block is 8 wide) */
+    const B = (par, w, h, d, x, y, z, m) => { const b = new T.Mesh(new T.BoxGeometry(w, h, d), m); b.position.set(x, y, z); par.add(b); return b; };
+    if (skin === "rok" || uni) {
+      const hm = kKit(UNI_HELM[skin] || "#4f5538"), dk = kKit(skin === "u-guard" ? "#c9a84a" : "#2c2c26");
+      B(head, 9.6, 3.4, 9.8, 0, 9.5, 0, hm); B(head, 8.6, 1.0, 8.8, 0, 11.6, 0, hm); B(head, 10.0, 0.6, 10.2, 0, 7.9, 0, uni ? hm : kKit("#454a31"));
+      B(head, 0.5, 1.2, 6.0, 4.95, 9.0, 0, dk); B(head, 0.5, 1.2, 6.0, -4.95, 9.0, 0, dk); B(head, 1.8, 1.4, 0.9, 0, 10.2, 5.0, dk);
+      B(head, 0.3, 3.0, 0.3, 4.6, 6.8, 1.6, kKit("#202020")); B(head, 0.3, 3.0, 0.3, -4.6, 6.8, 1.6, kKit("#202020"));
+      if (skin !== "u-guard") {
+        const vc = { "u-marine": ["#5a5038", "#463e2a"], "u-sf": ["#1f2020", "#151616"], "u-desert": ["#a8916a", "#8a7656"], "u-snow": ["#d8dcde", "#b8bec2"], "u-reserve": ["#4e5a34", "#3e4828"] }[skin] || ["#4c5236", "#3d422b"];
+        const vest = kKit(vc[0]), pch = kKit(vc[1]);
+        B(torso, 0.86, 0.5, 0.09, 0, 0.88, 0.33, vest); B(torso, 0.86, 0.5, 0.09, 0, 0.88, -0.33, vest);
+        for (let k = 0; k < 3; k++) B(torso, 0.2, 0.2, 0.12, -0.24 + k * 0.24, 0.66, 0.42, pch);
+      }
+    } else if (!civ) {
+      const hm = kKit(tough ? "#3f4429" : "#4b5232");
+      B(head, 9.2, 3.8, 9.4, 0, 9.7, 0, hm); B(head, 8.0, 1.0, 8.2, 0, 12.0, 0, hm); B(head, 9.8, 0.5, 10.0, 0, 7.7, 0, kKit(tough ? "#363a24" : "#434929"));
+      B(head, 0.3, 3.2, 0.3, 4.5, 6.6, 1.0, kKit("#5a3e24")); B(head, 0.3, 3.2, 0.3, -4.5, 6.6, 1.0, kKit("#5a3e24"));
+      const pch = kKit("#5a4a2c");
+      B(torso, 0.16, 0.42, 0.12, -0.28, 0.8, 0.34, pch); B(torso, 0.16, 0.42, 0.12, 0.28, 0.8, 0.34, pch);
+      if (role === "throw") B(torso, 0.5, 0.56, 0.24, 0, 0.78, -0.42, kKit("#4a4a30"));
+    }
+    /* fit the old height, so hit boxes, cover and aim lines stay true */
+    g.updateMatrixWorld(true);
+    const bb = new T.Box3().setFromObject(g), h0 = bb.max.y - bb.min.y;
+    K.scale.setScalar((K_H[role] || 2.3) / h0);
+    K.position.y = -bb.min.y * ((K_H[role] || 2.3) / h0);
+    if (civ) {
+      armL.rotation.z = -0.25; armR.rotation.z = 0.25;
+    } else {
+      const rifle = skin === "rok" || uni ? makeRifle() : makeAK();
+      const H = K_H[role] || 2.3, hs = H / 2.3;
+      rifle.scale.setScalar(1.28 * hs);
+      rifle.position.set(-0.03 * hs, 0.55 * H, 0.38 * hs);
+      rifle.rotation.set(0.12, Math.PI, -0.32);
+      body.add(rifle);
+      g.userData.rifle = rifle;
+      g.userData.muzzle = rifle.userData.muzzle;
+      armL.rotation.set(-1.05, 0, -0.32);
+      armR.rotation.set(-0.85, 0, 0.12);
+    }
+    if (role === "throw") {
+      const nade = new T.Group();
+      B(nade, 0.1, 0.13, 0.1, 0, 0, 0, SOL.oliveDark);
+      B(nade, 0.05, 0.05, 0.1, 0, 0.075, 0, SOL.steel);
+      nade.position.set(0.3, 0.62, 0.14);
+      body.add(nade);
+      g.userData.nade = nade;
+    }
+    g.userData.body = body;
+    g.userData.headG = head;
+    g.userData.armL = armL;
+    g.userData.armR = armR;
+    g.userData.legL = legL;
+    g.userData.legR = legR;
+    g.userData.shinL = shinL;
+    g.userData.shinR = shinR;
+    g.userData.role = role;
+    g.userData.kSkin = skin;
+    g.userData.kMeshes = meshes;
+    g.userData.kenney = true;
+    if (ally) { g.userData.phase = 0; g.userData.aimK = 0; }
+    else if (!civ) enemyRim(g);
+    return g;
+  }
+
   function makeSoldier(role) {
+    { const kp = kenneyPerson(role); if (kp) return kp; }
     makeSol();
     const g = new T.Group();
     const body = new T.Group();
@@ -3313,6 +3491,7 @@
      hip and shoulder joints. Tan uniform, plate carrier, helmet with an ally
      patch, a white/blue armband, and the same detailed rifle the enemy carries. */
   function makeAlly() {
+    { const kp = kenneyPerson("ally"); if (kp) return kp; }
     makeSol();
     const g = new T.Group();
     const b = new T.Group();
@@ -5926,7 +6105,7 @@
       introDur: 4.4,
       introCam: [[9.0, 13.5, -28.0, 0, 8.0, 40.0], [0, 1.68, -10.0, 0, 1.55, 3.5]],
       introLines: [
-        { t: 0.4, text: "1950년 6월. 적이 기습 남침했다. 서울이 불타고 있다." },
+        { t: 0.4, text: "20XX년 6월. 적이 기습 남침했다. 서울이 불타고 있다." },
         { t: 2.3, text: "시민들이 피할 시간을 벌어라. 버틸 수 있는 데까지 버텨라!" }
       ],
       bossRadio: "적 전차가 도심에 진입했다! 포구가 빛나면 포구를, 약점은 앞쪽 흡기구!"
@@ -6039,7 +6218,7 @@
           ["glass", [[-30, 80, 10, 10, 46, 0], [34, 100, 12, 10, 60, 1], [-40, 120, 12, 12, 70, 2], [44, 140, 10, 10, 64, 0], [-24, 160, 10, 12, 80, 1], [60, 180, 12, 12, 56, 2], [-60, 170, 10, 10, 50, 0]]]]
       },
       introDur: 5.0, introCam: [[-24, 18, -190, 0, 4, -100], [0, 1.68, -152, 0, 1.55, -138]],
-      introLines: [{ t: 0.4, text: "1950년 9월 15일, 인천 상륙작전 개시!" }, { t: 2.4, text: "상륙정 전진! 해안의 적을 쓸고 인천을 되찾아라!" }],
+      introLines: [{ t: 0.4, text: "20XX년 9월 15일, 인천 상륙작전 개시!" }, { t: 2.4, text: "상륙정 전진! 해안의 적을 쓸고 인천을 되찾아라!" }],
       bossRadio: "송도 상공에 적 공격헬기! 기체에 집중 사격!"
     },
     1: {
@@ -9135,6 +9314,19 @@
       else { try { window.MG && window.MG.toTitle(); } catch (err) {} }
     });
     document.body.appendChild(box);
+    /* (v27) your soldier on the card: cheering on a clear */
+    try {
+      const uni = (window.MGProfile && window.MGProfile.uni && window.MGProfile.uni()) || "u-army";
+      const src = window.MGAvatar && window.MGAvatar.snap(uni, cleared ? "cheer" : "");
+      const card = box.querySelector(".card");
+      if (src && card) {
+        card.style.position = "relative";
+        const im = document.createElement("img");
+        im.src = src; im.alt = "";
+        im.style.cssText = "position:absolute;right:-6px;top:-44px;width:96px;height:120px;pointer-events:none;filter:drop-shadow(0 6px 10px rgba(0,0,0,.5))";
+        card.appendChild(im);
+      }
+    } catch (e) {}
     posts.forEach((p) => tagOff(p));
     if (bossPost) tagOff(bossPost);
     if (ctx.G) { ensureHud(ctx.G.score || 0); drawHud(); }
@@ -14812,6 +15004,7 @@
   window.RAIL = {
     get active() { return active; },
     get staged() { return staged; },
+    get posts() { return posts; },
     get stage() { return stageId; },
     begin: (ctx, n) => begin(ctx, n),
     beginStage: (ctx, n) => begin(ctx, n),

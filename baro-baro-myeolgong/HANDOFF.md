@@ -433,6 +433,15 @@ Stage 1(서울)은 손대지 않았고, 그 뒤에 **Stage 2**를 붙였다. 두
 - **v2**: 레일 슈터 골격(`baro-baro-jump` 엔진 위에 얹었다가 이후 완전 분리).
 - **v1**: `baro-baro-jump` HTML을 fetch/DOMParser로 재파싱해 쓰던 시절 → **지금은 금지된 구조**. 독립 빌드로 되돌리지 말 것.
 
+## 5-8. v27 — Kenney 블록 캐릭터 + 현대 한국군·북한군 스킨, 20XX 설정, 내 병사·군복 (2026-11-23)
+- **인물 교체**: `kenneyPerson(role, opt)`이 Kenney Blocky Characters(CC0) 리그 `models/characters/character.glb`에 게임 전용 스킨을 입혀 만든다. `makeSoldier`·`makeAlly`의 맨 앞에서 먼저 시도하고, 리그가 아직 없거나 `?oldchars`면 기존 블록 병사. 보스(`boss`)는 기존 모델 유지.
+- 리그 관절을 옛 이름으로 넘김: `armL=arm-right`, `armR=arm-left`, `legL=leg-right`, `legR=leg-left`(옛 L은 −x쪽), `headG=head`, `shinL/R`은 빈 그룹. 그래서 걷기·조준·탑승·쓰러짐 코드가 그대로 동작. 키는 `K_H`로 옛 모델과 같게 맞춤(적 2.3, 정예 2.74, 아군 1.88).
+- **스킨**(`models/characters/skins/`, 512px, nearest): 적 `nk`(북한군 황갈색·깃 표지·가죽 혁대), 정예 `nkt`, 아군 `rok`(디지털 위장·방탄조끼), 민간인 `civ1~4`(현대 복장), 각각 `-dead`(>_< 얼굴). `deathFace`가 `kSkin`이면 재질 전체를 dead 재질로 교체. 철모·조끼·AK(`makeAK`)/현대 소총은 블록으로 붙임(실제 휘장·별 없음).
+- **20XX 설정**: 메뉴 키커, 1-1·2-1 카드, 인트로 대사의 1950 → 20XX.
+- **내 병사**: `window.MGAvatar.snap(uni, pose)` 오프스크린 렌더 → 메뉴 `.mMe` 카드, 보급소 '군복' 탭 썸네일, 결과 카드(클리어 시 cheer 포즈). 군복 `UNIS`(육군·예비군·사막·설상·해병대·특전사·의장대★20), 프로필 `D.uni / D.unis`, `MGProfile.uni()`. 외형만, 성능 차이 없음.
+- GLTFLoader는 `vendor/GLTFLoader.js`(다른 작업에서 추가된 것)를 함께 씀. 캐시버스터 v29. 출처는 `models/CREDITS.md`.
+- 테스트: full.py 6·5·12·2 클리어(에러 0), 사망 시 dead 텍스처 교체 확인, 메뉴·보급소 스크린샷.
+
 ## 5-9. v26 — 일시정지·이어하기 무적·보급소/출석/행운상자/일일임무·차량 회피·꺾이는 시가지·오토바이음·녹음 효과음 슬롯 (2026-11-23)
 - **일시정지**: `#railPause` 버튼 / Esc·P / 탭 전환 시 자동. `openPause()` 오버레이(계속하기·처음부터·메뉴로·소리·그래픽). `pauseOpen` 동안 사격·피격 무시.
 - **이어하기**: 탄창 100%(`clipMax`), 재장전 취소, `invulT = 4`초 무적 + `#railShield` 파란 테두리 깜빡임.

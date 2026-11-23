@@ -33,13 +33,13 @@
   };
   /* in war order: the fall and the retreat, the landing, the advance north */
   const STAGES = [
-    { id: 6, lab: "1-1", ch: 1, ko: "서울 함락", en: "FALL OF SEOUL", sub: "1950.6 · SEOUL", subEn: "1950.6 · SEOUL", boss: "적 전차", bossEn: "TANK", c: "#6a2a1c" },
+    { id: 6, lab: "1-1", ch: 1, ko: "서울 함락", en: "FALL OF SEOUL", sub: "20XX.6 · SEOUL", subEn: "20XX.6 · SEOUL", boss: "적 전차", bossEn: "TANK", c: "#6a2a1c" },
     { id: 7, lab: "1-2", ch: 1, ko: "대전", en: "DAEJEON", sub: "EXPO · 지연전", subEn: "EXPO · DELAY", boss: "적 지휘관", bossEn: "COMMANDER", c: "#2f5a7a" },
     { id: 8, lab: "1-3", ch: 1, ko: "대구", en: "DAEGU", sub: "낙동강 방어선", subEn: "NAKDONG LINE", boss: "장갑차", bossEn: "APC", c: "#6a3a5a" },
     { id: 9, lab: "1-4", ch: 1, ko: "광주", en: "GWANGJU", sub: "금남로 · 무등산", subEn: "GEUMNAM-RO", boss: "공격헬기", bossEn: "GUNSHIP", c: "#4a5a2a" },
     { id: 10, lab: "1-5", ch: 1, ko: "경주", en: "GYEONGJU", sub: "천년고도 · 석탑", subEn: "OLD CAPITAL", boss: "적 지휘관", bossEn: "COMMANDER", c: "#7a5a2a" },
     { id: 11, lab: "1-6", ch: 1, ko: "부산", en: "BUSAN", sub: "최후 방어선", subEn: "LAST PERIMETER", boss: "주력 전차", bossEn: "MAIN TANK", c: "#2a4a7a" },
-    { id: 12, lab: "2-1", ch: 2, ko: "인천 상륙작전", en: "INCHEON LANDING", sub: "1950.9.15 · 상륙정", subEn: "1950.9.15 · LANDING", boss: "공격헬기", bossEn: "GUNSHIP", c: "#2a5a8a" },
+    { id: 12, lab: "2-1", ch: 2, ko: "인천 상륙작전", en: "INCHEON LANDING", sub: "20XX.9.15 · 상륙정", subEn: "20XX.9.15 · LANDING", boss: "공격헬기", bossEn: "GUNSHIP", c: "#2a5a8a" },
     { id: 1, lab: "2-2", ch: 2, ko: "서울 수복", en: "RETAKE SEOUL", sub: "숭례문 탈환", subEn: "SUNGNYEMUN", boss: "적 지휘관", bossEn: "COMMANDER", c: "#4c5c2d" },
     { id: 2, lab: "3-1", ch: 3, ko: "DMZ · 판문점", en: "DMZ & PANMUNJOM", sub: "GOP · JSA", subEn: "GOP · JSA", boss: "장갑차", bossEn: "APC", c: "#2f4a56" },
     { id: 3, lab: "3-2", ch: 3, ko: "평화의 집", en: "PEACE HOUSE", sub: "PANMUNJOM · MDL", subEn: "PANMUNJOM · MDL", boss: "공격헬기", bossEn: "GUNSHIP", c: "#3d4f6a" },
@@ -49,11 +49,11 @@
   const CHAPTERS = { 1: ["CHAPTER 1 · 남침", "CHAPTER 1 · INVASION"], 2: ["CHAPTER 2 · 반격", "CHAPTER 2 · COUNTERSTRIKE"], 3: ["CHAPTER 3 · 북진", "CHAPTER 3 · NORTHWARD"] };
 
 
-  function blank() { return { xp: 0, best: {}, diff: "normal", mode: "op", plays: 0, clears: 0, pts: 0, inv: {}, skins: ["base"], skin: "base", att: { n: 0, last: "" }, chest: { pending: 0, day: "", earned: 0 }, seen: "" }; }
+  function blank() { return { xp: 0, best: {}, diff: "normal", mode: "op", plays: 0, clears: 0, pts: 0, inv: {}, skins: ["base"], skin: "base", att: { n: 0, last: "" }, chest: { pending: 0, day: "", earned: 0 }, seen: "", uni: "u-army", unis: ["u-army"] }; }
   let D = blank();
   try { const raw = JSON.parse(localStorage.getItem(KEY) || "null"); if (raw && typeof raw === "object") D = Object.assign(blank(), raw); } catch (e) {}
   if (!DIFFS[D.diff]) D.diff = "normal";
-  ["inv", "chest", "att"].forEach((k) => { if (!D[k]) D[k] = blank()[k]; });
+  ["inv", "chest", "att", "unis"].forEach((k) => { if (!D[k]) D[k] = blank()[k]; });
   if (!D.skins) D.skins = ["base"];
   if (D.pts == null) D.pts = 0;
 
@@ -75,6 +75,17 @@
     { id: "chrome", ko: "크롬", en: "Chrome", p: 600, st: 0, c: ["#d8dde2", "#2a2e34"] },
     { id: "gold", ko: "황금", en: "Gold", p: 0, st: 15, c: ["#e0b440", "#2a1e10"] },
     { id: "dragon", ko: "붉은 용", en: "Red dragon", p: 0, st: 30, c: ["#c8302a", "#140808"] }
+  ];
+  /* (v27) uniforms for your soldier: shown in the menu, the depot and on the
+     result card. Looks only — no stats. */
+  const UNIS = [
+    { id: "u-army", ko: "육군 디지털", en: "Army digital", p: 0, st: 0 },
+    { id: "u-reserve", ko: "예비군", en: "Reserve", p: 150, st: 0 },
+    { id: "u-desert", ko: "사막 위장", en: "Desert", p: 300, st: 0 },
+    { id: "u-snow", ko: "설상 위장", en: "Snow", p: 300, st: 0 },
+    { id: "u-marine", ko: "해병대", en: "Marines", p: 450, st: 0 },
+    { id: "u-sf", ko: "특전사", en: "Special forces", p: 600, st: 0 },
+    { id: "u-guard", ko: "의장대", en: "Honor guard", p: 0, st: 20 }
   ];
   /* lucky box odds — the box modal shows this exact table */
   const BOX = [
@@ -219,6 +230,7 @@
     get diffDef() { return DIFFS[D.diff] || DIFFS.normal; },
     get practice() { return D.mode === "practice"; },
     rankIdx: rankIdx, rankName: rankName, perks: perks, insignia: insignia, record: record, xpBar: xpBar,
+    uni: () => D.uni || "u-army", UNIS: UNIS,
     takeLoadout: takeLoadout, get skin() { return D.skin || "base"; }, get pts() { return D.pts || 0; }, SHOP: SHOP, SKINS: SKINS,
     reset: function () { D = blank(); save(); refresh(); }
   };
@@ -290,6 +302,12 @@
   .mChest{display:flex;align-items:center;gap:10px;width:100%;margin:8px 0 0;padding:10px 12px;border-radius:14px;border:2px solid #ffd54a;background:linear-gradient(90deg,#6a3a10,#2a1606);color:#fff;font:inherit;cursor:pointer;animation:mPulse 1.4s infinite}
   .mChest b{font-size:15px}.mChest span{font-size:22px}
   .mLoad{margin:6px 2px 0;font-size:11px;color:#a8d8ff}
+  .mMe{display:flex;align-items:center;gap:10px;margin:10px 0 0;padding:6px 10px 6px 6px;border-radius:14px;border:1px solid rgba(255,255,255,.12);background:radial-gradient(ellipse at 20% 60%,rgba(201,184,113,.18),transparent 60%),rgba(255,255,255,.04)}
+  .mMe .av{flex:none;width:64px;height:80px;display:flex;align-items:flex-end;justify-content:center}
+  .mMe .av img{width:64px;height:80px}
+  .mMe .t{flex:1;min-width:0}.mMe .t b{display:block;font-size:14px}.mMe .t small{display:block;font-size:11px;color:#a9b098;margin-top:2px}
+  .mMe button{flex:none;min-height:36px;padding:0 12px;border-radius:10px;border:1px solid rgba(201,184,113,.5);background:rgba(201,184,113,.14);color:#f2ecd0;font:800 12px/1 inherit;cursor:pointer}
+  #mgModal .it .av{height:96px;display:flex;justify-content:center}#mgModal .it .av img{height:96px}
   .mMis{margin:8px 0 0;padding:8px 10px;border-radius:14px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04)}
   .mMis h4{margin:0 0 6px;font-size:12px;letter-spacing:.06em;color:#c9b871;display:flex;justify-content:space-between}
   .mMis h4 small{color:#a9b098;font-weight:600;letter-spacing:0}
@@ -335,9 +353,9 @@
     gfx: '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><rect x="3" y="5" width="18" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 20h8M12 17v3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M7 13l3-3 2.5 2.5L17 8" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>'
   };
   const L = ko
-    ? { kicker: "1950 · RAIL SHOOTER", sub: "남침에서 인천 상륙, 그리고 북진까지 — 블록 세상 레일 슈팅", go: "작전 개시", goAll: "전 작전 완료 · 처음부터", mode: { op: "작전", practice: "연습" }, ops: "작전 선택", toNext: "다음 계급까지", max: "최고 계급", next: "다음 보상", none: "기록 없음", best: "최고",
+    ? { kicker: "20XX · RAIL SHOOTER", sub: "남침에서 인천 상륙, 그리고 북진까지 — 블록 세상 레일 슈팅", go: "작전 개시", goAll: "전 작전 완료 · 처음부터", mode: { op: "작전", practice: "연습" }, ops: "작전 선택", toNext: "다음 계급까지", max: "최고 계급", next: "다음 보상", none: "기록 없음", best: "최고",
         noteOp: "목숨을 다 잃으면 이어하기(CONTINUE) · 계급 경험치 획득", notePr: "연습 모드: 죽지 않음 · 모든 작전 자유 선택 · 경험치·기록 없음", hint: "<span>탭/클릭 <b>사격</b></span><span><b>R</b> 재장전</span><span><b>G</b> 수류탄</span><span>숫자키 <b>1·2·3</b> 무기</span>" }
-    : { kicker: "BLOCK MILITARY RAIL SHOOTER", sub: "A block-world military rail shooter", go: "START MISSION", goAll: "ALL CLEAR · FROM THE TOP", mode: { op: "CAMPAIGN", practice: "PRACTICE" }, ops: "MISSIONS", toNext: "to next rank", max: "Top rank", next: "Next reward", none: "No record", best: "BEST",
+    : { kicker: "20XX · RAIL SHOOTER", sub: "A block-world military rail shooter", go: "START MISSION", goAll: "ALL CLEAR · FROM THE TOP", mode: { op: "CAMPAIGN", practice: "PRACTICE" }, ops: "MISSIONS", toNext: "to next rank", max: "Top rank", next: "Next reward", none: "No record", best: "BEST",
         noteOp: "Lose every life and you can CONTINUE · earns rank XP", notePr: "Practice: no deaths · any mission · no XP or records", hint: "<span>Tap/click <b>fire</b></span><span><b>R</b> reload</span><span><b>G</b> grenade</span><span>Keys <b>1·2·3</b> weapons</span>" };
 
   function nextStage() {
@@ -400,14 +418,27 @@
       });
     });
   }
+  /* the soldier portrait is drawn by rail.js once the character rig and the
+     uniform have loaded; until then a placeholder, filled in when it lands */
+  function avatar(uni, pose) {
+    const src = window.MGAvatar && window.MGAvatar.snap(uni, pose);
+    if (src) return '<img src="' + src + '" alt="">';
+    clearTimeout(avatar._t);
+    avatar._t = setTimeout(() => { document.querySelectorAll("[data-av]").forEach((el) => { const s2 = window.MGAvatar && window.MGAvatar.snap(el.getAttribute("data-av"), ""); if (s2) el.innerHTML = '<img src="' + s2 + '" alt="">'; }); if (document.querySelector("[data-av]:empty")) avatar(uni, pose); }, 600);
+    return "";
+  }
+  const uniName = (id) => { const u = UNIS.find((q) => q.id === id) || UNIS[0]; return ko ? u.ko : u.en; };
   function openShop(tab) {
     tab = tab || "sup";
     const stars = starsTotal();
-    const items = tab === "sup"
+    const items = tab === "uni"
+      ? UNIS.map((k) => { const own = D.unis.indexOf(k.id) >= 0; const lock = k.st && stars < k.st; const lab = own ? (D.uni === k.id ? (ko ? "착용 중" : "Wearing") : (ko ? "착용" : "Wear")) : k.st ? "★ " + k.st + (ko ? " (보유 " : " (have ") + stars + ")" : k.p + "P";
+          return '<button class="it' + (D.uni === k.id ? " on" : "") + '" type="button" data-uni="' + k.id + '"><span class="av" data-av="' + k.id + '">' + avatar(k.id) + "</span><b>" + (ko ? k.ko : k.en) + "</b><em" + (own ? ' class="own"' : (lock || D.pts < k.p) ? ' class="no"' : "") + ">" + lab + "</em></button>"; }).join("")
+      : tab === "sup"
       ? SHOP.map((it) => '<button class="it" type="button" data-buy="' + it.id + '"><span class="ic">' + it.ic + "</span><b>" + (ko ? it.ko : it.en) + "</b><small>" + (ko ? it.d : it.dEn) + "</small><em" + (D.pts < it.p ? ' class="no"' : "") + ">" + it.p + "P · " + (ko ? "보유 " : "own ") + (D.inv[it.id] || 0) + "</em></button>").join("")
       : SKINS.map((k) => { const own = D.skins.indexOf(k.id) >= 0; const lock = k.st && stars < k.st; const lab = own ? (D.skin === k.id ? (ko ? "장착 중" : "Equipped") : (ko ? "장착" : "Equip")) : k.st ? "★ " + k.st + (ko ? " (보유 " : " (have ") + stars + ")" : k.p + "P";
           return '<button class="it' + (D.skin === k.id ? " on" : "") + '" type="button" data-skin="' + k.id + '"><span class="sw"><i style="background:' + k.c[0] + '"></i><i style="background:' + k.c[1] + '"></i></span><b>' + (ko ? k.ko : k.en) + "</b><small>" + (k.st ? (ko ? "별 " + k.st + "개 모으면 해금" : "Unlocks at " + k.st + " stars") : (ko ? "권총 외장" : "Pistol finish")) + "</small><em" + (own ? ' class="own"' : (lock || D.pts < k.p) ? ' class="no"' : "") + ">" + lab + "</em></button>"; }).join("");
-    modal('<span class="bal">' + (D.pts || 0).toLocaleString() + "P</span><h3>" + (ko ? "🛒 보급소" : "🛒 Supply depot") + '</h3><div class="tabs"><button data-t="sup" type="button"' + (tab === "sup" ? ' class="on"' : "") + ">" + (ko ? "보급품" : "Supplies") + '</button><button data-t="skin" type="button"' + (tab === "skin" ? ' class="on"' : "") + ">" + (ko ? "권총 스킨" : "Pistol finishes") + "</button></div>" +
+    modal('<span class="bal">' + (D.pts || 0).toLocaleString() + "P</span><h3>" + (ko ? "🛒 보급소" : "🛒 Supply depot") + '</h3><div class="tabs"><button data-t="sup" type="button"' + (tab === "sup" ? ' class="on"' : "") + ">" + (ko ? "보급품" : "Supplies") + '</button><button data-t="skin" type="button"' + (tab === "skin" ? ' class="on"' : "") + ">" + (ko ? "권총 스킨" : "Pistol finishes") + '</button><button data-t="uni" type="button"' + (tab === "uni" ? ' class="on"' : "") + ">" + (ko ? "군복" : "Uniforms") + "</button></div>" +
       '<div class="grid">' + items + '</div><p style="font-size:12px;color:#a9b098;margin:10px 2px 0">' + (ko ? "보급품은 다음 작전(연습 제외)에 종류별로 1개씩 자동 투입돼요. 포인트는 작전 점수·클리어·별로 쌓여요." : "Supplies go into your next real mission, one of each kind. Points come from score, clears and stars.") +
       '</p><div class="foot"><button data-a="close" type="button">' + (ko ? "닫기" : "Close") + "</button></div>", (m, close) => {
       m.querySelector('[data-a="close"]').addEventListener("click", close);
@@ -418,6 +449,17 @@
         D.pts -= it.p; D.inv[it.id] = (D.inv[it.id] || 0) + 1; save();
         toast((ko ? "구매 완료 · " : "Bought · ") + it.ic + " " + (ko ? it.ko : it.en));
         m.remove(); openShop("sup");
+      }));
+      m.querySelectorAll("[data-uni]").forEach((b) => b.addEventListener("click", () => {
+        const k = UNIS.find((q) => q.id === b.getAttribute("data-uni"));
+        if (D.unis.indexOf(k.id) < 0) {
+          if (k.st) { if (starsTotal() < k.st) { toast(ko ? "별이 부족해요" : "Not enough stars"); return; } }
+          else { if (D.pts < k.p) { toast(ko ? "포인트가 부족해요" : "Not enough points"); return; } D.pts -= k.p; }
+          D.unis.push(k.id);
+          toast((ko ? "새 군복 · " : "New uniform · ") + (ko ? k.ko : k.en));
+        }
+        D.uni = k.id; save();
+        m.remove(); openShop("uni");
       }));
       m.querySelectorAll("[data-skin]").forEach((b) => b.addEventListener("click", () => {
         const k = SKINS.find((q) => q.id === b.getAttribute("data-skin"));
@@ -487,6 +529,7 @@
       '<div class="mRow"><div class="mSeg mode">' + ["op", "practice"].map((v) => '<button type="button" data-k="mode" data-v="' + v + '"' + (D.mode === v ? ' class="on"' : "") + ">" + L.mode[v] + "</button>").join("") + "</div>" +
       '<div class="mSeg diff">' + Object.keys(DIFFS).map((v) => '<button type="button" data-k="diff" data-v="' + v + '"' + (D.diff === v ? ' class="on"' : "") + ">" + (ko ? DIFFS[v].ko : DIFFS[v].en) + "</button>").join("") + "</div></div>" +
       '<p class="mNote">' + (D.mode === "practice" ? L.notePr : L.noteOp) + "</p>" +
+      '<div class="mMe"><span class="av" data-av="' + (D.uni || "u-army") + '">' + avatar(D.uni || "u-army") + '</span><span class="t"><b>' + (ko ? "내 병사" : "My soldier") + "</b><small>" + uniName(D.uni || "u-army") + " · " + D.unis.length + "/" + UNIS.length + (ko ? " 보유" : " owned") + '</small></span><button id="mgUni" type="button">' + (ko ? "군복 변경" : "Uniforms") + "</button></div>" +
       (() => {
         const done = attDone(), n = done ? D.att.n : D.att.n % 7;
         const dots = ATT.map((p, i) => '<i class="' + (i < n ? "on" : "") + (!done && i === n ? " now" : "") + '">' + (i === 6 ? "🎁" : i < n ? "✓" : i + 1) + "</i>").join("");
@@ -527,6 +570,7 @@
       refresh();
     }));
     const at = document.getElementById("mgAtt"); if (at) at.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); checkIn(); });
+    const un = document.getElementById("mgUni"); if (un) un.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); openShop("uni"); });
     const sh = document.getElementById("mgShop"); if (sh) sh.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); openShop(); });
     const ch = document.getElementById("mgChest"); if (ch) ch.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); openBox(); });
     const g = document.getElementById("mgGo");
