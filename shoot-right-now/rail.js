@@ -14212,8 +14212,28 @@
     /* road paint and kerbs */
     const paint = (x, z, w, d, m) => { const p = new T.Mesh(new T.PlaneGeometry(w, d), m); p.rotation.x = -Math.PI / 2; p.position.set(x, 0.312, z); p.userData.noBlock = 1; S.add(p); };
     if (!C.paved) {
-      for (let z = CITY_Z0 - 10; z < CITY_Z1 + 20; z += 4) { if (nearTurn(z, 12)) continue; const x = cityX(z); paint(x - 0.18, z, 0.13, 4.05, SOL.paintYellow); paint(x + 0.18, z, 0.13, 4.05, SOL.paintYellow); }
-      [-5, 5].forEach((lx) => { for (let z = CITY_Z0 - 8; z < CITY_Z1 + 20; z += 7) if (!nearTurn(z, 12)) paint(cityX(z) + lx, z, 0.16, 3.2, SOL.paintWhite); });
+      /* (v45) lines are ribbons laid along the avenue's curve, so they run
+         unbroken instead of stepping sideways every few metres */
+      const stripe = (off, w, za, zb, m) => {
+        const n = Math.max(2, Math.ceil((zb - za) / 0.8)), pos = [], uv = [], idx = [];
+        for (let i = 0; i <= n; i++) {
+          const z = za + (zb - za) * i / n, x = cityX(z) + off, t = Math.cos(z / 26) * 1.1 / 26, k = 1 / Math.sqrt(1 + t * t);
+          const nx = (w / 2) * k, nz = -(w / 2) * t * k;
+          pos.push(x - nx, 0.312, z + nz, x + nx, 0.312, z - nz); uv.push(0, z / 4, 1, z / 4);
+          if (i < n) { const a = i * 2; idx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); }
+        }
+        const g = new T.BufferGeometry();
+        g.setAttribute("position", new T.Float32BufferAttribute(pos, 3)); g.setAttribute("uv", new T.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals();
+        const me = new T.Mesh(g, m); me.receiveShadow = true; me.userData.noBlock = 1; me.userData.leg = cityLeg(TURNS, (za + zb) / 2); S.add(me);
+      };
+      legSpans(CITY_Z0 - 12, CITY_Z1 + 20).forEach(([a, b], si, arr) => {
+        stripe(-0.18, 0.13, a, b, SOL.paintYellow); stripe(0.18, 0.13, a, b, SOL.paintYellow);
+        [-5, 5].forEach((lx) => { for (let z = a + 2; z + 3.2 < b - 2; z += 7) stripe(lx, 0.16, z, z + 3.2, SOL.paintWhite); });
+        /* stop lines where the lanes meet a crossing */
+        const stopX = (z, sgn) => { const c = cityX(z); const p = new T.Mesh(new T.PlaneGeometry(9.3, 0.4), SOL.paintWhite); p.rotation.x = -Math.PI / 2; p.position.set(c + sgn * 4.95, 0.313, z); p.userData.noBlock = 1; p.userData.leg = cityLeg(TURNS, z); S.add(p); };
+        if (si < arr.length - 1) stopX(b - 0.6, -1);
+        if (si > 0) stopX(a + 0.6, 1);
+      });
       [-26, 22].forEach((cz) => { for (let i = 0; i < 9; i++) paint(-8 + i * 2, cz, 0.55, 3.4, SOL.paintWhite); });
     }
     const walk = (x0, x1, zz0, zz1) => {
