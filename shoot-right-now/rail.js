@@ -7,6 +7,8 @@
   const T = window.THREE;
   if (!T) return;
   const armed = true;
+  /* the page's language, read once so the HUD and the radio agree */
+  const KO = (document.documentElement.lang || "").toLowerCase().indexOf("ko") === 0;
   let active = false;
   let staged = false;
   if (!window.__railErrs) {
@@ -499,6 +501,13 @@
     const edge = m + 172;
     blit(g, cred, w - edge - textW(cred, sc), h - m - 12 * sc, sc, "#f7f7f7", "#111");
     if (combo > 1) blit(g, "COMBO " + combo, m, m + 32 * sc, sc, "#ffe14a", "#2a2204");
+    /* (v52) a refugee has walked into the shot: say so before the round goes */
+    if (civWarn > 0 && phase !== "result") {
+      const msg = KO ? "민간인 통행 중 · 오발 주의" : "CIVILIANS CROSSING · HOLD FIRE";
+      const alpha = 0.55 + Math.abs(Math.sin(performance.now() / 210)) * 0.4;
+      const mw = textW(msg, sc * 0.95);
+      blit(g, msg, (w - mw) / 2, h * 0.62, sc * 0.95, "rgba(255,96,80," + alpha.toFixed(2) + ")", "#2a0a08");
+    }
   }
 
   function ensureHud(score) {
@@ -4673,6 +4682,22 @@
       sun: [20, 40, 30], sunDisc: null,
       hemi: [0.8, 0xe6eef6, 0x9aa2a8], amb: [0.34, 0xdbe4ee], key: [0.85, 0xe8eef8], rim: [0.2, 0xd0dcf0], moon: [0.2, 0xc8d4e8],
       exposure: 1.05, cloud: [0xeef1f4, 0xb8c0c8, 0.5], wx: "snow"
+    },
+    /* (v52) two more skies, so the twelve missions do not all play under the
+       same light: a wet grey street and a night coast */
+    rain: {
+      sky: ["#3a444c", "#4a555e", "#5c6870", "#6e7a82", "#7e8a92", "#8c98a0"],
+      bg: 0x7d8890, fog: 0x808c94, fogNear: 38, fogFar: 205,
+      sun: [20, 30, 25], sunDisc: null,
+      hemi: [0.58, 0xb8c6d0, 0x5a6060], amb: [0.24, 0xa8b8c4], key: [1.0, 0xc8d6e0], rim: [0.3, 0x9ab0c0], moon: [0.12, 0x8aa0b8],
+      exposure: 1.02, cloud: [0x9aa6ae, 0x5a646c, 0.55], wx: "rain"
+    },
+    night: {
+      sky: ["#060b16", "#0b1322", "#121e34", "#192840", "#21324a", "#293c54"],
+      bg: 0x0d1724, fog: 0x131e2e, fogNear: 44, fogFar: 220,
+      sun: [-20, 26, 30], sunDisc: null,
+      hemi: [0.36, 0x6a86b0, 0x1a2030], amb: [0.18, 0x4a6288], key: [0.72, 0x9ab8e0], rim: [0.34, 0x88a8d8], moon: [0.46, 0xb0c8f0],
+      exposure: 1.08, cloud: [0x2a3448, 0x101a2a, 0.4], wx: null
     }
   };
   let weather = null;
@@ -4685,7 +4710,9 @@
     dusk: { bloom: 0.70, vig: 0.30, sat: 1.10, con: 1.05, tint: [0.09, 0.005, -0.015] },
     morning: { bloom: 0.62, vig: 0.25, sat: 1.08, con: 1.04, tint: [0.06, 0.018, -0.028] },
     overcast: { bloom: 0.55, vig: 0.27, sat: 1.01, con: 1.03, tint: [0.0, 0.01, 0.03] },
-    snow: { bloom: 0.58, vig: 0.29, sat: 0.97, con: 1.03, tint: [-0.045, 0.0, 0.05] }
+    snow: { bloom: 0.58, vig: 0.29, sat: 0.97, con: 1.03, tint: [-0.045, 0.0, 0.05] },
+    rain: { bloom: 0.64, vig: 0.33, sat: 0.93, con: 1.06, tint: [-0.022, 0.004, 0.05] },
+    night: { bloom: 0.82, vig: 0.36, sat: 1.03, con: 1.1, tint: [0.0, 0.006, 0.06] }
   };
   let combatTone = 0;
   function applyTone(name) {
@@ -4720,7 +4747,7 @@
     window.__mood = name;
     applyTone(name);
     /* the lamp pools only read when the sun is low or the city is burning */
-    const lit = name === "war" || name === "dusk";
+    const lit = name === "war" || name === "dusk" || name === "night" || name === "rain";
     for (let i = 0; i < lampPools.length; i++) { const m = lampPools[i] && lampPools[i].material; if (m) m.opacity = lit ? 0.8 : 0; }
     if (ctx && ctx.renderer) { window.__mgRenderer = ctx.renderer; if (SCENE) SCENE.__renderer = ctx.renderer; }
     if (name === "day" || !MOODS[name]) { window.__mgSun = null; if (ctx && ctx.renderer) window.__baseExposure = ctx.renderer.toneMappingExposure; return; }
@@ -4769,23 +4796,72 @@
     }
     if (M.wx) startWeather(ctx, M.wx);
   }
+  /* (v52) where to run: green evacuation boards on both pavements, standing
+     back up the road so the player sees them as the street opens */
+  let evacTexCache = null;
+  function evacTex() {
+    if (evacTexCache) return evacTexCache;
+    evacTexCache = ctex("evacSign" + (KO ? "ko" : "en"), 256, 128, (g, w, h) => {
+      g.fillStyle = "#14603a"; g.fillRect(0, 0, w, h);
+      g.strokeStyle = "#d8f0d0"; g.lineWidth = 6; g.strokeRect(5, 5, w - 10, h - 10);
+      g.fillStyle = "#eaf7e2"; g.textAlign = "left"; g.textBaseline = "middle";
+      g.font = "bold 40px sans-serif";
+      g.fillText(KO ? "대피로" : "EVAC", 16, h * 0.42);
+      g.fillStyle = "#bfe4c8"; g.font = "bold 21px sans-serif";
+      g.fillText(KO ? "안전지대로" : "TO SHELTER", 16, h * 0.73);
+      g.fillStyle = "#eaf7e2";
+      g.beginPath(); g.moveTo(w - 26, h * 0.5); g.lineTo(w - 58, h * 0.5 - 22); g.lineTo(w - 58, h * 0.5 + 22); g.closePath(); g.fill();
+      g.fillRect(w - 86, h * 0.5 - 7, 30, 14);
+    }, { smooth: true });
+    return evacTexCache;
+  }
+  function evacSigns(ctx) {
+    if (!dress || !dress.root || !pathAt) return;
+    const S = dress.root;
+    const boardM = new T.MeshStandardMaterial({ map: evacTex(), roughness: 0.78, metalness: 0.04, side: T.DoubleSide });
+    const pole = cmat(0x8e9498, 0.6, 0.35);
+    let n = 0;
+    [0.10, 0.26, 0.44, 0.62].forEach((u) => {
+      [-1, 1].forEach((side) => {
+        const q = pathAt(Math.min(1, u)), q2 = pathAt(Math.min(1, u + 0.004));
+        const tx = q2.x - q.x, tz = q2.z - q.z, tl = Math.hypot(tx, tz) || 1;
+        const lx = tz / tl, lz = -tx / tl;
+        const g = new T.Group();
+        g.position.set(q.x + lx * side * 11.9, 0.3, q.z + lz * side * 11.9);
+        g.rotation.y = Math.atan2(-tx, -tz) + side * 0.22;
+        S.add(g);
+        bx(g, 0.1, 2.2, 0.1, -0.7, 1.1, 0, pole);
+        bx(g, 0.1, 2.2, 0.1, 0.7, 1.1, 0, pole);
+        const b = new T.Mesh(new T.PlaneGeometry(1.9, 0.95), boardM);
+        b.position.set(0, 2.0, 0.02);
+        b.userData.noBlock = 1;
+        g.add(b);
+        n++;
+      });
+    });
+    window.__evac = n;
+  }
+
   function startWeather(ctx, kind) {
-    const N = kind === "snow" ? 1600 : 420;
-    const BX = 46, BY = 22, BZ = 56;
+    const N = kind === "rain" ? 1200 : kind === "snow" ? 1600 : 420;
+    const BX = kind === "rain" ? 40 : 46, BY = kind === "rain" ? 26 : 22, BZ = kind === "rain" ? 50 : 56;
     const pos = new Float32Array(N * 3);
-    const R = rng(kind === "snow" ? 991 : 337);
+    const R = rng(kind === "rain" ? 555 : kind === "snow" ? 991 : 337);
     for (let i = 0; i < N; i++) { pos[i * 3] = (R() - 0.5) * BX; pos[i * 3 + 1] = R() * BY; pos[i * 3 + 2] = (R() - 0.5) * BZ; }
     const geo = new T.BufferGeometry();
     geo.setAttribute("position", new T.BufferAttribute(pos, 3));
     const tex = ctex("wx-" + kind, 8, 8, (g, w, h) => {
       g.clearRect(0, 0, w, h);
-      g.fillStyle = kind === "snow" ? "#ffffff" : "#ffe6a8";
-      g.fillRect(1, 1, 6, 6);
-      g.fillStyle = kind === "snow" ? "rgba(255,255,255,.5)" : "rgba(255,200,120,.5)";
-      g.fillRect(0, 2, 8, 4); g.fillRect(2, 0, 4, 8);
+      g.fillStyle = kind === "snow" ? "#ffffff" : kind === "rain" ? "#d8e8ff" : "#ffe6a8";
+      if (kind === "rain") { g.fillRect(3, 0, 2, 8); g.fillStyle = "rgba(200,222,255,.45)"; g.fillRect(2, 1, 4, 6); }
+      else { g.fillRect(1, 1, 6, 6); }
+      if (kind !== "rain") {
+        g.fillStyle = kind === "snow" ? "rgba(255,255,255,.5)" : "rgba(255,200,120,.5)";
+        g.fillRect(0, 2, 8, 4); g.fillRect(2, 0, 4, 8);
+      }
     }, { smooth: true });
     tex.magFilter = T.NearestFilter;
-    const mat = new T.PointsMaterial({ map: tex, size: kind === "snow" ? 0.09 : 0.06, sizeAttenuation: true, transparent: true, opacity: kind === "snow" ? 0.95 : 0.8, depthWrite: false, fog: true,
+    const mat = new T.PointsMaterial({ map: tex, size: kind === "snow" ? 0.09 : kind === "rain" ? 0.13 : 0.06, sizeAttenuation: true, transparent: true, opacity: kind === "snow" ? 0.95 : kind === "rain" ? 0.62 : 0.8, depthWrite: false, fog: true,
       blending: kind === "snow" ? T.NormalBlending : T.AdditiveBlending });
     const pts = new T.Points(geo, mat);
     pts.frustumCulled = false;
@@ -4810,18 +4886,30 @@
     const W = weather, cam = ctx.camera.position;
     W.t += dt;
     const a = W.pts.geometry.attributes.position, p = a.array;
-    const fall = W.kind === "snow" ? 1.3 : 0.12;
-    const sway = W.kind === "snow" ? 0.45 : 0.25;
+    const fall = W.kind === "snow" ? 1.3 : W.kind === "rain" ? 11.5 : 0.12;
+    const sway = W.kind === "snow" ? 0.45 : W.kind === "rain" ? 0.18 : 0.25;
     for (let i = 0; i < W.N; i++) {
       const j = i * 3, sd = W.seeds[i];
       p[j] += Math.sin(W.t * 0.7 + sd) * sway * dt;
       p[j + 1] -= fall * dt * (0.7 + (sd % 1) * 0.6);
-      if (W.kind !== "snow") p[j + 1] += Math.sin(W.t * 0.5 + sd * 2) * 0.1 * dt;
+      if (W.kind !== "snow" && W.kind !== "rain") p[j + 1] += Math.sin(W.t * 0.5 + sd * 2) * 0.1 * dt;
       p[j + 2] += Math.cos(W.t * 0.6 + sd) * sway * 0.6 * dt;
       if (p[j + 1] < 0.3) p[j + 1] += W.BY;
       if (p[j + 1] > W.BY) p[j + 1] -= W.BY;
     }
     a.needsUpdate = true;
+    /* (v52) a distant flash over the far roofs, now and then: no light is
+       added to the scene (that would recompile every shader), just the
+       screen's own flash element for a breath */
+    if (W.kind === "rain") {
+      W.flashT = (W.flashT == null ? 7 + Math.random() * 8 : W.flashT) - dt;
+      if (W.flashT <= 0) {
+        W.flashT = 9 + Math.random() * 12;
+        try {
+          if (W.pts.parent) flashScreen(0.17, "linear-gradient(180deg,rgba(214,226,255,.75),rgba(150,180,255,.18) 46%,rgba(120,150,220,0) 78%)");
+        } catch (e) {}
+      }
+    }
     /* flakes stay put in the world (so walking through them reads as
        motion); any that fall outside the box around the camera wrap to its
        far side */
@@ -6521,7 +6609,7 @@
         "광장이 함락 직전이다! 마지막 시민들이 빠져나간다!",
         "적 주력 진입! 한강 이남으로 철수 준비!"
       ][i % 7] })),
-      dress: "seoulFall", bossKind: "apc", bossTank: true, bossHp: 90,
+      dress: "seoulFall", bossKind: "apc", bossTank: true, bossHp: 90, armorWave: 3, armorTank: true, armorHp: 16,
       introDur: 4.4,
       introCam: [[9.0, 13.5, -28.0, 0, 8.0, 40.0], [0, 1.68, -10.0, 0, 1.55, 3.5]],
       introLines: [
@@ -6537,7 +6625,7 @@
         "민간인 대피 중, 오사 주의!", "적 증원 접근! 교차로를 지켜라!", "갑천 방면 적 헬기 재접근!", "공수부대 강하! 지휘소를 지켜라!"], { bikes: true, hostage: true }),
       dress: "citygen", bossKind: "man", bossHp: 18,
       city: {
-        seed: 7, mood: "morning", tall: 14, tints: [0xdfe8f0, 0xe6e2d8, 0xa8b4c0], sign: [-12.4, -44, "대전광역시", "DAEJEON", Math.PI / 2, "#2f8a4a"],
+        seed: 7, mood: "morning", tall: 14, fogNear: 24, fogFar: 152, tints: [0xdfe8f0, 0xe6e2d8, 0xa8b4c0], sign: [-12.4, -44, "대전광역시", "DAEJEON", Math.PI / 2, "#2f8a4a"],
         cars: [["bus", 7.6, -12, 0, "152"], ["police", -7.4, 26, Math.PI]],
         banners: [[-12.2, 4, "과학도시 대전", "#2a5aa8"], [12.2, 36, "대전 사수", "#a82a2a"]],
         hills: [[0, 170, 240, 50, 30], [-90, 120, 80, 60, 24]],
@@ -6552,13 +6640,13 @@
       waves: genWaves(808, ["DONGSEONG-RO", "STADIUM", "PALGONG"], [
         "대구 방어선이다! 한 발짝도 물러서지 마라!", "적 오토바이 돌격조!", "적 헬기가 고가도로 위로 넘어온다!",
         "피난민 사이에 숨은 적, 오사 주의!", "적 박격포 진지 발견!", "적 헬기 재접근! 경기장 쪽!", "적 공수 강하! 마지막 블록을 지켜라!"], { bikes: true, hostage: true }),
-      dress: "citygen", bossKind: "apc", bossHp: 70,
+      dress: "citygen", bossKind: "apc", bossHp: 70, armorWave: 4, armorTank: false, armorHp: 14,
       city: {
         seed: 8, mood: "dusk", cherry: true, tints: [0xeadcc8, 0xf0e0c0, 0xc8b8a8], sign: [12.4, -44, "대구광역시", "DAEGU", -Math.PI / 2, "#2f8a4a"],
         cars: [["truck", 7.8, 8, 0.05], ["bus", -7.6, -20, Math.PI, "410"]],
         banners: [[12.2, -6, "대구, 더 큰 미래로", "#c22a6a", 9], [-12.2, 30, "낙동강 방어선", "#a82a2a"]],
         hills: [[0, 175, 260, 60, 34], [70, 140, 80, 60, 22]],
-        landmarks: [["market", -11.6, -56, -32, 81], ["market", 11.6, -20, 16, 82], ["tower", 6, 150, 74, "slim"], ["stadium", -56, 100, 24, 16], ["pavilion", 30, 84, 10, 6, { wall: 4 }], ["overpass", 40], ["glass", [[-34, 80, 10, 10, 22, 0], [30, 120, 10, 10, 28, 1]]]]
+        landmarks: [["market", -11.6, -56, -32, 81], ["market", 11.6, -20, 16, 82], ["subway", -11.7, 26, 0], ["subway", 11.7, -14, Math.PI], ["tower", 6, 150, 74, "slim"], ["stadium", -56, 100, 24, 16], ["pavilion", 30, 84, 10, 6, { wall: 4 }], ["overpass", 40], ["glass", [[-34, 80, 10, 10, 22, 0], [30, 120, 10, 10, 28, 1]]]]
       },
       introDur: 4.2, introCam: [[-7, 14, -84, 0, 10, 20], [0.0, 1.68, -62, 0, 1.55, -48]],
       introLines: [{ t: 0.4, text: "낙동강 방어선. 대구가 뚫리면 끝이다." }, { t: 2.2, text: "시가지로 침투한 적을 몰아내라!" }],
@@ -6571,11 +6659,11 @@
         "시민 대피 중, 오사 주의!", "적 증원, 기념탑 방향!", "적 헬기 재접근!", "적 공수 강하! 무등산 방면 퇴로 확보!"], { bikes: true, hostage: true }),
       dress: "citygen", bossKind: "heli", bossHp: 40,
       city: {
-        seed: 9, mood: "overcast", tall: 8, tints: [0xd8d4cc, 0xe8e0d0, 0xb8b0a4], sign: [-12.4, -44, "광주광역시", "GWANGJU CITY", Math.PI / 2, "#d8302a"],
+        seed: 9, mood: "rain", tall: 8, tints: [0xd8d4cc, 0xe8e0d0, 0xb8b0a4], sign: [-12.4, -44, "광주광역시", "GWANGJU CITY", Math.PI / 2, "#d8302a"],
         cars: [["bus", 7.6, -16, 0, "518"], ["police", -7.4, 20, Math.PI]],
         banners: [[-12.2, 0, "빛고을 광주", "#2a5aa8"], [12.2, 30, "광주 사수", "#a82a2a"]],
         hills: [[0, 190, 280, 70, 46], [-80, 150, 90, 60, 28]],
-        landmarks: [["fountain", 0, 74, 6.5], ["twin", 0, 104, 40], ["pavilion", 30, 82, 10, 6, { wall: 3, rail: 1 }], ["tower", -40, 200, 46, "slim"], ["glass", [[-30, 80, 10, 10, 24, 1], [36, 130, 10, 10, 28, 0]]]]
+        landmarks: [["fountain", 0, 74, 6.5], ["subway", -11.7, 14, 0], ["subway", 11.7, 40, Math.PI], ["twin", 0, 104, 40], ["pavilion", 30, 82, 10, 6, { wall: 3, rail: 1 }], ["tower", -40, 200, 46, "slim"], ["glass", [[-30, 80, 10, 10, 24, 1], [36, 130, 10, 10, 28, 0]]]]
       },
       introDur: 4.2, introCam: [[7, 14, -84, 0, 10, 20], [0.0, 1.68, -62, 0, 1.55, -48]],
       introLines: [{ t: 0.4, text: "적이 호남으로 우회해 광주까지 내려왔다." }, { t: 2.2, text: "금남로를 따라 적을 저지하라!" }],
@@ -6604,9 +6692,9 @@
       waves: genWaves(1111, ["HAEUNDAE", "GWANGALLI", "PERIMETER"], [
         "부산 교두보, 최후 방어선이다! 여기서 물러설 곳은 없다!", "해변 도로로 적 오토바이!", "바다 위로 적 헬기!",
         "피난민 다수, 오사 주의!", "적 증원, 등대 방향!", "적 헬기 재접근!", "적 공수 강하! 이 선을 지켜라, 반격이 온다!"], { bikes: true, hostage: true, paras: true }),
-      dress: "citygen", bossKind: "apc", bossTank: true, bossHp: 110,
+      dress: "citygen", bossKind: "apc", bossTank: true, bossHp: 110, armorWave: 5, armorTank: true, armorHp: 18,
       city: {
-        seed: 11, mood: "day", seaSide: true, tall: 16, tints: [0xf0f0ec, 0xe0e8f0, 0xc0ccd8], sign: [-12.4, -44, "부산", "BUSAN", Math.PI / 2, "#2a5aa8"],
+        seed: 11, mood: "night", seaSide: true, tall: 16, tints: [0xf0f0ec, 0xe0e8f0, 0xc0ccd8], sign: [-12.4, -44, "부산", "BUSAN", Math.PI / 2, "#2a5aa8"],
         cars: [["truck", -7.8, -8, Math.PI], ["police", -7.4, 24, Math.PI]],
         banners: [[-12.2, 6, "부산", "#c22a2a", 9], [-12.2, 40, "최후 방어선", "#2a4aa8"]],
         hills: [[-60, 170, 220, 70, 40]],
@@ -6625,7 +6713,7 @@
       waves: genWaves(1212, ["BEACH", "SONGDO", "CENTRAL PARK"], [
         "상륙 성공! 해안 교두보를 확보하라!", "적 오토바이 반격조!", "적 헬기 출현! 교두보 엄폐!",
         "시민 구출 우선, 오사 주의!", "적 증원, 센트럴파크 방향!", "적 헬기 재접근!", "적 공수 강하! 인천을 되찾아라!"], { bikes: true, hostage: true }),
-      dress: "citygen", bossKind: "heli", bossHp: 46,
+      dress: "citygen", bossKind: "heli", bossHp: 46, armorWave: 6, armorTank: false, armorHp: 14,
       city: {
         seed: 12, mood: "day", sea: true, cherry: true, tall: 18, tints: [0xe8f0f8, 0xd8e4ee, 0xb0c4d4], sign: [-12.4, -40, "인천 송도", "Incheon Songdo", Math.PI / 2, "#2a6ab8"],
         cars: [["police", -7.4, 24, Math.PI]],
@@ -8741,6 +8829,9 @@
     } catch (e) {}
     try { rebuildWallBoxes(); } catch (err) { window.__wallErr = String(err && err.stack || err); }
     try { declutter(); } catch (err) { window.__declutterErr = String(err && err.stack || err); }
+    /* (v52) the stages with civilians in them get evacuation boards: the game
+       tells the player which way the street is emptying */
+    try { if (STAGE.refugees) evacSigns(ctx); } catch (err) { window.__evacErr = String(err && err.stack || err); }
     try {
       const tb0 = performance.now();
       buildRailBlockers(ctx);
@@ -8856,6 +8947,7 @@
     const role = roleOf(m.role);
     if (m.air === "heli") return makeHeliPost(w, m, i);
     if (m.air === "para") return makeParaPost(w, m, i);
+    if (m.air === "apc") return makeAPCPost(w, m, i);
     const p = waveXY(w, m.lat || 0, m.dep || 8);
     const sc = roleScale(role);
     let sx = p.x, sz = p.z;
@@ -9007,6 +9099,14 @@
   function stageWave(w) {
     if (!w || w.staged) return;
     w.staged = w.def.members.map((m, i) => makePost(w, m, i));
+    /* (v52) the armour is part of the wave, so it is standing there before
+       the fight starts and the wave cannot end until it is wrecked */
+    if (STAGE.armorWave && STAGE.armorWave === w.def.id && !w.armorPost) {
+      try {
+        w.armorPost = makeAPCPost(w, { air: "apc", role: "convoy", tank: !!STAGE.armorTank, lat: 0, dep: 16, hp: STAGE.armorHp || 14 }, w.staged.length);
+        w.staged.push(w.armorPost);
+      } catch (err) { window.__convoyErr = String(err && err.stack || err); }
+    }
   }
 
   function startWave(w) {
@@ -9053,6 +9153,9 @@
       p.recoil = 0;
     });
     if (w.def && w.def.radio) radio(w.def.radio, 4600);
+    if (w.armorPost && w.armorPost.e.alive !== false) {
+      try { radio(KO ? (w.armorPost.tank ? "적 전차가 도로를 막고 다가온다! 엔진 흡기구를 노려라!" : "적 장갑차 증원! 측면 흡기구를 노려라!") : "Enemy armour rolling up the road — hit the vent!", 3600); } catch (e) {}
+    }
     window.__railPhase = "fight";
   }
 
@@ -10494,6 +10597,8 @@
     /* the Stage 2 camera intro has no gun in hand: a click there must not spend a round */
     if (phase === "intro") return;
     tutEv("fire");
+    /* (v52) a round going off is what sends the refugees running */
+    civAlarm = 1.2;
     const now = performance.now();
     const W = WEAPONS[weapon];
     if (now - lastShot < W.rate) return;
@@ -10885,7 +10990,7 @@
   function stepPost(p, ctx, dt) {
     if (!p.mesh) return;
     if (p.air === "heli") { stepHeli(p, ctx, dt); return; }
-    if (p.air === "apc") { if (p.e.alive === false) { stepDyingVehicle(p, ctx, dt); return; } stepBoss2(p, ctx, dt); return; }
+    if (p.air === "apc") { if (p.e.alive === false) { stepDyingVehicle(p, ctx, dt); return; } if (p.convoy && p.live === false) return; if (p.convoy) stepConvoy(p, ctx, dt); else stepBoss2(p, ctx, dt); return; }
     if (p.live === false || p.e.alive === false) return;
     if (p.air === "para") { stepPara(p, ctx, dt); return; }
     const cam = ctx.camera.position;
@@ -14656,6 +14761,42 @@
     });
   }
   /* 부산·인천: port gantry cranes on the far quay */
+  /* (v52) a subway mouth on the pavement: the stair well, low parapets, a
+     canopy over the top step and the green line sign — the one piece of a
+     modern Korean street the old cities were missing */
+  function lmSubway(S, x, z, rot) {
+    const G = new T.Group();
+    G.position.set(x, 0.3, z);
+    G.rotation.y = rot || 0;
+    S.add(G);
+    const stone = cmat(0xa8aca8, 0.9), dark = cmat(0x14181c, 0.55), steel = cmat(0xb8bcc0, 0.45, 0.55);
+    /* the well: a black mouth with four steps running down into it */
+    bx(G, 4.4, 0.1, 5.6, 0, 0.06, 0, dark);
+    for (let i = 0; i < 5; i++) bx(G, 3.3, 0.16, 0.55, 0, 0.16 - i * 0.02, -2.1 + i * 0.62, cmat(0x8e9294 - i * 0x060606, 0.95));
+    /* parapets either side, and a handrail on top of each */
+    [-2.05, 2.05].forEach((sx) => {
+      bx(G, 0.28, 0.86, 5.8, sx, 0.45, 0, stone, { wall: 1 });
+      bx(G, 0.1, 0.08, 5.8, sx, 0.92, 0, steel);
+    });
+    /* canopy over the top of the stairs, on four posts */
+    bx(G, 4.6, 0.16, 2.2, 0, 2.6, 1.9, stone);
+    [[-2.0, 1.0], [2.0, 1.0], [-2.0, 2.8], [2.0, 2.8]].forEach(([sx, sz]) => bx(G, 0.16, 2.3, 0.16, sx, 1.45, sz, steel));
+    /* the sign pylon, green with the line dot, facing up the pavement */
+    bx(G, 0.2, 2.0, 0.2, -2.5, 1.0, -1.4, steel);
+    const board = new T.Mesh(new T.PlaneGeometry(2.2, 0.72),
+      new T.MeshStandardMaterial({ map: ctex("subwaySign" + (KO ? "ko" : "en"), 256, 84, (g, w, h) => {
+        g.fillStyle = "#1a6a3c"; g.fillRect(0, 0, w, h);
+        g.strokeStyle = "#e8f2e4"; g.lineWidth = 4; g.strokeRect(4, 4, w - 8, h - 8);
+        g.fillStyle = "#e8f2e4"; g.font = "bold 30px sans-serif"; g.textAlign = "left"; g.textBaseline = "middle";
+        g.fillText(KO ? "지하철" : "METRO", 58, h * 0.52);
+        g.beginPath(); g.arc(34, h * 0.5, 17, 0, Math.PI * 2); g.fillStyle = "#2a7ac8"; g.fill();
+        g.fillStyle = "#fff"; g.font = "bold 20px sans-serif"; g.textAlign = "center"; g.fillText("1", 34, h * 0.54);
+      }, { smooth: true }), roughness: 0.7, metalness: 0.05, side: T.DoubleSide }));
+    board.position.set(-2.5, 2.05, -1.4);
+    board.rotation.y = Math.PI / 2;
+    board.userData.noBlock = 1;
+    G.add(board);
+  }
   function lmCranes(S, list) {
     const red = cmat(0xc8382a, 0.6, 0.3), wh = cmat(0xeceae4, 0.6, 0.3);
     list.forEach(([x, z, ry], i) => {
@@ -15190,6 +15331,7 @@
         else if (k === "tumuli") lmTumuli(S, L[1]);
         else if (k === "lanterns") lmLanterns(S, L[1], L[2], L[3]);
         else if (k === "cranes") lmCranes(S, L[1]);
+        else if (k === "subway") lmSubway(S, L[1], L[2], L[3]);
         else if (k === "boats") lmBoats(S, L[1], anims);
         else if (k === "overpass") {
           /* (v49) the deck counts as air clearance, so a gunship climbs
@@ -15253,6 +15395,11 @@
     if (coverRoot) coverRoot.traverse((o) => { if (o.userData && o.userData.cover) walkBlockers.push(new T.Box3().setFromObject(o)); });
     landCovers.forEach((c) => walkBlockers.push(new T.Box3().setFromObject(c.g)));
     applyMood(ctx, S, sky, clouds, moodOverride() || C.mood || "day");
+    /* (v52) a stage may want its own air: Daejeon fights in the morning haze */
+    if (C.fogNear && ctx.scene && ctx.scene.fog && ctx.scene.fog.isFog) {
+      ctx.scene.fog.near = C.fogNear;
+      if (C.fogFar) ctx.scene.fog.far = C.fogFar;
+    }
     dress = { root: S, sky, flags, clouds, barrels: barrels, ally, truck1: null, trunks, fires: fires, anims: anims, animT: 0, sea: dress0.sea };
     dress0.sea = null;
     return dress;
@@ -15313,6 +15460,24 @@
       if (b.max.y > top) top = b.max.y;
     }
     return top;
+  }
+
+  /* (v52) the aircraft's searchlight: one shared cone, no new light in the
+     scene, so the shaders are never recompiled for it */
+  let HELI_CONE = null, HELI_CONE_M = null;
+  function heliLamp(g) {
+    if (!HELI_CONE) {
+      HELI_CONE = new T.ConeGeometry(3.0, 15, 14, 1, true);
+      HELI_CONE.translate(0, -7.5, 0); /* apex at the airframe, base on the road */
+      HELI_CONE_M = new T.MeshBasicMaterial({ color: 0xd6e6ff, transparent: true, opacity: 0.10, depthWrite: false, side: T.DoubleSide, blending: T.AdditiveBlending, toneMapped: false });
+    }
+    const m = new T.Mesh(HELI_CONE, HELI_CONE_M);
+    m.position.set(0, -0.35, 0.6);
+    m.rotation.x = 0.42;
+    m.userData.noBlock = 1;
+    m.renderOrder = 6;
+    g.add(m);
+    return m;
   }
 
   function makeHeliModel() {
@@ -15432,7 +15597,85 @@
     return post;
   }
 
-  function heliFire(ctx, p) {
+  /* (v52) armour in the middle of an operation, not only at the boss: a
+     tank or an armoured car rolls up the road with the wave, works its
+     autocannon in bursts, and dies to the same glowing vent the boss uses */
+  function makeAPCPost(w, m, i) {
+    const tank = m.tank !== false;
+    const g = tank ? makeTankModel() : makeAPCModel();
+    addWeakPoint(g, 0, tank ? 0.92 : 1.02, tank ? 3.52 : 3.42, tank ? 1.3 : 1.2, tank ? 0.5 : 0.46);
+    if (g.userData.cannonMuzzle && !g.userData.muzzle) g.userData.muzzle = g.userData.cannonMuzzle;
+    const p0 = waveXY(w, m.lat || 0, m.dep || 15);
+    const hp = Math.max(6, Math.round(m.hp || STAGE.armorHp || 14));
+    const post = {
+      e: { kind: "apc", mesh: g, alive: true, hp: hp, h: 2.8, _tag: null },
+      role: "convoy", air: "apc", isBoss: false, convoy: true, tank: tank, i,
+      x: p0.x, z: p0.z, y: 0.3, hpMax: hp,
+      aim: 2.6 * (DIFF.aim || 1), aimMax: 2.6 * (DIFF.aim || 1), burstN: 0, shotT: 0, shotDmg: 7,
+      live: false, state: "hidden", stateT: 0.6, expose: 1, hitFlash: 0, recoil: 0,
+      smokeT: 0, moveT: 1.4, dustT: 0, phaseN: 0, cannonT: 999, charge: 0, jam: 0, stun: 0,
+      dying: 0, visTop: 2.5, knock: 0, tx: null, tz: null
+    };
+    g.position.set(post.x, 0.3, post.z);
+    if (SCENE) SCENE.add(g);
+    post.mesh = g;
+    post.body = null;
+    post.visTop = post.y + 2.4;
+    try { roleTag(post.e); } catch (e) {}
+    if (post.e._tag) post.e._tag.style.display = "none";
+    posts.push(post);
+    return post;
+  }
+
+  /* the convoy's own frame: creep up the road, stop short, fire a burst,
+     repeat. No spot-hopping (that map belongs to the boss arena). */
+  function stepConvoy(p, ctx, dt) {
+    const cam = ctx.camera.position;
+    if (p.hitFlash > 0) p.hitFlash = Math.max(0, p.hitFlash - dt);
+    p.moveT -= dt;
+    if (p.moveT <= 0 && p.tx == null) {
+      p.moveT = 2.6 + Math.random() * 1.8;
+      const dx = cam.x - p.x, dz = cam.z - p.z, d = Math.hypot(dx, dz) || 1;
+      if (d > 13.5) {
+        const s = 3.0, nx = p.x + (dx / d) * s, nz = p.z + (dz / d) * s;
+        if (segClear(p.x, p.z, nx, nz, 1.6, 0)) { p.tx = nx; p.tz = nz; }
+      }
+    }
+    if (p.tx != null) {
+      const dx = p.tx - p.x, dz = p.tz - p.z, d = Math.hypot(dx, dz);
+      if (d > 0.3) {
+        const k = Math.min(d, dt * 1.7);
+        p.x += (dx / d) * k; p.z += (dz / d) * k;
+        p.dustT -= dt;
+        if (p.dustT <= 0) { p.dustT = 0.16; smokeAt(ctx, p.x, 0.42, p.z, 0x8a7c66); }
+      } else { p.tx = null; }
+    }
+    p.mesh.position.set(p.x, p.y, p.z);
+    p.mesh.rotation.y = Math.atan2(cam.x - p.x, cam.z - p.z);
+    if (p.recoil > 0) {
+      p.recoil = Math.max(0, p.recoil - dt * 3.2);
+      const tu = p.mesh.userData && p.mesh.userData.turret;
+      if (tu) tu.position.z = (tu.userData.recoilBaseZ != null ? tu.userData.recoilBaseZ : -0.4) - p.recoil * 0.12;
+    }
+    p.aim -= dt * seenK(p);
+    if (p.burstN > 0) {
+      p.shotT -= dt;
+      if (p.shotT <= 0) {
+        enemyFire(ctx, p, p.burstN === 3 ? (p.shotDmg || 7) : 0);
+        p.burstN--;
+        p.shotT = 0.24;
+      }
+    } else if (p.aim <= 0) {
+      p.burstN = 3;
+      p.shotT = 0.08;
+      p.aim = p.aimMax + 0.8;
+    }
+    p.visTop = p.y + 2.4;
+    const prog = Math.max(0, Math.min(1, 1 - p.aim / Math.max(0.001, p.aimMax)));
+    try { placeTag(p, ctx, prog, true); } catch (e) {}
+  }
+
+  function heliFire(ctx, p, dmg) {
     const u = p.mesh && p.mesh.userData;
     const from = new T.Vector3(p.x, p.y, p.z);
     if (u && u.muzzle) {
@@ -15446,7 +15689,7 @@
     toCam.multiplyScalar(Math.max(0.2, (d - 5) / d));
     tracerTo(ctx, from, new T.Vector3(from.x + toCam.x, from.y + toCam.y, from.z + toCam.z), 0xffe0a0, 0.05);
     gun("rifle");
-    hurtPlayer(ctx, 11);
+    hurtPlayer(ctx, dmg == null ? 11 : dmg);
   }
 
   function stepHeli(p, ctx, dt) {
@@ -15503,6 +15746,21 @@
       ox = p.front.x + p.lat.x * sw + p.fwd.x * fw;
       oz = p.front.z + p.lat.z * sw + p.fwd.z * fw;
       oy = p.flyY + Math.sin(p.orbitT * 0.7) * 0.8;
+      /* (v52) now and then the gunship drops onto the deck and runs the
+         street: the door gunner opens up and the rotor wash hits the road.
+         It still climbs over anything solid, so it never clips a roof. */
+      p.passT = (p.passT == null ? 10 + Math.random() * 8 : p.passT) - dt;
+      if (p.passT <= 0 && !p.isBoss) {
+        p.passT = 16 + Math.random() * 9;
+        p.lowT = 3.2;
+        window.__heliLow = (window.__heliLow || 0) + 1;
+        if (p.lowStage !== stageId) { p.lowStage = stageId; radio(KO ? "적 헬기 저공 비행! 고개 숙이고 엎드려!" : "Gunship coming in low — get down!", 2600); }
+      }
+      if (p.lowT > 0) {
+        p.lowT -= dt;
+        oy = Math.min(oy, 3.6 + Math.sin(p.orbitT * 1.7) * 0.35);
+        lean += Math.sin(p.orbitT * 2.2) * 0.12;
+      }
       if (p.enterT < 1) {
         const k = p.enterT * p.enterT * (3 - 2 * p.enterT);
         oy = Math.max(oy, p.baseY + 2.2 * (1 - k));
@@ -15535,13 +15793,29 @@
     p.mesh.rotation.z = Math.sin(p.bob * 0.7) * 0.05 - 0.04 + lean;
     if (u.rotor) u.rotor.rotation.y += dt * 17;
     if (u.tail) u.tail.rotation.x += dt * 26;
+    /* (v52) in the dark a gunship works a searchlight over the street */
+    if (!p.lamp && (window.__mood === "night" || window.__mood === "rain")) {
+      try { p.lamp = heliLamp(p.mesh); window.__heliLamp = (window.__heliLamp || 0) + 1; } catch (e) { window.__lampErr = String(e); }
+    }
     p.visTop = p.y + 2.3;
     if (p.isBoss && p.live !== false && (p.enterT || 0) >= 1) heliRockets(ctx, p, dt);
     if (p.live !== false) {
       p.aim -= dt * seenK(p);
-      if (p.aim <= 0) {
-        heliFire(ctx, p);
+      /* (v52) the door gunner works in short bursts: the first round hurts,
+         the rest are tracers that chew the wall by your shoulder */
+      if (p.aim <= 0 && !(p.burstN > 0)) {
+        p.burstN = p.isBoss ? 4 : 3;
+        p.shotT = 0.05;
         p.aim = p.aimMax + Math.random() * 0.9;
+        window.__heliBurst = (window.__heliBurst || 0) + 1;
+      }
+      if (p.burstN > 0) {
+        p.shotT -= dt;
+        if (p.shotT <= 0) {
+          heliFire(ctx, p, p.burstN === (p.isBoss ? 4 : 3) ? (p.isBoss ? 11 : 8) : 0);
+          p.burstN--;
+          p.shotT = 0.17;
+        }
       }
       if (p.e.hp <= 3) {
         p.smokeT -= dt;
@@ -15651,7 +15925,7 @@
   /* (v46) the street lamps breathe a little in a burning or dusk city, so the
      pool under them never looks like a decal that forgot to move */
   function stepLampPools(nowMs) {
-    const on = window.__mood === "war" || window.__mood === "dusk";
+    const on = window.__mood === "war" || window.__mood === "dusk" || window.__mood === "night" || window.__mood === "rain";
     if (!on) return;
     const k = 0.86 + Math.sin(nowMs / 210) * 0.07 + Math.sin(nowMs / 77) * 0.05;
     for (let i = 0; i < lampPools.length; i++) {
@@ -15663,6 +15937,10 @@
      drifting down far off, and (while the line falls back) refugees on the
      pavements heading south */
   const AMB = { t: 0, jetT: 6, chuteT: 3, jets: [], chutes: [], refs: [] };
+  /* (v52) refugee handling: gunfire starts them running, and the HUD calls
+     out a civilian who has walked into the line of fire */
+  let civAlarm = 0, civWarn = 0;
+  const _civV = new T.Vector3(), _civD = new T.Vector3();
   function makeJet() {
     const g = new T.Group();
     const M = (c) => new T.MeshStandardMaterial({ color: new T.Color(c).convertSRGBToLinear(), roughness: 0.6, metalness: 0.3 });
@@ -15716,30 +15994,43 @@
       return true;
     });
     /* refugees on the pavements in the fall-back stages */
-    if (STAGE.refugees && (STAGE.dress === "citygen" || cam.z < 0) && AMB.refs.length < 8 && Math.random() < dt * 0.8) {
+    if (STAGE.refugees && (STAGE.dress === "citygen" || cam.z < 0) && AMB.refs.length < 8 && Math.random() < dt * 0.9) {
       try {
-        const m = makeSoldier("hostage");
+        /* (v52) they come in families: one to three people, a child towing
+           a bag behind, all walking the pavement the same way */
         const side = Math.random() < 0.5 ? -1 : 1;
-        /* (v26) along the street the rail is on now, wherever it points */
+        const n = Math.random() < 0.42 ? 2 + (Math.random() < 0.4 ? 1 : 0) : 1;
         let fx = 0, fz = 1, cx = 0, cz = cam.z;
         if (curve && STAGE.dress === "citygen") {
           const tg = curve.getTangentAt(Math.min(1, pathU + 0.02)); const tl = Math.hypot(tg.x, tg.z) || 1; fx = tg.x / tl; fz = tg.z / tl;
-          const ahead = 18 + Math.random() * 30, q = pathAt(Math.min(1, pathU + ahead / pathLen));
+          const q = pathAt(Math.min(1, pathU + (18 + Math.random() * 30) / pathLen));
           cx = q.x; cz = q.z;
-          const lx = fz, lz = -fx, off = side * (11.2 + Math.random() * 1.6);
-          m.position.set(cx + lx * off, 0.4, cz + lz * off);
-        } else m.position.set(side * (11.2 + Math.random() * 1.6), 0.4, cam.z + 18 + Math.random() * 30);
-        m.rotation.y = Math.atan2(-fx, -fz);
-        m.userData.fwd = [fx, fz];
-        m.traverse((o) => { o.userData.noBlock = 1; });
-        ctx.scene.add(m);
-        AMB.refs.push({ m: m, ph: Math.random() * 6, spd: 0.9 + Math.random() * 0.4 });
+        }
+        for (let q = 0; q < n && AMB.refs.length < 8; q++) {
+          const m = makeSoldier("hostage");
+          const child = q > 0 && Math.random() < 0.45;
+          if (child) m.scale.setScalar(0.74);
+          const back = q * (1.1 + Math.random() * 0.8);
+          if (curve && STAGE.dress === "citygen") {
+            const lx = fz, lz = -fx, off = side * (11.2 + Math.random() * 1.6);
+            m.position.set(cx + lx * off - fx * back, 0.4, cz + lz * off - fz * back);
+          } else m.position.set(side * (11.2 + Math.random() * 1.6), 0.4, cam.z + 18 + Math.random() * 30 - back);
+          m.rotation.y = Math.atan2(-fx, -fz);
+          m.userData.fwd = [fx, fz];
+          m.traverse((o) => { o.userData.noBlock = 1; });
+          ctx.scene.add(m);
+          AMB.refs.push({ m: m, ph: Math.random() * 6, spd: (0.9 + Math.random() * 0.4) * (child ? 1.15 : 1), child: !!child });
+          window.__civN = (window.__civN || 0) + 1;
+        }
       } catch (e) {}
     }
     AMB.refs = AMB.refs.filter((r) => {
       if (r.dead) return false;
       const fw = r.m.userData.fwd || [0, 1];
-      r.m.position.x -= fw[0] * r.spd * dt; r.m.position.z -= fw[1] * r.spd * dt; r.ph += dt * r.spd * 5;
+      /* (v52) gunfire makes them run: a burst in the street and the family
+         hurries for the corner instead of strolling */
+      const runK = civAlarm > 0 ? 1.85 : 1;
+      r.m.position.x -= fw[0] * r.spd * runK * dt; r.m.position.z -= fw[1] * r.spd * runK * dt; r.ph += dt * r.spd * 5 * runK;
       const u = r.m.userData;
       if (u.legL) u.legL.rotation.x = Math.sin(r.ph) * 0.6;
       if (u.legR) u.legR.rotation.x = -Math.sin(r.ph) * 0.6;
@@ -15750,6 +16041,25 @@
       if ((r.m.position.x - cam.x) * fw[0] + (r.m.position.z - cam.z) * fw[1] < -6 || Math.hypot(r.m.position.x - cam.x, r.m.position.z - cam.z) > 90) { r.m.parent && r.m.parent.remove(r.m); return false; }
       return true;
     });
+    /* (v52) is one of them walking into the sightline? */
+    let warn = 0;
+    if (AMB.refs.length) {
+      const c2 = ctx.camera;
+      c2.getWorldDirection(_civD);
+      const flat = Math.hypot(_civD.x, _civD.z) || 1;
+      for (let i = 0; i < AMB.refs.length; i++) {
+        const r = AMB.refs[i];
+        if (r.dead || !r.m || !r.m.parent) continue;
+        _civV.set(r.m.position.x - c2.position.x, 0, r.m.position.z - c2.position.z);
+        const d = _civV.length() || 1;
+        if (d > 26 || d < 1.2) continue;
+        _civV.divideScalar(d);
+        if ((_civV.x * _civD.x + _civV.z * _civD.z) / flat > 0.955) { warn = 1; break; }
+      }
+    }
+    civWarn = warn;
+    window.__civWarn = civWarn;
+    civAlarm = Math.max(0, civAlarm - dt);
   }
   function clearAmbient() {
     AMB.jets.forEach((j) => j.m.parent && j.m.parent.remove(j.m));
@@ -16420,7 +16730,7 @@
     }
     window.__lastHitAir = { kind: p.air, dmg: dmg, hp: p.e.hp, crit: crit };
     window.__lastDmg = { role: p.role, head: crit, dmg: dmg };
-    if ((p.air === "apc" || p.isBoss) && p.e.hp > 0) bossPhaseCheck(ctx, p);
+    if ((p.air === "apc" || p.isBoss) && p.e.hp > 0 && !p.convoy) bossPhaseCheck(ctx, p);
     if (p.e.hp > 0) { gun(dmg >= 3 ? "crit" : "hit"); return; }
     if (p.air === "heli") {
       p.e.alive = false;
@@ -16443,6 +16753,17 @@
     flashScreen(0.75);
     shake = 1.7;
     gun("boom");
+    if (p.convoy) {
+      /* (v52) mid-operation armour: a wreck and a column of smoke, not the
+         end of the mission */
+      addPts(ctx, 900);
+      tagOff(p);
+      for (let i = 0; i < 3; i++) boomAt(ctx, p.x + (Math.random() - 0.5) * 2.6, p.y + 1.1 + Math.random(), p.z + (Math.random() - 0.5) * 2.6);
+      smokeColumn(ctx, p.x, p.y + 1.6, p.z, 1.2);
+      radio(KO ? "적 장갑차 격파! 남은 적을 쓸어라!" : "Armour destroyed — clear the rest!", 2600);
+      window.__convoyDown = (window.__convoyDown || 0) + 1;
+      return;
+    }
     addPts(ctx, 2500);
     tagOff(p);
     for (let i = 0; i < 3; i++) boomAt(ctx, p.x + (Math.random() - 0.5) * 2.6, p.y + 1.1 + Math.random(), p.z + (Math.random() - 0.5) * 2.6);
