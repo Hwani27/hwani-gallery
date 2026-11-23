@@ -9,17 +9,17 @@
 | 항목 | 값 |
 |---|---|
 | 저장소 | https://github.com/Hwani27/hwani-gallery (브랜치 `main`) |
-| 라이브 | https://hwani27.github.io/hwani-gallery/baro-baro-myeolgong/ |
-| 영어 페이지 | https://hwani27.github.io/hwani-gallery/baro-baro-myeolgong/en.html |
-| 갤러리 카드 | `index.html`의 `baro-baro-myeolgong/` 카드 → `thumb.png` |
-| 폴더 | `work/hwani-gallery/baro-baro-myeolgong/` (완전 독립 빌드) |
+| 라이브 | https://hwani27.github.io/hwani-gallery/shoot-right-now/ |
+| 영어 페이지 | https://hwani27.github.io/hwani-gallery/shoot-right-now/en.html |
+| 갤러리 카드 | `index.html`의 `shoot-right-now/` 카드 → `thumb.png` |
+| 폴더 | `work/hwani-gallery/shoot-right-now/` (완전 독립 빌드) |
 | 현재 버전 | **v28** (`?v=28`, CC0 3D 모델 4종 + `GLTFLoader`) / v18 (`?v=18`, 엄폐 위치 수정) / v17 (`?v=17`, 보스 장갑·전차, 평화의 집 스테이지, 평양 기념상) / v16 (`?v=16`, 스테이지 연장 · Stage 3 · 무기) / v15 (`?v=15`, 시간대·날씨 + 부서지는 유리·간판) / v14 (`?v=14`, 겹침·관통 정리) / v13 (`?v=13`, 레일 관통 수정 · 복셀 텍스처 · 나무/남산/숭례문/버스 · 파편·탄흔) / v12 (`?v=12`, 화면 후처리 `post.js` + 적 테두리 빛) / v11 (`?v=11`, 버그 수정 4건) / 이전 **v10 통합** (`?v=10`) — v10 표면(텍스처·PBR 재질·환경맵·ACES·그림자·총구 화염/탄피) 위에 **Stage 2(DMZ·판문점)** 를 함께 얹은 상태. PR #12(`feat/myeolgong-v9-seoul-polish`)를 main에 병합하며 충돌 4곳을 해소 |
 | 스테이지 | `STAGES` 표: 1 = 서울(8웨이브+보스), 2 = DMZ·판문점(6웨이브+보스), 3 = 판문점 평화의 집(7웨이브+전차), 4 = 평양 진입(7웨이브+전차, 눈). 타이틀 버튼 4개(`#mgStart`/`2`/`3`/`4`), 결과의 `다음 작전`은 1→2→3→4. 타이틀의 두 버튼 / Stage 1 클리어 결과의 `다음 작전` 버튼으로 진입 |
 | v9 브랜치 | `feat/myeolgong-v9-seoul-polish` → PR #12 (v10도 같은 브랜치) |
 | v6 커밋 | `3df8b62` — full 1st-person arms/torso, adaptive portrait FOV, barrel tracks the aim point |
 | 캐시 버스터 | `?v=18` (index.html·en.html **네 줄**: post·engine·gun-sfx·rail) |
 
-| 로컬 실행 | `cd work/hwani-gallery && python3 -m http.server 8133` → `http://127.0.0.1:8133/baro-baro-myeolgong/index.html` |
+| 로컬 실행 | `cd work/hwani-gallery && python3 -m http.server 8133` → `http://127.0.0.1:8133/shoot-right-now/index.html` |
 
 **코드를 고치면 반드시**: `index.html`·`en.html`의 `post.js?v=`, `engine.js?v=`, `gun-sfx.js?v=`, `rail.js?v=` 네 줄을 **한꺼번에** 한 단계 올린다. 안 올리면 아이폰 Safari가 옛 파일을 계속 쓴다(캐시).
 
@@ -433,9 +433,13 @@ Stage 1(서울)은 손대지 않았고, 그 뒤에 **Stage 2**를 붙였다. 두
 - **v2**: 레일 슈터 골격(`baro-baro-jump` 엔진 위에 얹었다가 이후 완전 분리).
 - **v1**: `baro-baro-jump` HTML을 fetch/DOMParser로 재파싱해 쓰던 시절 → **지금은 금지된 구조**. 독립 빌드로 되돌리지 말 것.
 
+## 4-7. v40 — 폴더 이동: `shoot-right-now/` (2026-11-23)
+- 게임 폴더를 `baro-baro-myeolgong/` → `shoot-right-now/`로 옮김(git mv, 이력 유지). 갤러리 카드 링크도 새 폴더.
+- 옛 주소 `baro-baro-myeolgong/index.html`·`en.html`은 새 주소로 바로 이동시키는 안내 페이지(쿼리·해시 유지)만 남김. 같은 도메인이라 localStorage 저장(`myeolgong_*`)은 그대로 이어짐.
+
 ## 4-8. v39 — 게임 이름 변경: 지금 바로 쏴! (Shoot Right Now) (2026-11-23)
 - '지금 바로 멸공' → '지금 바로 쏴!' / 영문 'Destroy Now' → 'Shoot Right Now'('지금 바로 점프 · Jump Right Now'와 같은 결). 메뉴 타이틀·키커, 페이지 제목·설명, 공유 카드·공유 문구, 갤러리 첫 화면 카드, 파일 머리 주석.
-- 폴더 이름(`baro-baro-myeolgong/`)과 저장 키(`myeolgong_*`)는 링크·세이브 유지를 위해 그대로 둠.
+- 폴더 이름(`shoot-right-now/`)과 저장 키(`myeolgong_*`)는 링크·세이브 유지를 위해 그대로 둠.
 
 ## 4-9. v38 — 연기·숙이기·꺾인 시가지 빈 땅·공유 카드 병사 (2026-11-23)
 - 불 연기(`addFire`/`stepFires`): 큰 회색 상자 6개 → 작은 블록 퍼프 8개, 퍼프마다 재질을 따로 둬 올라갈수록 옅어짐(위에서 사라짐), 아래는 짙은 색.
@@ -689,7 +693,7 @@ Stage 2 확인용 (v8):
 
 ## 10. 협업 규칙
 
-1. **`baro-baro-jump/` · `fight-right-now/` · `*-privacy/` 는 절대 수정하지 않는다.** 이 게임은 `baro-baro-myeolgong/` 안에서만 산다.
+1. **`baro-baro-jump/` · `fight-right-now/` · `*-privacy/` 는 절대 수정하지 않는다.** 이 게임은 `shoot-right-now/` 안에서만 산다.
 2. **엔진 HTML을 fetch/`DOMParser`로 재파싱하지 않는다.** 필요한 3D 부품은 `three.min.js` + 이 게임 코드로만.
 3. `three.min.js`는 r128 원본 그대로 둔다.
 4. 그래픽 톤: 도트 아님, 블록(복셀) 3D. 새 소품도 상자·기둥 조합으로.
@@ -719,4 +723,4 @@ Stage 2 확인용 (v8):
 
 ## 12. 다음 에이전트용 시작 프롬프트
 
-"Hwani27/hwani-gallery의 `baro-baro-myeolgong/`은 완전 독립 빌드다(`index.html`/`en.html` + `three.min.js` + `engine.js` + `gun-sfx.js` + `rail.js`). `baro-baro-jump/`를 fetch하거나 DOMParser로 재파싱하는 구조로 되돌리지 마라. `baro-baro-jump/`, `fight-right-now/`, 개인정보 페이지는 수정 금지. 화각은 `viewFov()`(세로에서 가로 76° 유지, 52~82° 클램프), 뷰모델은 `makePistol()`의 `aim`/`body` 분리 구조이고 총구 조준은 프레임 루프의 `---- point the barrel ----` 블록에서 매 프레임 푼다. 레일은 `PATH_PTS` 스플라인 + `WAVE_DEFS`, 적은 `hidden/peek/fire/duck` 상태머신이며 은폐 중에는 피격 판정이 없다. 고친 뒤에는 캐시 버스터 3줄과 이 `HANDOFF.md`를 같은 커밋에서 갱신하고, 390×844·1280×720 두 화면비에서 오류 0과 팔 끝단 화면 밖(`userData.armEnd`)을 확인해라. 스크린샷과 함께 `main`에 푸시하고 GitHub Pages 반영을 확인해라."
+"Hwani27/hwani-gallery의 `shoot-right-now/`은 완전 독립 빌드다(`index.html`/`en.html` + `three.min.js` + `engine.js` + `gun-sfx.js` + `rail.js`). `baro-baro-jump/`를 fetch하거나 DOMParser로 재파싱하는 구조로 되돌리지 마라. `baro-baro-jump/`, `fight-right-now/`, 개인정보 페이지는 수정 금지. 화각은 `viewFov()`(세로에서 가로 76° 유지, 52~82° 클램프), 뷰모델은 `makePistol()`의 `aim`/`body` 분리 구조이고 총구 조준은 프레임 루프의 `---- point the barrel ----` 블록에서 매 프레임 푼다. 레일은 `PATH_PTS` 스플라인 + `WAVE_DEFS`, 적은 `hidden/peek/fire/duck` 상태머신이며 은폐 중에는 피격 판정이 없다. 고친 뒤에는 캐시 버스터 3줄과 이 `HANDOFF.md`를 같은 커밋에서 갱신하고, 390×844·1280×720 두 화면비에서 오류 0과 팔 끝단 화면 밖(`userData.armEnd`)을 확인해라. 스크린샷과 함께 `main`에 푸시하고 GitHub Pages 반영을 확인해라."
