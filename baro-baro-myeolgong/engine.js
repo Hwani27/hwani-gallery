@@ -1,4 +1,4 @@
-/* 지금 바로 멸공 — standalone engine.
+/* 지금 바로 쏴! — standalone engine.
    Owns the WebGL renderer, scene, camera, lights, the score popups and the
    frame loop that drives rail.js. It loads nothing else: no other game's
    HTML, globals, menus or save data. */

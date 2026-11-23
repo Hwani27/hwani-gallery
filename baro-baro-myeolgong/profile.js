@@ -1,4 +1,4 @@
-/* 지금 바로 멸공 — player profile and title menu (v20).
+/* 지금 바로 쏴! (Shoot Right Now) — player profile and title menu (v20).
    Owns the save (rank XP, best record per stage, difficulty, mode) and
    builds the title screen: rank badge, campaign button, mode and difficulty
    switches, stage cards. Loaded before engine.js, which binds the sound and
@@ -353,7 +353,7 @@
     gfx: '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><rect x="3" y="5" width="18" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 20h8M12 17v3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M7 13l3-3 2.5 2.5L17 8" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>'
   };
   const L = ko
-    ? { kicker: "20XX · RAIL SHOOTER", sub: "남침에서 인천 상륙, 그리고 북진까지 — 블록 세상 레일 슈팅", go: "작전 개시", goAll: "전 작전 완료 · 처음부터", mode: { op: "작전", practice: "연습" }, ops: "작전 선택", toNext: "다음 계급까지", max: "최고 계급", next: "다음 보상", none: "기록 없음", best: "최고",
+    ? { kicker: "SHOOT RIGHT NOW · 20XX", sub: "남침에서 인천 상륙, 그리고 북진까지 — 블록 세상 레일 슈팅", go: "작전 개시", goAll: "전 작전 완료 · 처음부터", mode: { op: "작전", practice: "연습" }, ops: "작전 선택", toNext: "다음 계급까지", max: "최고 계급", next: "다음 보상", none: "기록 없음", best: "최고",
         noteOp: "목숨을 다 잃으면 이어하기(CONTINUE) · 계급 경험치 획득", notePr: "연습 모드: 죽지 않음 · 모든 작전 자유 선택 · 경험치·기록 없음", hint: "<span>탭/클릭 <b>사격</b></span><span><b>R</b> 재장전</span><span><b>G</b> 수류탄</span><span>숫자키 <b>1·2·3</b> 무기</span>" }
     : { kicker: "20XX · RAIL SHOOTER", sub: "A block-world military rail shooter", go: "START MISSION", goAll: "ALL CLEAR · FROM THE TOP", mode: { op: "CAMPAIGN", practice: "PRACTICE" }, ops: "MISSIONS", toNext: "to next rank", max: "Top rank", next: "Next reward", none: "No record", best: "BEST",
         noteOp: "Lose every life and you can CONTINUE · earns rank XP", notePr: "Practice: no deaths · any mission · no XP or records", hint: "<span>Tap/click <b>fire</b></span><span><b>R</b> reload</span><span><b>G</b> grenade</span><span>Keys <b>1·2·3</b> weapons</span>" };
@@ -524,7 +524,7 @@
         '</small><div class="mXp"><i style="width:' + Math.round(xb.k * 100) + '%"></i></div></div>' +
         '<div class="mIcons"><button id="mgSound" class="mIco" type="button" aria-label="sound">' + SVG.snd + '<span class="tSoundTxt" hidden></span></button>' +
         '<button id="mgGfx" class="mIco" type="button" aria-label="graphics" title="">' + SVG.gfx + '<span class="tGfxTxt" hidden></span></button></div></div>' +
-      '<div class="mHead"><p class="tKicker">' + L.kicker + "</p><h1>" + (ko ? "지금 바로 <em>멸공</em>" : "Destroy <em>Now</em>") + '</h1><p class="tSub">' + L.sub + "</p></div>" +
+      '<div class="mHead"><p class="tKicker">' + L.kicker + "</p><h1>" + (ko ? "지금 바로 <em>쏴!</em>" : "Shoot <em>Right Now</em>") + '</h1><p class="tSub">' + L.sub + "</p></div>" +
       '<button class="mGo" id="mgGo" type="button"><span class="pl">' + SVG.play + "</span><span><b>" + (ns ? L.go : L.goAll) + "</b><small>STAGE " + st.lab + " · " + (ko ? st.ko : st.en) + "</small></span></button>" +
       '<div class="mRow"><div class="mSeg mode">' + ["op", "practice"].map((v) => '<button type="button" data-k="mode" data-v="' + v + '"' + (D.mode === v ? ' class="on"' : "") + ">" + L.mode[v] + "</button>").join("") + "</div>" +
       '<div class="mSeg diff">' + Object.keys(DIFFS).map((v) => '<button type="button" data-k="diff" data-v="' + v + '"' + (D.diff === v ? ' class="on"' : "") + ">" + (ko ? DIFFS[v].ko : DIFFS[v].en) + "</button>").join("") + "</div></div>" +

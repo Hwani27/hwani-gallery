@@ -1,4 +1,4 @@
-/* 지금 바로 멸공 — standalone Virtua-Cop-style rail shooter.
+/* 지금 바로 쏴! (Shoot Right Now) — standalone Virtua-Cop-style rail shooter.
    Self-contained on purpose: three.min.js supplies the renderer, engine.js
    supplies the scene, camera and frame loop, and everything else (plaza,
    soldiers, props, the four waves and the commander) is built in this file.
@@ -9185,7 +9185,7 @@
     g.fillStyle = gr; g.fillRect(0, 0, W, 200);
     const F = (w, px) => w + " " + px + "px Pretendard, 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif";
     g.textBaseline = "alphabetic";
-    g.fillStyle = "#c9b871"; g.font = F(800, 30); g.fillText(I.ko ? "지금 바로 멸공" : "DESTROY NOW", 60, 84);
+    g.fillStyle = "#c9b871"; g.font = F(800, 30); g.fillText(I.ko ? "지금 바로 쏴!" : "SHOOT RIGHT NOW", 60, 84);
     g.textAlign = "right"; g.fillStyle = "#fff"; g.font = F(800, 30); g.fillText("STAGE " + I.label.replace("STAGE ", ""), W - 60, 84); g.textAlign = "left";
     g.fillStyle = I.cleared ? "#ffe14a" : "#ff8a7a"; g.font = F(900, 74);
     const head = I.head.length > 18 ? I.head.split(" · ") : [I.head];
@@ -9215,7 +9215,7 @@
   function shareResult(I, act, btn) {
     const ko = I.ko;
     const url = location.href.split("#")[0].split("?")[0];
-    const text = (ko ? "지금 바로 멸공 " : "Destroy Now ") + I.label + " " + (I.cleared ? (ko ? "클리어! " : "clear! ") : "") + I.stars + " " + I.score.toLocaleString() + (ko ? "점" : " pts") +
+    const text = (ko ? "지금 바로 쏴! " : "Shoot Right Now ") + I.label + " " + (I.cleared ? (ko ? "클리어! " : "clear! ") : "") + I.stars + " " + I.score.toLocaleString() + (ko ? "점" : " pts") +
       (I.rec && window.MGProfile ? " · " + (ko ? "계급 " : "rank ") + window.MGProfile.rankName(I.rec.rank1) : "") + (ko ? " — 너도 도전해봐!" : " — beat that!");
     const card = makeShareCard(I);
     const done = (msg) => { if (btn) { const o = btn.innerHTML; btn.textContent = msg; setTimeout(() => { btn.innerHTML = o; }, 1800); } };
@@ -9231,7 +9231,7 @@
       if (!blob) return;
       const file = new File([blob], "myeolgong.png", { type: "image/png" });
       if (act === "share" && navigator.share) {
-        const data = { title: ko ? "지금 바로 멸공" : "Destroy Now", text: text, url: url };
+        const data = { title: ko ? "지금 바로 쏴!" : "Shoot Right Now", text: text, url: url };
         const withFile = navigator.canShare && navigator.canShare({ files: [file] }) ? Object.assign({ files: [file] }, data) : data;
         navigator.share(withFile).then(() => done(ko ? "공유 완료" : "Shared")).catch(() => {});
         return;

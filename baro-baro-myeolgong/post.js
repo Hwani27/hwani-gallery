@@ -1,4 +1,4 @@
-/* post.js — screen pass for 지금 바로 멸공 (three.js r128, no examples/ files)
+/* post.js — screen pass for 지금 바로 쏴! (three.js r128, no examples/ files)
 
    high : the scene is drawn into a 4x MSAA target (WebGL2), then
           bright pass -> two blurred mips (1/4 and 1/8) -> composite with

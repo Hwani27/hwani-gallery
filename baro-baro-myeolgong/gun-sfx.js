@@ -1,4 +1,4 @@
-/* Procedural gun kit for 지금 바로 멸공.
+/* Procedural gun kit for 지금 바로 쏴!.
    Layers (written from scratch, no sample or third-party audio code):
    a supersonic crack, a low chest thump, a short mid bark, a mechanical
    slide tick, a brass clink, and a concrete-street tail on a reverb send.
