@@ -6555,16 +6555,18 @@
       ]
     },
     {
-      id: 4, zone: "BRIDGE", hold: [0, 14], yaw: 0, look: [0, 2.2, 34], time: 30,
+      /* (v53) the stop moved 8 m up the deck: from z 14 the far bank was
+         20-25 m off and a portrait phone showed specks behind the truss */
+      id: 4, zone: "BRIDGE", hold: [0, 22], yaw: 0, look: [0, 2.0, 36], time: 30,
       radio: "다리 위다, 엄폐물이 없다! 건너편 교두보를 빨리 쓸어라!",
       picks: [[-1.8, 4.0, "supply"], [1.8, 6.0, "grenade"]],
       members: [
         /* (v21) all on the far bank: nothing may stand off the deck over the
            river, and the truss must not hide anyone */
-        { role: "weak", lat: -2.0, dep: 19.5, cover: "sandbag" },
-        { role: "weak", lat: 2.1, dep: 20.5, cover: "crate" },
-        { role: "tough", lat: 5.4, dep: 25.0, cover: "sandbag" },
-        { role: "weak", lat: -5.6, dep: 25.4, cover: "crate", bike: true, run: { from: [-12.0, 50.0], dur: 3.6, delay: 1.2 } }
+        { role: "weak", lat: -2.0, dep: 12.5, cover: "sandbag" },
+        { role: "weak", lat: 2.1, dep: 13.0, cover: "crate" },
+        { role: "tough", lat: 4.6, dep: 16.0, cover: "sandbag" },
+        { role: "weak", lat: -4.8, dep: 16.4, cover: "crate", bike: true, run: { from: [-12.0, 50.0], dur: 3.6, delay: 1.2 } }
       ]
     },
     {
@@ -9750,14 +9752,32 @@
   function stepAllyRides(ctx, dt) {
     if (!allyRides.length || !curve) return;
     const t = performance.now() / 1000;
+    const cam = ctx.camera.position;
     allyRides.forEach((r) => {
-      if (r.stop) return;
+      if (r.stop) {
+        /* (v53) parked: ease off to the verge, and never let the camera walk
+           through it — the landing craft used to stop in the lane at the
+           beach and the player's boat sailed straight through it */
+        if (r.park != null && r.g.visible) {
+          const k = Math.min(1, dt * 3);
+          r.g.position.x += (r.park.x - r.g.position.x) * k;
+          r.g.position.z += (r.park.z - r.g.position.z) * k;
+        }
+        const d = Math.hypot(r.g.position.x - cam.x, r.g.position.z - cam.z);
+        if (d < (r.boat ? 4.6 : 3.6)) r.g.visible = false;
+        return;
+      }
       const lead = r.lead + Math.sin(t * 0.4 + r.ph) * 1.2;
       const u = Math.max(0, Math.min(1, pathU + lead / pathLen));
       const pt = pathAt(u), tg = curve.getTangentAt(u);
       const tl = Math.hypot(tg.x, tg.z) || 1, tx = tg.x / tl, tz = tg.z / tl;
-      let x = pt.x + tz * r.lat, z = pt.z - tx * r.lat;
-      if (r.boat && z > -72) { r.stop = true; return; }
+      /* the craft fan out to either side as the beach comes up, so the
+         player's boat lands between them */
+      if (r.boat) { const fan = Math.max(0, Math.min(1, (pt.z + 104) / 24)); r.latNow = r.lat + (Math.sign(r.lat) * 5.5 - r.lat) * fan; }
+      const L = r.latNow != null ? r.latNow : r.lat;
+      let x = pt.x + tz * L, z = pt.z - tx * L;
+      if (r.boat && z > -67) { r.stop = true; return; }
+      r.lastT = [tx, tz];
       r.g.position.set(x, r.boat ? 0.12 + Math.sin(t * 1.6 + r.ph) * 0.08 : 0, z);
       r.g.rotation.y = Math.atan2(tx, tz);
       r.g.rotation.z = r.boat ? Math.sin(t * 1.2 + r.ph) * 0.03 : Math.sin(t * 9 + r.ph) * 0.006;
@@ -9831,7 +9851,6 @@
   function stepChase(ctx, dt) {
     if (!chase) return;
     chase.t += dt;
-    stepAllyRides(ctx, dt);
     if (chase.boat && ctx.camera.position.z > -69) { endChase(ctx); return; }
     while (chase.i < chase.plan.length && chase.t >= chase.plan[chase.i]) {
       const k = chase.i++;
@@ -9933,7 +9952,13 @@
     const down = chase.riders.filter((p) => p.e.alive === false && !p.escaped && p.mesh && p.mesh.parent).length;
     const wasBoat = chase.boat;
     chase.fx.forEach((m) => m.parent && m.parent.remove(m));
-    allyRides.forEach((r) => { r.stop = true; });
+    allyRides.forEach((r) => {
+      if (r.stop) return;
+      r.stop = true;
+      /* the jeep pulls over onto the verge, out of the walking line */
+      const tt = r.lastT || [0, 1], side = Math.sign(r.lat || 1);
+      r.park = { x: r.g.position.x + tt[1] * side * 4.2, z: r.g.position.z - tt[0] * side * 4.2 };
+    });
     chase = null;
     if (jeepRig) jeepRig.visible = false;
     if (boatRig) boatRig.visible = false;
@@ -12337,6 +12362,7 @@
       if (!falling && (left === 0 || (waveT <= 0 && phase !== "boss"))) endWave(ctx);
     } else if (phase === "move" || phase === "toBoss") {
       if (chase) stepChase(ctx, dt);
+      if (allyRides.length) stepAllyRides(ctx, dt);
       else stepAlly(ctx, dt);
     }
 
@@ -14098,6 +14124,15 @@
       if (z > 4 && z < 36) return false;
       if (z > 98) return false;
       if (Math.abs(x + 13) < 5 && Math.abs(z - 62) < 5) return false;
+      /* (v53) no boulder in a firing lane: from each stop (and the boss's)
+         18 m toward its look point, 11 m either side, stays open — the
+         rocks used to be taller than the men behind them at Cheonji */
+      for (const w of WAVES5.concat([{ hold: BOSS5.hold, look: BOSS5.look }])) {
+        const hx = w.hold[0], hz = w.hold[1];
+        let fx = w.look[0] - hx, fz = w.look[2] - hz; const fl = Math.hypot(fx, fz) || 1; fx /= fl; fz /= fl;
+        const ax = x - hx, az = z - hz, along = ax * fx + az * fz, side = ax * fz - az * fx;
+        if (along > -1 && along < 18 && Math.abs(side) < 11) return false;
+      }
       if (Math.abs(x + 6) < 3 && Math.abs(z + 30) < 3) return false;
       return true;
     };
@@ -16146,7 +16181,7 @@
       }
       if (p.crashMonu && MONU && !MONU.broken) {
         /* it glides in on a smoking arc and slams into the bronze group */
-        const k = Math.min(1, dt * 1.6);
+        const k = Math.min(1, dt * 3);
         p.x += (MONU.x - p.x) * k;
         p.z += (MONU.z - 0.6 - p.z) * k;
         p.fallV = Math.max(p.fallV, -7.5);
