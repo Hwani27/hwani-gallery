@@ -7016,6 +7016,7 @@
     const camDark = camoTex("camoD", ["#424d2c", "#333d22", "#4f5a36", "#2a321c", "#5c5334"], 37);
     /* one cloth material per piece, with the tile repeated by real size so the
        camouflage blobs stay square along a long sleeve instead of streaking */
+    const armMats = [];
     const cloth = (tex, len, w, tint) => {
       const t = tex.clone();
       t.wrapS = t.wrapT = T.RepeatWrapping;
@@ -7027,6 +7028,8 @@
         bumpMap: tex.__key ? bumpTex(tex.__key, TXCV[tex.__key], { gain: 3.0 }) : null, bumpScale: 0.004
       });
       m.color.convertSRGBToLinear();
+      m.userData.rep = [t.repeat.x, t.repeat.y];
+      armMats.push(m);
       return m;
     };
     const strap = mm(0x4e4e48, mpoly, 1, 1);
@@ -7037,8 +7040,9 @@
       const A = new T.Vector3(a[0], a[1], a[2]);
       const B = new T.Vector3(b[0], b[1], b[2]);
       const len = Math.max(0.02, A.distanceTo(B));
-      const m = new T.Mesh(new T.CylinderGeometry(rB, rA, len, sides || 6, 1),
-                           cloth(tex, len, (rA + rB) * 2.2, tint));
+      /* (v36) square sleeves, like the block soldiers' own arms */
+      const r = (rA + rB) * 0.92;
+      const m = new T.Mesh(new T.BoxGeometry(r, len, r), cloth(tex, len, (rA + rB) * 2.2, tint));
       m.position.copy(A).add(B).multiplyScalar(0.5);
       m.quaternion.setFromUnitVectors(UPY, B.clone().sub(A).normalize());
       if (name) { m.name = name; m.userData.armEnd = 1; }
@@ -7082,6 +7086,8 @@
     seg(body, [0.34, -1.14, 0.84], [0.5, -1.88, 1.0], 0.158, 0.172, camDark, "R-arm-end", 0xc8c8c8);
     seg(body, [-0.62, -1.17, 0.84], [-0.84, -1.92, 0.98], 0.158, 0.172, camDark, "L-arm-end", 0xc8c8c8);
 
+    window.__armMats = armMats;
+    window.__armSkin = skin;
     const f = add(0.085, 0.085, 0.12, 0, 0.062, -0.44, new T.MeshBasicMaterial({ color: 0xfff3b0 }));
     f.visible = false;
     const halo = add(0.1, 0.1, 0.02, 0, 0.062, -0.42, new T.MeshBasicMaterial({ color: 0xffc14a, transparent: true, opacity: 0.8, depthWrite: false }));
@@ -8063,12 +8069,50 @@
     if (hud) hud._score = 0;
   }
 
+  /* (v36) the first-person sleeves and hands wear the player's own uniform:
+     a tile cut from the sleeve of that uniform's skin, and the hand colour
+     from its hand (bare skin or gloves) */
+  const armTexC = {};
+  function applyArmUni() {
+    const mats = window.__armMats;
+    if (!mats || !mats.length) return;
+    let uni = "u-army";
+    try { uni = (window.MGProfile && window.MGProfile.uni && window.MGProfile.uni()) || "u-army"; } catch (e) {}
+    const tx = kTex(uni), img = tx.image;
+    if (!img || !img.complete || !img.naturalWidth) {
+      if (!applyArmUni._w) { applyArmUni._w = 1; setTimeout(() => { applyArmUni._w = 0; applyArmUni(); }, 400); }
+      return;
+    }
+    let sl = armTexC[uni];
+    if (!sl) {
+      const k = img.naturalWidth / 1024;
+      const cv = document.createElement("canvas"); cv.width = 32; cv.height = 48;
+      const g = cv.getContext("2d"); g.imageSmoothingEnabled = false;
+      /* the right arm's front face, cuff and hand left out */
+      g.drawImage(img, 549 * k, 606 * k, 54 * k, 112 * k, 0, 0, 32, 48);
+      const hc = document.createElement("canvas"); hc.width = 4; hc.height = 4;
+      const hg = hc.getContext("2d"); hg.drawImage(img, 560 * k, 748 * k, 30 * k, 12 * k, 0, 0, 4, 4);
+      const d = hg.getImageData(0, 0, 4, 4).data; let r = 0, gg = 0, b = 0;
+      for (let i = 0; i < 64; i += 4) { r += d[i]; gg += d[i + 1]; b += d[i + 2]; }
+      sl = armTexC[uni] = { cv: cv, hand: new T.Color(r / 16 / 255, gg / 16 / 255, b / 16 / 255).convertSRGBToLinear() };
+    }
+    mats.forEach((m) => {
+      const t = new T.CanvasTexture(sl.cv);
+      t.encoding = T.sRGBEncoding; t.magFilter = T.NearestFilter; t.wrapS = t.wrapT = T.RepeatWrapping;
+      const rp = m.userData.rep || [1, 1];
+      t.repeat.set(Math.max(1, Math.round(rp[0] * 0.5)), Math.max(1, Math.round(rp[1] * 0.5)));
+      if (m.map && m.map !== t) m.map.dispose && m.userData.ownMap && m.map.dispose();
+      m.map = t; m.userData.ownMap = 1; m.bumpMap = null; m.color.setRGB(1, 1, 1); m.needsUpdate = true;
+    });
+    if (window.__armSkin) window.__armSkin.color.copy(sl.hand);
+  }
   function boot(ctx) {
     booted = true;
     css();
     document.documentElement.classList.add("rail-on");
     if (ctx.scene && ctx.camera && !ctx.camera.parent) ctx.scene.add(ctx.camera);
     const rig = makePistol(ctx.camera);
+    try { applyArmUni(); } catch (e) {}
     pistol = rig.g;
     pistolAim = rig.aim;
     pistolBody = rig.body;
@@ -8171,6 +8215,7 @@
 
   function begin(ctx, stageIdIn) {
     TUT.checked = false; TUT.on = false; tutHide();
+    try { applyArmUni(); } catch (e) {}
     if (!ctx || !ctx.scene || !ctx.camera) return false;
     // pick the GPU's anisotropic limit before any texture is painted
     try {
