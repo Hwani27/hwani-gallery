@@ -1,61 +1,85 @@
 /* fight-right-now · BF_CC0
- * CC0 3D character pilot: loads three CC0 glTF characters (Kenney, KayKit,
- * Quaternius), attaches them to the matching ROSTER fighters, and drives their
- * animation clips from the existing fighter state machine.
- * Every caller must treat a missing/failed load as "use the procedural voxel
- * model" - this module never throws into the game loop.
- * Licences: see assets/cc0/LICENSES.md (all three packs are CC0 1.0).
+ * KayKit CC0 fighters: loads four KayKit "Character Pack: Adventurers" glTF
+ * characters (Knight / Barbarian / Rogue / Mage) as their own playable roster
+ * entries and drives their animation clips from the existing fighter state
+ * machine (idle, walk/back, run, jump start/air/land, dodge, block, block-hit,
+ * hit, knockdown, get-up, combo chain, ranged/skill cast, super, win, death).
+ * The 17 original voxel characters are untouched: nothing here maps to them,
+ * and every caller treats a missing/failed load as "use the def's voxel model".
+ * Never throws into the game loop.
+ * Licences: see assets/cc0/LICENSES.md (KayKit is CC0 1.0).
  */
 (function () {
   if (window.BF_CC0) return;
 
-  // ROSTER id -> asset key
+  // ROSTER id -> asset key (only the KayKit newcomers)
   var ROSTER_MAP = {
-    steve: 'kenney-hero',       // 바로 (주인공)
-    wskel: 'kaykit-knight',     // 그림자 기사 (검사)
-    grak: 'quaternius-warrior'  // 따또 (족장)
+    kk_knight: 'kaykit-knight',   // 기사
+    kk_barb: 'kaykit-barbarian',  // 야만전사
+    kk_rogue: 'kaykit-rogue',     // 도적
+    kk_mage: 'kaykit-mage'        // 마법사
   };
 
   var FILES = {
-    'kenney-hero': 'assets/cc0/kenney-hero.glb',
     'kaykit-knight': 'assets/cc0/kaykit-knight.glb',
-    'quaternius-warrior': 'assets/cc0/quaternius-warrior.glb'
+    'kaykit-barbarian': 'assets/cc0/kaykit-barbarian.glb',
+    'kaykit-rogue': 'assets/cc0/kaykit-rogue.glb',
+    'kaykit-mage': 'assets/cc0/kaykit-mage.glb'
   };
 
-  // role -> clip name in that file (empty = the model has no clip for it)
-  var ROLES = {
-    'kenney-hero': {
-      idle: 'idle', walk: 'walk', run: 'sprint',
-      jumpStart: '', jumpAir: '', jumpLand: '',
-      guard: 'idle', hit: 'idle', knockdown: 'die', getup: '', cheer: '',
-      defeat: 'die', dodge: '', atk: 'attack-melee-right', atkAlt: 'attack-melee-left'
-    },
+  // Clips shared by every Adventurers character (same 76-clip skeleton).
+  var BASE = {
+    idle: 'Idle', walk: 'Walking_A', back: 'Walking_Backwards', run: 'Running_A',
+    jumpStart: 'Jump_Start', jumpAir: 'Jump_Idle', jumpLand: 'Jump_Land',
+    guard: 'Blocking', guardHit: 'Block_Hit',
+    hit: 'Hit_A', hitB: 'Hit_B',
+    knockdown: 'Lie_Down', getup: 'Lie_StandUp',
+    cheer: 'Cheer', defeat: 'Death_A',
+    dodgeF: 'Dodge_Forward', dodgeB: 'Dodge_Backward'
+  };
+
+  // Per-character fighting flavour: combo chain, ranged cast, throw, super.
+  var SETS = {
     'kaykit-knight': {
-      idle: 'Idle', walk: 'Walking_A', run: 'Running_A',
-      jumpStart: 'Jump_Start', jumpAir: 'Jump_Idle', jumpLand: 'Jump_Land',
-      guard: 'Blocking', hit: 'Hit_A', knockdown: 'Lie_Down', getup: 'Lie_StandUp',
-      cheer: 'Cheer', defeat: 'Death_A', dodge: 'Dodge_Forward',
-      atk: '1H_Melee_Attack_Slice_Horizontal', atkAlt: '1H_Melee_Attack_Stab'
+      atk: ['1H_Melee_Attack_Slice_Horizontal', '1H_Melee_Attack_Chop',
+        '1H_Melee_Attack_Slice_Diagonal', '1H_Melee_Attack_Stab'],
+      cast: '1H_Ranged_Shoot', throw: '1H_Melee_Attack_Stab',
+      super: '2H_Melee_Attack_Spin'
     },
-    'quaternius-warrior': {
-      idle: 'Idle', walk: 'Walk', run: 'Run',
-      jumpStart: '', jumpAir: '', jumpLand: '',
-      guard: 'Idle_Weapon', hit: 'RecieveHit', knockdown: 'Death', getup: '',
-      cheer: '', defeat: 'Death', dodge: 'Roll',
-      atk: 'Sword_Attack', atkAlt: 'Sword_Attack2'
+    'kaykit-barbarian': {
+      atk: ['1H_Melee_Attack_Chop', '1H_Melee_Attack_Slice_Diagonal',
+        '1H_Melee_Attack_Slice_Horizontal', '2H_Melee_Attack_Chop'],
+      cast: 'Throw', throw: 'Throw', super: '2H_Melee_Attack_Spin'
+    },
+    'kaykit-rogue': {
+      atk: ['Dualwield_Melee_Attack_Slice', 'Dualwield_Melee_Attack_Chop',
+        'Dualwield_Melee_Attack_Stab', '1H_Melee_Attack_Stab'],
+      cast: 'Throw', throw: 'Throw', super: 'Dualwield_Melee_Attack_Slice'
+    },
+    'kaykit-mage': {
+      atk: ['1H_Melee_Attack_Stab', '1H_Melee_Attack_Chop',
+        '1H_Melee_Attack_Stab', '1H_Melee_Attack_Slice_Diagonal'],
+      cast: 'Spellcast_Shoot', throw: '1H_Melee_Attack_Stab',
+      super: 'Spellcast_Raise'
     }
   };
 
-  // fighter state -> role, plus whether that role loops
-  var STATE_ROLE = {
-    idle: ['idle', 1], walk: ['walk', 1], dash: ['run', 1],
-    jsq: ['jumpStart', 0], air: ['jumpAir', 1], land: ['jumpLand', 0],
-    guard: ['guard', 1], gstun: ['hit', 0], dodge: ['dodge', 0],
-    hurt: ['hit', 0], tumble: ['hit', 0], down: ['knockdown', 0],
-    getup: ['getup', 0], win: ['cheer', 0], lose: ['defeat', 0],
-    grabbed: ['hit', 0], atk: ['atk', 0]
+  var ROLES = {};
+  Object.keys(SETS).forEach(function (k) {
+    var r = {};
+    for (var n in BASE) r[n] = BASE[n];
+    for (var m in SETS[k]) r[m] = SETS[k][m];
+    ROLES[k] = r;
+  });
+
+  // Move key -> slot in the character's combo chain (-2 = throw clip)
+  var ATK_IDX = {
+    j1: 0, j2: 1, j3: 2, j4: 3,
+    fs: 1, us: 3, ds: 0, na: 0, fa: 1, ua: 3, da: 2,
+    upS: 3, dnS: 1, rs: 0, thr: -2, grab: -2
   };
-  var LOOP_ROLES = { idle: 1, walk: 1, run: 1, guard: 1, jumpAir: 1 };
+
+  var LOOP_ROLES = { idle: 1, walk: 1, back: 1, run: 1, guard: 1, jumpAir: 1 };
 
   var T = {};          // asset key -> {scene, animations, clips:{name:clip}, h}
   var LIVE = [];       // last built CC0 views (debug/inspection only)
@@ -162,7 +186,7 @@
   function onReady() {
     if (notified) return;
     var keys = Object.keys(FILES);
-    if (readyCount < keys.length && Object.keys(failed).length === 0) return;
+    if (readyCount + Object.keys(failed).length < keys.length) return;
     notified = true;
     // portraits were drawn before the models arrived: redraw once they are in
     var BF = window.BlockFighter;
@@ -195,11 +219,11 @@
       rig: {},
       rest: { tents: [] },
       mats: mats,
-      cc0: { key: key, mixer: mixer, clips: t.clips, roles: ROLES[key], action: null, name: '', t: 0, st: '', fr: -1, atk: 0 }
+      cc0: { key: key, mixer: mixer, clips: t.clips, set: ROLES[key], action: null, name: '', t: 0, st: '', fr: -1, dash: 0 }
     };
     playRole(view, 'idle', 0);
     LIVE.push(view);
-    if (LIVE.length > 24) LIVE.shift();
+    if (LIVE.length > 32) LIVE.shift();
     return view;
   }
 
@@ -216,10 +240,61 @@
     return a;
   }
 
+  // Which clip plays for the fighter's current state/move.
+  function roleFor(F, v) {
+    var st = F.st;
+    if (st === 'atk') {
+      var mv = F.mv || {};
+      if (mv.super) return 'super';
+      if (mv.proj) return 'cast';
+      var idx = ATK_IDX[mv.key];
+      if (idx === -2) return 'throw';
+      return 'atk';
+    }
+    if (st === 'walk') {
+      // walking away from the opponent: use the back-pedal cycle
+      if (F.vx && F.face && F.vx * F.face < -0.02) return 'back';
+      return 'walk';
+    }
+    if (st === 'dash') return 'run';
+    if (st === 'jsq') return 'jumpStart';
+    if (st === 'air') return 'jumpAir';
+    if (st === 'land') return 'jumpLand';
+    if (st === 'guard') return 'guard';
+    if (st === 'gstun') return 'guardHit';
+    if (st === 'dodge') {
+      var dir = F.dodgeDir || F.face || 1;
+      return (F.face && dir !== F.face) ? 'dodgeB' : 'dodgeF';
+    }
+    if (st === 'hurt') return 'hit';
+    if (st === 'tumble') return 'hitB';
+    if (st === 'down') return 'knockdown';
+    if (st === 'getup') return 'getup';
+    if (st === 'win') return 'cheer';
+    if (st === 'lose') return 'defeat';
+    if (st === 'grabbed') return 'hit';
+    return 'idle';
+  }
+
+  function clipFor(v, role, F) {
+    var set = v.cc0.set;
+    if (role === 'atk') {
+      var mv = (F && F.mv) || {};
+      var seq = set.atk || [set.idle];
+      var i = ATK_IDX[mv.key];
+      if (i === undefined || i < 0) i = 0;
+      return seq[i % seq.length];
+    }
+    if (role === 'super') return set.super || set.atk[0];
+    if (role === 'cast') return set.cast || set.atk[0];
+    if (role === 'throw') return set.throw || set.atk[0];
+    return set[role] || '';
+  }
+
   function playRole(v, roleName, fade, oneShotTimeScale) {
     var c = v.cc0;
     if (!c) return;
-    var name = c.roles[roleName] || c.roles.idle;
+    var name = clipFor(v, roleName);
     if (!name) return;
     var a = actionFor(v, name);
     if (!a) return;
@@ -273,8 +348,7 @@
     var dt = c.t ? Math.min(0.1, Math.max(0, now - c.t)) : 0;
     c.t = now;
 
-    var map = STATE_ROLE[F.st] || STATE_ROLE.idle;
-    var roleName = map[0];
+    var roleName = roleFor(F, v);
     var restart = (F.st !== c.st);
     if (F.st === 'atk' && F.fr < c.fr) restart = true;
     c.st = F.st;
@@ -283,8 +357,7 @@
       var ts = 1;
       if (F.st === 'atk' && F.mv) {
         var total = (F.mv.s || 0) + (F.mv.a || 0) + (F.mv.r || 0);
-        var role = (F.atkN || 0);
-        var nm = (role % 2) ? (c.roles.atkAlt || c.roles.atk) : c.roles.atk;
+        var nm = clipFor(v, roleName, F);
         var clip = c.clips[nm];
         if (clip && total > 0) ts = Math.min(2.2, Math.max(0.7, clip.duration / (total / 60)));
       }
@@ -295,8 +368,7 @@
 
   function playOneShot(v, roleName, F, ts) {
     var c = v.cc0;
-    var name = c.roles[roleName] || '';
-    if (roleName === 'atk' && F && (F.atkN | 0) % 2 && c.roles.atkAlt) name = c.roles.atkAlt;
+    var name = clipFor(v, roleName, F);
     if (!name || !c.clips[name]) {
       // no clip for this state: fall back to idle but keep the body lean/scale
       playRole(v, 'idle', 0.08, 0);
@@ -312,7 +384,8 @@
     a.setLoop(loop ? window.THREE.LoopRepeat : window.THREE.LoopOnce, loop ? Infinity : 1);
     a.clampWhenFinished = !loop;
     a.timeScale = ts || 1;
-    var fade = (roleName === 'hit' || roleName === 'atk') ? 0.06 : 0.12;
+    var fade = (roleName === 'hit' || roleName === 'hitB' || roleName === 'atk' ||
+      roleName === 'cast' || roleName === 'throw') ? 0.06 : 0.12;
     if (prev && prev !== a) a.crossFadeFrom(prev, fade, false);
     a.play();
     c.action = a;
