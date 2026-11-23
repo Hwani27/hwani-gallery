@@ -3077,7 +3077,7 @@
   const KCH = { ready: false, src: null, tex: {}, mat: {}, dead: {}, kit: {} };
   const kTex = (k) => {
     if (KCH.tex[k]) return KCH.tex[k];
-    const t = new T.TextureLoader().load("models/characters/skins/" + k + ".png?v=43");
+    const t = new T.TextureLoader().load("models/characters/skins/" + k + ".png?v=44");
     t.flipY = false; t.encoding = T.sRGBEncoding; t.magFilter = T.NearestFilter;
     t.wrapS = t.wrapT = T.RepeatWrapping; t.anisotropy = 4;
     return (KCH.tex[k] = t);
@@ -3241,12 +3241,18 @@
       B(par, 0.9 * sc, 0.9 * sc, 0.35, x, y, z, rm);
       [[0, 1], [0.95, 0.31], [0.59, -0.81], [-0.59, -0.81], [-0.95, 0.31]].forEach(([dx, dy]) => B(par, 0.55 * sc, 0.55 * sc, 0.35, x + dx * 0.85 * sc, y + dy * 0.85 * sc, z, rm));
     };
-    if (skin === "rok") {
+    if (skin === "rok" || skin === "u-cap") {
       /* (v43) the ally in the icon's look: a soft patrol cap and the camo
          shirt itself, no helmet and no plate carrier */
       const cm = kKit("#3e482c", 0.9);
       B(head, 9.6, 2.4, 9.6, 0, 9.3, -0.2, cm); B(head, 9.0, 0.3, 9.0, 0, 10.6, -0.2, kKit("#37402a", 0.9));
       B(head, 9.2, 0.5, 3.4, 0, 8.3, 5.4, kKit("#343d26", 0.9));
+    } else if (skin === "u-1950") {
+      /* the 1950 rifleman: an M1-style steel pot with a net, no vest */
+      const hm = kKit("#56603a", 0.8);
+      B(head, 9.0, 3.0, 9.0, 0, 9.4, 0, hm); B(head, 8.2, 0.9, 8.2, 0, 11.1, 0, hm); B(head, 9.8, 0.7, 9.8, 0, 7.9, 0, hm);
+      for (let k = 0; k < 4; k++) B(head, 9.3, 0.25, 0.3, 0, 8.8 + k * 0.7, 4.5, kKit("#3e4428"));
+      B(head, 0.35, 3.0, 0.35, 4.55, 6.9, 1.2, kKit("#3a3222")); B(head, 0.35, 3.0, 0.35, -4.55, 6.9, 1.2, kKit("#3a3222"));
     } else if (uni) {
       const hm = kKit(UNI_HELM[skin] || "#4f5538"), dk = kKit(skin === "u-guard" ? "#c9a84a" : "#2c2c26");
       B(head, 9.6, 3.4, 9.8, 0, 9.5, 0, hm); B(head, 8.6, 1.0, 8.8, 0, 11.6, 0, hm); B(head, 10.0, 0.6, 10.2, 0, 7.9, 0, uni ? hm : kKit("#454a31"));
@@ -8059,7 +8065,9 @@
     wAmmo = weapon === "pistol" ? 0 : (ammo != null ? ammo : WEAPONS[weapon].ammo);
     if (weaponRig) {
       const pistolOn = weapon === "pistol";
-      weaponRig.base.forEach((m) => { m.visible = pistolOn; });
+      /* (v44) the hands and sleeves stay on for every gun: hidden with the
+         pistol, the long guns floated in mid-air with no one holding them */
+      weaponRig.base.forEach((m) => { m.visible = true; });
       if (weaponRig.codeGun) weaponRig.codeGun.forEach((m) => { m.visible = pistolOn && !weaponRig.pistolLoaded; });
       if (weaponRig.pistolHost) weaponRig.pistolHost.visible = pistolOn && !!weaponRig.pistolLoaded;
       weaponRig.smg.visible = weapon === "smg" && !weaponRig.rifleLoaded;

@@ -85,6 +85,8 @@
     { id: "u-snow", ko: "설상 위장", en: "Snow", p: 300, st: 0 },
     { id: "u-marine", ko: "해병대", en: "Marines", p: 450, st: 0 },
     { id: "u-sf", ko: "특전사", en: "Special forces", p: 600, st: 0 },
+    { id: "u-cap", ko: "전투모 근무복", en: "Patrol cap", p: 250, st: 0 },
+    { id: "u-1950", ko: "6·25 국군", en: "1950 rifleman", p: 350, st: 0 },
     { id: "u-guard", ko: "의장대", en: "Honor guard", p: 0, st: 20 }
   ];
   /* lucky box odds — the box modal shows this exact table */
