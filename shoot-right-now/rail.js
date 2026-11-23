@@ -151,6 +151,7 @@
       #railNade{right:max(88px,calc(env(safe-area-inset-right) + 88px));background:radial-gradient(circle at 50% 30%,rgba(108,92,46,.92),rgba(34,28,12,.92))}
       #railNade:active,#railReload:active{transform:scale(.93)}
       #railNade svg,#railReload svg{width:36px;height:36px;display:block;filter:drop-shadow(0 2px 2px rgba(0,0,0,.5))}
+      #railNade *,#railReload *,#railPause *{pointer-events:none}
       #railNade .cnt{position:absolute;right:-4px;top:-4px;min-width:22px;height:22px;padding:0 5px;border-radius:11px;background:#ffcf4a;color:#1b1406;
         font:900 13px/22px ui-monospace,monospace;text-align:center;box-shadow:0 2px 6px rgba(0,0,0,.5);border:2px solid #1b1406}
       #railNade.empty{filter:grayscale(1) brightness(.6)}
@@ -3076,7 +3077,7 @@
   const KCH = { ready: false, src: null, tex: {}, mat: {}, dead: {}, kit: {} };
   const kTex = (k) => {
     if (KCH.tex[k]) return KCH.tex[k];
-    const t = new T.TextureLoader().load("models/characters/skins/" + k + ".png?v=42");
+    const t = new T.TextureLoader().load("models/characters/skins/" + k + ".png?v=43");
     t.flipY = false; t.encoding = T.sRGBEncoding; t.magFilter = T.NearestFilter;
     t.wrapS = t.wrapT = T.RepeatWrapping; t.anisotropy = 4;
     return (KCH.tex[k] = t);
@@ -3233,7 +3234,20 @@
     shinL.position.y = -0.5; shinR.position.y = -0.5; legL.add(shinL); legR.add(shinR);
     /* head gear, in the head's own units (the head block is 8 wide) */
     const B = (par, w, h, d, x, y, z, m) => { const b = new T.Mesh(new T.BoxGeometry(w, h, d), m); b.position.set(x, y, z); par.add(b); return b; };
-    if (skin === "rok" || uni) {
+    /* (v43) a red star in blocks: a centre, four points and a ring of
+       half-steps, flat on the cap front (in head units) */
+    const redStar = (par, x, y, z, sc) => {
+      const rm = kKit("#c8231c", 0.5);
+      B(par, 0.9 * sc, 0.9 * sc, 0.35, x, y, z, rm);
+      [[0, 1], [0.95, 0.31], [0.59, -0.81], [-0.59, -0.81], [-0.95, 0.31]].forEach(([dx, dy]) => B(par, 0.55 * sc, 0.55 * sc, 0.35, x + dx * 0.85 * sc, y + dy * 0.85 * sc, z, rm));
+    };
+    if (skin === "rok") {
+      /* (v43) the ally in the icon's look: a soft patrol cap and the camo
+         shirt itself, no helmet and no plate carrier */
+      const cm = kKit("#3e482c", 0.9);
+      B(head, 9.6, 2.4, 9.6, 0, 9.3, -0.2, cm); B(head, 9.0, 0.3, 9.0, 0, 10.6, -0.2, kKit("#37402a", 0.9));
+      B(head, 9.2, 0.5, 3.4, 0, 8.3, 5.4, kKit("#343d26", 0.9));
+    } else if (uni) {
       const hm = kKit(UNI_HELM[skin] || "#4f5538"), dk = kKit(skin === "u-guard" ? "#c9a84a" : "#2c2c26");
       B(head, 9.6, 3.4, 9.8, 0, 9.5, 0, hm); B(head, 8.6, 1.0, 8.8, 0, 11.6, 0, hm); B(head, 10.0, 0.6, 10.2, 0, 7.9, 0, uni ? hm : kKit("#454a31"));
       B(head, 0.5, 1.2, 6.0, 4.95, 9.0, 0, dk); B(head, 0.5, 1.2, 6.0, -4.95, 9.0, 0, dk); B(head, 1.8, 1.4, 0.9, 0, 10.2, 5.0, dk);
@@ -3250,10 +3264,22 @@
       B(cap, 10.4, 2.2, 10.8, 0, 9.5, -0.2, kKit("#4a4a2e")); B(cap, 9.4, 1.3, 9.6, 0, 8.2, 0, kKit("#a8231c"));
       B(cap, 9.4, 0.4, 3.4, 0, 7.6, 5.4, kKit("#111111", 0.3)); B(cap, 2.2, 1.6, 0.4, 0, 9.6, 5.5, kKit("#e0b440", 0.35));
       B(torso, 0.18, 0.24, 0.14, 0.36, 0.42, 0.2, kKit("#3a2416"));   // holster
+    } else if (!civ && !tough) {
+      /* (v43) the enemy rifleman in the icon's look: an olive peaked cap
+         with a red band and a red star */
+      const cm = kKit("#4a4e30", 0.85);
+      B(head, 10.6, 2.6, 10.8, 0, 10.0, -0.2, cm); B(head, 9.8, 0.4, 10.0, 0, 11.4, -0.2, kKit("#44482c", 0.85));
+      B(head, 9.7, 1.4, 9.9, 0, 8.4, 0, kKit("#b8231c", 0.6));
+      B(head, 9.6, 0.45, 3.4, 0, 7.75, 5.5, kKit("#3a3d26", 0.6));
+      redStar(head, 0, 10.0, 5.45, 1);
+      const pch = kKit("#5a4a2c");
+      B(torso, 0.16, 0.42, 0.12, -0.28, 0.8, 0.34, pch); B(torso, 0.16, 0.42, 0.12, 0.28, 0.8, 0.34, pch);
+      if (role === "throw") B(torso, 0.5, 0.56, 0.24, 0, 0.78, -0.42, kKit("#4a4a30"));
     } else if (!civ) {
       const hm = kKit(tough ? "#3f4429" : "#4b5232");
       B(head, 9.2, 3.8, 9.4, 0, 9.7, 0, hm); B(head, 8.0, 1.0, 8.2, 0, 12.0, 0, hm); B(head, 9.8, 0.5, 10.0, 0, 7.7, 0, kKit(tough ? "#363a24" : "#434929"));
       B(head, 0.3, 3.2, 0.3, 4.5, 6.6, 1.0, kKit("#5a3e24")); B(head, 0.3, 3.2, 0.3, -4.5, 6.6, 1.0, kKit("#5a3e24"));
+      redStar(head, 0, 10.0, 4.85, 0.8);
       const pch = kKit("#5a4a2c");
       B(torso, 0.16, 0.42, 0.12, -0.28, 0.8, 0.34, pch); B(torso, 0.16, 0.42, 0.12, 0.28, 0.8, 0.34, pch);
       if (role === "throw") B(torso, 0.5, 0.56, 0.24, 0, 0.78, -0.42, kKit("#4a4a30"));
@@ -8148,6 +8174,8 @@
       '<path d="M28.6 8.6l-.6 5.4-5.2-1.2z" fill="#7fd0ff"/><path d="M30.5 20a10.5 10.5 0 0 1-17.6 7.7" stroke="#7fd0ff" stroke-width="2.6" fill="none" stroke-linecap="round"/><path d="M11.4 31.4l.6-5.4 5.2 1.2z" fill="#7fd0ff"/></svg>';
     btn.setAttribute("aria-label", "reload");
     btn.addEventListener("pointerdown", (e) => { e.preventDefault(); e.stopPropagation(); window.RAIL.reload(); });
+    btn.addEventListener("touchstart", (e) => { e.preventDefault(); e.stopPropagation(); }, { passive: false });
+    btn.addEventListener("mousedown", (e) => { e.preventDefault(); e.stopPropagation(); });
     document.body.appendChild(btn);
     const nb = document.createElement("button");
     nb.id = "railNade";
@@ -8157,6 +8185,8 @@
       '<circle cx="11.5" cy="10.5" r="3.6" fill="none" stroke="#ffd36a" stroke-width="2"/><path d="M14.6 11.6l1.6 .6" stroke="#ffd36a" stroke-width="2"/></svg><b class="cnt">2</b>';
     nb.setAttribute("aria-label", "grenade");
     nb.addEventListener("pointerdown", (e) => { e.preventDefault(); e.stopPropagation(); window.RAIL.grenade(); });
+    nb.addEventListener("touchstart", (e) => { e.preventDefault(); e.stopPropagation(); }, { passive: false });
+    nb.addEventListener("mousedown", (e) => { e.preventDefault(); e.stopPropagation(); });
     document.body.appendChild(nb);
     const pbt = document.createElement("button");
     pbt.id = "railPause";
@@ -8164,6 +8194,8 @@
     pbt.setAttribute("aria-label", "pause");
     pbt.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="5" width="4.2" height="14" rx="1.2" fill="#fff"/><rect x="13.8" y="5" width="4.2" height="14" rx="1.2" fill="#fff"/></svg>';
     pbt.addEventListener("pointerdown", (e) => { e.preventDefault(); e.stopPropagation(); openPause(window.__railCtx); });
+    pbt.addEventListener("touchstart", (e) => { e.preventDefault(); e.stopPropagation(); }, { passive: false });
+    pbt.addEventListener("mousedown", (e) => { e.preventDefault(); e.stopPropagation(); });
     document.body.appendChild(pbt);
     if (!window.__railPauseKeys) {
       window.__railPauseKeys = 1;
@@ -8179,10 +8211,18 @@
       window.__railKeys = 1;
       const aimAt = (e) => { if (e) pointerFrom(e); };
       addEventListener("pointermove", (e) => { if (e.pointerType === "mouse") aimAt(e); });
+      /* (v43) a tap on a button never fires: the tap lands on the button's
+         svg/path child (not the button itself), and on iPhones a touch also
+         sends a late "mousedown" — both used to slip past the old id test */
+      const onUi = (t) => !!(t && t.closest && t.closest("button,#railReload,#railNade,#railPause,#railResult,#mgTitle,#railPauseMenu,#railCont,#mgModal"));
+      let lastTouch = 0;
+      addEventListener("touchstart", () => { lastTouch = performance.now(); }, { capture: true, passive: true });
       const shootAt = (e) => {
         if (!active || ended) return;
         if (pauseOpen) return;
-        if (e.target && (e.target.id === "railReload" || e.target.id === "railNade" || e.target.id === "railPause" || e.target.closest && e.target.closest("#railResult,#mgTitle"))) return;
+        if (onUi(e.target)) return;
+        if (e.type === "mousedown" && performance.now() - lastTouch < 900) return;
+        if (e.pointerType === "touch") lastTouch = performance.now();
         if (e.button === 2) { window.RAIL.reload(); return; }
         if (e.button != null && e.button !== 0) return;
         aimAt(e);
@@ -8192,7 +8232,7 @@
       addEventListener("pointerdown", (e) => {
         shootAt(e);
         if (e.button == null || e.button === 0) {
-          if (!(e.target && e.target.closest && e.target.closest("#railReload,#railNade,#railResult,#mgTitle"))) holding = true;
+          if (!onUi(e.target)) holding = true;
         }
       });
       addEventListener("mousedown", shootAt);
