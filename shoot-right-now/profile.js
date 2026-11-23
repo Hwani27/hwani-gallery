@@ -43,8 +43,9 @@
     { id: 1, lab: "2-2", ch: 2, ko: "서울 수복", en: "RETAKE SEOUL", sub: "숭례문 탈환", subEn: "SUNGNYEMUN", boss: "적 지휘관", bossEn: "COMMANDER", c: "#4c5c2d" },
     { id: 2, lab: "3-1", ch: 3, ko: "DMZ · 판문점", en: "DMZ & PANMUNJOM", sub: "GOP · JSA", subEn: "GOP · JSA", boss: "장갑차", bossEn: "APC", c: "#2f4a56" },
     { id: 3, lab: "3-2", ch: 3, ko: "평화의 집", en: "PEACE HOUSE", sub: "PANMUNJOM · MDL", subEn: "PANMUNJOM · MDL", boss: "공격헬기", bossEn: "GUNSHIP", c: "#3d4f6a" },
-    { id: 4, lab: "3-3", ch: 3, ko: "평양 진입", en: "INTO PYONGYANG", sub: "PYONGYANG · SQUARE", subEn: "PYONGYANG · SQUARE", boss: "주력 전차", bossEn: "MAIN TANK", c: "#5a3a34" },
-    { id: 5, lab: "3-4", ch: 3, ko: "압록강 · 백두산", en: "YALU & PAEKTU", sub: "CHASE · CHEONJI", subEn: "CHASE · CHEONJI", boss: "총사령관", bossEn: "SUPREME LEADER", c: "#2c4b5e" }
+    { id: 13, lab: "3-3", ch: 3, ko: "개성공단", en: "KAESONG", sub: "헬기 강습 · 공업지구", subEn: "AIR ASSAULT · INDUSTRIAL ZONE", boss: "경비사령관", bossEn: "GARRISON CMDR", c: "#3a5a7a" },
+    { id: 4, lab: "3-4", ch: 3, ko: "평양 진입", en: "INTO PYONGYANG", sub: "PYONGYANG · SQUARE", subEn: "PYONGYANG · SQUARE", boss: "주력 전차", bossEn: "MAIN TANK", c: "#5a3a34" },
+    { id: 5, lab: "3-5", ch: 3, ko: "압록강 · 백두산", en: "YALU & PAEKTU", sub: "CHASE · CHEONJI", subEn: "CHASE · CHEONJI", boss: "총사령관", bossEn: "SUPREME LEADER", c: "#2c4b5e" }
   ];
   const CHAPTERS = { 1: ["CHAPTER 1 · 남침", "CHAPTER 1 · INVASION"], 2: ["CHAPTER 2 · 반격", "CHAPTER 2 · COUNTERSTRIKE"], 3: ["CHAPTER 3 · 북진", "CHAPTER 3 · NORTHWARD"] };
   /* (v52) what each battlefield looks like at a glance: a badge in the quick
@@ -61,6 +62,7 @@
     1: { ic: "🏙", ko: ["서울 도심", "지휘관"], en: ["CITY", "COMMANDER"] },
     2: { ic: "🚧", ko: ["DMZ 철책", "장갑차"], en: ["DMZ WIRE", "ARMOUR"] },
     3: { ic: "🕊", ko: ["JSA 평화의 집", "헬기"], en: ["JSA", "GUNSHIP"] },
+    13: { ic: "🚁", ko: ["헬기 강습", "공업지구"], en: ["AIR ASSAULT", "INDUSTRIAL"] },
     4: { ic: "❄", ko: ["설원 시가지", "전차"], en: ["SNOW CITY", "TANK"] },
     5: { ic: "🏔", ko: ["압록강 · 천지", "추격"], en: ["YALU · CHEONJI", "CHASE"] }
   };

@@ -97,14 +97,23 @@
       L("park", "도보다리 건너면 판문각이다. 엄폐 잘 해.", "Across the footbridge is Panmungak. Stay in cover."),
       L("me", "선두는 제가 서겠습니다.", "I'll lead.")
     ] },
-    4: { ep: 11, ko: "평양 진입", en: "INTO PYONGYANG", when: "북진 · 눈보라 속 평양", whenEn: "THE ADVANCE · PYONGYANG IN THE SNOW", lines: [
+    13: { ep: 11, ko: "개성공단", en: "KAESONG", when: "북진 · 개성공업지구 상공", whenEn: "THE ADVANCE · OVER KAESONG", lines: [
+      L("hq", "개성공업지구를 탈환한다. 정문 앞까지 헬기로 강습 진입하라.", "We retake the Kaesong complex. Air assault to the main gate."),
+      L("kim", "여기… 남북이 같이 일하던 곳이죠? 뉴스에서 봤어요.", "This is… where North and South used to work together, right? I saw it on the news."),
+      L("park", "그래. 공장은 멀쩡하다더라. 사람만 바뀌었지.", "That's the one. They say the factories are fine. Only the people changed."),
+      L("cha", "개성은 평양으로 가는 문이다. 이 문은 열리지 않는다.", "Kaesong is the door to Pyongyang. That door stays shut."),
+      L("kang", "문이면 열면 되지. 공장 건물은 최대한 살린다, 노동자 오사 금지.", "Then we open it. Spare the factories where we can — and no one shoots a worker."),
+      L("park", "착륙 지점까지 지상 사격이 셀 거다. 도어건은 내가 맡는다.", "Ground fire will be heavy all the way in. I'll take the door gun."),
+      L("me", "착륙하면 제가 먼저 내리겠습니다.", "When we touch down, I'm first out.")
+    ] },
+    4: { ep: 12, ko: "평양 진입", en: "INTO PYONGYANG", when: "북진 · 눈보라 속 평양", whenEn: "THE ADVANCE · PYONGYANG IN THE SNOW", lines: [
       L("hq", "평양 외곽 돌파. 마지막 시가전이다.", "We're through the outskirts. This is the last street fight."),
       L("kim", "눈이… 손가락이 얼 것 같습니다.", "This snow… I can't feel my fingers."),
       L("park", "총은 품에 안고 다녀. 얼면 안 나간다.", "Keep your rifle under your coat. A frozen gun won't fire."),
       L("cha", "평양은 무너지지 않는다! 광장에서 기다리겠다.", "Pyongyang does not fall! I'll be waiting in the square."),
       L("kang", "기다려 준다니 고맙군. 늦지 않게 가 주자.", "Kind of him to wait. Let's not be late.")
     ] },
-    5: { ep: 12, ko: "압록강 · 백두산", en: "YALU & PAEKTU", when: "마지막 작전 · 국경 도로", whenEn: "THE LAST OPERATION · THE BORDER ROAD", lines: [
+    5: { ep: 13, ko: "압록강 · 백두산", en: "YALU & PAEKTU", when: "마지막 작전 · 국경 도로", whenEn: "THE LAST OPERATION · THE BORDER ROAD", lines: [
       L("hq", "평양 광장 확보. 적 지휘관 차 대좌가 국경 방면으로 도주 중.", "The square is ours. Colonel Cha is running for the border."),
       L("kang", "여기서 놓치면 다시 시작이다. 끝까지 쫓는다.", "If he gets away, this starts all over again. We run him down."),
       L("kim", "운전은 제가 하겠습니다! …면허는 2종 보통이지만요.", "I'll drive! …I've only got a car licence, though."),

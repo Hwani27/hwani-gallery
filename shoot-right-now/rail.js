@@ -6784,6 +6784,29 @@
       introLines: [{ t: 0.4, text: "20XX년 9월 15일, 인천 상륙작전 개시!" }, { t: 2.4, text: "상륙정 전진! 해안의 적을 쓸고 인천을 되찾아라!" }],
       bossRadio: "송도 상공에 적 공격헬기! 기체에 집중 사격!"
     },
+    /* (v55) 3-3 KAESONG: the squad goes in by helicopter over the southern
+       fence and the paddies, lands at the complex's gate, and fights up the
+       factory avenue to the management committee building */
+    13: {
+      id: 13, music: "dmz", label: "STAGE 3-3", clock: 430,
+      path: cityPath([[0, -236], [0, -224], [1.2, -210], [2.4, -196], [1.6, -182], [0, -168], [-1.4, -154], [-1.6, -140], [-0.6, -126], [0, -112], [0, -98], [0, -86], [0, -76], [0, -68]]),
+      boss: cityBoss(), chase: "heli",
+      waves: genWaves(1313, ["MAIN GATE", "FACTORY ROW", "ADMIN"], [
+        "착륙 완료! 정문 검문소를 장악하라!", "공장 지대에서 적 오토바이!", "적 헬기 출현! 지붕 아래로 엄폐!",
+        "공장 노동자 대피 중, 오사 주의!", "적 증원, 감시탑 방면!", "적 헬기 재접근!", "적 공수 강하! 관리위원회 건물을 지켜라!"], { bikes: true, hostage: true }),
+      dress: "citygen", bossKind: "commander", bossHp: 34,
+      city: {
+        seed: 13, mood: "day", industrial: true, approach: true, tints: [0xf2f2ee, 0xe6eaee, 0xdadfe4],
+        sign: [12.4, -44, "개성공업지구", "KAESONG INDUSTRIAL", -Math.PI / 2, "#2a6ab8"],
+        cars: [["truck", -7.8, -20, 0.1], ["truck", 7.8, 10, Math.PI - 0.05]],
+        banners: [[-12.2, -8, "남북 경제협력", "#2a6ab8", 9], [12.2, 28, "개성공단", "#3a8a4a"]],
+        hills: [[0, 200, 240, 60, 34], [-110, 150, 90, 60, 24]],
+        landmarks: [["kaesongGate", -58], ["guardTower", 13.5, -64, Math.PI], ["guardTower", -24, 20, Math.PI / 2], ["guardTower", 26, 46, -Math.PI / 2], ["kaesongHQ", 0, 92]]
+      },
+      introDur: 5.0, introCam: [[-34, 34, -268, 0, 4, -150], [0, 15.68, -236, 0, 4, -204]],
+      introLines: [{ t: 0.4, text: "개성공업지구 탈환 작전. 헬기 강습으로 진입한다!" }, { t: 2.4, text: "정문 앞 착륙 지점까지 지상 사격을 버텨라!" }],
+      bossRadio: "관리위원회 건물 앞에 적 경비사령관! 경호원부터 쓰러뜨려라!"
+    },
     1: {
       id: 1, music: "seoul", label: "STAGE 2-2", clock: 360, path: PATH1, waves: WAVES1, boss: BOSS1,
       dress: "city", bossKind: "man",
@@ -6807,7 +6830,7 @@
       bossRadio: "판문각 상공에 적 공격헬기! 기총 소사를 피해 기체를 집중 사격하라!"
     },
     5: {
-      id: 5, music: "paektu", label: "STAGE 3-4", clock: 400, path: PATH5, waves: WAVES5, boss: BOSS5,
+      id: 5, music: "paektu", label: "STAGE 3-5", clock: 400, path: PATH5, waves: WAVES5, boss: BOSS5,
       dress: "paektu", bossKind: "commander", bossHp: 40, chase: true,
       introDur: 5.2,
       introCam: [[7.0, 9.0, -176.0, 0, 1.0, -128.0], [0, 1.68, -152.0, 0, 1.55, -138.0]],
@@ -6818,7 +6841,7 @@
       bossRadio: "천지 전망대에 적 총사령관 확인! 경호원을 쓰러뜨리고 사령관을 제압하라!"
     },
     4: {
-      id: 4, music: "pyongyang", label: "STAGE 3-3", clock: 380, path: PATH3, waves: WAVES3, boss: BOSS3,
+      id: 4, music: "pyongyang", label: "STAGE 3-4", clock: 380, path: PATH3, waves: WAVES3, boss: BOSS3,
       dress: "pyongyang", bossKind: "apc", bossTank: true, bossHp: 110,
       introDur: 4.0,
       introCam: [[-8.0, 9.0, -58.0, 0, 6.0, -6.0], [0, 1.68, -44.0, 0, 1.55, -30.0]],
@@ -7083,7 +7106,7 @@
     /* the vehicle is only under you until the first stop (jeep) or the
        beach (landing craft); after that it is a man on foot again */
     let vehU = -1;
-    if (STAGE.chase) {
+    if (STAGE.chase && STAGE.chase !== "heli") {
       vehU = holdUs && holdUs.length ? holdUs[0] : 0;
       if (STAGE.chase === "boat") { vehU = 1; for (let i = 0; i <= 200; i++) if (curve.getPointAt(i / 200).z > -69) { vehU = i / 200; break; } }
     }
@@ -8977,7 +9000,8 @@
         if (g > 0.003) G.loop("b" + (p.uid || (p.uid = Math.random().toString(36).slice(2))), "bike", g, p.chase ? 1.25 : 1.1);
       }
     });
-    if (chase) G.loop("jeep", "jeep", chase.boat ? 0.16 : 0.12, (chase.boat ? 0.8 : 1) + Math.sin(chase.t * 0.7) * 0.08);
+    if (chase && chase.heli) G.loop("myheli", "rotor", 0.34, 1);
+    else if (chase) G.loop("jeep", "jeep", chase.boat ? 0.16 : 0.12, (chase.boat ? 0.8 : 1) + Math.sin(chase.t * 0.7) * 0.08);
   }
 
   function pause() {
@@ -9673,6 +9697,47 @@
     g.visible = false;
     return g;
   }
+  /* (v55) the assault helicopter's cabin, seen from the forward seat by the
+     open door: floor, door frame pillars, roof edge, a spinning rotor disc
+     above, Park on the door gun at the right and Kim strapped in at left */
+  let heliRig = null;
+  function makeHeliRig() {
+    const g = new T.Group();
+    const M = (c, r, m) => cmat(c, Math.max(0.3, r), Math.min(0.4, m || 0));
+    const body = M(0x4e5a40, 0.75), dark = M(0x2c3226, 0.8), floor = M(0x3a3e3a, 0.9), steel = M(0x6a7076, 0.5, 0.4);
+    const B = (w, h, d, x, y, z, m) => { const o = new T.Mesh(worldUV(new T.BoxGeometry(w, h, d)), m); o.position.set(x, y, z); g.add(o); return o; };
+    B(3.0, 0.08, 3.6, 0, -1.3, -0.6, floor);                          /* cabin floor */
+    for (let k = 0; k < 6; k++) B(2.9, 0.02, 0.06, 0, -1.25, -2.2 + k * 0.6, dark);
+    B(3.2, 0.24, 0.3, 0, -1.25, -2.45, body);                         /* sill at the nose end */
+    [-1.75, 1.75].forEach((x) => { B(0.14, 3.2, 0.2, x, 0.3, -1.0, body); B(0.14, 3.2, 0.2, x, 0.3, 0.9, body); });   /* door pillars */
+    B(3.3, 0.3, 2.2, 0, 1.9, 0.2, body);                              /* cabin roof, behind the lens */
+    B(3.3, 0.12, 0.2, 0, 1.74, -0.9, dark);
+    B(0.06, 0.06, 2.0, -1.3, 1.6, 0.1, steel); B(0.06, 0.06, 2.0, 1.3, 1.6, 0.1, steel);     /* grab rails */
+    /* door gun on the right */
+    const gun = new T.Group(); gun.position.set(1.45, -0.3, -2.4);
+    const gm = M(0x1e2022, 0.5, 0.5);
+    [[0.1, 0.12, 1.1, 0, 0, -0.5], [0.2, 0.2, 0.36, 0, 0, 0], [0.06, 0.06, 0.5, 0, 0.12, -0.9]].forEach((q) => { const m = new T.Mesh(new T.BoxGeometry(q[0], q[1], q[2]), gm); m.position.set(q[3], q[4], q[5]); gun.add(m); });
+    const mount = new T.Mesh(new T.BoxGeometry(0.06, 0.9, 0.06), steel); mount.position.set(0, -0.5, 0.1); gun.add(mount);
+    gun.rotation.y = 0.35; g.add(gun); g.userData.gun = gun;
+    /* the rotor disc, a soft blur that turns overhead */
+    const disc = new T.Mesh(new T.CircleGeometry(5.6, 28), new T.MeshBasicMaterial({ color: 0x222420, transparent: true, opacity: 0.16, depthWrite: false, side: T.DoubleSide }));
+    disc.rotation.x = -Math.PI / 2; disc.position.set(0, 2.3, -0.2); g.add(disc);
+    const blades = new T.Group(); blades.position.set(0, 2.32, -0.2);
+    [0, Math.PI / 2].forEach((r) => { const bl = new T.Mesh(new T.BoxGeometry(11, 0.04, 0.3), new T.MeshBasicMaterial({ color: 0x1a1c18, transparent: true, opacity: 0.28, depthWrite: false })); bl.rotation.y = r; blades.add(bl); });
+    g.add(blades); g.userData.blades = blades;
+    g.visible = false;
+    return g;
+  }
+  function makeAllyHeli() {
+    const h = makeHeliModel();
+    const olive = cmat(0x5a6448, 0.7), star = cmat(0xf2f2ee, 0.6);
+    h.traverse((o) => { if (o.isMesh && o.material === SOL.camoP) o.material = olive; });
+    const sb = new T.Mesh(new T.BoxGeometry(0.02, 0.4, 0.4), star); sb.position.set(0.82, 0.1, 0.2); h.add(sb);
+    const sb2 = sb.clone(); sb2.position.x = -0.82; h.add(sb2);
+    h.scale.setScalar(1.7);
+    h.userData.ally = 1;
+    return h;
+  }
   function makeEnemyBoat() {
     const g = new T.Group();
     const M = (c, r, m) => cmat(c, Math.max(0.3, r), Math.min(0.4, m || 0));
@@ -9737,8 +9802,15 @@
     const put = (g, lead, lat, crew) => {
       crew.forEach((c) => { const m = c[0] === "rifle" ? kenneyPerson("ally", { uni: "u-army" }) : squadPerson(c[0]); if (m) { m.position.set(c[1], c[2], c[3]); m.rotation.y = 0; if (c[4] === "drive" && m.userData.kN) kApply(m.userData, "drive", 0, K_BODY, 1); if (c[4] === "drive" && m.userData.rifle) m.userData.rifle.visible = false; g.add(m); } });
       ctx.scene.add(g);
-      allyRides.push({ g: g, lead: lead, lat: lat, ph: Math.random() * 6, boat: boat, stop: false });
+      allyRides.push({ g: g, lead: lead, lat: lat, ph: Math.random() * 6, boat: boat === true, stop: false });
     };
+    if (boat === "heli") {
+      /* Kang's bird, flying echelon off the left and a little ahead */
+      put(makeAllyHeli(), 16, 9, []);
+      allyRides[allyRides.length - 1].heli = true;
+      window.__allyRides = allyRides.length;
+      return;
+    }
     if (boat) {
       /* in the lane ahead (enemy boats come down the flanks at |lat| > 3.5),
          so they are in frame on a portrait phone too */
@@ -9754,6 +9826,17 @@
     const t = performance.now() / 1000;
     const cam = ctx.camera.position;
     allyRides.forEach((r) => {
+      if (r.stop && r.heli) {
+        /* lifts off and peels away once we are down */
+        r.exitT = (r.exitT || 0) + dt;
+        const tt = r.lastT || [0, 1];
+        r.g.position.y += dt * (2 + r.exitT * 2);
+        r.g.position.x += (tt[0] * 14 + tt[1] * 6) * dt; r.g.position.z += (tt[1] * 14 - tt[0] * 6) * dt;
+        r.g.rotation.z = -0.25;
+        if (r.g.userData.rotor) r.g.userData.rotor.rotation.y += dt * 30;
+        if (r.exitT > 7 && r.g.parent) { r.g.parent.remove(r.g); r.g.visible = false; }
+        return;
+      }
       if (r.stop) {
         /* (v53) parked: ease off to the verge, and never let the camera walk
            through it — the landing craft used to stop in the lane at the
@@ -9779,16 +9862,50 @@
       if (r.boat && z > -67) { r.stop = true; return; }
       r.lastT = [tx, tz];
       r.g.position.set(x, r.boat ? 0.12 + Math.sin(t * 1.6 + r.ph) * 0.08 : 0, z);
+      if (r.heli) {
+        r.g.position.y = CAM_Y + heliAlt(u) + 0.6 + Math.sin(t * 1.3 + r.ph) * 0.3;
+        r.g.rotation.y = Math.atan2(tx, tz);
+        r.g.rotation.x = 0.1; r.g.rotation.z = Math.sin(t * 0.8 + r.ph) * 0.05;
+        if (r.g.userData.rotor) r.g.userData.rotor.rotation.y += dt * 30;
+        return;
+      }
       r.g.rotation.y = Math.atan2(tx, tz);
       r.g.rotation.z = r.boat ? Math.sin(t * 1.2 + r.ph) * 0.03 : Math.sin(t * 9 + r.ph) * 0.006;
       (r.g.userData.wheels || []).forEach((w) => { w.rotation.x += dt * 14; });
       if (Math.random() < (r.boat ? 0.5 : 0.25)) smokeAt(ctx, x - tx * (r.boat ? 3 : 2), r.boat ? 0.15 : 0.35, z - tz * (r.boat ? 3 : 2), r.boat ? 0xf2f6fa : 0x9a8c74);
     });
   }
+  /* (v55) the assault helicopter's height over the rail: 14 m out over the
+     paddies, settling over the last 44 m to the landing at the first stop */
+  const HELI_ALT = 14;
+  function heliAlt(u) {
+    if (STAGE.chase !== "heli" || !waves || !waves[0]) return 0;
+    const d = (waves[0].u - u) * pathLen;
+    const k = Math.max(0, Math.min(1, (d - 3) / 44));
+    return HELI_ALT * k * k * (3 - 2 * k);
+  }
+  window.__heliAlt = () => (chase && chase.heli ? +heliAlt(pathU).toFixed(2) : 0);
   window.__allyRidesAt = () => allyRides.map((r) => [+r.g.position.x.toFixed(1), +r.g.position.z.toFixed(1), r.stop]);
 
   function startChase(ctx) {
     const boat = STAGE.chase === "boat";
+    if (STAGE.chase === "heli") {
+      if (!heliRig) { heliRig = makeHeliRig(); ctx.camera.add(heliRig); }
+      heliRig.visible = true;
+      if (jeepRig) jeepRig.visible = false;
+      if (boatRig) boatRig.visible = false;
+      if (KCH.ready && !heliRig.userData.crew) {
+        heliRig.userData.crew = 1;
+        const pk = seatSquad(heliRig, "park", 1.3, -1.3, -1.9, "stand"); if (pk) { pk.rotation.y = Math.PI - 0.9; if (pk.userData.rifle) pk.userData.rifle.visible = false; }
+        seatSquad(heliRig, "kim", -1.45, -1.3, -0.3, "stand");
+      }
+      chase = { t: 0, i: 0, plan: [2.0, 4.2, 6.4, 8.8, 11.0, 13.4, 15.6, 18.0, 20.4, 22.6], riders: [], heli: true, fx: [], sink: [], splashT: 9 };
+      if (dress && dress.ally) dress.ally.visible = false;
+      try { addAllyRides(ctx, "heli"); } catch (e) { window.__allyRideErr = String(e); }
+      radio("헬기 강습 개시! 착륙 지점까지 지상 사격을 제압하라!", 3400);
+      bark("chaseHeli", 4200);
+      return;
+    }
     if (boat) {
       if (!boatRig) { boatRig = makeBoatRig(); ctx.camera.add(boatRig); }
       boatRig.visible = true;
@@ -9813,6 +9930,22 @@
     gun("motor");
   }
   function spawnChaser(ctx, lat, k) {
+    if (chase.heli) {
+      /* men on the ground ahead, firing up at the helicopter: static, so
+         they close at the flight speed; kept off the landing zone */
+      const ahead = 34 + Math.random() * 8;
+      const here = (waves[0].u - pathU) * pathLen;
+      if (here - ahead < 6) return null;
+      const u = Math.min(1, pathU + ahead / pathLen), pt = pathAt(u);
+      const L = (lat > 0 ? 1 : -1) * (5 + Math.random() * 7);
+      const p = makePost({ yaw: 0, hold: { x: pt.x, z: pt.z - 2 } }, { role: k % 3 === 2 ? "tough" : "weak", lat: 0, dep: 2, cover: "rail" }, 70 + k);
+      p.run = null; p.live = true; p.state = "chase"; p.expose = 1; p.coverTop = undefined;
+      p.chase = { ahead: ahead, lat: L, ph: Math.random() * 6, speed: 0, ground: true };
+      p.aimMax = 1.9 * (DIFF.aim || 1);
+      p.aim = p.aimMax;
+      chase.riders.push(p);
+      return p;
+    }
     let ahead = 36;
     if (chase.boat) {
       /* boats stay on the water: never spawn past the shoreline */
@@ -9864,6 +9997,21 @@
       if (!p.chase || p.live === false || p.e.alive === false) return;
       const c = p.chase;
       c.ahead -= (c.speed + 6.2) * dt;
+      if (c.ground) {
+        const u0 = Math.max(0, Math.min(1, pathU + c.ahead / pathLen));
+        const q = pathAt(u0), tq = curve.getTangentAt(u0);
+        const ql = Math.hypot(tq.x, tq.z) || 1;
+        if (c.gx == null) { c.gx = q.x + (tq.z / ql) * c.lat; c.gz = q.z - (tq.x / ql) * c.lat; }
+        p.x = c.gx; p.z = c.gz; p.y = 0.3;
+        posePost(p, cam.position, dt);
+        p.mesh.rotation.y = Math.atan2(cam.position.x - p.x, cam.position.z - p.z);
+        p.visTop = p.y + 1.9;
+        const armedG = c.ahead < 30 && c.ahead > -2 && p.aim < 90;
+        if (armedG) { p.aim -= dt * seenK(p); if (p.aim <= 0) { enemyFire(ctx, p, p.role === "tough" ? 10 : 7); p.aim = p.aimMax * (1.3 + Math.random()); } }
+        placeTag(p, ctx, armedG ? Math.max(0, Math.min(1, 1 - p.aim / p.aimMax)) : 0, armedG);
+        if (c.ahead < -10) { tagOff(p); p.live = false; p.e.alive = false; p.escaped = true; if (p.mesh && p.mesh.parent) p.mesh.parent.remove(p.mesh); }
+        return;
+      }
       const u = Math.max(0, Math.min(1, pathU + c.ahead / pathLen));
       const pt = pathAt(u);
       const tg = curve.getTangentAt(u);
@@ -9910,7 +10058,13 @@
         if (p.mesh && p.mesh.parent) p.mesh.parent.remove(p.mesh);
       }
     });
-    if (jeepRig && !chase.boat) {
+    if (chase.heli && heliRig) {
+      const t = chase.t;
+      heliRig.position.y = Math.sin(t * 1.4) * 0.05;
+      heliRig.rotation.z = Math.sin(t * 0.9) * 0.03;
+      if (heliRig.userData.blades) heliRig.userData.blades.rotation.y += dt * 26;
+    }
+    if (jeepRig && !chase.boat && !chase.heli) {
       const t = chase.t;
       jeepRig.position.y = Math.sin(t * 11) * 0.012 + (Math.random() < 0.02 ? -0.03 : 0);
       jeepRig.rotation.z = Math.sin(t * 1.3) * 0.012;
@@ -9962,8 +10116,10 @@
     chase = null;
     if (jeepRig) jeepRig.visible = false;
     if (boatRig) boatRig.visible = false;
+    if (heliRig) heliRig.visible = false;
     if (dress && dress.ally) dress.ally.visible = true;
-    if (wasBoat) radio("램프 개방! 상륙, 상륙! 해안 교두보를 확보하라!", 3200);
+    if (STAGE.chase === "heli") radio("착륙! 전원 하기, 개성공단 정문을 확보하라!", 3200);
+    else if (wasBoat) radio("램프 개방! 상륙, 상륙! 해안 교두보를 확보하라!", 3200);
     else radio(down >= 6 ? "추격대 전멸! 하차, 압록강 초소로 진입한다!" : "하차! 압록강 국경 초소로 진입한다!", 3000);
   }
   window.__chase = () => (chase ? { t: +chase.t.toFixed(1), riders: chase.riders.length, alive: chase.riders.filter((p) => p.live !== false && p.e.alive !== false).length } : null);
@@ -10430,7 +10586,7 @@
     try { shot = window.MG && window.MG.snap ? window.MG.snap(1280) : null; } catch (e) {}
     const ko = (document.documentElement.lang || "").startsWith("ko");
     /* (v21) the campaign runs in war order, not in id order */
-    const ORD = [6, 7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5];
+    const ORD = [6, 7, 8, 9, 10, 11, 12, 1, 2, 3, 13, 4, 5];
     const NM = { 1: ["서울 수복", "RETAKE SEOUL"], 2: ["DMZ·판문점", "DMZ & PANMUNJOM"], 3: ["평화의 집", "PEACE HOUSE"], 4: ["평양 진입", "INTO PYONGYANG"], 5: ["압록강·백두산", "YALU & PAEKTU"],
       6: ["서울 함락", "FALL OF SEOUL"], 7: ["대전", "DAEJEON"], 8: ["대구", "DAEGU"], 9: ["광주", "GWANGJU"], 10: ["경주", "GYEONGJU"], 11: ["부산", "BUSAN"], 12: ["인천 상륙작전", "INCHEON LANDING"] };
     const oi = ORD.indexOf(stageId);
@@ -10441,7 +10597,7 @@
     const adB = (!cleared && canOfferReviveAd()) ? "<button class=ad data-act=adrev type=button>🎬 <b>" + (ko ? "광고 보고 이어하기" : "WATCH AD TO CONTINUE") + "</b></button>" : "";
     const head = cleared
       ? ({ 6: ko ? "철수 성공 · 시민 대피 완료" : "WITHDRAWAL COMPLETE", 7: ko ? "지연전 성공 · 대전" : "DAEJEON HELD", 8: ko ? "방어 성공 · 대구" : "DAEGU HELD", 9: ko ? "방어 성공 · 광주" : "GWANGJU HELD",
-          10: ko ? "방어 성공 · 경주" : "GYEONGJU HELD", 11: ko ? "최후 방어선 사수 · 부산" : "THE PERIMETER HOLDS", 12: ko ? "상륙 성공 · 인천 탈환" : "INCHEON RETAKEN" }[stageId]) || (stageId === 2 ? (ko ? "작전 성공 · JSA 확보" : "MISSION CLEAR · JSA SECURED") : stageId === 3 ? (ko ? "작전 성공 · 판문각 확보" : "MISSION CLEAR · PANMUNGAK SECURED") : stageId === 4 ? (ko ? "작전 성공 · 평양 광장 확보" : "MISSION CLEAR · SQUARE SECURED") : stageId === 5 ? (ko ? "최종 작전 성공 · 총사령관 제압" : "FINAL MISSION · LEADER DOWN")  : (ko ? "서울 수복 · 숭례문 탈환" : "SEOUL RETAKEN"))
+          10: ko ? "방어 성공 · 경주" : "GYEONGJU HELD", 11: ko ? "최후 방어선 사수 · 부산" : "THE PERIMETER HOLDS", 12: ko ? "상륙 성공 · 인천 탈환" : "INCHEON RETAKEN", 13: ko ? "개성공단 탈환 · 관리위원회 확보" : "KAESONG RETAKEN" }[stageId]) || (stageId === 2 ? (ko ? "작전 성공 · JSA 확보" : "MISSION CLEAR · JSA SECURED") : stageId === 3 ? (ko ? "작전 성공 · 판문각 확보" : "MISSION CLEAR · PANMUNGAK SECURED") : stageId === 4 ? (ko ? "작전 성공 · 평양 광장 확보" : "MISSION CLEAR · SQUARE SECURED") : stageId === 5 ? (ko ? "최종 작전 성공 · 총사령관 제압" : "FINAL MISSION · LEADER DOWN")  : (ko ? "서울 수복 · 숭례문 탈환" : "SEOUL RETAKEN"))
       : (ko ? "작전 실패" : "MISSION FAILED");
     const box = document.createElement("div");
     box.id = "railResult";
@@ -12249,9 +12405,10 @@
         const tl = Math.hypot(tng.x, tng.z) || 1;
         const tx = tng.x / tl, tz = tng.z / tl;
         const so = steerStep(p, tx, tz, dt, pathU);
-        cam.position.set(p.x + tz * so, CAM_Y, p.z - tx * so);
-        if (chase) vehSmash(ctx, cam.position.x, cam.position.z, tx, tz);
-        const ahead = pathAt(pathU + 7 / pathLen);
+        const alt = chase && chase.heli ? heliAlt(pathU) : 0;
+        cam.position.set(p.x + tz * so, CAM_Y + alt, p.z - tx * so);
+        if (chase && !chase.heli) vehSmash(ctx, cam.position.x, cam.position.z, tx, tz);
+        const ahead = pathAt(pathU + (7 + alt * 1.3) / pathLen);
         const zone = phase === "toBoss" ? { x: BOSS_DEF.look[0], y: BOSS_DEF.look[1], z: BOSS_DEF.look[2] }
                                         : (waves[waveI] ? waves[waveI].look : null);
         const left = (goalU - pathU) * pathLen;
@@ -12334,7 +12491,7 @@
     const sway = Math.sin(nowMs / 2400) * 0.0016;
     cam.position.x += sx + kickV.x;
     cam.position.z += sz + kickV.z;
-    if (phase !== "intro") cam.position.y = CAM_Y + sy + Math.sin(nowMs / 1700) * 0.006 + (chase ? Math.sin(nowMs / 90) * 0.012 : 0);
+    if (phase !== "intro") cam.position.y = CAM_Y + sy + Math.sin(nowMs / 1700) * 0.006 + (chase ? Math.sin(nowMs / 90) * 0.012 : 0) + (chase && chase.heli ? heliAlt(pathU) + Math.sin(nowMs / 700) * 0.12 : 0);
     cam.lookAt(lookSmooth.x, lookSmooth.y + sway, lookSmooth.z);
     if (roll) cam.rotateZ(roll);
     cam.near = 0.06;
@@ -12860,7 +13017,8 @@
     boss: [["kang", "적 지휘부다! 전원 집중 사격!", "That's their command! Everyone, focus fire!"], ["park", "큰 놈 나왔다. 수류탄 아끼지 마!", "Here's the big one. Don't save your grenades!"]],
     hurt: [["kang", "부상당했나? 엄호한다, 버텨!", "Are you hit? I'll cover you — hang on!"], ["kim", "괜찮으세요?! 제가 막을게요!", "Are you okay?! I'll hold them!"]],
     chaseJeep: [["kim", "꽉 잡으세요! 밟습니다!", "Hold on! Flooring it!"]],
-    chaseBoat: [["kim", "우욱… 해안까지 얼마나 남았죠…", "Urgh… how far to the beach…"]]
+    chaseBoat: [["kim", "우욱… 해안까지 얼마나 남았죠…", "Urgh… how far to the beach…"]],
+    chaseHeli: [["park", "도어건 쏜다! 지상 사격 조심해!", "Door gun's hot! Watch the ground fire!"], ["kim", "저, 저 아래 전부 적입니다!", "Th-that's all enemy down there!"]]
   };
   let barkT = 0, barkHide = 0, barkHurt = false;
   function bark(kind, delay) {
@@ -15240,6 +15398,121 @@
   /* (v52) a subway mouth on the pavement: the stair well, low parapets, a
      canopy over the top step and the green line sign — the one piece of a
      modern Korean street the old cities were missing */
+  /* ---------------- (v55) Kaesong industrial complex ---------------- */
+  /* chain-link fence with Y-arm posts and barbed wire, from (x0,z0) to (x1,z1) */
+  function lmFence(S, x0, z0, x1, z1) {
+    const len = Math.hypot(x1 - x0, z1 - z0), rot = Math.atan2(x1 - x0, z1 - z0);
+    const post = cmat(0x8a8e8c, 0.5, 0.5), wire = cmat(0x5a5e5c, 0.5, 0.6);
+    const mesh = ctex("chainLink", 64, 64, (g, w, h) => {
+      g.clearRect(0, 0, w, h); g.strokeStyle = "rgba(150,156,154,.95)"; g.lineWidth = 3;
+      for (let k = -64; k < 128; k += 16) { g.beginPath(); g.moveTo(k, 0); g.lineTo(k + 64, 64); g.stroke(); g.beginPath(); g.moveTo(k + 64, 0); g.lineTo(k, 64); g.stroke(); }
+    });
+    const mt = mesh.clone(); mt.needsUpdate = true; mt.wrapS = mt.wrapT = T.RepeatWrapping; mt.repeat.set(len / 1.2, 2.4 / 1.2);
+    const net = new T.Mesh(new T.PlaneGeometry(len, 2.4), new T.MeshStandardMaterial({ map: mt, transparent: true, alphaTest: 0.3, side: T.DoubleSide, roughness: 0.6, metalness: 0.4 }));
+    net.position.set((x0 + x1) / 2, 1.5, (z0 + z1) / 2); net.rotation.y = rot + Math.PI / 2; net.userData.noBlock = 1; S.add(net);
+    const n = Math.max(1, Math.round(len / 3));
+    for (let i = 0; i <= n; i++) {
+      const k = i / n, x = x0 + (x1 - x0) * k, z = z0 + (z1 - z0) * k;
+      bx(S, 0.12, 3.0, 0.12, x, 1.8, z, post);
+      bx(S, 0.06, 0.7, 0.06, x + Math.cos(rot) * 0.22, 3.4, z - Math.sin(rot) * 0.22, post, { rz: 0.5 });
+      bx(S, 0.06, 0.7, 0.06, x - Math.cos(rot) * 0.22, 3.4, z + Math.sin(rot) * 0.22, post, { rz: -0.5 });
+    }
+    [0.6, 1.5, 2.4, 3.3, 3.6].forEach((y) => bx(S, 0.03, 0.03, len, (x0 + x1) / 2, y, (z0 + z1) / 2, wire, { ry: rot, noCast: 1 }));
+  }
+  /* the stone guard tower with a lookout cabin and the northern flag */
+  function lmGuardTower(S, x, z, rot) {
+    const G = new T.Group(); G.position.set(x, 0, z); G.rotation.y = rot || 0; S.add(G);
+    const stone = cmat(0xcbb894, 0.92), dark = cmat(0x8a7a5e, 0.9), wood = cmat(0x6a4a30, 0.85);
+    bx(G, 3.4, 6.4, 3.4, 0, 3.5, 0, stone, { wall: 1 });
+    for (let y = 1; y < 6.4; y += 1.1) bx(G, 3.46, 0.06, 3.46, 0, y + 0.3, 0, dark, { noCast: 1 });
+    bx(G, 4.4, 0.4, 4.4, 0, 6.9, 0, dark);
+    [-1.9, 1.9].forEach((a) => [-1.9, 1.9].forEach((b) => bx(G, 0.36, 2.2, 0.36, a, 8.2, b, stone)));
+    bx(G, 4.0, 1.0, 0.24, 0, 7.6, 1.9, stone); bx(G, 4.0, 1.0, 0.24, 0, 7.6, -1.9, stone); bx(G, 0.24, 1.0, 4.0, 1.9, 7.6, 0, stone); bx(G, 0.24, 1.0, 4.0, -1.9, 7.6, 0, stone);
+    bx(G, 4.8, 0.4, 4.8, 0, 9.4, 0, wood); bx(G, 3.6, 0.5, 3.6, 0, 9.8, 0, wood);
+    makeFlagPlane(G, "kp", 0.9, 12.0, 0.2, 2.2, 1.45, 0, true);
+    const pole = new T.Mesh(new T.CylinderGeometry(0.06, 0.07, 3.2, 6), SOL.poleGray); pole.position.set(-0.3, 11.2, 0.2); G.add(pole);
+    G.traverse((o) => { if (o.isMesh && o.geometry && o.geometry.type === "PlaneGeometry") o.userData.noBlock = 1; });
+  }
+  /* the entry checkpoint: pillars, a booth and the striped boom across the
+     road, fences running off both ways */
+  function lmKaesongGate(S, z) {
+    const conc = cmat(0xe2e0da, 0.9), glass = cmat(0x5a8ab0, 0.25, 0.3), red = cmat(0xd8282a, 0.6), white = cmat(0xf4f4f0, 0.6);
+    [-10.6, 10.6].forEach((x) => { bx(S, 1.4, 5.2, 1.4, x, 2.9, z, conc, { wall: 1 }); bx(S, 1.7, 0.4, 1.7, x, 5.7, z, conc); });
+    bx(S, 22.6, 1.4, 1.2, 0, 6.4, z, conc);
+    const sg = new T.Mesh(new T.PlaneGeometry(14, 1.1), new T.MeshStandardMaterial({ map: signTex("kgGate", "개성공업지구 출입사무소", "#1f4f8f", "#ffffff", "KAESONG INDUSTRIAL ZONE · CHECKPOINT"), roughness: 0.6 }));
+    sg.position.set(0, 6.4, z - 0.62); sg.rotation.y = Math.PI; sg.userData.noBlock = 1; S.add(sg);
+    const sg2 = sg.clone(); sg2.position.z = z + 0.62; sg2.rotation.y = 0; S.add(sg2);
+    /* booth */
+    bx(S, 3.2, 2.6, 2.6, 7.6, 1.6, z + 2.4, conc, { wall: 1 });
+    bx(S, 3.3, 0.9, 2.7, 7.6, 2.0, z + 2.4, glass, { noCast: 1 });
+    bx(S, 3.8, 0.3, 3.2, 7.6, 3.05, z + 2.4, conc);
+    /* the boom, swung half up as the first wave's men left it */
+    const boom = new T.Group(); boom.position.set(6.2, 1.2, z + 0.2); boom.rotation.z = 0.42; S.add(boom);
+    for (let i = 0; i < 9; i++) { const b = bx(boom, 0.9, 0.16, 0.16, -0.45 - i * 0.9, 0, 0, i % 2 ? white : red, { noCast: 1 }); b.userData.noBlock = 1; }
+    bx(S, 0.5, 1.2, 0.5, 6.2, 0.9, z + 0.2, cmat(0x3a3e44, 0.7));
+    /* fences off along the complex boundary */
+    lmFence(S, -11.6, z, -70, z); lmFence(S, 11.6, z, 70, z);
+  }
+  /* the management committee building at the end of the avenue: the big
+     sign with the blue flower, glass bands, the southern flag on top */
+  function lmKaesongHQ(S, x, z) {
+    const W = 46, H = 15, D = 16;
+    const wall = cmat(0xeceae4, 0.88), glass = cmat(0x4f86b4, 0.22, 0.35), trim = cmat(0xb8b6b0, 0.8);
+    bx(S, W, H, D, x, 0.3 + H / 2, z + D / 2, wall, { wall: 1 });
+    for (let f = 0; f < 4; f++) bx(S, W - 3, 1.5, 0.2, x, 2.4 + f * 3.4, z - 0.08, glass, { noCast: 1 });
+    bx(S, W + 0.6, 0.6, D + 0.6, x, 0.3 + H + 0.3, z + D / 2, trim);
+    /* entrance canopy */
+    bx(S, 12, 0.4, 4, x, 4.2, z - 2, trim); [-5.6, 5.6].forEach((dx) => bx(S, 0.5, 3.9, 0.5, x + dx, 2.25, z - 3.8, trim));
+    bx(S, 10, 3.4, 0.2, x, 2.0, z - 0.12, glass, { noCast: 1 });
+    /* the signboard */
+    const tx = ctex("kgSign", 1024, 300, (g, w, h) => {
+      g.fillStyle = "#f6f5f0"; g.fillRect(0, 0, w, h);
+      g.strokeStyle = "#c8c6c0"; g.lineWidth = 8; g.strokeRect(4, 4, w - 8, h - 8);
+      /* a blue flower of eight petals */
+      const cx = 150, cy = h / 2;
+      g.fillStyle = "#2a6ab8";
+      for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2; g.beginPath(); g.ellipse(cx + Math.cos(a) * 52, cy + Math.sin(a) * 52, 40, 22, a, 0, Math.PI * 2); g.fill(); }
+      g.fillStyle = "#7fd4e8"; g.beginPath(); g.arc(cx, cy, 26, 0, Math.PI * 2); g.fill();
+      g.fillStyle = "#1f3f78"; g.textAlign = "left"; g.textBaseline = "middle";
+      g.font = '900 120px "Noto Sans CJK KR","Noto Sans KR","Malgun Gothic","Apple SD Gothic Neo",sans-serif';
+      g.fillText("개 성 공 단", 280, h * 0.4);
+      g.font = '700 46px "Noto Sans CJK KR","Malgun Gothic",sans-serif';
+      g.fillText("Kaesong Industrial Complex", 284, h * 0.78);
+    });
+    const sg = new T.Mesh(new T.PlaneGeometry(26, 7.6), new T.MeshStandardMaterial({ map: tx, roughness: 0.7 }));
+    sg.position.set(x - 6, H - 3.2, z - 0.25); sg.rotation.y = Math.PI; sg.userData.noBlock = 1; S.add(sg);
+    makeFlagPlane(S, "kr", x + 14, H + 4.4, z + 3, 3.0, 2.0, Math.PI, true);
+    const pole = new T.Mesh(new T.CylinderGeometry(0.08, 0.09, 4.6, 6), SOL.poleGray); pole.position.set(x + 15.6, H + 2.6, z + 3); S.add(pole);
+  }
+  /* the approach: paddies, a farm road, tree lines and the fence line of
+     the border, all south of the complex (z < -66) */
+  function kaesongApproach(S) {
+    const tx = ctex("paddy", 256, 256, (g, w, h) => {
+      const r = rng(55); const cols = ["#6f9a4a", "#7aa652", "#86b05a", "#628e40", "#8fb868"];
+      for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) { g.fillStyle = cols[(r() * cols.length) | 0]; g.fillRect(i * 64, j * 64, 64, 64); }
+      g.strokeStyle = "#a89670"; g.lineWidth = 5; for (let i = 0; i <= 4; i++) { g.beginPath(); g.moveTo(i * 64, 0); g.lineTo(i * 64, h); g.stroke(); g.beginPath(); g.moveTo(0, i * 64); g.lineTo(w, i * 64); g.stroke(); }
+      for (let k = 0; k < 900; k++) { g.fillStyle = r() < 0.5 ? "rgba(40,70,20,.25)" : "rgba(200,230,150,.18)"; g.fillRect((r() * 64 | 0) * 4, (r() * 64 | 0) * 4, 4, 4); }
+    });
+    const t2 = tx.clone(); t2.needsUpdate = true; t2.wrapS = t2.wrapT = T.RepeatWrapping; t2.repeat.set(30, 22);
+    /* a wide grass skirt under everything, so the helicopter's height never
+       shows the edge of the world */
+    const skirt = new T.Mesh(new T.PlaneGeometry(1400, 1400), new T.MeshStandardMaterial({ color: new T.Color(0x7da656).convertSRGBToLinear(), roughness: 1 }));
+    skirt.rotation.x = -Math.PI / 2; skirt.position.set(0, 0.2, 0); skirt.userData.noBlock = 1; S.add(skirt);
+    const field = new T.Mesh(new T.PlaneGeometry(480, 340), new T.MeshStandardMaterial({ map: t2, roughness: 0.95 }));
+    field.rotation.x = -Math.PI / 2; field.position.set(0, 0.255, -66 - 170); field.receiveShadow = true; field.userData.noBlock = 1; S.add(field);
+    const rd = new T.Mesh(new T.PlaneGeometry(9, 300), cmat(0x6e6c68, 0.9));
+    rd.rotation.x = -Math.PI / 2; rd.position.set(0, 0.262, -66 - 150); rd.userData.noBlock = 1; S.add(rd);
+    const V = voxBatch(); const R = rng(1313);
+    for (let i = 0; i < 70; i++) {
+      const side = i % 2 ? 1 : -1, x = side * (9 + R() * 70), z = -320 + R() * 250;
+      if (Math.abs(z + 150) < 4) continue;
+      voxPine(V, x, 0.25, z, 5 + R() * 6, i + 31);
+    }
+    V.flush(S, "kgTrees");
+    /* the border fence line and its yellow markers, flown over on the way in */
+    lmFence(S, -120, -150, 120, -150); lmFence(S, -120, -154, 120, -154);
+    for (let x = -100; x <= 100; x += 25) { bx(S, 0.3, 1.6, 0.3, x, 1.1, -160, cmat(0xe8c020, 0.7)); bx(S, 0.8, 0.5, 0.06, x, 1.8, -160.2, cmat(0xe8c020, 0.7)); }
+  }
   function lmSubway(S, x, z, rot) {
     const G = new T.Group();
     G.position.set(x, 0.3, z);
@@ -15577,6 +15850,7 @@
     ground.userData.noBlock = 1;
     S.add(ground);
     void gKey;
+    if (C.approach) { try { kaesongApproach(S); } catch (e) { window.__lmErr = String(e && e.stack || e); } }
     /* the water for the seafront cities */
     if (C.seaSide || C.sea) {
       const wt = ctex("seaTex", 256, 256, (g, w, h) => {
@@ -15657,6 +15931,21 @@
         bx(S, hw + 2.2, 0.5, zb - za - 1.2, cx + side * 0.8, 3.5, cz, cmat(0x3a3e44, 0.7));
         bx(S, hw + 0.8, 0.6, (zb - za) * 0.45, cx + side * 0.8, 4.0, cz, cmat(0x30343a, 0.7));
         for (let k = 0; k < 4; k++) cyl(S, 0.14, 0.16, 2.8, cx + side * 0.8 - side * hw / 2, 1.7, za + 2 + k * ((zb - za - 4) / 3), cmat(0x7a3424, 0.7), 8);
+        return;
+      }
+      if (C.industrial) {
+        /* (v55) factory blocks: low and long, no shopfronts, a blue band and a
+           company board on the street face (made-up firms) */
+        const hh = back ? h : 6.5 + R() * 3.5;
+        makeBlock(S, x0, x1, za, zb, hh, { mat: facs[(R() * 3) | 0], k: (R() * 6) | 0 });
+        const fx = side < 0 ? x1 + 0.06 : x0 - 0.06, ry = side < 0 ? Math.PI / 2 : -Math.PI / 2;
+        if (!back) {
+          bx(S, 0.12, 0.7, zb - za - 0.4, fx, 1.3, (za + zb) / 2, cmat(0x2a6ab8, 0.5), { noCast: 1 });
+          const FIRMS = [["한빛섬유", "HANBIT TEXTILE"], ["새길전자", "SAEGIL ELECTRONICS"], ["푸른식품", "PUREUN FOODS"], ["대동정밀", "DAEDONG PRECISION"], ["누리의류", "NURI APPAREL"], ["다온화학", "DAON CHEMICAL"]];
+          const fm = FIRMS[(R() * FIRMS.length) | 0];
+          const sg = new T.Mesh(new T.PlaneGeometry(Math.min(9, zb - za - 2), 1.6), new T.MeshStandardMaterial({ map: signTex("firm" + fm[0], fm[0], "#f4f6f8", "#1f4f8f", fm[1]), roughness: 0.6 }));
+          sg.position.set(fx + (side < 0 ? 0.02 : -0.02), hh - 1.2, (za + zb) / 2); sg.rotation.y = ry; sg.userData.noBlock = 1; S.add(sg);
+        }
         return;
       }
       makeBlock(S, x0, x1, za, zb, h, { mat: facs[(R() * 3) | 0], shop: side < 0 ? "e" : "w", k: (R() * 6) | 0 });
@@ -15808,6 +16097,9 @@
         else if (k === "lanterns") lmLanterns(S, L[1], L[2], L[3]);
         else if (k === "cranes") lmCranes(S, L[1]);
         else if (k === "subway") lmSubway(S, L[1], L[2], L[3]);
+        else if (k === "kaesongGate") lmKaesongGate(S, L[1]);
+        else if (k === "guardTower") lmGuardTower(S, L[1], L[2], L[3]);
+        else if (k === "kaesongHQ") lmKaesongHQ(S, L[1], L[2]);
         else if (k === "boats") lmBoats(S, L[1], anims);
         else if (k === "overpass") {
           /* (v49) the deck counts as air clearance, so a gunship climbs
