@@ -3076,7 +3076,7 @@
   const KCH = { ready: false, src: null, tex: {}, mat: {}, dead: {}, kit: {} };
   const kTex = (k) => {
     if (KCH.tex[k]) return KCH.tex[k];
-    const t = new T.TextureLoader().load("models/characters/skins/" + k + ".png?v=31");
+    const t = new T.TextureLoader().load("models/characters/skins/" + k + ".png?v=42");
     t.flipY = false; t.encoding = T.sRGBEncoding; t.magFilter = T.NearestFilter;
     t.wrapS = t.wrapT = T.RepeatWrapping; t.anisotropy = 4;
     return (KCH.tex[k] = t);
