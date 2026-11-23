@@ -4,5 +4,14 @@
   "loop_diesel": "loop_diesel.ogg",
   "loop_jeep": "loop_jeep.ogg",
   "bike_pass": "bike_pass.mp3",
-  "explosion": ["boom_1.mp3", "boom_2.mp3", "boom_3.mp3"]
+  "explosion": [
+    "boom_1.mp3",
+    "boom_2.mp3",
+    "boom_3.mp3"
+  ],
+  "scream": [
+    "scream_1.mp3",
+    "scream_2.mp3",
+    "scream_3.mp3"
+  ]
 }

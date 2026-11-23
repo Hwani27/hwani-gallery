@@ -470,14 +470,15 @@
   /* ------------------------------------------------------------------
      Impact: no voice at all. A soldier who is hit makes one short, dull
      low "퍽" — the round landing in the chest, the air leaving — never a
-     human cry. The recorded voice files (scream/hurt) were taken out of
-     sfx/ because they were harsh and too loud, so this synth is what the
+     human cry (the moans stay out). Since v31 a kill also plays one of the
+     recorded death screams, pitched down and quiet (see grunt below); this synth is what the
      game always plays for a hit: a soft sine punch under the gunshot,
      a dark noise puff for the body, and, on a kill only, the body
      dropping low a beat later. Levels sit well under the gunshot so a
      burst of hits never piles up into noise.
      ------------------------------------------------------------------ */
   let lastGruntAt = 0;
+  let lastScreamAt = 0;
   let liveGrunt = 0;
 
   function playHitGrunt(fatal) {
@@ -494,6 +495,10 @@
     fatal = !!fatal;
     const t = c.currentTime + 0.02;
     const pv = 0.92 + Math.random() * 0.16;          // 0.92 ~ 1.08
+    /* (v31) the death scream is back — kills only (no moans on a mere hit),
+       pitched down a little and kept well under the gunshot, and never two
+       on top of each other: at most one every 0.45 s */
+    if (fatal && nowMs - lastScreamAt > 450 && playSample("scream", 0.42, 0.84 + Math.random() * 0.1)) lastScreamAt = nowMs;
 
     // the punch: a soft low sine drop, far under the gunshot's own thump
     thump(c, t, (fatal ? 140 : 152) * pv, fatal ? 44 : 58, fatal ? 0.15 : 0.1,
