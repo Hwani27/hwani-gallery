@@ -433,6 +433,9 @@ Stage 1(서울)은 손대지 않았고, 그 뒤에 **Stage 2**를 붙였다. 두
 - **v2**: 레일 슈터 골격(`baro-baro-jump` 엔진 위에 얹었다가 이후 완전 분리).
 - **v1**: `baro-baro-jump` HTML을 fetch/DOMParser로 재파싱해 쓰던 시절 → **지금은 금지된 구조**. 독립 빌드로 되돌리지 말 것.
 
+## 5-4. v33 — 비명은 합성 음성으로 (2026-11-23)
+- 녹음 비명(`sfx/scream_1~3.mp3`, manifest `scream`) 다시 삭제. `gun-sfx.js` `playHitGrunt`를 v26 시절의 합성 음성(톱니파 성대 + 3포먼트, 피격 "윽!", 사망 "으악!")으로 복구. 저역 '퍽' 타격음 버전은 대체됨.
+
 ## 5-5. v32 — 캐릭터 동작을 Kenney 애니메이션으로 (2026-11-23)
 - `kPrep`이 리그의 27개 클립 회전 트랙을 보간기로 만들어 `KCH.A`에 둠(루트 트랙 제외). `kApply(u, clip, t01, parts, w)`가 기존 컨트롤러가 관절을 세운 뒤 그 위에 포즈를 덮어씀(부위: `K_LEGS/K_ARMS/K_UPPER/K_TOP/K_BODY`, 가중치는 slerp). `u.kN`이 Kenney 노드 이름 → 관절.
 - 적: 엄폐·대기 `holding-both` + 숨쉬는 `idle`(가슴·머리) → 사격 `holding-both-shoot`(ak로 블렌드), 반동 킥. 돌격병 달리기 `sprint`(보폭 위상 동기화), 걷기 `walk`, 오토바이 `drive`, 사망 `die`(몸 전체 쓰러짐은 기존 코드, 팔다리는 클립).

@@ -468,17 +468,21 @@
   }
 
   /* ------------------------------------------------------------------
-     Impact: no voice at all. A soldier who is hit makes one short, dull
-     low "퍽" — the round landing in the chest, the air leaving — never a
-     human cry (the moans stay out). Since v31 a kill also plays one of the
-     recorded death screams, pitched down and quiet (see grunt below); this synth is what the
-     game always plays for a hit: a soft sine punch under the gunshot,
-     a dark noise puff for the body, and, on a kill only, the body
-     dropping low a beat later. Levels sit well under the gunshot so a
-     burst of hits never piles up into noise.
+     Voice: hit and death grunts — "윽!" when a soldier is only winged,
+     a falling "으악!" when the round puts him down.
+
+     No samples: a sawtooth glottal source with a pitch envelope and a
+     slow vibrato feeds three parallel bandpass formant resonators, so the
+     vowel itself is synthesised. The death cry starts on a closed 으 and
+     glides its formants to an open 악 while the pitch collapses, then the
+     breath runs out into a chest rattle.
+     (v33) back by request: this synthesized voice, not the recordings.
      ------------------------------------------------------------------ */
+  const FORMANTS = {
+    eu: [318, 1265, 2390],   // 으 / 윽
+    a:  [790, 1215, 2520]    // 아 / 악
+  };
   let lastGruntAt = 0;
-  let lastScreamAt = 0;
   let liveGrunt = 0;
 
   function playHitGrunt(fatal) {
@@ -494,28 +498,100 @@
 
     fatal = !!fatal;
     const t = c.currentTime + 0.02;
-    const pv = 0.92 + Math.random() * 0.16;          // 0.92 ~ 1.08
-    /* (v31) the death scream is back — kills only (no moans on a mere hit),
-       pitched down a little and kept well under the gunshot, and never two
-       on top of each other: at most one every 0.45 s */
-    if (fatal && nowMs - lastScreamAt > 450 && playSample("scream", 0.42, 0.84 + Math.random() * 0.1)) lastScreamAt = nowMs;
+    const pv = 0.88 + Math.random() * 0.27;          // 0.88 ~ 1.15
+    const dur = fatal ? 0.62 + Math.random() * 0.12 : 0.22 + Math.random() * 0.06;
+    const base = (fatal ? 134 : 156) * pv;
 
-    // the punch: a soft low sine drop, far under the gunshot's own thump
-    thump(c, t, (fatal ? 140 : 152) * pv, fatal ? 44 : 58, fatal ? 0.15 : 0.1,
-          fatal ? 0.17 : 0.11, bus, "sine");
-    // the body taking it: a short, dark noise puff with no upper harmonics
-    band(c, t, fatal ? 0.16 : 0.09, "lowpass", 520 * pv, 0.7, fatal ? 0.11 : 0.07,
-         0.002, fatal ? 0.12 : 0.06, bus, fatal ? 220 : 320);
-    // a dull weight just behind the punch, so it reads as mass and not a beep
-    thump(c, t + 0.006, 82 * pv, 38, fatal ? 0.26 : 0.16, fatal ? 0.075 : 0.042, bus, "triangle");
-
+    // --- glottal source: pitch jumps on the hit, then collapses
+    const glottal = c.createOscillator();
+    glottal.type = "sawtooth";
+    glottal.frequency.setValueAtTime(base * 1.06, t);
     if (fatal) {
-      // going down: the body lands once, a beat later, low and dry
-      thump(c, t + 0.3, 68, 32, 0.3, 0.08, bus, "sine");
-      band(c, t + 0.3, 0.22, "lowpass", 300, 0.6, 0.045, 0.01, 0.18, bus, 140);
+      glottal.frequency.linearRampToValueAtTime(base * 1.26, t + 0.06);
+      glottal.frequency.exponentialRampToValueAtTime(base * 0.66, t + dur * 0.72);
+      glottal.frequency.exponentialRampToValueAtTime(base * 0.42, t + dur);
+    } else {
+      glottal.frequency.exponentialRampToValueAtTime(base * 0.72, t + dur);
+    }
+    // a second source a hair flat thickens it into a human throat
+    const glottal2 = c.createOscillator();
+    glottal2.type = "sawtooth";
+    glottal2.detune.value = -9;
+    glottal2.frequency.setValueAtTime(base * 1.06, t);
+    if (fatal) {
+      glottal2.frequency.linearRampToValueAtTime(base * 1.26, t + 0.06);
+      glottal2.frequency.exponentialRampToValueAtTime(base * 0.66, t + dur * 0.72);
+      glottal2.frequency.exponentialRampToValueAtTime(base * 0.42, t + dur);
+    } else {
+      glottal2.frequency.exponentialRampToValueAtTime(base * 0.72, t + dur);
+    }
+    // voice wobble
+    const vib = c.createOscillator();
+    vib.frequency.value = 6.2 + Math.random() * 2.8;
+    const vibGain = c.createGain();
+    vibGain.gain.value = base * (fatal ? 0.05 : 0.032);
+    vib.connect(vibGain);
+    vibGain.connect(glottal.frequency);
+
+    const src = c.createGain();
+    src.gain.value = 0.62;
+    glottal.connect(src);
+    glottal2.connect(src);
+
+    // --- breath through the open throat
+    const breath = c.createBufferSource();
+    breath.buffer = noise(c, Math.max(dur, 0.06));
+    const bf = c.createBiquadFilter();
+    bf.type = "bandpass";
+    bf.frequency.setValueAtTime(1500 * pv, t);
+    bf.Q.value = 1.1;
+    if (fatal) bf.frequency.exponentialRampToValueAtTime(680, t + dur);
+    const bg = c.createGain();
+    bg.gain.setValueAtTime(0.0001, t);
+    bg.gain.exponentialRampToValueAtTime(fatal ? 0.15 : 0.09, t + 0.02);
+    bg.gain.exponentialRampToValueAtTime(0.0001, t + dur * 0.82);
+    breath.connect(bf);
+    bf.connect(bg);
+    bg.connect(bus);
+
+    // --- vowel envelope
+    const out = c.createGain();
+    const lvl = fatal ? 0.46 : 0.3;
+    out.gain.setValueAtTime(0.0001, t);
+    out.gain.exponentialRampToValueAtTime(lvl, t + 0.014);
+    out.gain.setValueAtTime(lvl, t + Math.max(0.02, dur * 0.55));
+    out.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    out.connect(bus);
+
+    // --- formants 으 → 악 (the death cry opens into the 악)
+    const V1 = FORMANTS.eu.map((f) => f * pv);
+    const V2 = FORMANTS.a.map((f) => f * pv);
+    for (let i = 0; i < 3; i++) {
+      const f = c.createBiquadFilter();
+      f.type = "bandpass";
+      f.Q.value = i === 0 ? 5.5 : 8.5;
+      f.frequency.setValueAtTime(V1[i], t);
+      if (fatal) f.frequency.exponentialRampToValueAtTime(V2[i], t + 0.16);
+      const g = c.createGain();
+      g.gain.value = (i === 0 ? 1 : i === 1 ? 0.58 : 0.22) * (fatal ? 1 : 0.92);
+      src.connect(f);
+      f.connect(g);
+      g.connect(out);
     }
 
-    const ms = fatal ? 900 : 420;
+    // the catch in the throat that opens the word
+    band(c, t, 0.03, "bandpass", 700 * pv, 2.2, fatal ? 0.18 : 0.22, 0.001, 0.02, bus);
+    // the rattle at the bottom of the scream
+    if (fatal) {
+      band(c, t + dur * 0.55, 0.24, "bandpass", 620, 1.4, 0.09, 0.02, 0.2, bus, 380);
+      thump(c, t + dur * 0.5, 112 * pv, 60, 0.34, 0.14, bus, "triangle");
+    }
+
+    const stopAt = t + dur + 0.08;
+    [glottal, glottal2, vib, breath].forEach((n) => {
+      try { n.start(t); n.stop(stopAt); } catch (e) {}
+    });
+    const ms = Math.max(60, (dur + 0.15) * 1000);
     setTimeout(() => { liveGrunt = Math.max(0, liveGrunt - 1); }, ms);
     return true;
   }
