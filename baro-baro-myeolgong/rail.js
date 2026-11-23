@@ -8170,6 +8170,7 @@
   }
 
   function begin(ctx, stageIdIn) {
+    TUT.checked = false; TUT.on = false; tutHide();
     if (!ctx || !ctx.scene || !ctx.camera) return false;
     // pick the GPU's anisotropic limit before any texture is painted
     try {
@@ -8845,6 +8846,7 @@
   function hurtPlayer(ctx, dmg) {
     if (ended || contOpen || finishing || pauseOpen || invulT > 0 || window.__railGod) return;
     let dd = Math.max(1, Math.round(dmg * (DIFF.dmg || 1)));
+    if (TUT.on && TUT.step <= 2) dd = Math.max(1, Math.round(dd * 0.35));   // softened while learning
     if (armor > 0) { const a = Math.min(armor, Math.ceil(dd * 0.7)); armor -= a; dd -= a; }
     hp -= dd;
     try { window.MGPost && window.MGPost.hurt && window.MGPost.hurt(Math.min(1, 0.35 + dmg / 30)); } catch (e) {}
@@ -9793,6 +9795,7 @@
     if (!ctx || !booted || ended || !active || phase === "intro" || phase === "result") return;
     if (grenades <= 0) { gun("dry"); return; }
     grenades--;
+    tutEv("nade");
     const cam = ctx.camera;
     cam.updateMatrixWorld(true);
     const ray = new T.Raycaster();
@@ -9851,6 +9854,7 @@
     if (!ctx || !booted || reloading || ended) return;
     /* the Stage 2 camera intro has no gun in hand: a click there must not spend a round */
     if (phase === "intro") return;
+    tutEv("fire");
     const now = performance.now();
     const W = WEAPONS[weapon];
     if (now - lastShot < W.rate) return;
@@ -10817,6 +10821,87 @@
     }
   }
 
+  /* (v35) first-run training: six short coach cards over the first real
+     mission. Each one waits for the thing it teaches (a shot, a kill, a
+     reload, a grenade) or times out, points at the button it is about, and
+     enemy fire is softened until the reload lesson is done. Shown once
+     (localStorage myeolgong_tut); never in practice. */
+  const TUT = { on: false, checked: false, step: 0, t: 0, el: null, arrow: null, ev: {} };
+  const TKO = () => (document.documentElement.lang || "ko").startsWith("ko");
+  const TUT_STEPS = [
+    { id: "shoot", ko: "<b>화면을 탭</b>하면 그곳으로 쏴요", en: "<b>Tap the screen</b> to shoot there", tap: 1, done: (e) => e.fire >= 2 },
+    { id: "enemy", ko: "적 머리 위 <b>게이지가 차면</b> 적이 쏴요. 먼저 맞히세요!<br><small>머리를 맞히면 헤드샷 · 점수 2배</small>", en: "When the <b>gauge</b> over an enemy fills, he fires. Hit him first!<br><small>Headshots score double</small>", when: () => posts.some((p) => p.live && p.e && p.e.alive !== false && p.role !== "hostage" && (p.state === "fire" || p.state === "peek")), done: (e, t) => MS.kills >= 1 || t > 9 },
+    { id: "reload", ko: "<b>재장전</b> 버튼으로 탄창을 갈아요<br><small>키보드는 R</small>", en: "<b>Reload</b> with this button<br><small>R on a keyboard</small>", el: "railReload", force: 18, when: () => weapon === "pistol" && bullets <= Math.ceil(clipMax * 0.5), done: (e, t) => e.reload >= 1 || t > 10 },
+    { id: "nade", ko: "<b>수류탄</b>: 엄폐물 뒤에 숨은 적에게 던져요<br><small>키보드는 G</small>", en: "<b>Grenade</b>: for enemies hiding behind cover<br><small>G on a keyboard</small>", el: "railNade", force: 20, when: () => grenades > 0 && posts.filter((p) => p.live && p.e && p.e.alive !== false && p.role !== "hostage").length >= 2, done: (e, t) => e.nade >= 1 || t > 8 },
+    { id: "civ", ko: "<b>손 든 민간인은 쏘지 마세요!</b><br><small>맞히면 −300점</small>", en: "<b>Don't shoot people with their hands up!</b><br><small>−300 points</small>", force: 25, when: () => posts.some((p) => p.live && p.role === "hostage") || (AMB.refs && AMB.refs.length > 0), done: (e, t) => t > 4.5 },
+    { id: "end", ko: "훈련 끝! 이제 작전을 완수하세요", en: "Training done — finish the mission!", done: (e, t) => t > 2.6 }
+  ];
+  function tutStart() {
+    TUT.on = false;
+    if (practice || window.__noTut) return;
+    try { if (localStorage.getItem("myeolgong_tut") === "1") return; } catch (e) {}
+    TUT.on = true; TUT.step = 0; TUT.t = 0; TUT.ev = { fire: 0, reload: 0, nade: 0 }; TUT.shown = false;
+  }
+  function tutEv(k) { if (TUT.on) TUT.ev[k] = (TUT.ev[k] || 0) + 1; }
+  function tutHide() {
+    if (TUT.el) { TUT.el.remove(); TUT.el = null; }
+    if (TUT.arrow) { TUT.arrow.remove(); TUT.arrow = null; }
+    if (TUT.tap) { TUT.tap.remove(); TUT.tap = null; }
+  }
+  function tutShow(S) {
+    tutHide();
+    if (!document.getElementById("railTutCss")) {
+      const st = document.createElement("style"); st.id = "railTutCss";
+      st.textContent = "#railTut{position:fixed;left:50%;top:max(76px,calc(env(safe-area-inset-top) + 64px));transform:translateX(-50%);z-index:46;max-width:min(88vw,420px);padding:10px 16px;border-radius:14px;background:rgba(10,16,10,.88);border:2px solid #e8c860;color:#fff;font:700 15px/1.4 Pretendard,system-ui,sans-serif;text-align:center;box-shadow:0 8px 26px rgba(0,0,0,.5);pointer-events:none;animation:railTutIn .25s ease-out}" +
+        "#railTut small{font-weight:600;color:#d8d0a8;font-size:12px}#railTut .k{display:block;font:900 10px/1 ui-monospace,monospace;letter-spacing:.18em;color:#e8c860;margin-bottom:5px}" +
+        "@keyframes railTutIn{from{transform:translate(-50%,-10px) scale(.96)}}" +
+        "#railTutArrow{position:fixed;z-index:46;width:0;height:0;border-left:14px solid transparent;border-right:14px solid transparent;border-top:20px solid #e8c860;filter:drop-shadow(0 2px 4px rgba(0,0,0,.6));pointer-events:none;animation:railTutBob .7s ease-in-out infinite alternate}" +
+        "@keyframes railTutBob{to{margin-top:-10px}}" +
+        "#railTutTap{position:fixed;left:50%;top:52%;width:64px;height:64px;margin:-32px 0 0 -32px;border-radius:50%;border:3px solid #fff;z-index:46;pointer-events:none;animation:railTutTap 1.1s ease-out infinite}" +
+        "@keyframes railTutTap{0%{transform:scale(.4);opacity:1}100%{transform:scale(1.4);opacity:0}}";
+      document.head.appendChild(st);
+    }
+    const ko = TKO();
+    const el = document.createElement("div"); el.id = "railTut";
+    el.innerHTML = '<span class="k">' + (ko ? "훈련 " : "TRAINING ") + (TUT.step + 1) + "/" + TUT_STEPS.length + "</span>" + (ko ? S.ko : S.en);
+    document.body.appendChild(el); TUT.el = el;
+    if (S.tap) { const t = document.createElement("div"); t.id = "railTutTap"; document.body.appendChild(t); TUT.tap = t; }
+    if (S.el) {
+      const target = document.getElementById(S.el);
+      if (target) {
+        const r = target.getBoundingClientRect();
+        const a = document.createElement("div"); a.id = "railTutArrow";
+        a.style.left = (r.left + r.width / 2 - 14) + "px"; a.style.top = (r.top - 30) + "px";
+        document.body.appendChild(a); TUT.arrow = a;
+      }
+    }
+  }
+  function tutStep(ctx, dt) {
+    if (ended || finishing) { tutHide(); TUT.on = false; return; }
+    if (pauseOpen || contOpen || phase === "intro") { if (TUT.el) TUT.el.style.opacity = "0"; return; }
+    if (TUT.el) TUT.el.style.opacity = "";
+    const S = TUT_STEPS[TUT.step];
+    if (!S) { tutHide(); TUT.on = false; return; }
+    if (!TUT.shown) {
+      TUT.wait = (TUT.wait || 0) + dt;
+      if (S.when && !S.when() && !(S.force && TUT.wait > S.force)) return;
+      TUT.wait = 0;
+      TUT.shown = true; TUT.t = 0; TUT.ev0 = Object.assign({}, TUT.ev);
+      tutShow(S);
+    }
+    TUT.t += dt;
+    const e = {}; Object.keys(TUT.ev).forEach((k) => { e[k] = TUT.ev[k] - (TUT.ev0[k] || 0); });
+    if (S.done(e, TUT.t)) {
+      tutHide();
+      TUT.step++; TUT.shown = false;
+      if (TUT.step >= TUT_STEPS.length) {
+        TUT.on = false;
+        try { localStorage.setItem("myeolgong_tut", "1"); } catch (err) {}
+      }
+    }
+  }
+  window.__tut = TUT;
+
   function frame(ctx) {
     if (!armed || !active || !ctx || !ctx.scene || !ctx.camera) return;
     const cam = ctx.camera;
@@ -10828,6 +10913,8 @@
     if (invulT > 0) { invulT -= dt; if (invulT <= 0) { const sh = document.getElementById("railShield"); if (sh) sh.remove(); } }
     frame._t = nowMs;
     glbStep(dt);
+    if (!TUT.checked) { TUT.checked = true; tutStart(); }
+    if (TUT.on) tutStep(ctx, dt);
     const t = (nowMs - t0) / 1000;
     clock = Math.max(0, CLOCK0 - t);
 
@@ -15176,6 +15263,7 @@
       if (!booted || !active || reloading || bullets >= clipMax || ended || weapon !== "pistol") return;
       reloading = true;
       reloadK = 1;
+      tutEv("reload");
       gun("reload");
       setTimeout(() => { bullets = clipMax; reloading = false; }, 420);
     }

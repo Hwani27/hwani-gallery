@@ -549,7 +549,7 @@
       })() +
       "</div>" +
       '<div class="mR"><div class="mList">' + cards + "</div>" +
-      '<p class="mFoot">' + L.hint + "</p></div>";
+      '<p class="mFoot">' + L.hint + '</p><p class="mFoot"><button id="mgTut" type="button" style="background:none;border:0;color:#c9b871;font:700 12px/1 inherit;text-decoration:underline;cursor:pointer;padding:6px">' + (ko ? "훈련(튜토리얼) 다시 보기" : "Replay training") + "</button></p></div>";
     wrap.querySelectorAll(".mSeg button").forEach((b) => b.addEventListener("click", (e) => {
       e.preventDefault();
       const k = b.getAttribute("data-k"), v = b.getAttribute("data-v");
@@ -570,6 +570,7 @@
       refresh();
     }));
     const at = document.getElementById("mgAtt"); if (at) at.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); checkIn(); });
+    const tb = document.getElementById("mgTut"); if (tb) tb.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); try { localStorage.removeItem("myeolgong_tut"); } catch (err) {} toast(ko ? "다음 작전에서 훈련 안내가 다시 나와요" : "Training will show in your next mission"); });
     const un = document.getElementById("mgUni"); if (un) un.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); openShop("uni"); });
     const sh = document.getElementById("mgShop"); if (sh) sh.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); openShop(); });
     const ch = document.getElementById("mgChest"); if (ch) ch.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); openBox(); });
