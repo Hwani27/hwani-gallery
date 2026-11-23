@@ -3139,7 +3139,7 @@
     u.rifle.position.set(_kv.x + 0.02 * s, _kv.y + 0.13 * s, _kv.z + 0.12 * s);
     u.rifle.rotation.set(pitch || 0, Math.PI, roll || 0);
   }
-  window.__kPose = { hands: (...a) => kHandsUp(...a), kApply: (...a) => kApply(...a), kRifle: (...a) => kRifle(...a), K_BODY, K_ARMS, K_UPPER, K_LEGS, K_TOP };
+  window.__kPose = { pose: (...a) => posePost(...a), hands: (...a) => kHandsUp(...a), kApply: (...a) => kApply(...a), kRifle: (...a) => kRifle(...a), K_BODY, K_ARMS, K_UPPER, K_LEGS, K_TOP };
   const kKit = (hex, r) => KCH.kit[hex] || (KCH.kit[hex] = new T.MeshStandardMaterial({ color: new T.Color(hex).convertSRGBToLinear(), roughness: r == null ? 0.82 : r, metalness: 0.05 }));
   (function loadKCH() {
     if (/[?&]oldchars/.test(location.search)) return;
@@ -3295,6 +3295,7 @@
     g.userData.kenney = true;
     g.userData.kHead = head;
     g.userData.kTorso = torso;
+    g.userData.kS = K.scale.x;
     g.userData.kN = { "arm-left": armR, "arm-right": armL, "leg-left": legR, "leg-right": legL, torso: torso, head: head };
     if (ally) { g.userData.phase = 0; g.userData.aimK = 0; }
     else if (!civ) enemyRim(g);
@@ -9171,6 +9172,14 @@
     gr.addColorStop(0, "rgba(11,15,8,0)"); gr.addColorStop(1, "rgba(11,15,8,1)");
     g.fillStyle = gr; g.fillRect(0, 380, W, 520);
     g.fillStyle = "#0b0f08"; g.fillRect(0, 900, W, H - 900);
+    /* (v38) your soldier, standing on the card */
+    if (I.av && I.av.complete && I.av.naturalWidth) {
+      g.save();
+      g.shadowColor = "rgba(0,0,0,.6)"; g.shadowBlur = 30; g.shadowOffsetY = 12;
+      const ah = 520, aw = ah * I.av.naturalWidth / I.av.naturalHeight;
+      g.drawImage(I.av, W - aw - 20, 880 - ah, aw, ah);
+      g.restore();
+    }
     gr = g.createLinearGradient(0, 0, 0, 200);
     gr.addColorStop(0, "rgba(0,0,0,.65)"); gr.addColorStop(1, "rgba(0,0,0,0)");
     g.fillStyle = gr; g.fillRect(0, 0, W, 200);
@@ -9433,7 +9442,13 @@
       "<div class=btns>" + nextB + "<button" + (nextB ? "" : " class=primary") + " data-act=again>" + (ko ? "다시 하기" : "PLAY AGAIN") +
       "</button><button data-act=title>" + (ko ? "타이틀" : "TITLE") + "</button></div>" +
       "<div class=\"btns share\"><button data-act=share>" + SHARE_ICO + (ko ? "자랑하기" : "SHARE") + "</button><button data-act=save>" + SAVE_ICO + (ko ? "이미지 저장" : "SAVE IMAGE") + "</button><button data-act=photo>📷 " + (ko ? "포토 모드" : "PHOTO") + "</button></div></div>";
-    const shareInfo = { cleared: !!cleared, head: head, stars: stars, nStars: nStars, score: score, acc: Math.round(acc * 100), combo: bestCombo, label: STAGE.label || "1-1", stage: stageId, diff: dName, practice: practice, continues: continues, rec: rec, shot: shot, ko: ko };
+    let avImg = null;
+    try {
+      const uni0 = (window.MGProfile && window.MGProfile.uni && window.MGProfile.uni()) || "u-army";
+      const src0 = window.MGAvatar && window.MGAvatar.snap(uni0, cleared ? "cheer" : "");
+      if (src0) { avImg = new Image(); avImg.src = src0; }
+    } catch (e) {}
+    const shareInfo = { av: avImg, cleared: !!cleared, head: head, stars: stars, nStars: nStars, score: score, acc: Math.round(acc * 100), combo: bestCombo, label: STAGE.label || "1-1", stage: stageId, diff: dName, practice: practice, continues: continues, rec: rec, shot: shot, ko: ko };
     box.addEventListener("click", (e) => {
       const b = e.target && e.target.closest ? e.target.closest("button[data-act]") : null;
       if (!b) return;
@@ -9456,8 +9471,9 @@
         card.style.position = "relative";
         const im = document.createElement("img");
         im.src = src; im.alt = "";
-        im.style.cssText = "position:absolute;right:-6px;top:-44px;width:96px;height:120px;pointer-events:none;filter:drop-shadow(0 6px 10px rgba(0,0,0,.5))";
+        im.style.cssText = "position:absolute;right:8px;top:8px;width:72px;height:90px;pointer-events:none;filter:drop-shadow(0 6px 10px rgba(0,0,0,.5))";
         card.appendChild(im);
+        const h2 = card.querySelector("h2"); if (h2) { h2.style.paddingRight = "64px"; h2.style.paddingLeft = "64px"; }
       }
     } catch (e) {}
     posts.forEach((p) => tagOff(p));
@@ -10212,9 +10228,27 @@
          a breath in the chest while he waits and the kick of each shot */
       p.kT = (p.kT || Math.random()) + dt * 0.75;
       kApply(u, "idle", p.kT, K_TOP, 1 - ak);
-      kApply(u, "holding-both", 0, K_ARMS, 1);
+      /* arms in to the body while he is down (nothing reaches through the
+         wall), up to low ready as he rises, shouldered when he fires */
+      kApply(u, "idle", p.kT, K_ARMS, 1);
+      kApply(u, "holding-both", 0, K_ARMS, Math.min(1, Math.max(ak, ex) * 2));
       kApply(u, "holding-both-shoot", 0.4, K_UPPER, ak);
       if (rc) { u.armL.rotateX(rc * 0.35); u.armR.rotateX(rc * 0.3); }
+      /* (v38) he kneels behind the wall instead of being squashed: the legs
+         fold back under him and the hips drop to the knees; only what the
+         kneel cannot hide is taken off by a gentle squash */
+      if (p.body && u.kS) {
+        const H = K_H[p.role] || 2.3, L = 1.0 * u.kS;
+        const need = Math.max(0, 1 - sy);
+        const a = Math.min(1.45, need * 3.4);
+        const drop = L * (1 - Math.cos(a));
+        const sq = Math.max(0.55, Math.min(1, (H * sy) / Math.max(0.5, H - drop)));
+        p.body.scale.y = sq;
+        p.body.position.y = -drop * sq + Math.sin(p.breath) * 0.008 * ex;
+        u.legL.rotation.set(a, 0, -0.08 * (a / 1.45));
+        u.legR.rotation.set(a * 0.92, 0, 0.08 * (a / 1.45));
+        p.body.rotation.x = (1 - ex) * 0.06 + 0.05 * ex;
+      }
       /* (v37) behind cover the rifle hangs muzzle-down along the body (and is
          put away altogether while he is fully down), so no barrel pokes out
          through the front of the wall */
@@ -13821,11 +13855,15 @@
       c.position.set((k - 1.5) * 0.45 * s, 0.8 * s, ((k * 7) % 3 - 1) * 0.3 * s);
       g.add(c);
     }
+    /* (v38) smoke: small block puffs, each with its own material so it can
+       thin out as it climbs — dark and dense at the fire, gone at the top —
+       instead of a stack of big grey cubes standing in the sky */
     const smk = [];
-    const sm = new T.MeshBasicMaterial({ color: 0x2a2624, transparent: true, opacity: 0.42, depthWrite: false });
-    for (let k = 0; k < 6; k++) {
-      const p = new T.Mesh(new T.BoxGeometry(1.4 * s, 1.4 * s, 1.4 * s), sm);
-      p.position.set(0, 2 + k * 2.2 * s, 0);
+    for (let k = 0; k < 8; k++) {
+      const sm = new T.MeshBasicMaterial({ color: 0x2a2624, transparent: true, opacity: 0.4, depthWrite: false, fog: true });
+      const p = new T.Mesh(new T.BoxGeometry(0.8 * s, 0.8 * s, 0.8 * s), sm);
+      p.position.set(0, 2 + k * 1.2 * s, 0);
+      p.rotation.set(k * 0.7, k * 1.3, k * 0.4);
       g.add(p); smk.push(p);
     }
     g.position.set(x, y, z);
@@ -13853,13 +13891,17 @@
       f.g.children.forEach((c, i) => {
         if (c.geometry.type === "ConeGeometry") { const k = 0.75 + 0.35 * Math.sin(f.t * 13 + i * 2.1) + 0.15 * Math.sin(f.t * 31 + i); c.scale.set(1, k, 1); }
       });
+      const H = 9.6 * f.s;
       f.smk.forEach((p, i) => {
-        const y = ((f.t * 1.2 + i * 2.2 * f.s) % (13 * f.s));
-        p.position.y = 1.6 + y;
-        p.position.x = Math.sin(f.t * 0.4 + i) * 0.4 + y * 0.18;
-        const k = 1 + y / (5 * f.s);
-        p.scale.setScalar(k);
-        p.rotation.y = f.t * 0.2 + i;
+        const y = ((f.t * 1.1 + i * 1.2 * f.s) % H);
+        const u = y / H;
+        p.position.y = 1.4 + y;
+        p.position.x = Math.sin(f.t * 0.4 + i * 1.7) * 0.3 * f.s + y * 0.22;
+        p.position.z = Math.cos(f.t * 0.33 + i * 2.3) * 0.25 * f.s;
+        p.scale.setScalar(0.8 + u * 1.5);
+        p.rotation.y += dt * 0.3; p.rotation.x += dt * 0.17;
+        p.material.opacity = 0.42 * Math.min(1, u * 6) * (1 - u) * (1 - u);
+        p.material.color.setHex(u < 0.25 ? 0x2a2624 : 0x4a4644);
       });
     });
   }
@@ -13869,7 +13911,7 @@
      past a turn moves into that leg's group (rotated about the crossing);
      whatever then stands in another leg's street is cleared, and where two
      legs' blocks meet the earlier one stays */
-  function bendCity(S, TURNS, keep, C) {
+  function bendCity(S, TURNS, keep, C, fill) {
     const legs = [S];
     TURNS.forEach(([tz, th], i) => {
       const G = new T.Group();
@@ -13914,7 +13956,48 @@
     }));
     blks.forEach(([i, b, o]) => { const hit = i >= 0 && blks.find(([j, B, O]) => O !== o && j < i && drop.indexOf(O) < 0 && B.intersectsBox(b)); if (hit) drop.push(o); });
     drop.forEach((o) => { if (o.parent) o.parent.remove(o); });
-    window.__bend = { legs: legs.length, dropped: drop.length };
+    /* (v38) fill the empty lots: the corners and the land between the legs
+       open onto bare ground, so every 13 m cell a little way off the streets
+       that nothing stands on gets a building of its own */
+    let filled = 0;
+    if (fill) {
+      S.updateMatrixWorld(true);
+      const kept = [];
+      legs.forEach((g) => g.children.forEach((o) => {
+        if (legs.indexOf(o) >= 0 || keep.has(o)) return;
+        const b = new T.Box3().setFromObject(o);
+        if (!b.isEmpty() && b.max.y > 1.5 && b.max.x - b.min.x < 80 && b.max.z - b.min.z < 80) kept.push(b);
+      }));
+      const ZS = -64, ZE = 52;
+      const near = (wx, wz) => {
+        let m = 1e9, plaza = false;
+        for (let j = 0; j < legs.length; j++) {
+          v.set(wx, 0, wz).applyMatrix4(inv[j]);
+          const a = j === 0 ? ZS : TURNS[j - 1][0], b = j === TURNS.length ? ZE : TURNS[j][0];
+          if (j === TURNS.length && v.z > 46 && v.z < 150 && Math.abs(v.x) < 62) plaza = true;
+          const zc = Math.max(a, Math.min(b, v.z));
+          m = Math.min(m, Math.hypot(v.x - cityX(zc), v.z - zc));
+        }
+        return plaza ? -1 : m;
+      };
+      const bb = new T.Box3();
+      for (let gx = -130; gx <= 150 && filled < 40; gx += 13) {
+        for (let gz = -120; gz <= 150 && filled < 40; gz += 13) {
+          if (C.seaSide && gx > 6) continue;
+          const d = near(gx, gz);
+          if (d < 0 || d < 17 || d > 44) continue;
+          bb.min.set(gx - 6, 0, gz - 6); bb.max.set(gx + 6, 30, gz + 6);
+          if (kept.some((k) => k.intersectsBox(bb))) continue;
+          /* every corner of the lot must be off the streets too */
+          if ([[-6, -6], [6, -6], [-6, 6], [6, 6]].some(([ox, oz]) => { const dd = near(gx + ox, gz + oz); return dd >= 0 && dd < 14.5; })) continue;
+          const h = 9 + ((gx * 7 + gz * 13) & 15) + (d - 17) * 0.25;
+          fill(gx - 5.6, gx + 5.6, gz - 5.6, gz + 5.6, h);
+          kept.push(bb.clone());
+          filled++;
+        }
+      }
+    }
+    window.__bend = { legs: legs.length, dropped: drop.length, filled: filled };
   }
 
   function dressCity(ctx) {
@@ -14164,7 +14247,20 @@
       })(G);
     });
     if (TURNS.length) {
-      bendCity(S, TURNS, keep, C);
+      bendCity(S, TURNS, keep, C, (x0, x1, z0, z1, h) => {
+        const G = new T.Group(); G.userData.keepBend = 1; S.add(G);
+        if (C.hanok) {
+          /* old town lots get a tiled-roof house behind a stone wall */
+          const cx = (x0 + x1) / 2, cz = (z0 + z1) / 2, w = x1 - x0, d = z1 - z0;
+          bx(G, w, 1.6, d, cx, 1.1, cz, cmat(0xb7ad98, 0.95), { wall: 1 });
+          bx(G, w + 0.4, 0.3, d + 0.4, cx, 2.05, cz, cmat(0x3a3e44, 0.7));
+          bx(G, w - 3, 3.0, d - 3, cx, 1.8, cz, cmat(0xe8dfcc, 0.9), { wall: 1 });
+          bx(G, w - 0.8, 0.5, d - 1.2, cx, 3.5, cz, cmat(0x3a3e44, 0.7));
+          bx(G, w - 2.2, 0.6, (d - 1.2) * 0.45, cx, 4.0, cz, cmat(0x30343a, 0.7));
+          return;
+        }
+        makeBlock(G, x0, x1, z0, z1, h, { mat: facs[(R() * 3) | 0], k: (R() * 6) | 0 });
+      });
       S.updateMatrixWorld(true);
       const wp = new T.Vector3();
       barrels.forEach((b) => { b.mesh.getWorldPosition(wp); b.x = wp.x; b.z = wp.z; });
