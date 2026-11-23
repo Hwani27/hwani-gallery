@@ -305,6 +305,7 @@
   .mChip.done{border-color:rgba(201,184,113,.6);background:linear-gradient(180deg,rgba(72,84,48,.95),rgba(24,30,16,.95))}
   .mChip.next{border-color:#ffd54a;box-shadow:0 0 0 1px #ffd54a inset,0 4px 12px rgba(255,213,74,.18)}
   .mChip:active{transform:translateY(1px)}
+  .mChip.lock,.mCard.lock{opacity:.5;filter:grayscale(.7)}
   .mCard .tx .tg{display:flex;gap:4px;margin-top:5px;flex-wrap:wrap}
   .mCard .tx .tg i{font-style:normal;font:700 9px/1 ui-monospace,monospace;letter-spacing:.04em;color:#cfd8bd;
     border:1px solid rgba(207,216,189,.28);border-radius:999px;padding:3px 7px;background:rgba(255,255,255,.04)}
@@ -407,6 +408,17 @@
     return 0;
   }
 
+  /* (v53) a new soldier opens the missions in order: a mission is open when
+     the one before it has been cleared (or it is the first). Anyone who has
+     already cleared further keeps everything up to their next mission. Test
+     runs (navigator.webdriver) and ?unlock=1 open all. */
+  function unlocked(id) {
+    if (navigator.webdriver || /[?&]unlock=1/.test(location.search)) return true;
+    const i = STAGES.findIndex((x) => x.id === id);
+    if (i <= 0) return true;
+    const pv = D.best[STAGES[i - 1].id];
+    return !!(pv && pv.stars > 0) || !!(D.best[id] && D.best[id].stars > 0);
+  }
   function toast(t, ms) {
     let el = document.getElementById("mgToast");
     if (!el) { el = document.createElement("div"); el.id = "mgToast"; document.body.appendChild(el); }
@@ -559,12 +571,13 @@
     const starN = starsTotal();
     const chapNames = ko ? ["전체", "1장 남침", "2장 반격", "3장 북진"] : ["ALL", "CH.1", "CH.2", "CH.3"];
     const selHead = '<div class="mSelHead"><b>' + L.ops + '</b><span class="mStarN">★ ' + starN + "/" + STAGES.length * 3 + " · " + (ko ? "클리어 " : "CLEAR ") + clearedN + "/" + STAGES.length + '</span></div>' +
-      '<p class="mSelNote">' + (ko ? "모든 작전 자유 선택 · 스테이지마다 하늘과 거리가 다릅니다" : "Every mission is open · each one has its own sky and street") + "</p>";
+      '<p class="mSelNote">' + (ko ? "작전을 클리어하면 다음 작전이 열립니다 · 스테이지마다 하늘과 거리가 다릅니다" : "Clear a mission to open the next · each one has its own sky and street") + "</p>";
     const pick = '<div class="mPick">' + [0, 1, 2, 3].map((c) => '<button type="button" data-chap="' + c + '"' + (chapTab === c ? ' class="on"' : "") + ">" + chapNames[c] + "</button>").join("") + "</div>";
     const strip = '<div class="mStrip">' + STAGES.map((s) => {
       const b = D.best[s.id], st = b ? b.stars : 0, sc = SCEN[s.id] || {};
-      return '<button type="button" class="mChip' + (st ? " done" : "") + (s.id === goStage ? " next" : "") + '" data-stage="' + s.id + '" title="' + (ko ? s.ko : s.en) + '">' +
-        '<b>' + s.lab + '</b><i>' + (sc.ic || "★") + "</i><s>" + (st ? "★".repeat(st) : "·") + "</s></button>";
+      const lk = !unlocked(s.id);
+      return '<button type="button" class="mChip' + (st ? " done" : "") + (s.id === goStage ? " next" : "") + (lk ? " lock" : "") + '" data-stage="' + s.id + '" title="' + (ko ? s.ko : s.en) + '">' +
+        '<b>' + s.lab + '</b><i>' + (lk ? "🔒" : (sc.ic || "★")) + "</i><s>" + (st ? "★".repeat(st) : "·") + "</s></button>";
     }).join("") + "</div>";
     const shown = chapTab ? STAGES.filter((s) => s.ch === chapTab) : STAGES;
     let lastCh = 0;
@@ -575,8 +588,9 @@
       const sc = SCEN[s.id] || { ic: "★", ko: [], en: [] };
       const stars = b ? "★".repeat(b.stars) + "☆".repeat(3 - b.stars) : "☆☆☆";
       const tags = (ko ? sc.ko : sc.en).map((t) => "<i>" + t + "</i>").join("");
-      return head + '<button class="mCard' + (b && b.stars ? " clear" : "") + '" id="' + (s.id === 1 ? "mgStart" : "mgStart" + s.id) + '" type="button" data-stage="' + s.id + '" style="--c:' + s.c + '">' +
-        '<span class="no">' + s.lab + '</span><span class="tx"><b>' + sc.ic + " " + (ko ? s.ko : s.en) + (s.id === goStage ? '<u class="reco">' + (ko ? "이어서" : "NEXT") + "</u>" : "") + "</b><small>" + (ko ? s.sub : s.subEn) + " · BOSS " + (ko ? s.boss : s.bossEn) + '</small><span class="tg">' + tags + "</span></span>" +
+      const lk = !unlocked(s.id);
+      return head + '<button class="mCard' + (b && b.stars ? " clear" : "") + (lk ? " lock" : "") + '" id="' + (s.id === 1 ? "mgStart" : "mgStart" + s.id) + '" type="button" data-stage="' + s.id + '" style="--c:' + s.c + '">' +
+        '<span class="no">' + s.lab + '</span><span class="tx"><b>' + (lk ? "🔒" : sc.ic) + " " + (ko ? s.ko : s.en) + (s.id === goStage ? '<u class="reco">' + (ko ? "이어서" : "NEXT") + "</u>" : "") + "</b><small>" + (ko ? s.sub : s.subEn) + " · BOSS " + (ko ? s.boss : s.bossEn) + '</small><span class="tg">' + (lk ? "<i>" + (ko ? "이전 작전 클리어 시 개방" : "Clear the previous mission") + "</i>" : tags) + "</span></span>" +
         '<span class="rc"><i' + (b ? "" : ' class="n"') + ">" + stars + "</i><em>" + (b ? L.best + " " + b.score.toLocaleString() : L.none) + "</em></span></button>";
     }).join("");
     wrap.innerHTML =
@@ -621,7 +635,14 @@
       const note = wrap.querySelector(".mNote");
       if (note) note.textContent = D.mode === "practice" ? L.notePr : L.noteOp;
     }));
-    const go = (n) => { if (window.MG && window.MG.play) window.MG.play(n); };
+    const go = (n) => {
+      if (!unlocked(n)) {
+        const i = STAGES.findIndex((x) => x.id === n), pv = STAGES[i - 1];
+        toast(ko ? "🔒 " + pv.lab + " " + pv.ko + " 작전을 먼저 클리어하세요" : "🔒 Clear " + pv.lab + " " + pv.en + " first", 2200);
+        return;
+      }
+      if (window.MG && window.MG.play) window.MG.play(n);
+    };
     wrap.querySelectorAll(".mCard").forEach((b) => b.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); go(+b.getAttribute("data-stage") || 1); }));
     wrap.querySelectorAll(".mChip").forEach((b) => b.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); go(+b.getAttribute("data-stage") || 1); }));
     wrap.querySelectorAll(".mPick button").forEach((b) => b.addEventListener("click", (e) => {

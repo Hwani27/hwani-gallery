@@ -174,6 +174,9 @@
         font:900 13px/22px ui-monospace,monospace;text-align:center;box-shadow:0 2px 6px rgba(0,0,0,.5);border:2px solid #1b1406}
       #railNade.empty{filter:grayscale(1) brightness(.6)}
       #railNade.empty .cnt{background:#777}
+      #railReload.noRl{opacity:.5;filter:grayscale(.8)}
+      #railReload.full{animation:railNo .32s}
+      @keyframes railNo{25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
       #railReload.busy svg{animation:railSpin .44s linear infinite}
       #railReload.low{border-color:#ff6a4a;box-shadow:0 0 0 3px rgba(255,90,60,.35),0 6px 18px rgba(0,0,0,.45)}
       @keyframes railSpin{to{transform:rotate(360deg)}}
@@ -212,6 +215,12 @@
       #railPauseMenu button{min-height:52px;border-radius:14px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.07);color:#fff;font-family:inherit;font-weight:800;font-size:16px;line-height:1;cursor:pointer;touch-action:manipulation}
       #railPauseMenu button.primary{background:linear-gradient(180deg,#56682f,#2c3820);border:2px solid #c9b871}
       #railPauseMenu .row{display:flex;gap:8px}#railPauseMenu .row button{flex:1;min-height:52px}
+      #mgBark{position:fixed;left:12px;top:calc(env(safe-area-inset-top) + 74px);z-index:43;display:flex;align-items:center;gap:8px;max-width:min(76vw,420px);padding:6px 12px 6px 6px;border-radius:14px;background:rgba(8,12,8,.78);border:1px solid rgba(255,255,255,.14);color:#fff;font-family:Pretendard,system-ui,sans-serif;pointer-events:none;opacity:0;transform:translateX(-12px);transition:opacity .25s,transform .25s}
+      #mgBark.on{opacity:1;transform:none}
+      #mgBark img,#mgBark .rd{flex:none;width:40px;height:48px;border-radius:9px;object-fit:cover;background:linear-gradient(180deg,#3a4a32,#1c2418);border:1.5px solid var(--c,#c9b871)}
+      #mgBark b{display:block;font-size:11px;font-weight:900;color:var(--c,#c9b871)}
+      #mgBark span{display:block;font-size:13.5px;font-weight:700;line-height:1.35;word-break:keep-all}
+      body.mgStoryOn #mgBark{display:none}
       #mgStory{position:fixed;inset:0;z-index:55;font-family:Pretendard,system-ui,sans-serif;color:#fff;-webkit-user-select:none;user-select:none;touch-action:manipulation;cursor:pointer;transition:opacity .45s}
       #mgStory.out{opacity:0}
       #mgStory .sBar{position:absolute;left:0;right:0;height:9vh;background:#000;transition:transform .6s ease}
@@ -3306,17 +3315,7 @@
           const g = kenneyPerson(sp.role || "ally", { uni: sp.uni, skin: sp.skin });
           if (!g) return null;
           const head = g.userData.kHead;
-          const B = (w, h, d, x, y, z, col) => { const b = new T.Mesh(new T.BoxGeometry(w, h, d), kKit(col, 0.5)); b.position.set(x, y, z); head.add(b); return b; };
-          if (head && sp.acc === "glasses") {
-            [-1, 1].forEach((s) => { B(2.6, 0.35, 0.3, s * 1.9, 4.75, 4.25, "#151515"); B(2.6, 0.35, 0.3, s * 1.9, 2.95, 4.25, "#151515"); B(0.35, 2.15, 0.3, s * 0.75, 3.85, 4.25, "#151515"); B(0.35, 2.15, 0.3, s * 3.05, 3.85, 4.25, "#151515"); });
-            B(1.2, 0.3, 0.3, 0, 4.4, 4.25, "#151515");
-          } else if (head && sp.acc === "goggles") {
-            B(9.9, 0.9, 0.5, 0, 10.4, 4.95, "#262622"); [-1, 1].forEach((s) => B(2.6, 1.5, 0.6, s * 1.8, 10.4, 5.1, "#6a7a6a"));
-          } else if (head && sp.acc === "rank") {
-            B(1.1, 1.1, 0.3, 0, 9.6, 5.25, "#d8d8d8");
-          } else if (head && sp.acc === "scarf") {
-            B(9.0, 1.4, 9.0, 0, -0.5, 0, "#b84a3a");
-          }
+          kAcc(g, sp.acc);
           g.rotation.y = sp.flip ? 0.3 : -0.3;
           /* every role to the same height, so a colonel's portrait is not a
              close-up of his collar */
@@ -3338,6 +3337,33 @@
   const K_H = { weak: 2.3, throw: 2.3, para: 2.3, tough: 2.74, hostage: 2.27, ally: 1.88, boss: 2.85 };
   /* the player's own uniforms (bought in the depot) and their helmets */
   const UNI_HELM = { "u-army": "#4f5538", "u-marine": "#5a5038", "u-sf": "#1e1f1f", "u-desert": "#a8916a", "u-snow": "#dfe3e5", "u-reserve": "#4e5a34", "u-guard": "#eeebe2" };
+  /* (v50/v53) the squad's tell-apart props, on the block head (head units:
+     8 wide, face at z≈4): Kang's rank badge, Park's goggles, Kim's glasses */
+  function kAcc(g, acc) {
+    const head = g && g.userData.kHead;
+    if (!head || !acc) return g;
+    const B = (w, h, d, x, y, z, col) => { const b = new T.Mesh(new T.BoxGeometry(w, h, d), kKit(col, 0.5)); b.position.set(x, y, z); head.add(b); return b; };
+    if (acc === "glasses") {
+      [-1, 1].forEach((s) => { B(2.6, 0.35, 0.3, s * 1.9, 4.75, 4.25, "#151515"); B(2.6, 0.35, 0.3, s * 1.9, 2.95, 4.25, "#151515"); B(0.35, 2.15, 0.3, s * 0.75, 3.85, 4.25, "#151515"); B(0.35, 2.15, 0.3, s * 3.05, 3.85, 4.25, "#151515"); });
+      B(1.2, 0.3, 0.3, 0, 4.4, 4.25, "#151515");
+    } else if (acc === "goggles") {
+      B(9.9, 0.9, 0.5, 0, 10.4, 4.95, "#262622"); [-1, 1].forEach((s) => B(2.6, 1.5, 0.6, s * 1.8, 10.4, 5.1, "#6a7a6a"));
+    } else if (acc === "rank") {
+      B(1.1, 1.1, 0.3, 0, 9.6, 5.25, "#d8d8d8");
+    } else if (acc === "scarf") {
+      B(9.0, 1.4, 9.0, 0, -0.5, 0, "#b84a3a");
+    }
+    g.userData.acc = acc;
+    return g;
+  }
+  /* a named squad member: kang / park / kim */
+  const SQUAD = { kang: { skin: "rok", acc: "rank" }, park: { uni: "u-army", acc: "goggles" }, kim: { uni: "u-army", acc: "glasses" } };
+  function squadPerson(who) {
+    const s = SQUAD[who] || SQUAD.park;
+    const g = kenneyPerson("ally", { uni: s.uni, skin: s.skin });
+    if (g) { kAcc(g, s.acc); g.userData.squad = who; }
+    return g;
+  }
   function kenneyPerson(role, opt) {
     if (!KCH.ready) return null;
     makeSol();
@@ -3720,7 +3746,7 @@
      hip and shoulder joints. Tan uniform, plate carrier, helmet with an ally
      patch, a white/blue armband, and the same detailed rifle the enemy carries. */
   function makeAlly() {
-    { const kp = kenneyPerson("ally"); if (kp) return kp; }
+    { const kp = squadPerson("park"); if (kp) return kp; }
     makeSol();
     const g = new T.Group();
     const b = new T.Group();
@@ -6666,7 +6692,7 @@
       id: 8, refugees: true, music: "retreat", label: "STAGE 1-3", clock: 380, path: cityPath(), boss: cityBoss(),
       waves: genWaves(808, ["DONGSEONG-RO", "STADIUM", "PALGONG"], [
         "대구 방어선이다! 한 발짝도 물러서지 마라!", "적 오토바이 돌격조!", "적 헬기가 고가도로 위로 넘어온다!",
-        "피난민 사이에 숨은 적, 오사 주의!", "적 박격포 진지 발견!", "적 헬기 재접근! 경기장 쪽!", "적 공수 강하! 마지막 블록을 지켜라!"], { bikes: true, hostage: true }),
+        "피난민 사이에 숨은 적! 적 헬기도 재접근!", "적 박격포 진지 발견!", "고가도로 아래 적 매복!", "적 공수 강하! 마지막 블록을 지켜라!"], { bikes: true, hostage: true, heliWaves: [2, 3] }),
       dress: "citygen", bossKind: "apc", bossHp: 70, armorWave: 4, armorTank: false, armorHp: 14,
       city: {
         seed: 8, mood: "dusk", cherry: true, tints: [0xeadcc8, 0xf0e0c0, 0xc8b8a8], sign: [12.4, -44, "대구광역시", "DAEGU", -Math.PI / 2, "#2f8a4a"],
@@ -8544,6 +8570,7 @@
     box.innerHTML = '<div class="pc"><p class="k">' + (STAGE.label || "") + " · " + (STAGE.city ? "" : "") + (ko ? "작전 일시정지" : "PAUSED") + "</p><h2>" + (ko ? "일시정지" : "PAUSED") + "</h2>" +
       '<button class="primary" data-a="resume" type="button">▶ ' + (ko ? "계속하기" : "RESUME") + "</button>" +
       '<button data-a="restart" type="button">↻ ' + (ko ? "처음부터 다시" : "RESTART") + "</button>" +
+      (window.MGStory && window.MGStory.eps && window.MGStory.eps[stageId] ? '<button data-a="story" type="button">📖 ' + (ko ? "스토리 다시 보기" : "REPLAY STORY") + "</button>" : "") +
       '<button data-a="title" type="button">⌂ ' + (ko ? "메뉴로 돌아가기" : "MAIN MENU") + "</button>" +
       '<div class="row"><button data-a="sound" type="button">' + (muted() ? "🔇 " + (ko ? "소리 켜기" : "SOUND ON") : "🔊 " + (ko ? "소리 끄기" : "SOUND OFF")) + "</button>" +
       '<button data-a="gfx" type="button">🖥 ' + (ko ? "그래픽: " : "GFX: ") + ((window.MGPost && window.MGPost.quality) || "auto") + "</button></div>" +
@@ -8564,6 +8591,7 @@
       e.preventDefault(); e.stopPropagation();
       const a = b.getAttribute("data-a");
       if (a === "resume") resume();
+      else if (a === "story") { resume(); try { storyStart(true); } catch (err) {} }
       else if (a === "restart") { box.remove(); pauseOpen = false; try { window.MG && window.MG.playStage(stageId); } catch (err) {} }
       else if (a === "title") { box.remove(); pauseOpen = false; try { window.MG && window.MG.toTitle(); } catch (err) {} }
       else if (a === "sound") { const sb = document.getElementById("mgSound"); if (sb) sb.click(); setTimeout(() => { b.textContent = muted() ? "🔇 " + (ko ? "소리 켜기" : "SOUND ON") : "🔊 " + (ko ? "소리 끄기" : "SOUND OFF"); try { window.GunSFX && window.GunSFX.bgm(false); } catch (err) {} }, 50); }
@@ -8606,9 +8634,12 @@
       if (flashLight) flashLight.position.z = weaponRig.flashZ.l + dz;
     }
     window.__weapon = { w: weapon, ammo: wAmmo, nades: grenades };
+    const rbt = document.getElementById("railReload");
+    if (rbt) rbt.classList.toggle("noRl", weapon !== "pistol");
   }
 
   function resetNumbers(ctx) {
+    try { allyRides.forEach((r) => r.g.parent && r.g.parent.remove(r.g)); allyRides.length = 0; } catch (e) {}
     readProfile();
     armor = 0;
     slowmo = 0; slowK = 1; finishing = false; finishNow = false; invulT = 0; pauseOpen = false;
@@ -8948,6 +8979,7 @@
   }
 
   function pause() {
+    try { STORY.lastStage = 0; storyEnd(true); } catch (e) {}
     try { window.GunSFX && window.GunSFX.stopLoops && window.GunSFX.stopLoops(); } catch (e) {}
     closeSupplyAd();
     active = false;
@@ -9146,6 +9178,7 @@
     wave = w;
     waveT = w.def.time || 24;
     waveClean = true;
+    try { if ((w.staged || []).some((p) => p && p.air === "heli")) bark("heli", 1800); else if (Math.random() < 0.55) bark("wave", 2200); } catch (e) {}
     curHold = { x: w.hold.x, z: w.hold.z };
     curLook = { x: w.look.x, y: w.look.y, z: w.look.z };
     pathU = w.u;
@@ -9362,6 +9395,7 @@
     phase = "boss";
     setCombatTone(true);
     bossSpawned = true;
+    bark("boss", 2600);
     waveT = 40;
     waveClean = true;
     curHold = { x: bossHold.x, z: bossHold.z };
@@ -9538,6 +9572,8 @@
     if (TUT.on && TUT.step <= 2) dd = Math.max(1, Math.round(dd * 0.35));   // softened while learning
     if (armor > 0) { const a = Math.min(armor, Math.ceil(dd * 0.7)); armor -= a; dd -= a; }
     hp -= dd;
+    if (hp > 0 && hp < HPMAX * 0.35 && !barkHurt) { barkHurt = true; bark("hurt", 300); }
+    if (hp >= HPMAX * 0.6) barkHurt = false;
     try { window.MGPost && window.MGPost.hurt && window.MGPost.hurt(Math.min(1, 0.35 + dmg / 30)); } catch (e) {}
     shake = 0.7;
     flashScreen(0.6, "radial-gradient(circle at 50% 50%,rgba(255,90,70,.75),rgba(180,20,20,.35) 60%,rgba(120,0,0,0) 85%)");
@@ -9577,8 +9613,37 @@
     const wheel = new T.Mesh(new T.TorusGeometry(0.2, 0.026, 6, 18), black);
     wheel.position.set(-0.98, -0.78, -0.95); wheel.rotation.x = -0.45; g.add(wheel);
     g.userData.wheel = wheel;
+    /* (v53) the cabin round the lens: a portrait screen looks steeply down
+       and used to see the road through a jeep that ended at the windscreen —
+       dashboard, floor pan, tubs, seats and the rear bed now close it in */
+    const seatM = M(0x2c2a24, 0.9);
+    B(1.92, 0.34, 0.22, -0.45, -1.12, -1.2, oliveD);                 /* dashboard */
+    B(1.92, 0.06, 3.4, -0.45, -1.62, 0.35, oliveD);                  /* floor pan */
+    [-1.43, 0.53].forEach((x) => {
+      B(0.08, 0.5, 3.0, x, -1.32, 0.3, olive);                       /* tub sides */
+      B(0.12, 0.06, 3.0, x, -1.06, 0.3, oliveD);                     /* rolled lip */
+    });
+    B(0.6, 0.12, 0.6, -0.98, -1.3, -0.15, seatM); B(0.6, 0.6, 0.12, -0.98, -1.02, 0.18, seatM);   /* seats */
+    B(0.6, 0.12, 0.6, 0.08, -1.3, -0.15, seatM); B(0.6, 0.6, 0.12, 0.08, -1.02, 0.18, seatM);
+    B(1.92, 0.1, 1.2, -0.45, -1.2, 1.3, olive);                      /* rear bed */
+    B(0.2, 0.32, 0.32, 0.3, -1.05, 1.1, M(0x4a5a2e, 0.8));            /* jerrycan */
+    B(0.12, 0.9, 0.12, -1.2, -0.75, 1.5, black);                     /* aerial mast */
+    /* Kim drives (left seat), as in the briefing */
+    g.userData.driverSlot = { x: -0.98, y: -1.62, z: -0.2 };
     g.visible = false;
     return g;
+  }
+  /* seat a squad member in a vehicle group (local coords), facing -z */
+  function seatSquad(g, who, x, y, z, pose) {
+    const m = squadPerson(who);
+    if (!m) return null;
+    m.position.set(x, y, z);
+    m.rotation.y = Math.PI;   /* rotation 0 faces +z; the rig looks down -z */
+    const u = m.userData;
+    if (pose === "drive" && u.kN) kApply(u, "drive", 0, K_BODY, 1);
+    if (u.rifle) u.rifle.visible = pose !== "drive";
+    g.add(m);
+    return m;
   }
   /* (v21) the Incheon landing craft: steel sides, a bow ramp, ribs and a
      bow gun, seen from the troop well */
@@ -9628,6 +9693,80 @@
     if (big) gun("boom");
   }
 
+  /* (v53) the squad rides with you: a second jeep (Kang at the wheel, Park
+     on the pintle) runs beside yours on the border road, and two more
+     landing craft (Kang and Park up front with riflemen) go in with yours at
+     Incheon. World-space groups that follow the rail at a fixed lead/lateral
+     offset; on the beach / at the dismount they stop where they are. */
+  function makeAllyJeep() {
+    const g = new T.Group();
+    const M = (c, r) => cmat(c, r || 0.85, 0);
+    const olive = M(0x56603a), oliveD = M(0x3a4226, 0.9), black = M(0x161616, 0.7), lamp = new T.MeshBasicMaterial({ color: 0xfff2c8 });
+    const B = (w, h, d, x, y, z, m) => { const o = new T.Mesh(worldUV(new T.BoxGeometry(w, h, d)), m); o.position.set(x, y, z); o.castShadow = true; g.add(o); return o; };
+    B(1.8, 0.55, 3.6, 0, 0.75, 0, olive);
+    B(1.7, 0.25, 1.3, 0, 1.1, 1.15, olive);
+    B(1.8, 0.06, 0.06, 0, 1.55, 0.45, black); [-0.86, 0.86].forEach((x) => B(0.06, 0.5, 0.06, x, 1.3, 0.45, black));
+    [[-0.92, 1.2], [0.92, 1.2], [-0.92, -1.2], [0.92, -1.2]].forEach((q) => { const w = B(0.3, 0.72, 0.72, q[0], 0.36, q[1], black); g.userData.wheels = (g.userData.wheels || []).concat(w); });
+    [-0.55, 0.55].forEach((x) => B(0.24, 0.18, 0.06, x, 0.95, 1.82, lamp));
+    B(1.82, 0.12, 0.6, 0, 1.0, -1.5, oliveD);
+    B(0.1, 0.9, 0.1, 0.0, 1.5, -0.9, black); B(0.12, 0.12, 0.9, 0, 1.95, -0.6, black);   /* pintle MG */
+    g.userData.ally = 1;
+    return g;
+  }
+  function makeAllyCraft() {
+    const g = new T.Group();
+    const M = (c, r) => cmat(c, r || 0.65, 0.3);
+    const hull = M(0x6a7076), hullD = M(0x4a5056), white = M(0xe8ece8, 0.5);
+    const B = (w, h, d, x, y, z, m) => { const o = new T.Mesh(worldUV(new T.BoxGeometry(w, h, d)), m); o.position.set(x, y, z); o.castShadow = true; g.add(o); return o; };
+    [-1, 1].forEach((sd) => B(0.16, 1.1, 5.2, sd * 1.4, 0.35, 0, hull));
+    B(2.96, 1.2, 0.16, 0, 0.4, 2.6, hull);
+    B(2.9, 0.1, 5.2, 0, -0.15, 0, hullD);
+    B(2.96, 0.9, 0.16, 0, 0.3, -2.6, hull);
+    B(1.0, 0.9, 0.8, 0.8, 1.2, -2.1, hullD);
+    g.userData.wake = B(3.4, 0.04, 2.0, 0, -0.18, -3.6, white);
+    g.userData.ally = 1;
+    return g;
+  }
+  const allyRides = [];
+  function addAllyRides(ctx, boat) {
+    allyRides.forEach((r) => r.g.parent && r.g.parent.remove(r.g));
+    allyRides.length = 0;
+    if (!KCH.ready) return;
+    const put = (g, lead, lat, crew) => {
+      crew.forEach((c) => { const m = c[0] === "rifle" ? kenneyPerson("ally", { uni: "u-army" }) : squadPerson(c[0]); if (m) { m.position.set(c[1], c[2], c[3]); m.rotation.y = 0; if (c[4] === "drive" && m.userData.kN) kApply(m.userData, "drive", 0, K_BODY, 1); if (c[4] === "drive" && m.userData.rifle) m.userData.rifle.visible = false; g.add(m); } });
+      ctx.scene.add(g);
+      allyRides.push({ g: g, lead: lead, lat: lat, ph: Math.random() * 6, boat: boat, stop: false });
+    };
+    if (boat) {
+      /* in the lane ahead (enemy boats come down the flanks at |lat| > 3.5),
+         so they are in frame on a portrait phone too */
+      put(makeAllyCraft(), 12, 1.0, [["kang", -0.5, -0.1, 1.6], ["rifle", 0.5, -0.1, 1.4], ["rifle", -0.4, -0.1, 0.4], ["rifle", 0.5, -0.1, 0.2]]);
+      put(makeAllyCraft(), 21, -1.4, [["park", 0.4, -0.1, 1.6], ["rifle", -0.5, -0.1, 1.4], ["rifle", 0.3, -0.1, 0.3]]);
+    } else {
+      put(makeAllyJeep(), 11, 1.0, [["kang", -0.45, 0.55, 0.0, "drive"], ["park", 0.0, 0.75, -0.9]]);
+    }
+    window.__allyRides = allyRides.length;
+  }
+  function stepAllyRides(ctx, dt) {
+    if (!allyRides.length || !curve) return;
+    const t = performance.now() / 1000;
+    allyRides.forEach((r) => {
+      if (r.stop) return;
+      const lead = r.lead + Math.sin(t * 0.4 + r.ph) * 1.2;
+      const u = Math.max(0, Math.min(1, pathU + lead / pathLen));
+      const pt = pathAt(u), tg = curve.getTangentAt(u);
+      const tl = Math.hypot(tg.x, tg.z) || 1, tx = tg.x / tl, tz = tg.z / tl;
+      let x = pt.x + tz * r.lat, z = pt.z - tx * r.lat;
+      if (r.boat && z > -72) { r.stop = true; return; }
+      r.g.position.set(x, r.boat ? 0.12 + Math.sin(t * 1.6 + r.ph) * 0.08 : 0, z);
+      r.g.rotation.y = Math.atan2(tx, tz);
+      r.g.rotation.z = r.boat ? Math.sin(t * 1.2 + r.ph) * 0.03 : Math.sin(t * 9 + r.ph) * 0.006;
+      (r.g.userData.wheels || []).forEach((w) => { w.rotation.x += dt * 14; });
+      if (Math.random() < (r.boat ? 0.5 : 0.25)) smokeAt(ctx, x - tx * (r.boat ? 3 : 2), r.boat ? 0.15 : 0.35, z - tz * (r.boat ? 3 : 2), r.boat ? 0xf2f6fa : 0x9a8c74);
+    });
+  }
+  window.__allyRidesAt = () => allyRides.map((r) => [+r.g.position.x.toFixed(1), +r.g.position.z.toFixed(1), r.stop]);
+
   function startChase(ctx) {
     const boat = STAGE.chase === "boat";
     if (boat) {
@@ -9638,7 +9777,11 @@
       if (!jeepRig) { jeepRig = makeJeepRig(); ctx.camera.add(jeepRig); }
       jeepRig.visible = true;
       if (boatRig) boatRig.visible = false;
+      if (!jeepRig.userData.kim && KCH.ready) { const d = jeepRig.userData.driverSlot; jeepRig.userData.kim = seatSquad(jeepRig, "kim", d.x, d.y, d.z, "drive"); }
     }
+    if (boat && boatRig && !boatRig.userData.kim && KCH.ready) boatRig.userData.kim = seatSquad(boatRig, "kim", -1.0, -1.5, -3.15, "stand");
+    try { addAllyRides(ctx, boat); } catch (e) { window.__allyRideErr = String(e); }
+    bark(boat ? "chaseBoat" : "chaseJeep", 4200);
     chase = { t: 0, i: 0, plan: [1.4, 3.0, 5.2, 7.0, 9.2, 11.4, 13.0, 15.2], riders: [], boat: boat, fx: [], sink: [], splashT: 0.6 };
     if (boat) {
       if (dress && dress.ally) dress.ally.visible = false;
@@ -9688,6 +9831,7 @@
   function stepChase(ctx, dt) {
     if (!chase) return;
     chase.t += dt;
+    stepAllyRides(ctx, dt);
     if (chase.boat && ctx.camera.position.z > -69) { endChase(ctx); return; }
     while (chase.i < chase.plan.length && chase.t >= chase.plan[chase.i]) {
       const k = chase.i++;
@@ -9789,6 +9933,7 @@
     const down = chase.riders.filter((p) => p.e.alive === false && !p.escaped && p.mesh && p.mesh.parent).length;
     const wasBoat = chase.boat;
     chase.fx.forEach((m) => m.parent && m.parent.remove(m));
+    allyRides.forEach((r) => { r.stop = true; });
     chase = null;
     if (jeepRig) jeepRig.visible = false;
     if (boatRig) boatRig.visible = false;
@@ -11880,10 +12025,21 @@
       const d = Math.hypot(p.x - a.position.x, p.z - a.position.z);
       if (d < bd) { bd = d; best = p; }
     });
-    if (best) {
-      a.rotation.y = Math.atan2(best.x - a.position.x, best.z - a.position.z);
-    } else if (speed > 0.2) {
-      a.rotation.y = Math.atan2(a.position.x - px, a.position.z - pz);
+    /* (v53) he used to snap to his direction of travel, and since his anchor
+       follows the camera's look, a turn of the view walked him backwards for
+       a frame and he spun round and back. Now he faces the enemy, else the
+       way the squad is heading (forward travel only), and turns smoothly. */
+    let want = null;
+    if (best) want = Math.atan2(best.x - a.position.x, best.z - a.position.z);
+    else {
+      const mx = a.position.x - px, mz = a.position.z - pz;
+      if (speed > 0.6 && mx * fwd.x + mz * fwd.z > 0.6 * Math.hypot(mx, mz)) want = Math.atan2(mx, mz);
+      else want = Math.atan2(fwd.x, fwd.z);
+    }
+    {
+      let d = want - a.rotation.y;
+      d = Math.atan2(Math.sin(d), Math.cos(d));
+      a.rotation.y += d * Math.min(1, dt * 6);
     }
 
     /* walk cycle driven by the distance actually covered, so his boots never
@@ -12020,6 +12176,7 @@
     if (slowmo > 0) { slowmo = Math.max(0, slowmo - dt); dt *= slowK; }
     if (invulT > 0) { invulT -= dt; if (invulT <= 0) { const sh = document.getElementById("railShield"); if (sh) sh.remove(); } }
     if (STORY.on && frame._t) t0 += nowMs - frame._t;
+    if (STORY.on && phase !== "intro") { frame._t = nowMs; return; }   /* replayed mid-mission: hold the fight */
     frame._t = nowMs;
     glbStep(dt);
     if (!TUT.checked && !STORY.on) { TUT.checked = true; tutStart(); }
@@ -12580,7 +12737,9 @@
     const S = window.MGStory, ep = S && S.eps && S.eps[stageId];
     STORY.skipRadio = false;
     if (!ep || practice) return false;
-    if (!force && (storySeen(stageId) || STORY.lastStage === stageId)) return false;
+    /* (v53) every time a mission is started from the menu; only an
+       immediate restart / retry of the same mission skips it */
+    if (!force && STORY.lastStage === stageId) return false;
     STORY.lastStage = stageId;
     const ko = (document.documentElement.lang || "").startsWith("ko");
     STORY.ko = ko; STORY.ep = ep; STORY.i = -1; STORY.on = true; STORY.skipRadio = true;
@@ -12661,8 +12820,45 @@
     storyMark(stageId);
     const el = STORY.el; STORY.el = null;
     document.body.classList.remove("mgStoryOn");
-    introT0 = performance.now();
+    if (phase === "intro") introT0 = performance.now();
+    frame._t = performance.now();
     if (el) { if (quiet) el.remove(); else { el.classList.add("out"); setTimeout(() => el.remove(), 480); } }
+  }
+  /* (v53) squad chatter in the fight: a small portrait card under the
+     score, so the briefing's people are still beside you once it starts */
+  const BARKS = {
+    wave: [["kim", "적 발견! 엄호 사격 들어갑니다!", "Contact! Covering fire!"], ["park", "왼쪽은 내가 맡는다!", "I've got the left!"], ["kang", "침착하게, 하나씩 정리해!", "Steady. One at a time."],
+      ["kim", "탄창 확인! …좋아요, 갑니다!", "Mag check! …Good, moving!"], ["park", "고개 숙여! 저격수 있다!", "Heads down! Sniper!"], ["kang", "좋아, 그 기세로 밀어붙여!", "Good — keep pushing!"],
+      ["park", "막내, 내 뒤에 붙어!", "Kid, stay on my six!"], ["kim", "병장님, 오른쪽 건물 2층!", "Sergeant — second floor, right!"]],
+    heli: [["park", "헬기다! 꼬리 날개를 노려!", "Gunship! Go for the tail rotor!"], ["kim", "하, 하늘에서 쏩니다!", "Th-they're shooting from the sky!"]],
+    boss: [["kang", "적 지휘부다! 전원 집중 사격!", "That's their command! Everyone, focus fire!"], ["park", "큰 놈 나왔다. 수류탄 아끼지 마!", "Here's the big one. Don't save your grenades!"]],
+    hurt: [["kang", "부상당했나? 엄호한다, 버텨!", "Are you hit? I'll cover you — hang on!"], ["kim", "괜찮으세요?! 제가 막을게요!", "Are you okay?! I'll hold them!"]],
+    chaseJeep: [["kim", "꽉 잡으세요! 밟습니다!", "Hold on! Flooring it!"]],
+    chaseBoat: [["kim", "우욱… 해안까지 얼마나 남았죠…", "Urgh… how far to the beach…"]]
+  };
+  let barkT = 0, barkHide = 0, barkHurt = false;
+  function bark(kind, delay) {
+    if (practice || STORY.on) return;
+    const pool = BARKS[kind];
+    if (!pool || !pool.length) return;
+    const now = performance.now();
+    if (kind === "wave" && now - barkT < 9000) return;
+    const ln = pool[(Math.random() * pool.length) | 0];
+    setTimeout(() => {
+      if (!active || ended || STORY.on) return;
+      const S = window.MGStory, c = (S && S.cast[ln[0]]) || {};
+      const ko = (document.documentElement.lang || "").startsWith("ko");
+      let el = document.getElementById("mgBark");
+      if (!el) { el = document.createElement("div"); el.id = "mgBark"; document.body.appendChild(el); }
+      const src = storyArt(c);
+      el.style.setProperty("--c", c.col || "#c9b871");
+      el.innerHTML = (src ? '<img alt="" src="' + src + '">' : '<span class="rd"></span>') + "<div><b>" + (ko ? c.ko : c.en) + "</b><span>" + (ko ? ln[1] : ln[2]) + "</span></div>";
+      requestAnimationFrame(() => el.classList.add("on"));
+      barkT = performance.now();
+      clearTimeout(barkHide);
+      barkHide = setTimeout(() => el.classList.remove("on"), 2800);
+      window.__barks = (window.__barks || 0) + 1;
+    }, delay || 0);
   }
   window.__storyStart = () => storyStart(true);
   window.__storyNext = () => storyNext();
@@ -14517,7 +14713,7 @@
         members.push({ role: "weak", lat: side * 5.6, dep: 11.6, cover: "crate", bike: true, run: { from: [x + side * 3.0, z + 34], dur: 3.8, delay: 1.0 } });
       }
       if (o.hostage && i === 3) members.push({ role: "hostage", lat: 0.8, dep: 10.4 });
-      if (o.heli !== false && (i === 2 || i === 5)) members.push({ air: "heli", lat: (R() - 0.5) * 3, dep: 22, y: 9.8, orbit: 6 });
+      if (o.heli !== false && (o.heliWaves || [2, 5]).indexOf(i) >= 0) members.push({ air: "heli", lat: (R() - 0.5) * 3, dep: 22, y: 9.8, orbit: 6 });
       if (i === 6 || (o.paras && i === 4)) {
         [-3.6, 1.2, 4.8].forEach((pl) => members.push({ air: "para", role: "para", lat: pl, dep: 13 + R() * 2, y: 8 + R(), land: [pl * 0.9, 10.5 + R()] }));
       }
@@ -15942,7 +16138,7 @@
     const u = p.mesh.userData;
     if (p.e.alive === false) {
       /* shot down: the tail comes round, smoke pours, then it hits the dirt */
-      p.fallV -= 9.2 * dt;
+      p.fallV -= (p.crashMonu ? 9.2 : 19) * dt; /* (v53) quicker fall: the wave waits on the wreck */
       p.y += p.fallV * dt;
       if (MONU && !MONU.broken && p.crashMonu === undefined) {
         p.crashMonu = Math.hypot(p.x - MONU.x, p.z - MONU.z) < 48 && STAGE.dress === "pyongyang";
@@ -17006,7 +17202,7 @@
     if (p.e.hp > 0) { gun(dmg >= 3 ? "crit" : "hit"); return; }
     if (p.air === "heli") {
       p.e.alive = false;
-      p.fallV = -0.4;
+      p.fallV = -2.6;
       p.smokeT = 0;
       hitStop = Math.max(hitStop, 0.12);
       flashScreen(0.5);
@@ -17164,8 +17360,27 @@
     adState: () => ({ reviveUsed: adReviveUsed, supplyUsed: adSupplyUsed, resumePhase, endedAt, alive: !ended, mode: (window.MGAds && window.MGAds.mode) || "none" }),
     pickupSpots: () => pickups.filter((p) => !p.taken && p.mesh).map((p) => ({ kind: p.kind, x: p.mesh.position.x, y: p.mesh.position.y, z: p.mesh.position.z })),
     giveWeapon: (w) => { if (w === "grenade") grenades += 2; else setWeapon(w); },
+    ammo: () => ({ bullets: bullets, clipMax: clipMax, weapon: weapon, reloading: reloading }),
     reload: () => {
-      if (!booted || !active || reloading || bullets >= clipMax || ended || weapon !== "pistol") return;
+      if (!booted || !active || reloading || ended) return;
+      /* (v53) a special weapon has no magazine: the button used to do
+         nothing at all with one in hand, which read as a dead button */
+      if (weapon !== "pistol") {
+        const ko = (document.documentElement.lang || "").startsWith("ko");
+        radio(ko ? ({ smg: "기관단총", shotgun: "샷건" }[weapon] || "특수 화기") + "은 재장전이 없습니다 · 탄을 다 쓰면 권총으로 돌아와요" : "Special weapons don't reload — empty it and you're back on the pistol", 2200);
+        window.__reloadHint = (window.__reloadHint || 0) + 1;
+        return;
+      }
+      if (bullets >= clipMax) {
+        /* (v53) a full magazine (pickups can top it past the clip) used to
+           swallow the tap silently — the button looked dead */
+        const rbt = document.getElementById("railReload");
+        if (rbt) { rbt.classList.remove("full"); void rbt.offsetWidth; rbt.classList.add("full"); }
+        const ko = (document.documentElement.lang || "").startsWith("ko");
+        radio(ko ? "탄창 가득! (" + bullets + "발)" : "Magazine full (" + bullets + ")", 1200);
+        window.__reloadHint = (window.__reloadHint || 0) + 1;
+        return;
+      }
       reloading = true;
       reloadK = 1;
       tutEv("reload");
