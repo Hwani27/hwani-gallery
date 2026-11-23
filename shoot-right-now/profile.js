@@ -47,7 +47,23 @@
     { id: 5, lab: "3-4", ch: 3, ko: "압록강 · 백두산", en: "YALU & PAEKTU", sub: "CHASE · CHEONJI", subEn: "CHASE · CHEONJI", boss: "총사령관", bossEn: "SUPREME LEADER", c: "#2c4b5e" }
   ];
   const CHAPTERS = { 1: ["CHAPTER 1 · 남침", "CHAPTER 1 · INVASION"], 2: ["CHAPTER 2 · 반격", "CHAPTER 2 · COUNTERSTRIKE"], 3: ["CHAPTER 3 · 북진", "CHAPTER 3 · NORTHWARD"] };
-
+  /* (v52) what each battlefield looks like at a glance: a badge in the quick
+     strip and two feature tags on the card, so the twelve missions read as
+     twelve different places rather than twelve numbers */
+  const SCEN = {
+    6: { ic: "🔥", ko: ["새벽 시가전", "전차"], en: ["DAWN CITY", "TANK"] },
+    7: { ic: "🌫", ko: ["안개 지연전", "헬기"], en: ["FOG DELAY", "GUNSHIP"] },
+    8: { ic: "🌉", ko: ["황혼 고가도로", "장갑차"], en: ["DUSK FLYOVER", "ARMOUR"] },
+    9: { ic: "🌧", ko: ["비 오는 시가전", "헬기"], en: ["RAIN STREETS", "GUNSHIP"] },
+    10: { ic: "🏯", ko: ["유산 시가지", "지휘관"], en: ["HERITAGE", "COMMANDER"] },
+    11: { ic: "🌊", ko: ["야간 해안 방어", "주력 전차"], en: ["NIGHT COAST", "MAIN TANK"] },
+    12: { ic: "🚢", ko: ["상륙정 · 해안", "헬기"], en: ["LANDING", "GUNSHIP"] },
+    1: { ic: "🏙", ko: ["서울 도심", "지휘관"], en: ["CITY", "COMMANDER"] },
+    2: { ic: "🚧", ko: ["DMZ 철책", "장갑차"], en: ["DMZ WIRE", "ARMOUR"] },
+    3: { ic: "🕊", ko: ["JSA 평화의 집", "헬기"], en: ["JSA", "GUNSHIP"] },
+    4: { ic: "❄", ko: ["설원 시가지", "전차"], en: ["SNOW CITY", "TANK"] },
+    5: { ic: "🏔", ko: ["압록강 · 천지", "추격"], en: ["YALU · CHEONJI", "CHASE"] }
+  };
 
   function blank() { return { xp: 0, best: {}, diff: "normal", mode: "op", plays: 0, clears: 0, pts: 0, inv: {}, skins: ["base"], skin: "base", att: { n: 0, last: "" }, chest: { pending: 0, day: "", earned: 0 }, seen: "", uni: "u-army", unis: ["u-army"] }; }
   let D = blank();
@@ -271,6 +287,29 @@
   .mSeg.mode button.on[data-v=practice]{background:linear-gradient(180deg,#8fd0e8,#4f98b8)}
   .mNote{margin:8px 2px 0;font-size:12px;color:#98a28c;min-height:16px}
   .mList{display:grid;gap:8px;margin:16px 0 0}
+  .mSelHead{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin:14px 2px 0}
+  .mSelHead b{font:900 14px/1 inherit;letter-spacing:.02em;color:#f2ecd0}
+  .mSelHead .mStarN{font:800 11px/1 ui-monospace,monospace;letter-spacing:.1em;color:#ffd54a;white-space:nowrap}
+  .mSelNote{margin:5px 2px 0;font-size:11px;line-height:1.35;color:#98a28c}
+  .mPick{display:flex;gap:6px;margin:10px 0 0;overflow:auto;padding-bottom:2px}
+  .mPick button{flex:none;min-height:32px;padding:0 12px;border-radius:999px;border:1px solid rgba(201,184,113,.35);
+    background:rgba(255,255,255,.05);color:#c3cbb4;font-family:inherit;font-weight:800;font-size:12px;line-height:1;cursor:pointer;touch-action:manipulation;white-space:nowrap}
+  .mPick button.on{background:linear-gradient(180deg,#e2d08a,#b9a55c);color:#1b1f10;border-color:#e2d08a}
+  .mStrip{display:flex;gap:6px;margin:8px 0 0;overflow-x:auto;padding:2px 2px 6px;scroll-snap-type:x proximity}
+  .mChip{flex:none;width:54px;min-height:58px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;
+    border-radius:12px;border:1px solid rgba(255,255,255,.14);background:linear-gradient(180deg,rgba(40,48,30,.9),rgba(16,20,12,.92));
+    color:#dfe6d2;font-family:inherit;cursor:pointer;touch-action:manipulation;scroll-snap-align:start;padding:4px 0}
+  .mChip b{font:900 12px/1 ui-monospace,monospace;letter-spacing:.02em}
+  .mChip i{font-style:normal;font-size:15px;line-height:1.05}
+  .mChip s{font:700 8px/1 ui-monospace,monospace;text-decoration:none;color:#ffd54a;letter-spacing:.5px}
+  .mChip.done{border-color:rgba(201,184,113,.6);background:linear-gradient(180deg,rgba(72,84,48,.95),rgba(24,30,16,.95))}
+  .mChip.next{border-color:#ffd54a;box-shadow:0 0 0 1px #ffd54a inset,0 4px 12px rgba(255,213,74,.18)}
+  .mChip:active{transform:translateY(1px)}
+  .mCard .tx .tg{display:flex;gap:4px;margin-top:5px;flex-wrap:wrap}
+  .mCard .tx .tg i{font-style:normal;font:700 9px/1 ui-monospace,monospace;letter-spacing:.04em;color:#cfd8bd;
+    border:1px solid rgba(207,216,189,.28);border-radius:999px;padding:3px 7px;background:rgba(255,255,255,.04)}
+  .mCard .tx b .reco{display:inline-block;margin-left:6px;padding:2px 6px;border-radius:6px;background:#ffd54a;color:#221a04;
+    font-style:normal;font-size:9px;font-weight:900;letter-spacing:.08em;vertical-align:2px}
   .mList h3{margin:12px 2px 2px;font:800 11px/1 ui-monospace,monospace;letter-spacing:.26em;color:#8f9a7c}
   .mCard{position:relative;display:flex;align-items:center;gap:12px;width:100%;min-height:62px;padding:8px 12px 8px 8px;border-radius:14px;
     border:1px solid rgba(255,255,255,.12);background:linear-gradient(90deg,var(--c) 0,rgba(20,24,16,.92) 62%);color:#eef1e6;cursor:pointer;
@@ -344,6 +383,9 @@
     #mgMenu .mR{grid-column:2;grid-row:1 / span 2}
     .mHead{margin:12px 0 12px}.mHead h1{font-size:clamp(30px,6vw,46px)}.mHead .tKicker{display:none}
     .mList{margin:0}.mCard{min-height:52px}.mCard .no{width:40px;height:40px;font-size:13px}
+    .mSelHead{margin:0 2px 0}.mSelNote{display:none}
+    .mStrip{gap:5px}.mChip{width:46px;min-height:50px}.mChip i{font-size:13px}
+    .mCard .tx .tg{margin-top:3px}.mCard .tx .tg i{font-size:8px;padding:2px 6px}
     #mgMenu .mR{max-height:calc(100vh - 24px);overflow:auto;padding-right:4px}
     .mFoot{display:none}
   }`;
@@ -500,6 +542,8 @@
     D.seen = t; save();
   })();
 
+  /* (v52) which chapter tab the stage picker shows: 0 = every mission */
+  let chapTab = 0;
   const wrap = document.querySelector("#mgTitle .tWrap");
   function build() {
     if (!wrap) return;
@@ -509,14 +553,30 @@
     const ns = nextStage();
     const goStage = ns || STAGES[0].id;
     const st = STAGES.find((x) => x.id === goStage);
+    /* (v52) the stage picker: a one-line summary, chapter tabs, a quick strip
+       with every mission at a thumb's reach, and the detailed cards below */
+    const clearedN = STAGES.filter((s) => D.best[s.id] && D.best[s.id].stars > 0).length;
+    const starN = starsTotal();
+    const chapNames = ko ? ["전체", "1장 남침", "2장 반격", "3장 북진"] : ["ALL", "CH.1", "CH.2", "CH.3"];
+    const selHead = '<div class="mSelHead"><b>' + L.ops + '</b><span class="mStarN">★ ' + starN + "/" + STAGES.length * 3 + " · " + (ko ? "클리어 " : "CLEAR ") + clearedN + "/" + STAGES.length + '</span></div>' +
+      '<p class="mSelNote">' + (ko ? "모든 작전 자유 선택 · 스테이지마다 하늘과 거리가 다릅니다" : "Every mission is open · each one has its own sky and street") + "</p>";
+    const pick = '<div class="mPick">' + [0, 1, 2, 3].map((c) => '<button type="button" data-chap="' + c + '"' + (chapTab === c ? ' class="on"' : "") + ">" + chapNames[c] + "</button>").join("") + "</div>";
+    const strip = '<div class="mStrip">' + STAGES.map((s) => {
+      const b = D.best[s.id], st = b ? b.stars : 0, sc = SCEN[s.id] || {};
+      return '<button type="button" class="mChip' + (st ? " done" : "") + (s.id === goStage ? " next" : "") + '" data-stage="' + s.id + '" title="' + (ko ? s.ko : s.en) + '">' +
+        '<b>' + s.lab + '</b><i>' + (sc.ic || "★") + "</i><s>" + (st ? "★".repeat(st) : "·") + "</s></button>";
+    }).join("") + "</div>";
+    const shown = chapTab ? STAGES.filter((s) => s.ch === chapTab) : STAGES;
     let lastCh = 0;
-    const cards = STAGES.map((s) => {
+    const cards = shown.map((s) => {
       const head = s.ch !== lastCh ? '<h3>' + CHAPTERS[s.ch][ko ? 0 : 1] + "</h3>" : "";
       lastCh = s.ch;
       const b = D.best[s.id];
+      const sc = SCEN[s.id] || { ic: "★", ko: [], en: [] };
       const stars = b ? "★".repeat(b.stars) + "☆".repeat(3 - b.stars) : "☆☆☆";
+      const tags = (ko ? sc.ko : sc.en).map((t) => "<i>" + t + "</i>").join("");
       return head + '<button class="mCard' + (b && b.stars ? " clear" : "") + '" id="' + (s.id === 1 ? "mgStart" : "mgStart" + s.id) + '" type="button" data-stage="' + s.id + '" style="--c:' + s.c + '">' +
-        '<span class="no">' + s.lab + '</span><span class="tx"><b>' + (ko ? s.ko : s.en) + "</b><small>" + (ko ? s.sub : s.subEn) + " · BOSS " + (ko ? s.boss : s.bossEn) + "</small></span>" +
+        '<span class="no">' + s.lab + '</span><span class="tx"><b>' + sc.ic + " " + (ko ? s.ko : s.en) + (s.id === goStage ? '<u class="reco">' + (ko ? "이어서" : "NEXT") + "</u>" : "") + "</b><small>" + (ko ? s.sub : s.subEn) + " · BOSS " + (ko ? s.boss : s.bossEn) + '</small><span class="tg">' + tags + "</span></span>" +
         '<span class="rc"><i' + (b ? "" : ' class="n"') + ">" + stars + "</i><em>" + (b ? L.best + " " + b.score.toLocaleString() : L.none) + "</em></span></button>";
     }).join("");
     wrap.innerHTML =
@@ -550,7 +610,7 @@
         }).join("") + "</div>";
       })() +
       "</div>" +
-      '<div class="mR"><div class="mList">' + cards + "</div>" +
+      '<div class="mR">' + selHead + pick + strip + '<div class="mList">' + cards + "</div>" +
       '<p class="mFoot">' + L.hint + '</p><p class="mFoot"><button id="mgTut" type="button" style="background:none;border:0;color:#c9b871;font-family:inherit;font-weight:700;font-size:12px;line-height:1;text-decoration:underline;cursor:pointer;padding:6px">' + (ko ? "훈련(튜토리얼) 다시 보기" : "Replay training") + "</button></p></div>";
     wrap.querySelectorAll(".mSeg button").forEach((b) => b.addEventListener("click", (e) => {
       e.preventDefault();
@@ -563,6 +623,12 @@
     }));
     const go = (n) => { if (window.MG && window.MG.play) window.MG.play(n); };
     wrap.querySelectorAll(".mCard").forEach((b) => b.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); go(+b.getAttribute("data-stage") || 1); }));
+    wrap.querySelectorAll(".mChip").forEach((b) => b.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); go(+b.getAttribute("data-stage") || 1); }));
+    wrap.querySelectorAll(".mPick button").forEach((b) => b.addEventListener("click", (e) => {
+      e.preventDefault(); e.stopPropagation();
+      chapTab = +b.getAttribute("data-chap") || 0;
+      refresh();
+    }));
     const rk = wrap.querySelector(".mRank"); if (rk) { rk.style.cursor = "pointer"; rk.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); openPerks(); }); }
     wrap.querySelectorAll("[data-mis]").forEach((b) => b.addEventListener("click", (e) => {
       e.preventDefault(); e.stopPropagation();
