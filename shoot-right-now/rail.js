@@ -205,6 +205,34 @@
       #railPauseMenu button{min-height:52px;border-radius:14px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.07);color:#fff;font-family:inherit;font-weight:800;font-size:16px;line-height:1;cursor:pointer;touch-action:manipulation}
       #railPauseMenu button.primary{background:linear-gradient(180deg,#56682f,#2c3820);border:2px solid #c9b871}
       #railPauseMenu .row{display:flex;gap:8px}#railPauseMenu .row button{flex:1;min-height:52px}
+      #mgStory{position:fixed;inset:0;z-index:55;font-family:Pretendard,system-ui,sans-serif;color:#fff;-webkit-user-select:none;user-select:none;touch-action:manipulation;cursor:pointer;transition:opacity .45s}
+      #mgStory.out{opacity:0}
+      #mgStory .sBar{position:absolute;left:0;right:0;height:9vh;background:#000;transition:transform .6s ease}
+      #mgStory .sBar.t{top:0;transform:translateY(-100%)}#mgStory .sBar.b{bottom:0;transform:translateY(100%)}
+      #mgStory.in .sBar{transform:none}
+      #mgStory .sCard{position:absolute;left:0;right:0;top:34%;text-align:center;opacity:0;transform:translateY(10px);transition:opacity .6s,transform .6s;text-shadow:0 2px 12px rgba(0,0,0,.8)}
+      #mgStory .sCard.show{opacity:1;transform:none}
+      #mgStory .sCard p{margin:0;font:800 12px/1 ui-monospace,monospace;letter-spacing:.32em;color:#c9b871}
+      #mgStory .sCard h2{margin:12px 0 10px;font-size:40px;font-weight:900;letter-spacing:-.01em}
+      #mgStory .sCard small{display:block;font-size:14px;font-weight:700;color:#d8d4c8;letter-spacing:.06em}
+      #mgStory .sDlg{position:absolute;left:12px;right:12px;bottom:calc(9vh + 14px + env(safe-area-inset-bottom));display:flex;align-items:flex-end;gap:10px;max-width:760px;margin:0 auto;opacity:0;transform:translateY(16px);transition:opacity .3s,transform .3s}
+      #mgStory .sDlg.show{opacity:1;transform:none}
+      #mgStory .sDlg.en{flex-direction:row-reverse}
+      #mgStory .sPort{flex:none;width:96px;height:120px;border-radius:14px;overflow:hidden;background:linear-gradient(180deg,#3a4a32,#1c2418);border:2px solid var(--c,#c9b871);box-shadow:0 6px 20px rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center}
+      #mgStory .sDlg.en .sPort{background:linear-gradient(180deg,#5a2420,#24100e)}
+      #mgStory .sPort img{width:100%;height:100%;object-fit:cover;image-rendering:auto}
+      #mgStory .sPort .rd{font-size:44px}
+      #mgStory .sBody{flex:1;min-width:0;min-height:96px;position:relative;background:rgba(8,12,8,.84);border:1px solid rgba(255,255,255,.16);border-radius:16px;padding:12px 16px 16px;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+      #mgStory .sDlg.en .sBody{border-color:rgba(224,87,74,.5)}
+      #mgStory .sName{display:inline-block;font-size:14px;font-weight:900;color:var(--c,#c9b871);margin-bottom:6px;letter-spacing:.02em}
+      #mgStory .sText{margin:0;font-size:17px;font-weight:600;line-height:1.5;word-break:keep-all;min-height:51px}
+      #mgStory .sDlg.radio .sText{font-family:ui-monospace,monospace;font-size:15px;color:#bfe8c4}
+      #mgStory .sNext{position:absolute;right:14px;bottom:8px;font-style:normal;font-size:12px;color:#c9b871;animation:mgSNext .8s ease-in-out infinite alternate;opacity:0}
+      #mgStory .sNext.on{opacity:1}
+      @keyframes mgSNext{to{transform:translateY(3px)}}
+      #mgStory .sSkip{position:absolute;top:calc(9vh + 10px + env(safe-area-inset-top));right:12px;min-height:36px;padding:0 14px;border-radius:18px;border:1px solid rgba(255,255,255,.3);background:rgba(0,0,0,.45);color:#fff;font-family:inherit;font-weight:800;font-size:13px;line-height:1;cursor:pointer}
+      #mgStory .sEp{position:absolute;top:calc(9vh + 18px + env(safe-area-inset-top));left:16px;font:800 11px/1 ui-monospace,monospace;letter-spacing:.24em;color:#c9b871;text-shadow:0 1px 6px #000}
+      body.mgStoryOn #railHud,body.mgStoryOn #railX,body.mgStoryOn #railPause,body.mgStoryOn #railNade,body.mgStoryOn #railReload,body.mgStoryOn #railRadio,body.mgStoryOn .railThreat,body.mgStoryOn .railEdge{visibility:hidden!important}
       #railPauseMenu .tip{margin:4px 0 0;font:700 12px/1 ui-monospace,monospace;color:#9aa58a}
       #railShield{position:fixed;inset:0;z-index:41;pointer-events:none;box-shadow:inset 0 0 60px 18px rgba(90,190,255,.55);animation:railShield .25s steps(2) infinite}
       @keyframes railShield{50%{opacity:.35}}
@@ -3226,6 +3254,48 @@
           cache[key] = R.domElement.toDataURL("image/png");
           return cache[key];
         } catch (e) { window.__avatarErr = String(e); return null; }
+      },
+      /* (v50) a head-and-shoulders portrait for the story scenes:
+         spec = { role, uni, skin, acc } */
+      bust(spec) {
+        const sp = spec || {};
+        const key = "bust|" + JSON.stringify(sp);
+        if (cache[key]) return cache[key];
+        if (!KCH.ready) return null;
+        const tx = kTex(sp.skin || sp.uni || "rok");
+        if (!tx.image || !tx.image.complete || !tx.image.naturalWidth) return null;
+        try {
+          if (!R) this.snap("u-army", "");
+          if (!R) return null;
+          const g = kenneyPerson(sp.role || "ally", { uni: sp.uni, skin: sp.skin });
+          if (!g) return null;
+          const head = g.userData.kHead;
+          const B = (w, h, d, x, y, z, col) => { const b = new T.Mesh(new T.BoxGeometry(w, h, d), kKit(col, 0.5)); b.position.set(x, y, z); head.add(b); return b; };
+          if (head && sp.acc === "glasses") {
+            [-1, 1].forEach((s) => { B(2.6, 0.35, 0.3, s * 1.9, 4.75, 4.25, "#151515"); B(2.6, 0.35, 0.3, s * 1.9, 2.95, 4.25, "#151515"); B(0.35, 2.15, 0.3, s * 0.75, 3.85, 4.25, "#151515"); B(0.35, 2.15, 0.3, s * 3.05, 3.85, 4.25, "#151515"); });
+            B(1.2, 0.3, 0.3, 0, 4.4, 4.25, "#151515");
+          } else if (head && sp.acc === "goggles") {
+            B(9.9, 0.9, 0.5, 0, 10.4, 4.95, "#262622"); [-1, 1].forEach((s) => B(2.6, 1.5, 0.6, s * 1.8, 10.4, 5.1, "#6a7a6a"));
+          } else if (head && sp.acc === "rank") {
+            B(1.1, 1.1, 0.3, 0, 9.6, 5.25, "#d8d8d8");
+          } else if (head && sp.acc === "scarf") {
+            B(9.0, 1.4, 9.0, 0, -0.5, 0, "#b84a3a");
+          }
+          g.rotation.y = sp.flip ? 0.3 : -0.3;
+          /* every role to the same height, so a colonel's portrait is not a
+             close-up of his collar */
+          g.updateMatrixWorld(true);
+          const hb = new T.Box3().setFromObject(head || g), hc = hb.getCenter(new T.Vector3());
+          const hs = (hb.max.y - hb.min.y) || 0.5;
+          if (g.userData.rifle && sp.role === "hostage") g.userData.rifle.visible = false;
+          S.add(g);
+          const dist = hs * 4.6;
+          C.position.set(0, hc.y + hs * 0.05, hc.z + dist); C.lookAt(0, hc.y - hs * 0.28, hc.z);
+          R.render(S, C);
+          S.remove(g);
+          cache[key] = R.domElement.toDataURL("image/png");
+          return cache[key];
+        } catch (e) { window.__avatarErr = String(e); return null; }
       }
     };
   })();
@@ -3237,7 +3307,7 @@
     makeSol();
     const civ = role === "hostage", tough = role === "tough", ally = role === "ally", boss = role === "boss";
     const uni = opt && opt.uni;
-    const skin = uni || (ally ? "rok" : civ ? "civ" + (1 + ((Math.random() * 4) | 0)) : boss ? "nko" : tough ? "nkt" : "nk");
+    const skin = (opt && opt.skin) || uni || (ally ? "rok" : civ ? "civ" + (1 + ((Math.random() * 4) | 0)) : boss ? "nko" : tough ? "nkt" : "nk");
     const g = new T.Group(), body = new T.Group();
     g.add(body);
     const K = KCH.src.clone(true);
@@ -8563,12 +8633,12 @@
       /* (v43) a tap on a button never fires: the tap lands on the button's
          svg/path child (not the button itself), and on iPhones a touch also
          sends a late "mousedown" — both used to slip past the old id test */
-      const onUi = (t) => !!(t && t.closest && t.closest("button,#railReload,#railNade,#railPause,#railResult,#mgTitle,#railPauseMenu,#railCont,#mgModal"));
+      const onUi = (t) => !!(t && t.closest && t.closest("button,#railReload,#railNade,#railPause,#railResult,#mgTitle,#railPauseMenu,#railCont,#mgModal,#mgStory"));
       let lastTouch = 0;
       addEventListener("touchstart", () => { lastTouch = performance.now(); }, { capture: true, passive: true });
       const shootAt = (e) => {
         if (!active || ended) return;
-        if (pauseOpen) return;
+        if (pauseOpen || STORY.on) return;
         if (onUi(e.target)) return;
         if (e.type === "mousedown" && performance.now() - lastTouch < 900) return;
         if (e.pointerType === "touch") lastTouch = performance.now();
@@ -8708,6 +8778,8 @@
       phase = "intro";
       if (radioEl) radioEl.classList.remove("show");
       radioHideAt = 0;
+      storyEnd(true);
+      try { storyStart(false); } catch (err) { window.__storyErr = String(err && err.stack || err); }
     } else {
       const p0 = pathAt(0);
       cam.position.set(p0.x, CAM_Y, p0.z);
@@ -11597,9 +11669,10 @@
     if (window.__railSpeed) dt *= window.__railSpeed;
     if (slowmo > 0) { slowmo = Math.max(0, slowmo - dt); dt *= slowK; }
     if (invulT > 0) { invulT -= dt; if (invulT <= 0) { const sh = document.getElementById("railShield"); if (sh) sh.remove(); } }
+    if (STORY.on && frame._t) t0 += nowMs - frame._t;
     frame._t = nowMs;
     glbStep(dt);
-    if (!TUT.checked) { TUT.checked = true; tutStart(); }
+    if (!TUT.checked && !STORY.on) { TUT.checked = true; tutStart(); }
     if (TUT.on) tutStep(ctx, dt);
     const t = (nowMs - t0) / 1000;
     clock = Math.max(0, CLOCK0 - t);
@@ -11610,6 +11683,7 @@
     if (!ended) {
       if (phase === "intro") {
         /* 3.8 s of camera intro with the radio open */
+        if (STORY.on) introT0 = nowMs;
         introT = (nowMs - introT0) / 1000;
         const a = STAGE.introCam[0], b = STAGE.introCam[1];
         const k = Math.min(1, introT / (STAGE.introDur || 3.6));
@@ -11620,7 +11694,13 @@
           y: a[4] + (b[4] - a[4]) * e,
           z: a[5] + (b[5] - a[5]) * e
         };
-        (STAGE.introLines || []).forEach((ln, li) => {
+        if (STORY.on) {
+          /* a slow drift over the opening shot while the squad talks */
+          const ts = nowMs / 1000;
+          cam.position.x += Math.sin(ts * 0.21) * 1.6;
+          cam.position.y += Math.sin(ts * 0.13) * 0.5;
+        }
+        if (!STORY.skipRadio) (STAGE.introLines || []).forEach((ln, li) => {
           if (li >= introLineI && introT >= ln.t) { radio(ln.text, 4400); introLineI = li + 1; }
         });
         if (introT >= (STAGE.introDur || 3.6)) {
@@ -12129,6 +12209,114 @@
     document.body.appendChild(radioEl);
     return radioEl;
   }
+
+  /* ---------------- (v50) story scenes ----------------
+     Each stage opens like an episode: a title card, then the squad talks
+     over the opening shot (portraits rendered from the block characters,
+     lines in story.js). Played the first time a stage is started; tap to
+     advance, 건너뛰기 to skip. The stage clock does not run meanwhile. */
+  const STORY = { on: false, el: null, i: 0, typing: 0, full: "", skipRadio: false, lastStage: 0 };
+  function storySeen(id) { try { return (JSON.parse(localStorage.getItem("myeolgong_story") || "[]")).indexOf(id) >= 0; } catch (e) { return false; } }
+  function storyMark(id) { try { const a = JSON.parse(localStorage.getItem("myeolgong_story") || "[]"); if (a.indexOf(id) < 0) a.push(id); localStorage.setItem("myeolgong_story", JSON.stringify(a)); } catch (e) {} }
+  function storyArt(c) {
+    if (!c || c.radio || !window.MGAvatar || !window.MGAvatar.bust) return null;
+    if (c.player) {
+      const uni = (window.MGProfile && window.MGProfile.uni && window.MGProfile.uni()) || "u-army";
+      return window.MGAvatar.bust({ role: "ally", uni: uni });
+    }
+    return window.MGAvatar.bust(Object.assign({ flip: !!c.enemy }, c.art));
+  }
+  function storyStart(force) {
+    const S = window.MGStory, ep = S && S.eps && S.eps[stageId];
+    STORY.skipRadio = false;
+    if (!ep || practice) return false;
+    if (!force && (storySeen(stageId) || STORY.lastStage === stageId)) return false;
+    STORY.lastStage = stageId;
+    const ko = (document.documentElement.lang || "").startsWith("ko");
+    STORY.ko = ko; STORY.ep = ep; STORY.i = -1; STORY.on = true; STORY.skipRadio = true;
+    /* start the portraits rendering now so they are ready by their line */
+    ep.lines.forEach((l) => { try { storyArt(S.cast[l.who]); } catch (e) {} });
+    const el = document.createElement("div");
+    el.id = "mgStory";
+    el.innerHTML = '<div class="sBar t"></div><div class="sBar b"></div>' +
+      '<div class="sCard"><p>EPISODE ' + ep.ep + " · " + (STAGE.label || "") + "</p><h2>" + (ko ? ep.ko : ep.en) + "</h2><small>" + (ko ? ep.when : ep.whenEn) + "</small></div>" +
+      '<div class="sEp">EP.' + ep.ep + " " + (ko ? ep.ko : ep.en) + "</div>" +
+      '<div class="sDlg"><div class="sPort"></div><div class="sBody"><b class="sName"></b><p class="sText"></p><i class="sNext">▼</i></div></div>' +
+      '<button class="sSkip" type="button">' + (ko ? "건너뛰기 ▸▸" : "SKIP ▸▸") + "</button>";
+    document.body.appendChild(el);
+    document.body.classList.add("mgStoryOn");
+    STORY.el = el;
+    requestAnimationFrame(() => { el.classList.add("in"); el.querySelector(".sCard").classList.add("show"); });
+    STORY.cardT = setTimeout(() => storyNext(), 2600);
+    const tap = (e) => {
+      e.preventDefault(); e.stopPropagation();
+      if (e.target && e.target.closest && e.target.closest(".sSkip")) { storyEnd(); return; }
+      storyNext();
+    };
+    el.addEventListener("pointerdown", tap);
+    el.querySelector(".sEp").style.opacity = "0";
+    window.__story = { stage: stageId, lines: ep.lines.length };
+    return true;
+  }
+  function storyNext() {
+    if (!STORY.on || !STORY.el) return;
+    const el = STORY.el;
+    if (STORY.cardT) { clearTimeout(STORY.cardT); STORY.cardT = 0; }
+    if (STORY.typing) {
+      /* first tap finishes the line */
+      clearInterval(STORY.typing); STORY.typing = 0;
+      el.querySelector(".sText").textContent = STORY.full;
+      el.querySelector(".sNext").classList.add("on");
+      return;
+    }
+    STORY.i++;
+    const lines = STORY.ep.lines;
+    if (STORY.i >= lines.length) { storyEnd(); return; }
+    el.querySelector(".sCard").classList.remove("show");
+    el.querySelector(".sEp").style.opacity = "1";
+    const ln = lines[STORY.i], c = (window.MGStory.cast[ln.who]) || {};
+    const dlg = el.querySelector(".sDlg");
+    dlg.classList.remove("show");
+    dlg.classList.toggle("en", !!c.enemy);
+    dlg.classList.toggle("radio", !!c.radio);
+    dlg.style.setProperty("--c", c.col || "#c9b871");
+    const port = el.querySelector(".sPort");
+    const put = () => {
+      if (c.radio) { port.innerHTML = '<span class="rd">📻</span>'; return true; }
+      const src = storyArt(c);
+      if (src) { port.innerHTML = '<img alt="" src="' + src + '">'; return true; }
+      port.innerHTML = ""; return false;
+    };
+    if (!put()) { let n = 0; const iv = setInterval(() => { if (put() || ++n > 20 || !STORY.on) clearInterval(iv); }, 250); }
+    el.querySelector(".sName").textContent = STORY.ko ? c.ko : c.en;
+    const txt = STORY.ko ? ln.ko : ln.en;
+    STORY.full = txt;
+    const tEl = el.querySelector(".sText");
+    tEl.textContent = "";
+    el.querySelector(".sNext").classList.remove("on");
+    requestAnimationFrame(() => dlg.classList.add("show"));
+    const tStart = performance.now(), rate = STORY.ko ? 42 : 24;
+    STORY.typing = setInterval(() => {
+      const k = Math.floor((performance.now() - tStart) / rate) + 1;
+      tEl.textContent = txt.slice(0, k);
+      if (k >= txt.length) { clearInterval(STORY.typing); STORY.typing = 0; el.querySelector(".sNext").classList.add("on"); }
+    }, 30);
+    try { gun(c.radio ? "radio" : "tick"); } catch (e) {}
+  }
+  function storyEnd(quiet) {
+    if (!STORY.on) return;
+    STORY.on = false;
+    if (STORY.typing) { clearInterval(STORY.typing); STORY.typing = 0; }
+    if (STORY.cardT) { clearTimeout(STORY.cardT); STORY.cardT = 0; }
+    storyMark(stageId);
+    const el = STORY.el; STORY.el = null;
+    document.body.classList.remove("mgStoryOn");
+    introT0 = performance.now();
+    if (el) { if (quiet) el.remove(); else { el.classList.add("out"); setTimeout(() => el.remove(), 480); } }
+  }
+  window.__storyStart = () => storyStart(true);
+  window.__storyNext = () => storyNext();
+  window.__storySkip = () => storyEnd(true);
 
   function radio(text, ms) {
     if (!text) return;
