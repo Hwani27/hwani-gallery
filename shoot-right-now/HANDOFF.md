@@ -13,13 +13,60 @@
 | 영어 페이지 | https://hwani27.github.io/hwani-gallery/shoot-right-now/en.html |
 | 갤러리 카드 | `index.html`의 `shoot-right-now/` 카드 → `thumb.png` |
 | 폴더 | `work/hwani-gallery/shoot-right-now/` (완전 독립 빌드) |
-| 현재 버전 | **v50** (스테이지 도입 스토리) · **v49** (고가도로 헬기·메뉴 글자) · **v48** (차량 관통·간판 겹침) · **v47** (`?v=47`, 관통·해안·텍스처·인질·폭발 버그 5종) · v46 (전장 소품·그림자 티어 / 타격·폭발·트레이서 / 조명·색감 톤) · v45 (`?v=45`, 곡선 차선) · v44 (긴 총 손·군복 2종) · v43 (아이콘 군복·버튼 탭) · v42 (아이콘 얼굴) · v41 (세로 화각·화면 밖 적) · v40 (폴더 이동) · v39 (이름 변경) · v28 (`?v=28`, CC0 3D 모델 4종) / v18 (엄폐 위치 수정) / v17 (보스 장갑·전차, 평화의 집) / v16 (Stage 3·무기) / v15 (시간대·날씨) / v14 (겹침 정리) / v13 (레일 관통·복셀) / v12 (`post.js` 후처리) / v11 / v10 통합 |
+| 현재 버전 | **v51** (`?v=51`, 보상형 광고 슬롯 — 부활·보급 2배, `ads.js` 신규) · **v50** (스테이지 도입 스토리) · **v49** (고가도로 헬기·메뉴 글자) · **v48** (차량 관통·간판 겹침) · **v47** (`?v=47`, 관통·해안·텍스처·인질·폭발 버그 5종) · v46 (전장 소품·그림자 티어 / 타격·폭발·트레이서 / 조명·색감 톤) · v45 (`?v=45`, 곡선 차선) · v44 (긴 총 손·군복 2종) · v43 (아이콘 군복·버튼 탭) · v42 (아이콘 얼굴) · v41 (세로 화각·화면 밖 적) · v40 (폴더 이동) · v39 (이름 변경) · v28 (`?v=28`, CC0 3D 모델 4종) / v18 (엄폐 위치 수정) / v17 (보스 장갑·전차, 평화의 집) / v16 (Stage 3·무기) / v15 (시간대·날씨) / v14 (겹침 정리) / v13 (레일 관통·복셀) / v12 (`post.js` 후처리) / v11 / v10 통합 |
 | 스테이지 | `STAGES` 표: 1 = 서울(8웨이브+보스), 2 = DMZ·판문점(6웨이브+보스), 3 = 판문점 평화의 집(7웨이브+전차), 4 = 평양 진입(7웨이브+전차, 눈). 타이틀 버튼 4개(`#mgStart`/`2`/`3`/`4`), 결과의 `다음 작전`은 1→2→3→4. 타이틀의 두 버튼 / Stage 1 클리어 결과의 `다음 작전` 버튼으로 진입 |
 | v9 브랜치 | `feat/myeolgong-v9-seoul-polish` → PR #12 (v10도 같은 브랜치) |
 | v6 커밋 | `3df8b62` — full 1st-person arms/torso, adaptive portrait FOV, barrel tracks the aim point |
-| 캐시 버스터 | **`?v=50`** (+ `story.js?v=50`) (index.html·en.html의 post·engine·rail 세 줄) · gun-sfx `?v=34` · profile `?v=44` |
+| 캐시 버스터 | **`?v=51`** (index.html·en.html의 post·profile·engine·gun-sfx·story·ads·rail 전부) |
 
 | 로컬 실행 | `cd work/hwani-gallery && python3 -m http.server 8133` → `http://127.0.0.1:8133/shoot-right-now/index.html` |
+
+## 0-01. v51 — 보상형 광고 슬롯: 부활 · 보급 2배 (2026-11-24)
+
+사용자 선택: `지금 바로 쏴!`에 **🎬 사망 시 이어하기(부활)** 와 **보급 2배** 보상형 광고 슬롯 추가.
+
+### 브리지 — 새 파일 `ads.js` (`window.MGAds`)
+`rail.js`는 `MGAds.show('revive'|'supply')` **하나만** 부르고, `Promise<boolean>`이 `true`일 때만 보상을 준다. `ads.js`가 실행 환경을 보고 경로를 고른다(`MGAds.mode`).
+
+| 순서 | 경로 | 판정/규격 |
+|---|---|---|
+| 1 | **토스 앱인토스** | `window.Toss.inToss && Toss.showRewarded()` → `true`/`'test'` = 보상. `work/toss-boardgames/shared/src/toss-bridge.js`와 **같은 이름·같은 반환값**이라 그 브리지를 이 페이지에 넣으면 그대로 잡힌다. `setRewardedGroup(window.MGAds.tossGroup || 'ait-ad-test-rewarded-id')`를 1회 호출 |
+| 1b | 토스 SDK 직접 | `window.AppsInToss.loadFullScreenAd / showFullScreenAd` (`userEarnedReward` 이벤트로 판정) — 파사드 없이 SDK만 노출한 빌드용 |
+| 2 | **구글 AdMob (안드로이드 WebView 기본)** | `window.playAdmobAds`(play-admob-ads.js 규격) 우선, 이어서 `PlayAdmobAds` / `MGAdsNative` / `AndroidAds` / `AndroidAdMob` / `AdMob` / `admob` / `Android`. 메서드 `showRewarded`\|`showRewardedAd`\|`rewarded`\|`show` 중 있는 것을 골라 `(placement, callbackName, unit, publisher)`로 호출하고, 래퍼는 끝나면 `window[callbackName](true\|false)`를 부르면 된다(문자열 `'true'/'1'`도 허용). 콜백 이름을 못 받는 래퍼는 `MGAds.nativeResult(true)` |
+| 2b | iOS WKWebView | `webkit.messageHandlers.mgAds` (또는 `admobAds`) `.postMessage({action:'rewarded', placement, callback, unit, publisher})` |
+| 3 | 그 밖(일반 웹·GitHub Pages) | **미리보기 오버레이**: 🎬 + 1.5초 카운트다운 바 → 자동 보상. `건너뛰기`를 누르면 보상 없음(실패 경로 확인용) |
+
+- 광고 ID: `MGAds.publisher = 'pub-6817381579747852'`(AdMob 게시자 ID), `MGAds.rewardedUnit`(앱 빌드에서 채움, 비면 래퍼 기본값), `MGAds.tossGroup`(토스 빌드에서 설정).
+- URL 스위치: `?ads=off`(슬롯 자체를 숨김) · `?ads=test`(네이티브가 있어도 미리보기) · `?ads=toss` · `?ads=native`.
+- 테스트 훅: `__adShows`, `__adLastResult`, `__adMode`, `__adPreviewSec`(미리보기 초), `__adOfferHold`(보급 카드 유지 초), `RAIL.adShow('revive')`, `RAIL.adOfferSupply()`, `RAIL.adState()`.
+
+### 1) 사망 시 이어하기(부활) — 스테이지당 1회
+- **게임오버 화면(CONTINUE?)**: `#railCont`에 `🎬 광고 보고 이어하기`(영문 `WATCH AD TO CONTINUE`) 버튼 추가. 누르면 **10초 카운트다운을 멈추고** 광고를 띄운다(느린 회선에서 부활을 잃지 않게). 보상 실패 시 버튼·카운트다운이 되살아난다.
+- **실패 결과 카드**: 10초를 흘려보내 `작전 실패` 카드가 떠도 같은 부활 버튼이 전체 폭으로 한 번 더 있다(`data-act=adrev`).
+- **보상**: `hp = HPMAX` · `invulT = 2.4초`(푸른 방패 비네트) · `탄창 풀충전` · `수류탄 최소 2` · **죽은 자리 그대로** 복귀(`resumePhase`). `t0`를 광고·결과 화면에 머문 시간만큼 밀어 **스테이지 시계가 흘러가지 않는다**. 점수 유지, `continues`는 올리지 않는다(광고 부활이 곧 보상).
+- **무한 부활 차단**: `adReviveUsed`(스테이지 시작 시 `resetNumbers`에서 해제). 이미 쓴 판은 CONTINUE·결과 카드 어디에도 버튼이 뜨지 않는다.
+- 연습 모드·엔딩(`cleared`)에는 부활 버튼이 없다(연습은 목숨 자동 복귀).
+
+### 2) 보급 2배
+- 보급 상자(`supply`)·무기 상자(`smg`/`shotgun`/`grenade`)를 **쏘면** `#railAdOffer` 카드가 올라온다: `2× 🎬 보급 2배 / 수류탄 +2 · 탄약 보너스 / 🎬 광고 보고 받기`. 11초 뒤 스스로 사라지고 `✕`로 닫힌다 — 사격·조준을 막지 않는다(카드 위 탭은 사격으로 새지 않음).
+- 보상: 수류탄 +2(최대 5) · 권총이면 탄창 +10(최대 30), 특수화기면 예비탄 +12 · +150점 · `보급 2배!` 마커·무전. 스테이지당 1회(`adSupplyUsed`).
+- 광고 동안 `pauseForAd()`가 미션을 얼리고 `t0`를 보정한 뒤 그대로 재개한다.
+
+### 검증 (헤드리스 Chromium + SwiftShader, 로컬 8133 · `?gfx=low`)
+| 시나리오 | 결과 |
+|---|---|
+| index.html 1280×720 진입 | `MGAds.mode = test`(브리지 없음), 오류 0 · 404 0 |
+| 게임오버 → CONTINUE | `🎬 광고 보고 이어하기` 노출, 카운트다운 10 정지 → 광고 → 복귀: `reviveN=1`, `adReviveUsed=true`, `hp=HPMAX`, 목숨 3, 방패 O, HUD 복귀, `phase` 유지 |
+| 같은 판 두 번째 게임오버 | 광고 버튼 **없음** / `포기` → `작전 실패` 카드에도 **없음** |
+| CONTINUE 만료 → 결과 카드 | `작전 실패` + `🎬 광고 보고 이어하기` → 광고 → 카드 제거, `reviveN=1`, `active=true`, HUD·방패 복귀 |
+| 보급 상자 사격(실제 픽업 경로) | `__lastShot={sort:'supply'}` → 카드 노출 → 광고 → 수류탄 2→4, `supplyAdRewards=1`, 카드 닫힘, `active=true` / 재요청 시 카드 없음 |
+| en.html | `🎬 WATCH AD TO CONTINUE` (CONTINUE·`MISSION FAILED` 카드 모두) |
+| 세로 390×844 | 오류 0(레이아웃은 v47 그대로) |
+| 콘솔·페이지 오류 | 0건, `__railErrs` 0, `__frameErr`/`__beginErr`/`__dressErr` null |
+
+스크린샷: `downloads/shoot_ad_revive_v51.png`(CONTINUE 오버레이의 광고 버튼) · `downloads/shoot_ad_supply_v51.png`(보급 2배 카드).
+
+> **주의(검증 환경)**: 헤드리스 SwiftShader에서 WebGL이 도는 중에는 `page.screenshot`이 돌아오지 않는다(타이틀·정지 화면은 정상). 캡처는 CDP `Page.captureScreenshot`(`fromSurface:false`)로 하고, DOM 오버레이를 담으려면 `__adOfferHold`/`__adPreviewSec`로 화면을 잠깐 붙잡아 둔다.
 
 ## 0-00. v50 — 스테이지 도입 스토리(드라마 컷신) (2026-11-24)
 
@@ -65,7 +112,7 @@
 - 스테이지 12 상륙: z=-81에서 좌우 물·백사장·헤지혹·해안 도시, 상륙정은 수면 위. 1·2·3·4·5·7·11·12 부팅 오류 0.
 - 스크린샷: `downloads/shoot_fix_v47.png`
 
-**코드를 고치면 반드시**: `index.html`·`en.html`의 `post.js?v=`, `engine.js?v=`, `gun-sfx.js?v=`, `rail.js?v=` 네 줄을 **한꺼번에** 한 단계 올린다. 안 올리면 아이폰 Safari가 옛 파일을 계속 쓴다(캐시).
+**코드를 고치면 반드시**: `index.html`·`en.html`의 `post.js?v=`, `profile.js?v=`, `engine.js?v=`, `gun-sfx.js?v=`, `story.js?v=`, `ads.js?v=`, `rail.js?v=` 줄을 **한꺼번에** 한 단계 올린다. 안 올리면 아이폰 Safari가 옛 파일을 계속 쓴다(캐시).
 
 ## 1. 파일 지도
 
@@ -75,6 +122,7 @@
 | `en.html` | 영어 페이지(문구만 다름) | 위와 동일하게 버전 올릴 것 |
 | `post.js` | 화면 후처리(v12). `MGPost.render()`가 4x MSAA 타깃에 씬을 그린 뒤 밝은 부분 추출 → 1/4·1/8 블러 → 합성(빛 번짐·색 보정·비네트). WebGL1이면 자동으로 끔. 품질 `auto/high/low`(타이틀 `#mgGfx` 버튼, `localStorage.mgGfx`, URL `?gfx=high`로 강제). auto는 플레이 중 평균 25 ms 넘는 구간이 두 번 이어지면 low로 내린다 | 셰이더 상수: `thr`(0.93) · `bloom`(0.6) · `vig`(0.26). 헤드리스 검증은 `?gfx=high`로 |
 | `engine.js` | 렌더러/씬/카메라(초기 fov 58)/조명/프레임 루프/점수 팝업/사운드 토글/리사이즈/컨텍스트 로스트 처리 | 게임 로직 없음. `RAIL.frame(ctx)`를 매 프레임 호출만 한다 |
+| `ads.js` | **보상형 광고 브리지**(v51). `window.MGAds.show(placement)` → `Promise<boolean>`. 토스 → AdMob WebView 래퍼 → 미리보기 순으로 경로를 고른다 | 광고 ID·브리지 이름을 바꾸려면 이 파일 머리만. `?ads=off\|test\|toss\|native` |
 | `rail.js` | **게임 전부**: 절차적 텍스처(`ctex`), 스테이지 표(`STAGES` — Stage 1 서울 / Stage 2 DMZ·판문점), 코스, 웨이브, 적 상태머신, 가림막, 아군, 픽업, 보스, HUD(canvas), 무전 UI, 결과 화면, 1인칭 뷰모델 | 대부분의 작업이 여기서 일어난다. 약 6,900줄 |
 | `gun-sfx.js` | 절차적 총성·재장전·폭발·피격/사망 육성 + 내장 전투 BGM | 샘플 파일 없음. 전부 합성 |
 | `three.min.js` | three.js **r128** 원본 그대로 | **수정 금지** |

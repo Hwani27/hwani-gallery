@@ -59,6 +59,11 @@
   /* (v20) difficulty, practice, rank perks and continues, read from
      MGProfile (profile.js) at the start of every mission */
   let HPMAX = 100, LIVES0 = 3, continues = 0, practice = false, contOpen = false;
+  /* (v51) rewarded ads: one revive per stage and one supply doubler per stage.
+     adReviveUsed is what stops an endless string of revives; pending flags keep
+     a double tap from opening two ads at once */
+  let adReviveUsed = false, adRevivePending = false, adSupplyUsed = false, adSupplyPending = false;
+  let resumePhase = "fight", endedAt = 0;
   let DIFF = { dmg: 1, aim: 1, lives: 3, boss: 1, xp: 1 }, PERK = { hp: 100, nades: 0, reload: 1, lives: 0 }, diffKey = "normal";
   /* (v26) pistol finishes bought at the supply depot */
   const SKIN_COL = {
@@ -248,6 +253,28 @@
       #railCont .btns{display:flex;gap:10px}
       #railCont button{flex:1;min-height:56px;border-radius:14px;border:2px solid #7a6a52;background:#2a2218;color:#eee;font-family:inherit;font-weight:900;font-size:17px;line-height:1;cursor:pointer;touch-action:manipulation}
       #railCont button.primary{flex:1.6;background:linear-gradient(180deg,#e8c65a,#b58a22);border-color:#ffe08a;color:#1e1606}
+      /* (v51) rewarded ad slots: the revive button under CONTINUE, and the
+         supply doubler that slides in when a supply crate is shot open */
+      #railCont button.ad{flex:1;margin-top:10px;min-height:54px;border-color:#7fd0ff;background:linear-gradient(180deg,#1c3c4c,#0d1e26);color:#c9ecff;font-size:15px;letter-spacing:.01em}
+      #railCont button.ad b{color:#ffe14a}
+      #railCont button.ad[disabled]{opacity:.45;filter:grayscale(1)}
+      #railCont .adh{margin:8px 0 0;font:700 11px/1.45 ui-monospace,monospace;color:#8fb6c4}
+      #railResult .btns button.ad{flex:1 1 100%;background:linear-gradient(180deg,#1c3c4c,#0d1e26);border-color:#7fd0ff;color:#c9ecff}
+      #railResult .btns button.ad b{color:#ffe14a}
+      #railAdOffer{position:fixed;left:50%;bottom:calc(max(14px,env(safe-area-inset-bottom)) + 76px);transform:translateX(-50%) translateY(14px);
+        z-index:46;width:min(340px,calc(100% - 24px));opacity:0;pointer-events:none;transition:opacity .22s ease,transform .22s ease;
+        border:2px solid #7fd0ff;border-radius:14px;padding:10px 12px;background:linear-gradient(180deg,rgba(14,32,40,.96),rgba(6,16,22,.97));
+        box-shadow:0 12px 30px rgba(0,0,0,.55);color:#dff2ff;font-family:Pretendard,system-ui,"Apple SD Gothic Neo",sans-serif;text-align:left}
+      #railAdOffer.show{opacity:1;transform:translateX(-50%) translateY(0);pointer-events:auto}
+      #railAdOffer .hd{display:flex;align-items:center;gap:8px;font:900 14px/1.2 inherit}
+      #railAdOffer .hd i{font-style:normal;font-size:17px}
+      #railAdOffer .hd span{flex:1;min-width:0}
+      #railAdOffer .x{flex:none;width:26px;height:26px;border-radius:50%;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.06);color:#bcd;font:900 14px/1 inherit;cursor:pointer;padding:0}
+      #railAdOffer .sub{margin:4px 0 8px;font:700 11px/1.35 ui-monospace,monospace;color:#8fb6c4}
+      #railAdOffer button.cta{width:100%;min-height:42px;border-radius:10px;border:2px solid #ffe08a;background:linear-gradient(180deg,#e8c65a,#b58a22);
+        color:#1e1606;font:900 14px/1 inherit;cursor:pointer;touch-action:manipulation}
+      #railAdOffer button.cta[disabled]{opacity:.6;filter:grayscale(.4)}
+      #railAdOffer .nb{position:absolute;right:-4px;top:-10px;padding:3px 8px;border-radius:9px;background:#ffe14a;color:#1b1406;font:900 10px/1.2 ui-monospace,monospace;letter-spacing:.1em}
       #railResult .card{width:min(460px,100%);background:#121a16;border:3px solid #d8c98a;border-radius:18px;padding:22px;box-shadow:0 18px 60px rgba(0,0,0,.55)}
       #railResult h2{margin:0 0 8px;font-size:28px;letter-spacing:.02em}
       #railResult p{margin:6px 0;font-size:16px;color:#dfe6d4}
@@ -8499,6 +8526,9 @@
     slowmo = 0; slowK = 1; finishing = false; finishNow = false; invulT = 0; pauseOpen = false;
     { const sh = document.getElementById("railShield"); if (sh) sh.remove(); const pm = document.getElementById("railPauseMenu"); if (pm) pm.remove(); }
     clock = CLOCK0; bullets = 20; hp = HPMAX; lives = LIVES0; continues = 0; contOpen = false;
+    /* (v51) every stage starts with its ad slots unused */
+    adReviveUsed = false; adRevivePending = false; adSupplyUsed = false; adSupplyPending = false;
+    resumePhase = "fight"; endedAt = 0; closeSupplyAd();
     grenades = 2 + (PERK.nades || 0); holding = false;
     if (LOAD) {
       grenades += LOAD.nades || 0;
@@ -8633,7 +8663,7 @@
       /* (v43) a tap on a button never fires: the tap lands on the button's
          svg/path child (not the button itself), and on iPhones a touch also
          sends a late "mousedown" — both used to slip past the old id test */
-      const onUi = (t) => !!(t && t.closest && t.closest("button,#railReload,#railNade,#railPause,#railResult,#mgTitle,#railPauseMenu,#railCont,#mgModal,#mgStory"));
+      const onUi = (t) => !!(t && t.closest && t.closest("button,#railReload,#railNade,#railPause,#railResult,#mgTitle,#railPauseMenu,#railCont,#railAdOffer,#mgAd,#mgModal,#mgStory"));
       let lastTouch = 0;
       addEventListener("touchstart", () => { lastTouch = performance.now(); }, { capture: true, passive: true });
       const shootAt = (e) => {
@@ -8828,6 +8858,7 @@
 
   function pause() {
     try { window.GunSFX && window.GunSFX.stopLoops && window.GunSFX.stopLoops(); } catch (e) {}
+    closeSupplyAd();
     active = false;
     showHud(false);
     if (pistol) pistol.visible = false;
@@ -9818,25 +9849,57 @@
     box.id = "railCont";
     box.innerHTML = '<div class="cc"><p class="k">' + (ko ? "작전 불능" : "MAN DOWN") + '</p><h2>CONTINUE?</h2><div class="num">10</div>' +
       '<p class="d">' + (ko ? "이어하면 점수는 그대로, 별 3개는 놓칩니다" : "Score is kept, the third star is lost") + (continues ? " · " + (ko ? "이어하기 " : "continues ") + continues : "") + "</p>" +
-      '<div class="btns"><button class="primary" data-act="cont" type="button">▶ ' + (ko ? "이어하기" : "CONTINUE") + '</button><button data-act="quit" type="button">' + (ko ? "포기" : "GIVE UP") + "</button></div></div>";
+      '<div class="btns"><button class="primary" data-act="cont" type="button">▶ ' + (ko ? "이어하기" : "CONTINUE") + '</button><button data-act="quit" type="button">' + (ko ? "포기" : "GIVE UP") + "</button></div>" +
+      /* (v51) one rewarded revive per stage, offered right where the mission
+         stops: full health and a fresh clip instead of arcade credit */
+      (canOfferReviveAd() ? '<button class="ad" data-act="ad" type="button">🎬 <b>' + (ko ? "광고 보고 이어하기" : "WATCH AD TO CONTINUE") + '</b></button>' +
+        '<p class="adh">' + (ko ? "이 판에서 1회 · 체력 회복 · 탄약 보충" : "once per stage · health restored · ammo refilled") + "</p>" : "") + "</div>";
     document.body.appendChild(box);
     posts.forEach((p) => tagOff(p));
     if (pistol) pistol.visible = false;
     showHud(false);
     try { window.GunSFX && window.GunSFX.bgm(false); window.GunSFX.stopLoops && window.GunSFX.stopLoops(); } catch (e) {}
-    let n = 10;
+    let n = 10, iv = 0;
     const num = box.querySelector(".num");
     const close = () => { clearInterval(iv); box.remove(); contOpen = false; };
-    const iv = setInterval(() => {
+    const tick = () => {
       n--;
       if (num) { num.textContent = String(Math.max(0, n)); num.classList.remove("tick"); void num.offsetWidth; num.classList.add("tick"); }
       if (n <= 0) { close(); finish(ctx, false); }
-    }, 1000);
+    };
+    const startTick = () => { clearInterval(iv); iv = setInterval(tick, 1000); };
+    startTick();
     box.addEventListener("click", (e) => {
       const b = e.target && e.target.closest ? e.target.closest("button[data-act]") : null;
       if (!b) return;
       e.preventDefault();
       e.stopPropagation();
+      const act = b.getAttribute("data-act");
+      if (act === "ad") {
+        /* the countdown stops while the ad plays, so a slow network never
+           turns into a lost revive; on a failed load it picks up again */
+        if (adRevivePending) return;
+        adRevivePending = true;
+        clearInterval(iv);
+        const was = b.innerHTML;
+        b.disabled = true;
+        b.innerHTML = ko ? "🎬 광고 불러오는 중…" : "🎬 LOADING AD…";
+        showRewardedAd("revive").then((ok) => {
+          adRevivePending = false;
+          if (ok) {
+            adReviveUsed = true;
+            close();
+            reviveMission(ctx, { pausedAt, viaAd: true });
+            return;
+          }
+          b.disabled = false;
+          b.innerHTML = was;
+          const adh = box.querySelector(".adh");
+          if (adh) adh.textContent = ko ? "광고를 불러오지 못했습니다. 다시 시도하거나 이어하기를 누르세요." : "The ad did not load. Try again, or take CONTINUE.";
+          startTick();
+        });
+        return;
+      }
       close();
       if (b.getAttribute("data-act") !== "cont") { finish(ctx, false); return; }
       continues++;
@@ -9858,6 +9921,177 @@
       flashScreen(0.5, "radial-gradient(circle,rgba(120,220,255,.55),rgba(40,120,200,0) 70%)");
       radio(ko ? "증원 투입! 작전을 계속한다." : "Reinforcements in! Carry on.", 2600);
       try { window.GunSFX && window.GunSFX.bgm(true, false); } catch (e) {}
+    });
+  }
+
+  /* ---------------- v51: rewarded ads (revive · supply 2×) --------------
+     The bridge lives in ads.js (window.MGAds). Nothing here opens a network
+     request of its own: it asks for one ad, and only a true answer pays the
+     reward. Plain web (GitHub Pages) gets the 1.5 s preview overlay, the Toss
+     build goes through Toss.showRewarded(), and an Android/iOS wrapper can
+     plug in with MGAdsNative.showRewarded(placement, cb). */
+  function canOfferReviveAd() {
+    return !adReviveUsed && !!(window.MGAds && window.MGAds.available());
+  }
+  function pauseForAd() {
+    /* freeze the mission for the length of the ad; t0 is the clock's origin,
+       so it slides by the frozen time or the stage timer jumps ahead */
+    const wasActive = active;
+    const pausedAt = performance.now();
+    active = false;
+    posts.forEach((p) => tagOff(p));
+    if (bossPost) tagOff(bossPost);
+    try { window.GunSFX && window.GunSFX.stopLoops && window.GunSFX.stopLoops(); window.GunSFX.bgm(false); } catch (e) {}
+    return function resume() {
+      const now = performance.now();
+      if (wasActive) {
+        t0 += now - pausedAt;
+        frame._t = now;
+        active = true;
+        const nextAct = window.__railPhase;
+        try { window.GunSFX && window.GunSFX.bgm(true, nextAct === "boss"); } catch (e) {}
+      }
+    };
+  }
+  function showRewardedAd(placement) {
+    const A = window.MGAds;
+    if (!A || !A.available()) { window.__adSkip = placement + ":off"; return Promise.resolve(false); }
+    try {
+      return Promise.resolve(A.show(placement)).then((ok) => !!ok, (e) => { window.__adErr = String(e); return false; });
+    } catch (e) { window.__adErr = String(e); return Promise.resolve(false); }
+  }
+  /* back on your feet where you fell: health, a fresh clip and a couple of
+     seconds of cover. Used by the ad revive both from the CONTINUE screen and
+     from the failed result card (there the mission has to be re-opened too) */
+  function reviveMission(ctx, opt) {
+    const o = opt || {};
+    const now = performance.now();
+    const since = o.pausedAt || endedAt || now;
+    lives = LIVES0;
+    hp = HPMAX;
+    grenades = Math.max(grenades, 2);
+    bullets = clipMax;
+    reloading = false;
+    reloadK = 0;
+    if (weapon !== "pistol" && WEAPONS[weapon] && WEAPONS[weapon].ammo) wAmmo = WEAPONS[weapon].ammo;
+    invulT = 2.4;
+    let sh = document.getElementById("railShield");
+    if (!sh) { sh = document.createElement("div"); sh.id = "railShield"; document.body.appendChild(sh); }
+    t0 += now - since;
+    frame._t = now;
+    endedAt = 0;
+    ended = false;
+    finishing = false;
+    finishNow = false;
+    active = true;
+    /* from the CONTINUE screen the live phase is still the one the run stopped
+       in; from the result card it has already become "result", so fall back to
+       the wave saved when the card came up */
+    phase = o.phase || (phase && phase !== "result" ? phase : resumePhase) || "fight";
+    window.__railPhase = phase;
+    if (pistol) pistol.visible = true;
+    showHud(true);
+    try { ensureHud((ctx.G && ctx.G.score) || 0); drawHud(); } catch (e) {}
+    try { setCombatTone(true); } catch (e) {}
+    try { window.GunSFX && window.GunSFX.bgm(true, phase === "boss"); } catch (e) {}
+    const ko = (document.documentElement.lang || "").startsWith("ko");
+    flashScreen(0.5, "radial-gradient(circle,rgba(120,220,255,.55),rgba(40,120,200,0) 70%)");
+    radio(o.viaAd ? (ko ? "광고 지원 확인 — 응급 처치 완료. 작전 속행!" : "Sponsor support confirmed — patched up. Back in the fight!") : (ko ? "증원 투입! 작전을 계속한다." : "Reinforcements in! Carry on."), 2600);
+    window.__reviveNow = (window.__reviveNow | 0) + 1;
+    window.__adReviveUsed = !!adReviveUsed;
+  }
+  /* the failed result card keeps the same revive, for anyone who let the
+     ten-second CONTINUE run out */
+  function reviveFromResult(ctx) {
+    if (adRevivePending || adReviveUsed) return;
+    const box = document.getElementById("railResult");
+    const btn = box && box.querySelector("button[data-act=adrev]");
+    if (!btn) return;
+    adRevivePending = true;
+    const ko = (document.documentElement.lang || "").startsWith("ko");
+    const was = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = ko ? "🎬 광고 불러오는 중…" : "🎬 LOADING AD…";
+    showRewardedAd("revive").then((ok) => {
+      adRevivePending = false;
+      if (!ok) {
+        btn.disabled = false;
+        btn.innerHTML = ko ? "🎬 광고를 불러오지 못했습니다 · 다시 시도" : "🎬 AD DID NOT LOAD · RETRY";
+        return;
+      }
+      void was;
+      adReviveUsed = true;
+      const b2 = document.getElementById("railResult");
+      if (b2) b2.remove();
+      reviveMission(ctx, { pausedAt: endedAt, viaAd: true, phase: resumePhase });
+    });
+  }
+
+  /* supply doubler: shoot a supply crate open and a small card offers one
+     extra helping for an ad. It never blocks the fight — it fades on its own
+     after eleven seconds and the × closes it */
+  let supplyAdTimer = 0;
+  function closeSupplyAd() {
+    clearTimeout(supplyAdTimer);
+    const el = document.getElementById("railAdOffer");
+    if (el) el.remove();
+  }
+  function canOfferSupplyAd() {
+    if (adSupplyUsed || !window.MGAds || !window.MGAds.available()) return false;
+    if (ended || contOpen || pauseOpen || finishing || STORY.on) return false;
+    return phase === "fight" || phase === "boss";
+  }
+  function offerSupplyAd(ctx) {
+    if (!canOfferSupplyAd()) return;
+    closeSupplyAd();
+    const ko = (document.documentElement.lang || "").startsWith("ko");
+    const el = document.createElement("div");
+    el.id = "railAdOffer";
+    el.innerHTML = '<span class="nb">2×</span><div class="hd"><i>🎬</i><span>' + (ko ? "보급 2배" : "DOUBLE SUPPLY") + '</span>' +
+      '<button class="x" type="button" data-x="1" aria-label="close">✕</button></div>' +
+      '<p class="sub">' + (ko ? "수류탄 +2 · 탄약 보너스" : "Grenades +2 · Ammo bonus") + '</p>' +
+      '<button class="cta" type="button" data-go="1">' + (ko ? "🎬 광고 보고 받기" : "🎬 WATCH AD") + '</button>';
+    document.body.appendChild(el);
+    requestAnimationFrame(() => el.classList.add("show"));
+    /* how long the card waits: 11 s in play; a test run can hold it open */
+    supplyAdTimer = setTimeout(closeSupplyAd, Number(window.__adOfferHold) > 0 ? Number(window.__adOfferHold) * 1000 : 11000);
+    window.__supplyAdOffers = (window.__supplyAdOffers | 0) + 1;
+    el.addEventListener("click", (e) => {
+      const t = e.target && e.target.closest ? e.target.closest("button") : null;
+      if (!t) return;
+      e.preventDefault();
+      e.stopPropagation();
+      if (t.getAttribute("data-x")) { closeSupplyAd(); return; }
+      if (adSupplyPending) return;
+      adSupplyPending = true;
+      clearTimeout(supplyAdTimer);
+      const resume = pauseForAd();
+      t.disabled = true;
+      t.textContent = ko ? "🎬 광고 불러오는 중…" : "🎬 LOADING AD…";
+      showRewardedAd("supply").then((ok) => {
+        adSupplyPending = false;
+        resume();
+        if (!ok) {
+          const s = el.querySelector(".sub");
+          if (s) s.textContent = ko ? "광고를 불러오지 못했습니다." : "The ad did not load.";
+          t.disabled = false;
+          t.textContent = ko ? "🎬 다시 시도" : "🎬 RETRY";
+          supplyAdTimer = setTimeout(closeSupplyAd, 6000);
+          return;
+        }
+        adSupplyUsed = true;
+        grenades = Math.min(5, grenades + 2);
+        if (weapon === "pistol") bullets = Math.min(30, bullets + 10);
+        else wAmmo += 12;
+        addPts(ctx, 150);
+        window.__weapon = { w: weapon, ammo: wAmmo, nades: grenades };
+        closeSupplyAd();
+        const px = window.__lastHitPx || { x: innerWidth / 2, y: innerHeight * 0.45 };
+        hitMark("pickup", px.x, px.y, false, ko ? "보급 2배!" : "SUPPLY 2×!");
+        gun("reload");
+        radio(ko ? "보급 2배 확인 — 수류탄 2발, 탄약 보충!" : "Supply doubled — two grenades and extra ammo!", 2600);
+        window.__supplyAdRewards = (window.__supplyAdRewards | 0) + 1;
+      });
     });
   }
 
@@ -9891,6 +10125,11 @@
       return;
     }
     if (finishing) return;
+    /* (v51) the wave the run stopped on, kept for an ad revive: the mission
+       has to come back exactly here, not at the top of the stage */
+    if (phase !== "result") resumePhase = phase || "fight";
+    endedAt = performance.now();
+    closeSupplyAd();
     ended = true;
     try { setCombatTone(false); } catch (e) {}
     try { window.GunSFX && window.GunSFX.stopLoops && window.GunSFX.stopLoops(); } catch (e) {}
@@ -9925,6 +10164,8 @@
     const nId = oi >= 0 && oi < ORD.length - 1 ? ORD[oi + 1] : 0;
     const nx = cleared && nId ? [nId, "다음 작전 · " + NM[nId][0], "NEXT · " + NM[nId][1]] : null;
     const nextB = nx ? "<button class=primary data-act=next data-stage=" + nx[0] + ">" + (ko ? nx[1] : nx[2]) + "</button>" : "";
+    /* (v51) a failed run offers one sponsored revive, once per stage */
+    const adB = (!cleared && canOfferReviveAd()) ? "<button class=ad data-act=adrev type=button>🎬 <b>" + (ko ? "광고 보고 이어하기" : "WATCH AD TO CONTINUE") + "</b></button>" : "";
     const head = cleared
       ? ({ 6: ko ? "철수 성공 · 시민 대피 완료" : "WITHDRAWAL COMPLETE", 7: ko ? "지연전 성공 · 대전" : "DAEJEON HELD", 8: ko ? "방어 성공 · 대구" : "DAEGU HELD", 9: ko ? "방어 성공 · 광주" : "GWANGJU HELD",
           10: ko ? "방어 성공 · 경주" : "GYEONGJU HELD", 11: ko ? "최후 방어선 사수 · 부산" : "THE PERIMETER HOLDS", 12: ko ? "상륙 성공 · 인천 탈환" : "INCHEON RETAKEN" }[stageId]) || (stageId === 2 ? (ko ? "작전 성공 · JSA 확보" : "MISSION CLEAR · JSA SECURED") : stageId === 3 ? (ko ? "작전 성공 · 판문각 확보" : "MISSION CLEAR · PANMUNGAK SECURED") : stageId === 4 ? (ko ? "작전 성공 · 평양 광장 확보" : "MISSION CLEAR · SQUARE SECURED") : stageId === 5 ? (ko ? "최종 작전 성공 · 총사령관 제압" : "FINAL MISSION · LEADER DOWN")  : (ko ? "서울 수복 · 숭례문 탈환" : "SEOUL RETAKEN"))
@@ -9952,7 +10193,7 @@
       "</p><div class=grid><p><span>" + (ko ? "점수" : "SCORE") + "</span><b>" + score.toLocaleString() +
       "</b></p><p><span>" + (ko ? "명중률" : "ACCURACY") + "</span><b>" + Math.round(acc * 100) + "%</b></p><p><span>" + (ko ? "보급" : "SUPPLY") + "</span><b>" + got + "/" + tot +
       "</b></p><p><span>" + (ko ? "파괴" : "DESTROYED") + "</span><b>" + brokenN + "</b></p><p><span>COMBO</span><b>" + bestCombo + "</b></p></div>" + rankHtml +
-      "<div class=btns>" + nextB + "<button" + (nextB ? "" : " class=primary") + " data-act=again>" + (ko ? "다시 하기" : "PLAY AGAIN") +
+      "<div class=btns>" + adB + nextB + "<button" + (nextB ? "" : " class=primary") + " data-act=again>" + (ko ? "다시 하기" : "PLAY AGAIN") +
       "</button><button data-act=title>" + (ko ? "타이틀" : "TITLE") + "</button></div>" +
       "<div class=\"btns share\"><button data-act=share>" + SHARE_ICO + (ko ? "자랑하기" : "SHARE") + "</button><button data-act=save>" + SAVE_ICO + (ko ? "이미지 저장" : "SAVE IMAGE") + "</button><button data-act=photo>📷 " + (ko ? "포토 모드" : "PHOTO") + "</button></div></div>";
     let avImg = null;
@@ -9969,6 +10210,7 @@
       e.stopPropagation();
       const act = b.getAttribute("data-act");
       if (act === "again") { try { window.MG && window.MG.playAgain(); } catch (err) {} }
+      else if (act === "adrev") { try { reviveFromResult(ctx); } catch (err) { window.__adReviveErr = String(err); } }
       else if (act === "next") { try { window.MG && window.MG.playStage(+b.getAttribute("data-stage") || 2); } catch (err) {} }
       else if (act === "share" || act === "save") { shareResult(shareInfo, act, b); }
       else if (act === "photo") { photoMode(ctx, box); }
@@ -10712,6 +10954,8 @@
       hitMark("pickup", window.__lastHitPx.x, window.__lastHitPx.y, false, lab);
       gun("reload");
       window.__weapon = { w: weapon, ammo: wAmmo, nades: grenades };
+      /* (v51) a supply crate is the natural place for the reward-ad slot */
+      try { offerSupplyAd(ctx); } catch (e) { window.__supplyAdErr = String(e); }
       return;
     }
     if (hit.sort === "supply" || hit.sort === "life" || hit.sort === "ammo") {
@@ -10726,6 +10970,7 @@
       }
       hitMark("pickup", window.__lastHitPx.x, window.__lastHitPx.y);
       gun("hit");
+      if (hit.sort === "supply") { try { offerSupplyAd(ctx); } catch (e) { window.__supplyAdErr = String(e); } }
       return;
     }
     const p = hit.extra;
@@ -16481,7 +16726,7 @@
       aimN.y = -(y / innerHeight) * 2 + 1;
       try { fire(ctx); } catch (err) { window.__fireErr = String(err && err.stack || err); }
     },
-    hurt: (n) => { const ctx = window.__railCtx; if (ctx) hurtPlayer(ctx, n || 10); },
+    hurt: (n) => { invulT = 0; const ctx = window.__railCtx; if (ctx) hurtPlayer(ctx, n || 10); },
     /* test hook: advance the effect pools (fireball, smoke column, debris,
        smoke puffs, sparks) by `sec` without running the game, so a screenshot
        can hold a mid-explosion frame instead of its first one */
@@ -16542,6 +16787,12 @@
       } catch (err) { window.__fireErr = String(err && err.stack || err); }
     },
     grenade: () => { try { throwGrenade(window.__railCtx); } catch (err) { window.__nadeErr = String(err && err.stack || err); } },
+    /* (v51) rewarded-ad hooks for headless checks: ask the bridge directly,
+       force the supply card up, and read what the two slots have used */
+    adShow: (p) => showRewardedAd(p || "revive"),
+    adOfferSupply: () => { const ctx = window.__railCtx; if (ctx) { try { offerSupplyAd(ctx); } catch (e) { window.__supplyAdErr = String(e); } } },
+    adState: () => ({ reviveUsed: adReviveUsed, supplyUsed: adSupplyUsed, resumePhase, endedAt, alive: !ended, mode: (window.MGAds && window.MGAds.mode) || "none" }),
+    pickupSpots: () => pickups.filter((p) => !p.taken && p.mesh).map((p) => ({ kind: p.kind, x: p.mesh.position.x, y: p.mesh.position.y, z: p.mesh.position.z })),
     giveWeapon: (w) => { if (w === "grenade") grenades += 2; else setWeapon(w); },
     reload: () => {
       if (!booted || !active || reloading || bullets >= clipMax || ended || weapon !== "pistol") return;
