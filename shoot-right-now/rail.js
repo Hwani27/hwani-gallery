@@ -4713,18 +4713,18 @@
     /* (v52) two more skies, so the twelve missions do not all play under the
        same light: a wet grey street and a night coast */
     rain: {
-      sky: ["#3a444c", "#4a555e", "#5c6870", "#6e7a82", "#7e8a92", "#8c98a0"],
-      bg: 0x7d8890, fog: 0x808c94, fogNear: 38, fogFar: 205,
+      sky: ["#2c343b", "#39434c", "#47525b", "#55616a", "#626e77", "#6e7a84"],
+      bg: 0x5f6a73, fog: 0x66727b, fogNear: 30, fogFar: 172,
       sun: [20, 30, 25], sunDisc: null,
-      hemi: [0.58, 0xb8c6d0, 0x5a6060], amb: [0.24, 0xa8b8c4], key: [1.0, 0xc8d6e0], rim: [0.3, 0x9ab0c0], moon: [0.12, 0x8aa0b8],
-      exposure: 1.02, cloud: [0x9aa6ae, 0x5a646c, 0.55], wx: "rain"
+      hemi: [0.44, 0xa4b6c4, 0x4a5054], amb: [0.17, 0x98acbc], key: [0.74, 0xb4c6d4], rim: [0.24, 0x8aa4b8], moon: [0.1, 0x8aa0b8],
+      exposure: 0.93, cloud: [0x7e8a94, 0x464f57, 0.55], wx: "rain"
     },
     night: {
-      sky: ["#060b16", "#0b1322", "#121e34", "#192840", "#21324a", "#293c54"],
-      bg: 0x0d1724, fog: 0x131e2e, fogNear: 44, fogFar: 220,
+      sky: ["#04070f", "#070d19", "#0c1526", "#111d30", "#16253a", "#1c2e44"],
+      bg: 0x080f1a, fog: 0x0c1626, fogNear: 38, fogFar: 190,
       sun: [-20, 26, 30], sunDisc: null,
-      hemi: [0.36, 0x6a86b0, 0x1a2030], amb: [0.18, 0x4a6288], key: [0.72, 0x9ab8e0], rim: [0.34, 0x88a8d8], moon: [0.46, 0xb0c8f0],
-      exposure: 1.08, cloud: [0x2a3448, 0x101a2a, 0.4], wx: null
+      hemi: [0.14, 0x4c6c98, 0x0a1018], amb: [0.06, 0x2e4670], key: [0.24, 0x9ab8e0], rim: [0.16, 0x5a7ab0], moon: [0.5, 0xbcd2f4],
+      exposure: 0.68, cloud: [0x1c2638, 0x080e18, 0.35], wx: null
     }
   };
   let weather = null;
@@ -4739,7 +4739,7 @@
     overcast: { bloom: 0.55, vig: 0.27, sat: 1.01, con: 1.03, tint: [0.0, 0.01, 0.03] },
     snow: { bloom: 0.58, vig: 0.29, sat: 0.97, con: 1.03, tint: [-0.045, 0.0, 0.05] },
     rain: { bloom: 0.64, vig: 0.33, sat: 0.93, con: 1.06, tint: [-0.022, 0.004, 0.05] },
-    night: { bloom: 0.82, vig: 0.36, sat: 1.03, con: 1.1, tint: [0.0, 0.006, 0.06] }
+    night: { bloom: 0.86, vig: 0.4, sat: 1.04, con: 1.12, tint: [-0.01, 0.0, 0.085] }
   };
   let combatTone = 0;
   function applyTone(name) {
@@ -4870,8 +4870,8 @@
   }
 
   function startWeather(ctx, kind) {
-    const N = kind === "rain" ? 1200 : kind === "snow" ? 1600 : 420;
-    const BX = kind === "rain" ? 40 : 46, BY = kind === "rain" ? 26 : 22, BZ = kind === "rain" ? 50 : 56;
+    const N = kind === "rain" ? 2000 : kind === "snow" ? 1600 : 420;
+    const BX = kind === "rain" ? 34 : 46, BY = kind === "rain" ? 24 : 22, BZ = kind === "rain" ? 44 : 56;
     const pos = new Float32Array(N * 3);
     const R = rng(kind === "rain" ? 555 : kind === "snow" ? 991 : 337);
     for (let i = 0; i < N; i++) { pos[i * 3] = (R() - 0.5) * BX; pos[i * 3 + 1] = R() * BY; pos[i * 3 + 2] = (R() - 0.5) * BZ; }
@@ -4888,7 +4888,7 @@
       }
     }, { smooth: true });
     tex.magFilter = T.NearestFilter;
-    const mat = new T.PointsMaterial({ map: tex, size: kind === "snow" ? 0.09 : kind === "rain" ? 0.13 : 0.06, sizeAttenuation: true, transparent: true, opacity: kind === "snow" ? 0.95 : kind === "rain" ? 0.62 : 0.8, depthWrite: false, fog: true,
+    const mat = new T.PointsMaterial({ map: tex, size: kind === "snow" ? 0.09 : kind === "rain" ? 0.2 : 0.06, sizeAttenuation: true, transparent: true, opacity: kind === "snow" ? 0.95 : kind === "rain" ? 0.66 : 0.8, depthWrite: false, fog: true,
       blending: kind === "snow" ? T.NormalBlending : T.AdditiveBlending });
     const pts = new T.Points(geo, mat);
     pts.frustumCulled = false;
@@ -6740,7 +6740,7 @@
       waves: genWaves(1212, ["BEACH", "SONGDO", "CENTRAL PARK"], [
         "상륙 성공! 해안 교두보를 확보하라!", "적 오토바이 반격조!", "적 헬기 출현! 교두보 엄폐!",
         "시민 구출 우선, 오사 주의!", "적 증원, 센트럴파크 방향!", "적 헬기 재접근!", "적 공수 강하! 인천을 되찾아라!"], { bikes: true, hostage: true }),
-      dress: "citygen", bossKind: "heli", bossHp: 46, armorWave: 6, armorTank: false, armorHp: 14,
+      dress: "citygen", bossKind: "heli", bossHp: 46, armorWave: 3, armorTank: false, armorHp: 14,
       city: {
         seed: 12, mood: "day", sea: true, cherry: true, tall: 18, tints: [0xe8f0f8, 0xd8e4ee, 0xb0c4d4], sign: [-12.4, -40, "인천 송도", "Incheon Songdo", Math.PI / 2, "#2a6ab8"],
         cars: [["police", -7.4, 24, Math.PI]],
@@ -16003,6 +16003,10 @@
       }
       if (p.lowT > 0) {
         p.lowT -= dt;
+        /* stay over the open street: a gunship that drops onto a roof line
+           just climbs again, which is not a low pass at all */
+        ox = p.front.x + p.lat.x * sw * 0.28 + p.fwd.x * 1.6;
+        oz = p.front.z + p.lat.z * sw * 0.28 + p.fwd.z * 1.6;
         oy = Math.min(oy, 3.6 + Math.sin(p.orbitT * 1.7) * 0.35);
         lean += Math.sin(p.orbitT * 2.2) * 0.12;
       }
@@ -16024,7 +16028,7 @@
     p.z += (oz - p.z) * kk;
     p.bob += dt * 1.3;
     const yPrev = p.yB == null ? p.y : p.yB;
-    const ky = oy > yPrev ? Math.min(1, dt * 6.5) : kk;
+    const ky = oy > yPrev ? Math.min(1, dt * 6.5) : Math.min(1, dt * (p.lowT > 0 ? 4.4 : 1.6));
     p.yB = yPrev + (oy - yPrev) * ky;
     p.y = p.yB + Math.sin(p.bob) * 0.3;
     /* a hard floor, so a fast target change can never leave the airframe
@@ -16197,6 +16201,29 @@
     const glow = new T.Mesh(new T.BoxGeometry(0.6, 0.6, 0.3), new T.MeshBasicMaterial({ color: 0xffb060 })); glow.position.z = -4.9; g.add(glow);
     return g;
   }
+  /* (v52) test hook: drop one refugee on the sightline, `ahead` metres out,
+     so the warning and the family figures can be checked headless */
+  window.__civAt = (ahead, side) => {
+    const ctx = window.__railCtx;
+    if (!ctx) return null;
+    const c = ctx.camera, d = new T.Vector3();
+    c.getWorldDirection(d); d.y = 0;
+    const dl = Math.hypot(d.x, d.z) || 1; d.x /= dl; d.z /= dl;
+    const off = side || 0;
+    const x = c.position.x + d.x * (ahead || 7) + d.z * off, z = c.position.z + d.z * (ahead || 7) - d.x * off;
+    try {
+      const m = makeSoldier("hostage");
+      m.position.set(x, 0.4, z);
+      m.rotation.y = Math.atan2(-d.x, -d.z);
+      m.userData.fwd = [d.x, d.z];
+      m.traverse((o) => { o.userData.noBlock = 1; });
+      ctx.scene.add(m);
+      AMB.refs.push({ m: m, ph: 0, spd: 0.9 });
+      window.__civN = (window.__civN || 0) + 1;
+      return { x: +x.toFixed(1), z: +z.toFixed(1) };
+    } catch (e) { return String(e); }
+  };
+
   function stepAmbient(ctx, dt) {
     const cam = ctx.camera.position;
     AMB.t += dt;
@@ -17099,6 +17126,28 @@
     },
     pause,
     frame,
+    /* (v52) test hook: jump straight to the boss arena, so a headless run can
+       frame the tank or the gunship without walking the whole street */
+    /* (v52) test hook: roll the camera back along the rail, so a boss can be
+       framed from down the street instead of filling the lens */
+    camBack: (m) => {
+      const ctx = window.__railCtx;
+      if (!ctx) return "no ctx";
+      pathU = Math.max(0, pathU - (m || 8) / pathLen);
+      return +pathU.toFixed(3);
+    },
+    toBoss: () => {
+      const ctx = window.__railCtx;
+      if (!ctx) return "no ctx";
+      try {
+        if (phase === "fight") endWave(ctx);
+        waveI = waves.length;
+        phase = "toBoss";
+        pathU = Math.max(0, bossU - 8 / pathLen);
+        window.__railPhase = phase;
+        return { phase: phase, waveI: waveI };
+      } catch (e) { window.__toBossErr = String(e); return String(e); }
+    },
     fire: () => {
       try {
         const ctx = window.__railCtx;

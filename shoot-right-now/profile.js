@@ -384,7 +384,7 @@
     .mHead{margin:12px 0 12px}.mHead h1{font-size:clamp(30px,6vw,46px)}.mHead .tKicker{display:none}
     .mList{margin:0}.mCard{min-height:52px}.mCard .no{width:40px;height:40px;font-size:13px}
     .mSelHead{margin:0 2px 0}.mSelNote{display:none}
-    .mStrip{gap:5px}.mChip{width:46px;min-height:50px}.mChip i{font-size:13px}
+    .mStrip{gap:4px;padding-bottom:4px}.mChip{width:44px;min-height:46px}.mChip b{font-size:11px}.mChip i{font-size:12px}.mChip s{font-size:7px}
     .mCard .tx .tg{margin-top:3px}.mCard .tx .tg i{font-size:8px;padding:2px 6px}
     #mgMenu .mR{max-height:calc(100vh - 24px);overflow:auto;padding-right:4px}
     .mFoot{display:none}
