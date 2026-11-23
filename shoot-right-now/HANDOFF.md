@@ -433,6 +433,13 @@ Stage 1(서울)은 손대지 않았고, 그 뒤에 **Stage 2**를 붙였다. 두
 - **v2**: 레일 슈터 골격(`baro-baro-jump` 엔진 위에 얹었다가 이후 완전 분리).
 - **v1**: `baro-baro-jump` HTML을 fetch/DOMParser로 재파싱해 쓰던 시절 → **지금은 금지된 구조**. 독립 빌드로 되돌리지 말 것.
 
+## 4-6. v41 — 세로 화면: 안 보이는 적에게 맞는 문제 (2026-11-23)
+- 세로 화면 광각: `FOV_MAX` 82→94, `FOV_KEEP_H` 76→80(가로는 58 그대로).
+- 공정한 사격 `seenK(p)`: 적이 화면 안(NDC |x|≤0.97)에 있을 때만 조준 게이지가 줄고(`p.aim -= dt * seenK(p)`, 6곳), 화면 밖에서 쏜 탄은 피해 0(`enemyFire`).
+- 화면 밖 적 표시 `stepThreatArrows`: 화면 가장자리에 빨간 화살표(`.railEdge`, 기존 게이지 `.railThreat`와 다른 클래스), 사격 중이면 깜빡임. 결과·메뉴에서 숨김.
+- 전투 프레이밍: 일어선 적이 화면 끝(|x|>0.8) 밖으로 나가면 시선을 그쪽으로 최대 9m 기울였다 돌아옴(`frameOff`).
+- 테스트: 360×800 세로 1-2·3-1, 844×390 가로 1-2에서 '보이지 않는 일어선 적' 0, full.py 1-4 클리어. rail.js v41.
+
 ## 4-7. v40 — 폴더 이동: `shoot-right-now/` (2026-11-23)
 - 게임 폴더를 `baro-baro-myeolgong/` → `shoot-right-now/`로 옮김(git mv, 이력 유지). 갤러리 카드 링크도 새 폴더.
 - 옛 주소 `baro-baro-myeolgong/index.html`·`en.html`은 새 주소로 바로 이동시키는 안내 페이지(쿼리·해시 유지)만 남김. 같은 도메인이라 localStorage 저장(`myeolgong_*`)은 그대로 이어짐.

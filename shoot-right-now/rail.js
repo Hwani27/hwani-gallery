@@ -160,6 +160,10 @@
       @keyframes railSpin{to{transform:rotate(360deg)}}
       #railResult{position:fixed;inset:0;z-index:50;display:none;align-items:center;justify-content:center;background:rgba(4,8,16,.9);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);color:#fff;font-family:Pretendard,system-ui,sans-serif;text-align:center;padding:24px}
       #railResult.show{display:flex}
+      .railEdge{position:fixed;z-index:44;width:36px;height:36px;pointer-events:none;filter:drop-shadow(0 2px 4px rgba(0,0,0,.6));opacity:.85}
+      .railEdge svg{width:100%;height:100%}
+      .railEdge.hot{animation:railEdgeHot .45s ease-in-out infinite alternate;opacity:1}
+      @keyframes railEdgeHot{to{filter:drop-shadow(0 0 10px rgba(255,60,40,.95))}}
       .railCut{position:fixed;inset:0;z-index:47;pointer-events:none;font-family:Pretendard,system-ui,sans-serif;color:#fff;display:flex;align-items:center;justify-content:center}
       .railCut .lb{position:absolute;left:0;right:0;height:13vh;background:#000;transition:transform .35s ease}
       .railCut .lb.t{top:0;transform:translateY(-100%);animation:railLbT .35s ease forwards}
@@ -6610,7 +6614,9 @@
      cone instead: vfov = 2·atan(tan(hfov/2) / aspect), clamped to 52..82 so a
      tall phone never turns into a fisheye. Landscape (aspect >= 1) keeps the
      old 58° and a nearly square window eases out of it instead of snapping. */
-  const FOV_LAND = 58, FOV_MIN = 52, FOV_MAX = 82, FOV_KEEP_H = 76;
+  /* (v41) a portrait phone gets a wider lens than before (up to 94°), so
+     more of the street fits across the narrow screen */
+  const FOV_LAND = 58, FOV_MIN = 52, FOV_MAX = 94, FOV_KEEP_H = 80;
   function viewFov() {
     const asp = innerWidth / Math.max(1, innerHeight);
     if (asp >= 1) return FOV_LAND;
@@ -7952,6 +7958,7 @@
 
   function showHud(on) {
     if (hud) hud.style.display = on ? "" : "none";
+    if (!on) threatEls.forEach((d) => { d.style.display = "none"; });
     const xh = document.getElementById("railX");
     if (xh) xh.style.display = on ? "" : "none";
     const rb = document.getElementById("railReload");
@@ -8216,6 +8223,7 @@
 
   function begin(ctx, stageIdIn) {
     TUT.checked = false; TUT.on = false; tutHide();
+    threatEls.forEach((d) => { d.style.display = "none"; });
     try { applyArmUni(); } catch (e) {}
     if (!ctx || !ctx.scene || !ctx.camera) return false;
     // pick the GPU's anisotropic limit before any texture is painted
@@ -9088,7 +9096,7 @@
       p.visTop = p.y + 1.6;
       const armed = c.ahead < 27 && c.ahead > 6.5 && p.aim < 90;
       if (armed) {
-        p.aim -= dt;
+        p.aim -= dt * seenK(p);
         if (p.aim <= 0) { enemyFire(ctx, p, p.role === "tough" ? 12 : 9); p.aim = 99; }
       }
       placeTag(p, ctx, armed ? Math.max(0, Math.min(1, 1 - p.aim / p.aimMax)) : 0, armed);
@@ -10417,7 +10425,7 @@
       }
     } else if (p.state === "fire") {
       p.expose = Math.min(1, p.expose + dt / 0.2);
-      p.aim -= dt;
+      p.aim -= dt * seenK(p);
       if (p.burstN > 0) {
         /* the burst he actually fires: flash, tracer, recoil; only the first
            round of it carries the damage, so one attack still costs one hit */
@@ -10728,7 +10736,59 @@
 
   /* an enemy round: muzzle flash at his barrel, a tracer back at the camera,
      a kick of the rifle, and the damage when this round is the one that counts */
+  /* (v41) fair fire: a man you cannot see does not shoot you. His aim only
+     runs down while he is inside the frame (a little margin), and a round
+     from outside it does no damage. Off-screen enemies get an arrow at the
+     screen edge instead (stepThreatArrows). */
+  const _seenV = new T.Vector3();
+  function seenK(p) {
+    const cam = window.__railCtx && window.__railCtx.camera;
+    if (!cam || !p) return 1;
+    const x = p.mesh ? p.mesh.position.x : p.x, z = p.mesh ? p.mesh.position.z : p.z;
+    _seenV.set(x, (p.y || 0.3) + 1.1, z).project(cam);
+    if (_seenV.z > 1) return 0;
+    return Math.abs(_seenV.x) <= 0.97 && _seenV.y > -1.05 && _seenV.y < 1.05 ? 1 : 0;
+  }
+  const threatEls = [];
+  window.__seenK = (p) => seenK(p);
+  let frameOff = 0;
+  function stepThreatArrows(ctx) {
+    const cam = ctx.camera;
+    const list = [];
+    if (!ended && (phase === "fight" || phase === "boss")) {
+      posts.forEach((p) => {
+        if (!p.mesh || p.live === false || !p.e || p.e.alive === false || p.role === "hostage") return;
+        if (p.state === "hidden" && !p.air && !p.runner && !p.bikeMesh) return;
+        if (seenK(p)) return;
+        const v = new T.Vector3(p.mesh.position.x, (p.y || 0.3) + 1.1, p.mesh.position.z).project(cam);
+        let x = v.x, y = v.y;
+        if (v.z > 1) { x = -x; y = -y; }
+        const m = Math.max(Math.abs(x), Math.abs(y)) || 1;
+        list.push({ x: x / m, y: y / m, hot: p.state === "fire" || p.air === "heli" });
+      });
+    }
+    while (threatEls.length < list.length && threatEls.length < 6) {
+      const d = document.createElement("div");
+      d.className = "railEdge";
+      d.innerHTML = '<svg viewBox="0 0 40 40"><path d="M20 4 L36 32 L20 25 L4 32 Z" fill="#ff4a3a" stroke="#fff" stroke-width="2.5" stroke-linejoin="round"/></svg>';
+      document.body.appendChild(d);
+      threatEls.push(d);
+    }
+    threatEls.forEach((d, i) => {
+      const t = list[i];
+      if (!t) { d.style.display = "none"; return; }
+      const W = innerWidth, H = innerHeight, pad = 34;
+      const px = W / 2 + t.x * (W / 2 - pad), py = H / 2 - t.y * (H / 2 - pad);
+      const ang = Math.atan2(t.x, t.y);
+      d.style.display = "";
+      d.style.left = (px - 18) + "px";
+      d.style.top = (py - 18) + "px";
+      d.style.transform = "rotate(" + ang + "rad)";
+      d.classList.toggle("hot", !!t.hot);
+    });
+  }
   function enemyFire(ctx, p, dmg) {
+    if (dmg && !seenK(p)) dmg = 0;
     const u = p.mesh && p.mesh.userData;
     const from = new T.Vector3(p.mesh.position.x, p.y + 1.2, p.mesh.position.z);
     if (u && u.muzzle) {
@@ -11063,6 +11123,31 @@
         const tx = tng ? tng.x / tl : 0, tz = tng ? tng.z / tl : 1;
         cam.position.set(curHold.x + tz * steerOff, CAM_Y, curHold.z - tx * steerOff);
         lookGoal = { x: curLook.x, y: curLook.y, z: curLook.z };
+        /* (v41) combat framing: when someone who is up and fighting stands
+           past the edge of the frame (a narrow portrait screen), the view
+           leans toward him, a few metres at most, and eases back after */
+        {
+          let want = 0;
+          if (phase === "fight" || phase === "boss") {
+            let hi = -9, lo = 9;
+            posts.forEach((p) => {
+              if (!p.mesh || p.live === false || !p.e || p.e.alive === false || p.role === "hostage") return;
+              if (p.state === "hidden" && !p.air && !p.runner) return;
+              _seenV.set(p.mesh.position.x, (p.y || 0.3) + 1.1, p.mesh.position.z).project(cam);
+              if (_seenV.z > 1) return;
+              hi = Math.max(hi, _seenV.x); lo = Math.min(lo, _seenV.x);
+            });
+            if (hi > 0.8 && lo > -0.8) want = Math.min(1, hi - 0.8) * 9;
+            else if (lo < -0.8 && hi < 0.8) want = -Math.min(1, -0.8 - lo) * 9;
+          }
+          frameOff += (want - frameOff) * Math.min(1, dt * 1.6);
+          if (Math.abs(frameOff) > 0.01) {
+            const fx = curLook.x - cam.position.x, fz = curLook.z - cam.position.z, fl = Math.hypot(fx, fz) || 1;
+            /* the camera's right, on the ground */
+            const rx = -fz / fl, rz = fx / fl;
+            lookGoal.x += rx * frameOff; lookGoal.z += rz * frameOff;
+          }
+        }
       }
     } else {
       lookGoal = { x: cam.position.x, y: 1.3, z: cam.position.z + 10 };
@@ -11089,6 +11174,7 @@
     cam.updateProjectionMatrix();
     cam.updateMatrixWorld(true);
     if (ctx.player) ctx.player.visible = false;
+    try { stepThreatArrows(ctx); } catch (e) {}
 
     // ---- enemies ----
     if (phase === "fight" || phase === "boss") {
@@ -11638,7 +11724,7 @@
       if (arrived) { p.wait = 1.1 + Math.random() * 0.9; p.aim = p.aimMax * 0.75; p.burstN = 0; }
     } else {
       p.wait -= dt;
-      p.aim -= dt;
+      p.aim -= dt * seenK(p);
       if (p.burstN > 0) {
         p.shotT -= dt;
         if (p.shotT <= 0) {
@@ -14521,7 +14607,7 @@
     p.visTop = p.y + 2.3;
     if (p.isBoss && p.live !== false && (p.enterT || 0) >= 1) heliRockets(ctx, p, dt);
     if (p.live !== false) {
-      p.aim -= dt;
+      p.aim -= dt * seenK(p);
       if (p.aim <= 0) {
         heliFire(ctx, p);
         p.aim = p.aimMax + Math.random() * 0.9;
@@ -14881,7 +14967,7 @@
       p.visTop = p.y + 2.2;
       if (p.chuteOn) p.visTop = p.y + 3.55;
       if (p.live !== false) {
-        p.aim -= dt;
+        p.aim -= dt * seenK(p);
         if (p.burstN > 0) {
           p.shotT -= dt;
           if (p.shotT <= 0) {
@@ -15208,7 +15294,7 @@
       }
     }
     /* a two-shot threat: the ring runs down, then two heavy rounds */
-    p.aim -= dt;
+    p.aim -= dt * seenK(p);
     if (p.burstN > 0) {
       p.shotT -= dt;
       if (p.shotT <= 0) {
