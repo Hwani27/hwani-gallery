@@ -3081,12 +3081,62 @@
     const C = dead ? KCH.dead : KCH.mat, key = k + (dead ? "-dead" : "");
     return C[k] || (C[k] = new T.MeshStandardMaterial({ map: kTex(key), roughness: 0.9, metalness: 0 }));
   };
+  /* (v32) the rig's own animations, sampled by hand: each clip's rotation
+     tracks become interpolants, and a pose is written straight onto the
+     joints after the old controller has set them — a whole clip, or only the
+     legs or the upper body, blended in by weight. The root's tracks are left
+     out (the controller moves and tips the body itself). */
+  KCH.A = {};
+  window.__KCH = KCH;
+  function kPrep(clips) {
+    clips.forEach((cl) => {
+      const A = { dur: cl.duration || 0.2, q: {} };
+      cl.tracks.forEach((tr) => {
+        const i = tr.name.lastIndexOf(".");
+        const node = tr.name.slice(0, i), prop = tr.name.slice(i + 1);
+        if (prop !== "quaternion" || node === "root") return;
+        A.q[node] = tr.createInterpolant();
+      });
+      KCH.A[cl.name] = A;
+    });
+  }
+  const K_LEGS = { "leg-left": 1, "leg-right": 1 };
+  const K_ARMS = { "arm-left": 1, "arm-right": 1 };
+  const K_UPPER = { "arm-left": 1, "arm-right": 1, torso: 1, head: 1 };
+  const K_TOP = { torso: 1, head: 1 };
+  const K_BODY = { "arm-left": 1, "arm-right": 1, torso: 1, head: 1, "leg-left": 1, "leg-right": 1 };
+  const _kq = new T.Quaternion(), _kv = new T.Vector3();
+  function kApply(u, name, t01, parts, w) {
+    const A = KCH.A[name];
+    if (!A || !u.kN || w <= 0.001) return;
+    const tt = (((t01 % 1) + 1) % 1) * A.dur;
+    for (const nn in A.q) {
+      if (parts && !parts[nn]) continue;
+      const node = u.kN[nn];
+      if (!node) continue;
+      _kq.fromArray(A.q[nn].evaluate(tt));
+      if (w >= 0.999) node.quaternion.copy(_kq); else node.quaternion.slerp(_kq, w);
+    }
+  }
+  /* the rifle rides in the trigger hand, barrel along his facing, pitched */
+  function kRifle(p, pitch, roll) {
+    const u = p.mesh.userData;
+    if (!u.rifle || !u.kN || !u.body) return;
+    p.mesh.updateMatrixWorld(true);
+    _kv.set(-0.2, -0.92, 0.06);
+    u.kN["arm-right"].localToWorld(_kv);
+    u.body.worldToLocal(_kv);
+    const s = u.rifle.scale.x;
+    u.rifle.position.set(_kv.x + 0.02 * s, _kv.y + 0.13 * s, _kv.z + 0.12 * s);
+    u.rifle.rotation.set(pitch || 0, Math.PI, roll || 0);
+  }
+  window.__kPose = { kApply: (...a) => kApply(...a), kRifle: (...a) => kRifle(...a), K_BODY, K_ARMS, K_UPPER, K_LEGS, K_TOP };
   const kKit = (hex, r) => KCH.kit[hex] || (KCH.kit[hex] = new T.MeshStandardMaterial({ color: new T.Color(hex).convertSRGBToLinear(), roughness: r == null ? 0.82 : r, metalness: 0.05 }));
   (function loadKCH() {
     if (/[?&]oldchars/.test(location.search)) return;
     try {
       if (!T.GLTFLoader) return;
-      new T.GLTFLoader().load("models/characters/character.glb", (g) => { KCH.src = g.scene; KCH.ready = true; }, undefined, () => {});
+      new T.GLTFLoader().load("models/characters/character.glb", (g) => { try { kPrep(g.animations || []); } catch (e) { window.__kAnimErr = String(e); } KCH.src = g.scene; KCH.ready = true; }, undefined, () => {});
       ["nk", "nkt", "rok", "civ1", "civ2", "civ3", "civ4", "nko"].forEach((k) => { kMat(k); kMat(k, true); });
     } catch (e) {}
   })();
@@ -3236,6 +3286,7 @@
     g.userData.kenney = true;
     g.userData.kHead = head;
     g.userData.kTorso = torso;
+    g.userData.kN = { "arm-left": armR, "arm-right": armL, "leg-left": legR, "leg-right": legL, torso: torso, head: head };
     if (ally) { g.userData.phase = 0; g.userData.aimK = 0; }
     else if (!civ) enemyRim(g);
     return g;
@@ -10098,6 +10149,16 @@
     if (u.shinL) u.shinL.rotation.x = 0.22 * (1 - ex);
     if (u.shinR) u.shinR.rotation.x = 0.26 * (1 - ex);
     if (u.nade) u.nade.position.y = 0.60 + ex * 0.12;
+    if (u.kN) {
+      /* (v32) low ready → shouldered, from the rig's own holding poses, with
+         a breath in the chest while he waits and the kick of each shot */
+      p.kT = (p.kT || Math.random()) + dt * 0.75;
+      kApply(u, "idle", p.kT, K_TOP, 1 - ak);
+      kApply(u, "holding-both", 0, K_ARMS, 1);
+      kApply(u, "holding-both-shoot", 0.4, K_UPPER, ak);
+      if (rc) { u.armL.rotateX(rc * 0.35); u.armR.rotateX(rc * 0.3); }
+      kRifle(p, -0.04 + 0.5 * (1 - ak) + rc * 0.25, 0);
+    }
 
     /* keep the visible top around for the tag and for the hit test */
     p.visTop = p.y + p.headTop * sy;
@@ -10418,6 +10479,10 @@
     if (u.rifle) { u.rifle.position.set(-0.24, 1.05, -0.1); u.rifle.rotation.set(0.9, Math.PI, 0.3); }
     if (u.body) { u.body.position.y = 0.0; u.body.rotation.x = 0.34; u.body.rotation.z = 0; u.body.scale.y = 1; }
     if (u.headG) u.headG.rotation.x = -0.2;
+    if (u.kN) {
+      kApply(u, "drive", 0, K_BODY, 1);
+      if (u.rifle) { u.rifle.position.set(0, (K_H[p.role] || 2.3) * 0.55, -0.32); u.rifle.rotation.set(0, Math.PI, 0.9); }
+    }
     p.mesh.rotation.y = yaw;
     p.mesh.rotation.z = lean || 0;
   }
@@ -10538,6 +10603,12 @@
     }
     if (u.headG) u.headG.rotation.x = 0.05;
     p.mesh.rotation.y = faceYaw;
+    if (u.kN) {
+      /* sprint legs and body, rifle held across the chest at port arms */
+      kApply(u, "sprint", ph / (Math.PI * 2), K_BODY, 1);
+      kApply(u, "holding-both", 0, K_ARMS, 1);
+      kRifle(p, 0.55, 0.25);
+    }
   }
 
   /* half a second before a burst, a red glint sits on his muzzle with a stub
@@ -10714,6 +10785,12 @@
       u.body.rotation.x = 0.04 * gait - 0.03 * aim;
     }
     if (u.headG) u.headG.rotation.y = Math.sin(u.phase * 0.5) * 0.06 * gait;
+    if (u.kN) {
+      kApply(u, "walk", u.phase / (Math.PI * 2), K_LEGS, Math.min(1, gait * 1.4));
+      kApply(u, "holding-both", 0, K_ARMS, 1);
+      kApply(u, "holding-both-shoot", 0.4, K_UPPER, aim);
+      kRifle({ mesh: a }, -0.04 + 0.45 * (1 - aim) + (u.recoil || 0) * 0.2, 0);
+    }
     u.recoil = Math.max(0, (u.recoil || 0) - dt * 6);
     u.speed = speed;
     u.steps = (u.steps || 0) + Math.abs(moved);
@@ -10880,6 +10957,8 @@
         p.mesh.position.x = p.x + f.kx * f.push * t;
         p.mesh.position.z = p.z + f.kz * f.push * t;
         p.mesh.position.y = p.y - Math.max(0, k - 0.7) * 0.3;
+        /* (v32) arms and legs go with the rig's own death */
+        if (p.mesh.userData.kN) kApply(p.mesh.userData, "die", Math.min(0.999, t * 1.25), K_BODY, 1);
         if (p.dying <= 0) p.mesh.visible = false;
       }
     });
@@ -11358,6 +11437,11 @@
     if (p.body) {
       p.body.position.y = Math.abs(Math.sin(ph)) * 0.045;
       p.body.rotation.x = 0.06;
+    }
+    if (u.kN) {
+      kApply(u, "walk", ph / (Math.PI * 2), K_LEGS, 1);
+      kApply(u, "holding-both", 0, K_ARMS, 1);
+      kRifle(p, 0.45, 0.1);
     }
   }
 
@@ -14315,6 +14399,7 @@
       if (u.armL) u.armL.rotation.x = -Math.sin(r.ph) * 0.4;
       if (u.armR) u.armR.rotation.x = Math.sin(r.ph) * 0.4;
       if (u.body) u.body.position.y = Math.abs(Math.sin(r.ph)) * 0.04;
+      if (u.kN) kApply(u, r.spd > 1.4 ? "sprint" : "walk", r.ph / (Math.PI * 2), K_BODY, 1);
       if ((r.m.position.x - cam.x) * fw[0] + (r.m.position.z - cam.z) * fw[1] < -6 || Math.hypot(r.m.position.x - cam.x, r.m.position.z - cam.z) > 90) { r.m.parent && r.m.parent.remove(r.m); return false; }
       return true;
     });

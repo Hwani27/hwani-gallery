@@ -433,6 +433,13 @@ Stage 1(서울)은 손대지 않았고, 그 뒤에 **Stage 2**를 붙였다. 두
 - **v2**: 레일 슈터 골격(`baro-baro-jump` 엔진 위에 얹었다가 이후 완전 분리).
 - **v1**: `baro-baro-jump` HTML을 fetch/DOMParser로 재파싱해 쓰던 시절 → **지금은 금지된 구조**. 독립 빌드로 되돌리지 말 것.
 
+## 5-5. v32 — 캐릭터 동작을 Kenney 애니메이션으로 (2026-11-23)
+- `kPrep`이 리그의 27개 클립 회전 트랙을 보간기로 만들어 `KCH.A`에 둠(루트 트랙 제외). `kApply(u, clip, t01, parts, w)`가 기존 컨트롤러가 관절을 세운 뒤 그 위에 포즈를 덮어씀(부위: `K_LEGS/K_ARMS/K_UPPER/K_TOP/K_BODY`, 가중치는 slerp). `u.kN`이 Kenney 노드 이름 → 관절.
+- 적: 엄폐·대기 `holding-both` + 숨쉬는 `idle`(가슴·머리) → 사격 `holding-both-shoot`(ak로 블렌드), 반동 킥. 돌격병 달리기 `sprint`(보폭 위상 동기화), 걷기 `walk`, 오토바이 `drive`, 사망 `die`(몸 전체 쓰러짐은 기존 코드, 팔다리는 클립).
+- 아군: `walk` 다리(gait 가중) + 들기/사격 블렌드. 피난민: `walk`/`sprint` 전신.
+- 소총은 `kRifle(p, pitch, roll)`로 방아쇠 손을 따라가며 시선 방향을 향함(예전 몸 좌표 고정 대신). 탑승 중엔 등에 멤.
+- 디버그용 `window.__KCH`, `window.__kPose`. full.py 7·5·3·12 클리어. rail.js v32.
+
 ## 5-6. v31 — 사망 비명 복구, 보스 콧수염 제거 (2026-11-23)
 - `sfx/scream_1~3.mp3` 복구, manifest `scream` 키 재등록. `gun-sfx.js` grunt에서 사망 때만 재생(속도 0.84~0.94로 음 낮춤, 게인 0.42, 0.45초에 한 번). 피격 신음(`hurt`)은 계속 제외, 기존 저역 '퍽' 타격음은 그대로 같이 남.
 - 보스 스킨 `nko`·`cmd`에서 콧수염 제거. 스킨 URL에 `?v=31` 붙여 캐시 갱신.
