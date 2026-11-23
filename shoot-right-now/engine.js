@@ -106,6 +106,55 @@
   renderer.shadowMap.type = T.PCFSoftShadowMap;
   renderer.setClearColor(0x8ec7ee, 1);
 
+  /* ---- (v46) shadow budget ------------------------------------------------
+     One sun, three sizes. What costs on a phone is the shadow pass: the map
+     left/right/top/bottom box is how much of the city is drawn twice, and the
+     map resolution is how sharp the barrier edge and a helmet come out. The
+     box is boxed in tight around the fight instead of the whole boulevard, so
+     1024 still reads. The level follows the graphics switch (post.js) and the
+     device: a phone that had to drop the post pass gets PCF instead of
+     PCFSoft and the tightest box. `?shadow=high|mid|low` forces one. */
+  const SHADOWS = {
+    high: { map: 2048, soft: true, span: [46, 52, -40], far: 190, bias: -0.0004, normalBias: 0.03 },
+    mid: { map: 1024, soft: true, span: [30, 36, -28], far: 150, bias: -0.0005, normalBias: 0.04 },
+    low: { map: 1024, soft: false, span: [22, 28, -22], far: 120, bias: -0.0007, normalBias: 0.05 }
+  };
+  let shadowLevel = null;
+  function pickShadow() {
+    let forced = null;
+    try { forced = new URLSearchParams(location.search).get("shadow"); } catch (e) {}
+    if (forced && SHADOWS[forced]) return forced;
+    if (window.MGPost && window.MGPost.quality === "low") return "low";
+    const cores = navigator.hardwareConcurrency || 4;
+    const touch = (navigator.maxTouchPoints || 0) > 1;
+    const small = Math.min(window.innerWidth || 9999, window.innerHeight || 9999) < 900;
+    const dpr = window.devicePixelRatio || 1;
+    if (cores >= 8 && !(touch && small && dpr >= 3)) return "high";
+    if (cores <= 4 && (touch || small)) return "low";
+    return "mid";
+  }
+  function applyShadow(level) {
+    const t = SHADOWS[level] || SHADOWS.high;
+    if (shadowLevel === level) return;
+    shadowLevel = level;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = t.soft ? T.PCFSoftShadowMap : T.PCFShadowMap;
+    key.shadow.mapSize.set(t.map, t.map);
+    key.shadow.camera.near = 1;
+    key.shadow.camera.far = t.far;
+    key.shadow.camera.left = -t.span[0];
+    key.shadow.camera.right = t.span[0];
+    key.shadow.camera.top = t.span[1];
+    key.shadow.camera.bottom = t.span[2];
+    key.shadow.bias = t.bias;
+    if ("normalBias" in key.shadow) key.shadow.normalBias = t.normalBias;
+    key.shadow.camera.updateProjectionMatrix();
+    /* a new mapSize only takes effect once the old depth target is dropped */
+    if (key.shadow.map) { key.shadow.map.dispose(); key.shadow.map = null; }
+    renderer.shadowMap.needsUpdate = true;
+    window.__shadowInfo = { level: level, map: t.map, type: t.soft ? "PCFSoftShadowMap" : "PCFShadowMap", span: t.span.slice(), far: t.far };
+  }
+
   const scene = new T.Scene();
   const camera = new T.PerspectiveCamera(58, 1, 0.06, 320);
   camera.rotation.order = "YXZ";
@@ -118,9 +167,7 @@
   const key = new T.DirectionalLight(0xfff2d0, 2.05);
   key.position.set(32, 22, 14);
   key.castShadow = true;
-  /* 2048 keeps a barrier's edge and a man's helmet crisp on the road; the
-     frustum is pulled in tight around the fight so the pixels are not spent on
-     the far city */
+  /* the numbers below are the `high` tier; applyShadow() sets the rest */
   key.shadow.mapSize.set(2048, 2048);
   key.shadow.camera.near = 1;
   key.shadow.camera.far = 190;
@@ -132,6 +179,8 @@
   if ("normalBias" in key.shadow) key.shadow.normalBias = 0.03;
   /* the frustum numbers above only take effect through a fresh projection */
   key.shadow.camera.updateProjectionMatrix();
+  applyShadow(pickShadow());
+  if (window.MGPost) window.MGPost.onChange(() => applyShadow(pickShadow()));
   /* where the sun sits relative to the player: low enough to throw long
      shadows down the street, high enough to light a man's face */
   const SUN = [32, 22, 14];
@@ -190,6 +239,9 @@
     hitFlash: function () {}
   };
   window.__railCtx = ctx;
+  window.__shadowInfo = window.__shadowInfo || null;
+  window.__setShadow = applyShadow;
+  window.__pickShadow = pickShadow;
 
   /* ---- frame loop ---- */
   function tick() {

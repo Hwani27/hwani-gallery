@@ -33,7 +33,22 @@
   let mBright = null, mBlur = null, mComp = null, mAO = null, mAOBlur = null, mRays = null, depthOnly = null;
   /* (v24) screen-space extras: ambient occlusion from a half-res depth
      pre-pass, sun shafts from the bloom bright pass, a hurt pulse */
-  const FX = { ao: 0.75, rays: 0.55, hurt: 0, aoOn: true };
+  const FX = { ao: 0.62, rays: 0.55, hurt: 0, aoOn: true };
+  /* (v46) the mood grade: the scene is already ACES tone-mapped by the
+     materials, so this only nudges contrast, saturation and a colour cast on
+     the display-ready image — the stage sets it (war = warm and heavy, snow =
+     cool and flat, dusk = magenta shadows) without touching the lights */
+  const TONE = { sat: 1.07, con: 1.045, tint: [0.018, 0.008, -0.014], bloom: 0.6, vig: 0.26, rays: 0.55 };
+  function setTone(o) {
+    if (!o) return;
+    if (o.sat != null) TONE.sat = o.sat;
+    if (o.con != null) TONE.con = o.con;
+    if (o.tint) TONE.tint = o.tint.slice(0, 3);
+    if (o.bloom != null) TONE.bloom = o.bloom;
+    if (o.vig != null) { TONE.vig = o.vig; FX.vig = o.vig; }
+    if (o.rays != null) { TONE.rays = o.rays; FX.rays = o.rays; }
+    window.__tone = { sat: TONE.sat, con: TONE.con, tint: TONE.tint.slice(), bloom: TONE.bloom, vig: TONE.vig, rays: TONE.rays };
+  }
 
   /* (v24) height fog: every material's fog thins with altitude, so streets
      sit in haze while towers and hills rise out of it */
@@ -140,7 +155,7 @@
         { tSrc: { value: null }, dir: { value: new T.Vector2() } });
 
       mComp = shader(
-        "uniform sampler2D tScene,tB,tC,tAO,tG;uniform float bloom,vig,aspect,aoK,hurt,raysK,dbg;varying vec2 vUv;" +
+        "uniform sampler2D tScene,tB,tC,tAO,tG;uniform float bloom,vig,aspect,aoK,hurt,raysK,dbg,sat,con;uniform vec3 tint;varying vec2 vUv;" +
         "void main(){vec2 sh=(vUv-.5)*hurt*.012;vec3 c=vec3(texture2D(tScene,vUv+sh).r,texture2D(tScene,vUv).g,texture2D(tScene,vUv-sh).b);" +
         "c*=mix(1.,texture2D(tAO,vUv).r,aoK);" +
         "c+=texture2D(tG,vUv).rgb*raysK;" +
@@ -149,15 +164,20 @@
         "c=1.-(1.-c)*(1.-b*bloom);" +
         /* grade: a touch of contrast and colour, cool shadows / warm highlights */
         "float l=dot(c,vec3(.2126,.7152,.0722));" +
-        "c=mix(vec3(l),c,1.07);" +
-        "c=(c-.5)*1.045+.5;" +
-        "c+=vec3(-.012,-.002,.016)*(1.-l)+vec3(.018,.008,-.014)*l;" +
+        "c=mix(vec3(l),c,sat);" +
+        /* (v46) contrast around a 0.45 pivot instead of 0.5, so the shadow end
+           of a night street keeps its texture instead of being crushed to
+           flat black, with a gentle S so the highlights stay round */
+        "c=(c-.45)*con+.45;" +
+        "c=mix(c, smoothstep(0.,1.,c), clamp((con-1.)*1.1,0.,.18));" +
+        "c+=vec3(-.012,-.002,.016)*(1.-l)+vec3(.018,.008,-.014)*l+tint*(.11*(.5-l)+.05);" +
         /* vignette */
         "vec2 d=(vUv-.5)*vec2(aspect,1.);float r=length(d)/length(vec2(aspect,1.)*.5);" +
         "c*=1.-(vig+hurt*.35)*smoothstep(.55-hurt*.2,1.05,r);c=mix(c,c*vec3(1.25,.7,.65),hurt*.35*smoothstep(.4,1.,r));" +
         "if(dbg>.5)c=vec3(texture2D(tAO,vUv).r);gl_FragColor=vec4(clamp(c,0.,1.),1.);}",
         { tScene: { value: null }, tB: { value: null }, tC: { value: null }, tAO: { value: null }, tG: { value: null },
-          bloom: { value: 0.6 }, vig: { value: 0.26 }, aspect: { value: 1 }, aoK: { value: 0 }, hurt: { value: 0 }, raysK: { value: 0 }, dbg: { value: 0 } });
+          bloom: { value: 0.6 }, vig: { value: 0.26 }, aspect: { value: 1 }, aoK: { value: 0 }, hurt: { value: 0 }, raysK: { value: 0 }, dbg: { value: 0 },
+          sat: { value: 1.07 }, con: { value: 1.045 }, tint: { value: new T.Vector3(0.018, 0.008, -0.014) } });
 
       qCam = new T.OrthographicCamera(-1, 1, 1, -1, 0, 1);
       qScene = new T.Scene();
@@ -269,6 +289,12 @@
       mComp.uniforms.raysK.value = raysK > 0.01 ? raysK : 0;
       mComp.uniforms.hurt.value = Math.min(1, FX.hurt);
       mComp.uniforms.dbg.value = FX.dbg ? 1 : 0;
+      /* the mood grade (v46): contrast, saturation and a colour cast per stage */
+      mComp.uniforms.bloom.value = FX.bloom != null ? FX.bloom : TONE.bloom;
+      mComp.uniforms.vig.value = FX.vig != null ? FX.vig : TONE.vig;
+      mComp.uniforms.sat.value = TONE.sat;
+      mComp.uniforms.con.value = TONE.con;
+      mComp.uniforms.tint.value.set(TONE.tint[0], TONE.tint[1], TONE.tint[2]);
       mComp.uniforms.tScene.value = rtScene.texture;
       mComp.uniforms.tB.value = rtB0.texture;
       mComp.uniforms.tC.value = rtC1.texture;
@@ -313,6 +339,8 @@
     sample: sample,
     setQuality: setQuality,
     onChange: (f) => subs.push(f),
+    setTone: setTone,
+    get tone() { return window.__tone || TONE; },
     get quality() { return level; },
     get pref() { return pref; },
     get mats() { return { mBright, mBlur, mComp }; },

@@ -13,11 +13,11 @@
 | 영어 페이지 | https://hwani27.github.io/hwani-gallery/shoot-right-now/en.html |
 | 갤러리 카드 | `index.html`의 `shoot-right-now/` 카드 → `thumb.png` |
 | 폴더 | `work/hwani-gallery/shoot-right-now/` (완전 독립 빌드) |
-| 현재 버전 | **v28** (`?v=28`, CC0 3D 모델 4종 + `GLTFLoader`) / v18 (`?v=18`, 엄폐 위치 수정) / v17 (`?v=17`, 보스 장갑·전차, 평화의 집 스테이지, 평양 기념상) / v16 (`?v=16`, 스테이지 연장 · Stage 3 · 무기) / v15 (`?v=15`, 시간대·날씨 + 부서지는 유리·간판) / v14 (`?v=14`, 겹침·관통 정리) / v13 (`?v=13`, 레일 관통 수정 · 복셀 텍스처 · 나무/남산/숭례문/버스 · 파편·탄흔) / v12 (`?v=12`, 화면 후처리 `post.js` + 적 테두리 빛) / v11 (`?v=11`, 버그 수정 4건) / 이전 **v10 통합** (`?v=10`) — v10 표면(텍스처·PBR 재질·환경맵·ACES·그림자·총구 화염/탄피) 위에 **Stage 2(DMZ·판문점)** 를 함께 얹은 상태. PR #12(`feat/myeolgong-v9-seoul-polish`)를 main에 병합하며 충돌 4곳을 해소 |
+| 현재 버전 | **v46** (`?v=46`, 전장 소품·그림자 티어 / 타격·폭발·트레이서 / 조명·색감 톤) · v45 (`?v=45`, 곡선 차선) · v44 (긴 총 손·군복 2종) · v43 (아이콘 군복·버튼 탭) · v42 (아이콘 얼굴) · v41 (세로 화각·화면 밖 적) · v40 (폴더 이동) · v39 (이름 변경) · v28 (`?v=28`, CC0 3D 모델 4종) / v18 (엄폐 위치 수정) / v17 (보스 장갑·전차, 평화의 집) / v16 (Stage 3·무기) / v15 (시간대·날씨) / v14 (겹침 정리) / v13 (레일 관통·복셀) / v12 (`post.js` 후처리) / v11 / v10 통합 |
 | 스테이지 | `STAGES` 표: 1 = 서울(8웨이브+보스), 2 = DMZ·판문점(6웨이브+보스), 3 = 판문점 평화의 집(7웨이브+전차), 4 = 평양 진입(7웨이브+전차, 눈). 타이틀 버튼 4개(`#mgStart`/`2`/`3`/`4`), 결과의 `다음 작전`은 1→2→3→4. 타이틀의 두 버튼 / Stage 1 클리어 결과의 `다음 작전` 버튼으로 진입 |
 | v9 브랜치 | `feat/myeolgong-v9-seoul-polish` → PR #12 (v10도 같은 브랜치) |
 | v6 커밋 | `3df8b62` — full 1st-person arms/torso, adaptive portrait FOV, barrel tracks the aim point |
-| 캐시 버스터 | `?v=18` (index.html·en.html **네 줄**: post·engine·gun-sfx·rail) |
+| 캐시 버스터 | **`?v=46`** (index.html·en.html의 post·engine·rail 세 줄) · profile `?v=44` · gun-sfx `?v=33` |
 
 | 로컬 실행 | `cd work/hwani-gallery && python3 -m http.server 8133` → `http://127.0.0.1:8133/shoot-right-now/index.html` |
 
@@ -433,6 +433,40 @@ Stage 1(서울)은 손대지 않았고, 그 뒤에 **Stage 2**를 붙였다. 두
 - **v2**: 레일 슈터 골격(`baro-baro-jump` 엔진 위에 얹었다가 이후 완전 분리).
 - **v1**: `baro-baro-jump` HTML을 fetch/DOMParser로 재파싱해 쓰던 시절 → **지금은 금지된 구조**. 독립 빌드로 되돌리지 말 것.
 
+## 4-1. v46 — 그래픽 강화 3종: 전장 소품·그림자 / 타격·폭발 / 조명·색감 (2026-11-23)
+
+사용자가 고른 3가지를 기존 기능 위에 얹은 라운드. 게임 규칙·스테이지·세이브는 건드리지 않았다.
+
+### (1) 전장 소품 · 실시간 그림자
+- **그림자 티어** (`engine.js`): `SHADOWS.high|mid|low` = 지도 2048/1024/1024 · PCFSoft/PCFSoft/PCF · 태양 그림자 상자 ±46·±30·±22 m · far 190/150/120. `pickShadow()`가 그래픽 설정(`MGPost.quality === "low"`)과 기기(`hardwareConcurrency`·터치·작은 화면·dpr)로 고르고, `MGPost.onChange`에 물려 그래픽 버튼을 누르면 즉시 따라간다. `?shadow=high|mid|low`로 강제 가능. 지도를 바꾸면 `key.shadow.map`을 버려 재생성한다. `window.__shadowInfo`로 확인.
+- **잔해 차** `makeWreckCar()` — 불탄 세단(본닛·보닛/측면 그을음, 깨진 유리띠, 문짝 하나 열림, 바퀴 3개+허브, 바닥 그을음). 차체는 `userData.wall`이라 총알이 막히고 통행도 막는다. 1-1에 4대, 시가지 스테이지에 3대.
+- **돌출 간판** `makeBladeSign()` — 벽에서 튀어나온 박스 간판(양면 간판 텍스처 + 브래킷). 1-1에 5개, 시가지에 4개. 간판에 옆면과 그림자가 생겼다.
+- **바리케이드**: 발판마다 모래주머니 2개, 상단에 위험등 2개, 패널/다리에 `castShadow`.
+- **가로등**: 렌즈·캡 추가, 팔/헤드 `castShadow`, 바닥에 따뜻한 빛 웅덩이(`lampPools`, war/dusk에서만 켜지고 미세하게 일렁인다). 신호등 기둥도 그림자를 던진다.
+- **거리 잔해** `dressClutter()` — 보도 벽돌·콘크리트 조각·도로 위 탄피를 InstancedMesh 2개(그림자 포함)로. 시가지에서는 길이 꺾이는 스테이지에선 인스턴스가 같이 돌지 않으므로 직선 구간에만.
+- 시가지(`dressCity`)에도 잔해 차·돌출 간판을 넣어 모든 도시가 "싸운 흔적"을 갖게 했다.
+
+### (2) 타격 · 폭발 · 총알 궤적
+- **플레이어 트레이서** `shotTracer()` — `shootRay()`가 레이의 첫 교차점을 구한 직후, 총구(aim 로컬 (0,0.062,-0.44))에서 그 지점까지 가는 가산 혼합 막대(코어 + 옅은 글로우). 명중·벽 정지·빗나감 모두 같은 선을 남긴다. 박스 지오메트리 1개와 재질 2개를 공유하고 `tracers` 상한 56에서 멈춘다. 산탄은 일부만 그린다.
+- **연기 기둥** `smokeColumn()`/`stepColumns()` — 폭발 지점에서 2.6초 동안 퍼프 10개가 위로 피어오른다(기존 `smokes` 풀 재사용, 새 드로우콜 없음). 드럼·수류탄·전차/헬기 격추(`boomAt`) 모두 연결.
+- **화염구** 색 단계를 더 이르게 따뜻하게(흰색→노랑→주황→적→그을음), 성장 0.75+√k·3.6, 충격파 링은 색을 낮추고 (1-k)²로 빨리 사라져 "회색 접시"로 보이지 않게.
+- **화면 흔들림**: 3축 오프셋 + 미세 롤(`cam.rotateZ`), 폭발은 카메라 반대 방향 `kickV`(±0.32 m, 감쇠). 모두 상한이 있어 조준이 튀지 않는다.
+- **풀 상한** `FX_CAP` = sparks 240 · smokes 90 · tracers 56 · shells 12 · chunks 170 · columns 6. 모든 스폰 지점이 `fxRoom()`으로 먼저 확인한다.
+- **총구 광원**: 뷰모델 `flashLight`를 거리 14·감쇠 1.8·최대 4.6으로 키워 발사 순간 앞쪽 벽/바닥이 실제로 번쩍인다.
+
+### (3) 조명 · 색감 톤
+- `post.js` 컴포지트에 **`sat`·`con`·`tint` uniform**과 `MGPost.setTone()` 추가. 대비는 0.45 피벗 + 약한 S커브라 밤길의 그림자 끝이 검게 뭉개지지 않는다. AO 기본 0.75→0.62.
+- `rail.js`의 `TONES` 표가 무드별 값을 정한다: day(중립) / war(따뜻·진하게) / dusk(자홍 그림자) / morning(아침) / overcast(평평) / snow(차갑게). `applyMood()`이 호출한다.
+- **war 무드 보정**: hemi 0.36→0.9(지면색 0x5a4636), amb 0.14→0.3, rim 0.7→1.05, exposure 0.98→1.18, 안개 0x96654a·44~270. 1-1 밤거리가 실루엣만 보이던 것에서 도로·모래주머니·적이 읽히는 수준으로.
+- **보스 진입** `setCombatTone(true)`: 글로우/비네트를 조금 올리고 안개를 10% 당긴다. 결과 화면·재시작에서 원복.
+
+### 검증 (v46)
+- 헤드리스 Chromium(swiftshader, 2코어): 1280×720·390×844에서 1-1과 2-2를 시작→교전→사격→폭발까지 진행. **콘솔 오류 0 · pageerror 0 · 404 0**, `__frameErr/__postErr/__tracerErr/__clutterErr/__wreckErr/__bladeErr` 모두 null, `__railErrs` 0, GLB 2종 `ok`.
+- 사격 3발 → `tracers` 2~3개(코어+글로우), 폭발 후 `sparks` 13~18 · `smokes` 5~6로 상한 안에서 유지.
+- 그림자 티어: 이 컨테이너(2코어)에서는 자동으로 `low`(1024·PCF·±22 m), `?shadow=high` 강제 시 2048·PCFSoft·±46 m로 전환됨을 확인. 1280×720 high 후처리에서 프레임이 이전 2.8 fps → 8.2 fps로 올랐다(그림자 상자가 줄어든 효과, 소프트웨어 렌더 기준).
+- 비교 이미지: `downloads/shoot_gfx_v46.png` (v45 `a330621` 워크트리 vs v46, 같은 카메라·같은 프레임 시점).
+- 검증용 훅: `RAIL.fxStep(sec)`(이펙트 풀만 시간 진행 — 스크린샷용), `window.__shadowInfo`, `window.__setShadow(level)`, `window.__tone`.
+
 ## 4-2. v45 — 도시 차선 연속화
 - dressCity 차선: 4m 조각을 곡선 위에 회전 없이 늘어놓아 계단처럼 끊기던 문제 → `stripe()`가 cityX 곡선을 따라가는 리본 지오메트리로 생성(중앙 황색 2줄은 구간당 1개, 흰 점선 3.2m도 곡선 추종).
 - 교차로(TURNS) 앞뒤 구간 끝에 정지선 추가. 각 리본은 userData.leg로 bendCity 다리에 배정.
@@ -711,6 +745,8 @@ Stage 2 확인용 (v8):
    RAIL.shootAt(x, y)             // 화면 좌표로 한 발(테스트용, fire() 그대로)
    ```
 8. **Stage 2 인트로 스킵**: `window.__railPhase === "intro"`에서 `__railSpeed`는 인트로에 영향이 없다(실시간 기준). 바로 전투를 보려면 인트로가 끝날 때까지 기다린다.
+
+디버그 훅(v46 추가): `RAIL.fxStep(0.3)`로 이펙트만 0.3초 진행한 정지 화면, `__shadowInfo`/`__setShadow('high'|'mid'|'low')`/`?shadow=` 그림자 티어, `__tone`/`MGPost.setTone({sat,con,tint,bloom,vig})` 색보정, `?gfx=high&shadow=high` 조합으로 촬영.
 
 디버그 훅: `__railDbg`(phase/waveI/u/cam/posts/alive/exposed/states/staged/cover/ally/falls/grunts), `__aimSpot`, `__pistol`, `__pistolAim`, `__pistolBody`, `__gunAim`, `__aimTarget`, `__aimN`, `__posts`, `__mk`(모델 팩토리 — `soldier`/`ally`/`rifle`/`commander`/`heli`/`tank`), `__glbState`(GLB 로드 상태), `__lastShot`, `__lastBlocked`, `__railSpeed`(시간 배속), `__texSizes`.
 

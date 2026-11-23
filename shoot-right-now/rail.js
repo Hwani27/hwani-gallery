@@ -117,6 +117,17 @@
   let bossCovers = [];
   let bossStage = null;
   let wallList = [];
+  /* (v46) effect ceilings. Every spawn site checks its pool first, so a burst
+     of grenades, drums and a dying helicopter can never multiply into a
+     hundred live meshes and stall a phone: past the cap the newest particle is
+     simply skipped (the pool drains in well under a second). */
+  const FX_CAP = { sparks: 240, smokes: 90, tracers: 56, shells: 12, chunks: 170, columns: 6 };
+  const fxRoom = (arr, cap) => arr.length < cap;
+  /* (v46) shockwave kick: an explosion also pushes the camera away from it */
+  const kickV = { x: 0, z: 0 };
+  /* (v46) smoke columns rising off a wreck or a blast */
+  const columns = [];
+  let lampPools = [];
 
   /* impact feedback borrowed from the boxing game's feel: a short
      freeze-frame, a screen flash and a knockback flinch. */
@@ -4564,10 +4575,10 @@
     },
     war: {
       sky: ["#2a1a1c", "#4a2420", "#7a3420", "#b8502a", "#d87a3a", "#e8a060"],
-      bg: 0x7a4a34, fog: 0x8a5a40, fogNear: 40, fogFar: 260,
+      bg: 0x7a4a34, fog: 0x96654a, fogNear: 44, fogFar: 270,
       sun: [-20, 8, 70], sunDisc: 0xff8a3a,
-      hemi: [0.36, 0xd89070, 0x3a3028], amb: [0.14, 0xc08070], key: [1.7, 0xff9a50], rim: [0.7, 0xff6a30], moon: [0.12, 0x8a7080],
-      exposure: 0.98, cloud: [0x5a3a34, 0x2a1c1c, 0.6], wx: "motes"
+      hemi: [0.9, 0xd89070, 0x5a4636], amb: [0.3, 0xc08070], key: [1.85, 0xff9a50], rim: [1.05, 0xff6a30], moon: [0.12, 0x8a7080],
+      exposure: 1.18, cloud: [0x5a3a34, 0x2a1c1c, 0.6], wx: "motes"
     },
     dusk: {
       sky: ["#1e2f63", "#4a3f7c", "#a35a7e", "#ef8452", "#ffc073", "#ffe0a8"],
@@ -4585,13 +4596,54 @@
     }
   };
   let weather = null;
+  /* (v46) the grade each mood asks post.js for: war runs warm and heavy, dusk
+     puts magenta in the shadows, snow goes cool and flat, a clear day stays
+     almost neutral. Applied on top of ACES, never instead of it. */
+  const TONES = {
+    day: { bloom: 0.58, vig: 0.24, sat: 1.06, con: 1.04, tint: [0.02, 0.01, -0.012] },
+    war: { bloom: 0.74, vig: 0.28, sat: 1.13, con: 1.07, tint: [0.11, 0.02, -0.06] },
+    dusk: { bloom: 0.70, vig: 0.30, sat: 1.10, con: 1.05, tint: [0.09, 0.005, -0.015] },
+    morning: { bloom: 0.62, vig: 0.25, sat: 1.08, con: 1.04, tint: [0.06, 0.018, -0.028] },
+    overcast: { bloom: 0.55, vig: 0.27, sat: 1.01, con: 1.03, tint: [0.0, 0.01, 0.03] },
+    snow: { bloom: 0.58, vig: 0.29, sat: 0.97, con: 1.03, tint: [-0.045, 0.0, 0.05] }
+  };
+  let combatTone = 0;
+  function applyTone(name) {
+    const t = TONES[name] || TONES.day;
+    try {
+      if (window.MGPost && window.MGPost.setTone) {
+        window.MGPost.setTone({ sat: t.sat, con: t.con, tint: t.tint, bloom: t.bloom + combatTone * 0.08, vig: t.vig + combatTone * 0.05 });
+      }
+    } catch (e) { window.__toneErr = String(e && e.stack || e); }
+    window.__stageTone = name;
+  }
+  /* (v46) the fight warms up when the boss walks in: a little more glow and
+     vignette, and the far end of the street closes in by a tenth */
+  function setCombatTone(on) {
+    combatTone = on ? 1 : 0;
+    applyTone(window.__mood || "day");
+    try {
+      const f = SCENE && SCENE.fog;
+      if (f && f.isFog) {
+        if (!f.userData || !f.userData.far) f.userData = { far: f.far, near: f.near };
+        f.far = f.userData.far * (on ? 0.9 : 1);
+        f.near = f.userData.near * (on ? 0.94 : 1);
+      }
+      if (SCENE && window.__baseExposure && SCENE.__renderer) SCENE.__renderer.toneMappingExposure = window.__baseExposure * (on ? 1.03 : 1);
+    } catch (e) {}
+  }
   function moodOverride() {
     try { const q = new URLSearchParams(location.search).get("mood"); return q && (q === "day" || MOODS[q]) ? q : null; } catch (e) { return null; }
   }
   function applyMood(ctx, S, sky, clouds, name) {
     clearWeather(ctx);
     window.__mood = name;
-    if (name === "day" || !MOODS[name]) { window.__mgSun = null; return; }
+    applyTone(name);
+    /* the lamp pools only read when the sun is low or the city is burning */
+    const lit = name === "war" || name === "dusk";
+    for (let i = 0; i < lampPools.length; i++) { const m = lampPools[i] && lampPools[i].material; if (m) m.opacity = lit ? 0.8 : 0; }
+    if (ctx && ctx.renderer) { window.__mgRenderer = ctx.renderer; if (SCENE) SCENE.__renderer = ctx.renderer; }
+    if (name === "day" || !MOODS[name]) { window.__mgSun = null; if (ctx && ctx.renderer) window.__baseExposure = ctx.renderer.toneMappingExposure; return; }
     const M = MOODS[name];
     const tex = ctex("skyMood-" + name, 256, 256, (g, w, h) => {
       const gr = g.createLinearGradient(0, 0, 0, h * 0.62);
@@ -4614,6 +4666,7 @@
     const set = (l, v) => { if (!l || !v) return; l.intensity = v[0]; if (l.color) l.color.setHex(v[1]); if (v[2] != null && l.groundColor) l.groundColor.setHex(v[2]); };
     set(LT.hemi, M.hemi); set(LT.amb, M.amb); set(LT.key, M.key); set(LT.rim, M.rim); set(LT.moon, M.moon);
     if (ctx.renderer) ctx.renderer.toneMappingExposure = M.exposure;
+    if (ctx.renderer) window.__baseExposure = M.exposure;
     window.__mgSun = M.sun;
     (clouds || []).forEach((c) => c.traverse((o) => {
       if (o.isMesh && o.material && o.material.emissive) {
@@ -4939,6 +4992,21 @@
 
   /* ---- street furniture and vehicles ---- */
 
+  /* (v46) the street lamp now carries a lit lens under its head and a warm
+     pool on the pavement below. The pool is hidden in daylight and switched
+     on by the mood (war, dusk), where it is the cheapest way to say "the
+     street is lit by something other than the sun". */
+  let LAMPGEO = null;
+  function lampPoolTex() {
+    return ctex("lampPool", 64, 64, (g, w, h) => {
+      const gr = g.createRadialGradient(w / 2, h / 2, 1, w / 2, h / 2, w / 2);
+      gr.addColorStop(0, "rgba(255,214,150,.55)");
+      gr.addColorStop(0.45, "rgba(255,196,120,.22)");
+      gr.addColorStop(1, "rgba(255,180,100,0)");
+      g.fillStyle = gr;
+      g.fillRect(0, 0, w, h);
+    }, { smooth: true });
+  }
   function makeStreetLamp(S, x, z, rotY) {
     const g = new T.Group();
     const post = new T.Mesh(new T.CylinderGeometry(0.09, 0.13, 6.4, 7), SOL.poleGray);
@@ -4947,10 +5015,27 @@
     g.add(post);
     const arm = new T.Mesh(new T.BoxGeometry(1.8, 0.1, 0.1), SOL.poleGray);
     arm.position.set(0.85, 6.3, 0);
+    arm.castShadow = true;
     g.add(arm);
     const head = new T.Mesh(new T.BoxGeometry(0.9, 0.16, 0.34), SOL.metalDark);
     head.position.set(1.65, 6.2, 0);
+    head.castShadow = true;
     g.add(head);
+    /* the lens and its cap, so the head reads as a fitting and not a bar */
+    const lens = new T.Mesh(new T.BoxGeometry(0.7, 0.05, 0.24), SOL.lampWarm);
+    lens.position.set(1.65, 6.11, 0);
+    g.add(lens);
+    const cap = new T.Mesh(new T.BoxGeometry(0.98, 0.06, 0.4), SOL.metalDark);
+    cap.position.set(1.65, 6.29, 0);
+    g.add(cap);
+    if (!LAMPGEO) LAMPGEO = new T.PlaneGeometry(6.4, 6.4);
+    const pool = new T.Mesh(LAMPGEO, new T.MeshBasicMaterial({ map: lampPoolTex(), transparent: true, opacity: 0, depthWrite: false, blending: T.AdditiveBlending, toneMapped: false }));
+    pool.rotation.x = -Math.PI / 2;
+    pool.position.set(1.65, 0.09, 0);
+    pool.renderOrder = 3;
+    pool.userData.noBlock = 1;
+    g.add(pool);
+    lampPools.push(pool);
     g.position.set(x, 0.3, z);
     g.rotation.y = rotY || 0;
     S.add(g);
@@ -4961,9 +5046,11 @@
     const g = new T.Group();
     const post = new T.Mesh(new T.CylinderGeometry(0.1, 0.14, 5.6, 7), SOL.poleGray);
     post.position.y = 2.8;
+    post.castShadow = true;
     g.add(post);
     const arm = new T.Mesh(new T.BoxGeometry(2.6, 0.12, 0.12), SOL.poleGray);
     arm.position.set(1.3, 5.4, 0);
+    arm.castShadow = true;
     g.add(arm);
     const box = new T.Mesh(new T.BoxGeometry(0.9, 0.34, 0.3), SOL.ledFrame);
     box.position.set(2.4, 5.15, 0);
@@ -5479,19 +5566,167 @@
     [-1, 1].forEach((s) => {
       const leg = new T.Mesh(new T.BoxGeometry(0.1, 1.0, 0.7), SOL.metalDark);
       leg.position.set((s * L) / 2.2, 0.5, 0);
+      leg.castShadow = true;
       g.add(leg);
       const foot = new T.Mesh(new T.BoxGeometry(0.14, 0.08, 0.9), SOL.metalDark);
       foot.position.set((s * L) / 2.2, 0.04, 0);
       g.add(foot);
+      /* (v46) a sandbag on each foot: the police barricade weighted down the
+         way they stand in the street, and a read of depth at the base */
+      part(g, 0.5, 0.22, 0.4, (s * L) / 2.2, 0.13, 0.16, SOL.sand);
+      part(g, 0.42, 0.2, 0.34, (s * L) / 2.2 + s * 0.16, 0.13, -0.2, SOL.sand);
     });
     const panel = new T.Mesh(new T.BoxGeometry(L, 0.42, 0.08), SOL.barricadePanel);
     panel.position.y = 0.82;
+    panel.castShadow = true;
+    panel.receiveShadow = true;
     g.add(panel);
     const rail = new T.Mesh(new T.BoxGeometry(L, 0.09, 0.09), SOL.metalDark);
     rail.position.y = 0.38;
     g.add(rail);
+    /* the flashing hazard lamp on top of the panel */
+    const lamp = new T.Mesh(new T.BoxGeometry(0.14, 0.1, 0.14), SOL.lampRed || SOL.lampWarm);
+    lamp.position.set(-L * 0.3, 1.09, 0);
+    g.add(lamp);
+    const lamp2 = new T.Mesh(new T.BoxGeometry(0.14, 0.1, 0.14), SOL.lampWarm);
+    lamp2.position.set(L * 0.3, 1.09, 0);
+    g.add(lamp2);
     g.position.set(x, 0, z);
     return g;
+  }
+
+  /* (v46) a burnt-out car left in the kerb lane. Five boxes make the body,
+     a glass band for the greenhouse, one door hanging open and a wheel off on
+     the pavement — enough to read as a wreck from the front or the side. The
+     shell is a wall, so rounds stop on it and nobody walks through it. */
+  let WRKM = null;
+  function wreckMats() {
+    if (WRKM) return WRKM;
+    const S = (hex, rough, metal) => new T.MeshStandardMaterial({ color: new T.Color(hex).convertSRGBToLinear(), roughness: rough, metalness: metal || 0.1 });
+    WRKM = {
+      paint: S(0x4a4640, 0.82, 0.22), paintB: S(0x5c5448, 0.84, 0.2),
+      soot: S(0x191510, 0.95, 0.04), rust: S(0x6e3c24, 0.9, 0.12),
+      glass: S(0x161c22, 0.22, 0.45), tyre: S(0x121212, 0.96, 0.02), rim: S(0x585c60, 0.45, 0.62)
+    };
+    return WRKM;
+  }
+  function makeWreckCar(S, x, z, rotY, opt) {
+    makeSol();
+    const o = opt || {};
+    const M = wreckMats();
+    const g = new T.Group();
+    const B = (w, h, d, px, py, pz, m, rz) => {
+      const q = new T.Mesh(new T.BoxGeometry(w, h, d), m);
+      q.position.set(px, py, pz);
+      if (rz) q.rotation.z = rz;
+      q.castShadow = true; q.receiveShadow = true;
+      g.add(q);
+      return q;
+    };
+    /* body, bonnet, boot, greenhouse, glass band, burnt roof */
+    B(1.78, 0.44, 4.05, 0, 0.62, 0, o.paint ? M.paintB : M.paint);
+    B(1.72, 0.3, 1.5, 0, 0.92, -1.22, M.paint);
+    B(1.72, 0.28, 1.05, 0, 0.9, 1.45, M.paint);
+    B(1.62, 0.46, 1.5, 0, 1.3, -0.12, M.paint);
+    B(1.52, 0.34, 1.3, 0, 1.34, -0.1, M.glass);
+    B(1.66, 0.07, 1.56, 0, 1.55, -0.12, M.soot);
+    /* the fire took the bonnet and one flank */
+    B(1.6, 0.05, 1.2, 0, 1.08, -1.28, M.soot);
+    B(0.03, 0.34, 1.8, -0.9, 0.66, -0.35, M.soot);
+    B(0.03, 0.3, 1.5, 0.9, 0.64, 0.3, M.rust);
+    /* three wheels, one bare hub */
+    [[-0.86, -1.32], [0.86, -1.32], [-0.86, 1.28]].forEach(([wx, wz]) => {
+      B(0.22, 0.62, 0.62, wx, 0.42, wz, M.tyre);
+      B(0.24, 0.26, 0.26, wx, 0.42, wz, M.rim);
+    });
+    B(0.2, 0.24, 0.24, 0.86, 0.4, 1.26, M.rim);
+    /* the door that was blown open, and its wheel on the pavement */
+    B(0.06, 0.92, 0.92, -1.02, 0.86, 0.18, M.paint, -0.5);
+    B(0.62, 0.24, 0.62, 1.45, 0.42, 1.55, M.tyre);
+    /* scorched paint on the ground under it */
+    B(1.5, 0.04, 3.4, 0, 0.33, 0, M.soot);
+    g.children.forEach((c) => { if (c.material !== M.soot) c.userData.wall = 1; });
+    g.rotation.y = rotY || 0;
+    g.rotation.z = o.tilt == null ? 0.045 : o.tilt;
+    g.position.set(x, 0.3, z);
+    S.add(g);
+    return g;
+  }
+
+  /* (v46) a projecting shop sign: the board stands out from the wall on a
+     bracket, so it has a side face and a shadow instead of reading as a
+     poster painted on the bricks. Both faces carry the shop's own board. */
+  function makeBladeSign(S, x, y, z, rotY, i) {
+    makeSol();
+    const g = new T.Group();
+    const face = signMat(i);
+    const w = 0.95, h = 2.0, d = 0.15;
+    const body = new T.Mesh(new T.BoxGeometry(w, h, d), SOL.shopFascia);
+    body.position.x = w / 2 + 0.08;
+    body.castShadow = true;
+    body.receiveShadow = true;
+    g.add(body);
+    [-1, 1].forEach((s) => {
+      const p = new T.Mesh(new T.PlaneGeometry(w - 0.08, h - 0.1), face);
+      p.position.set(w / 2 + 0.08, 0, s * (d / 2 + 0.008));
+      p.rotation.y = s < 0 ? Math.PI : 0;
+      g.add(p);
+    });
+    /* two arms into the wall and a diagonal brace */
+    [h * 0.36, -h * 0.36].forEach((oy) => {
+      const arm = new T.Mesh(new T.BoxGeometry(w + 0.16, 0.06, 0.06), SOL.metalDark);
+      arm.position.y = oy;
+      g.add(arm);
+    });
+    const brace = new T.Mesh(new T.BoxGeometry(0.06, h * 0.75, 0.06), SOL.metalDark);
+    brace.position.set(w * 0.62, -h * 0.12, 0);
+    brace.rotation.z = 0.42;
+    g.add(brace);
+    g.position.set(x, y, z);
+    g.rotation.y = rotY || 0;
+    g.traverse((o) => { o.userData.noBlock = 1; });
+    S.add(g);
+    return g;
+  }
+
+  /* (v46) kerb-side litter and fallen masonry in one instanced batch: broken
+     bricks along the pavements, chips of concrete off the shopfronts, spent
+     cases in the gutter. One draw call for a hundred bits. */
+  function dressClutter(S, seed, o) {
+    const opt = o || {};
+    const M = voxMats();
+    const V = voxBatch();
+    const R = rng(seed || 5);
+    const z0 = opt.z0 == null ? -18 : opt.z0, z1 = opt.z1 == null ? 60 : opt.z1;
+    const n = opt.n || 110;
+    for (let i = 0; i < n; i++) {
+      const side = R() < 0.5 ? -1 : 1;
+      const x = side * (9.9 + R() * 3.4);
+      const z = z0 + R() * (z1 - z0);
+      const s = 0.09 + R() * 0.2;
+      const hex = [0x8a8478, 0x6e6a60, 0x9a9488, 0x5a564e, 0x7a5a3e][(R() * 5) | 0];
+      /* the pavements stand 10 cm proud of the asphalt, so litter sits on them */
+      const yb = Math.abs(x) > 9.65 ? 0.42 : 0.32;
+      V.cube(R() < 0.22 ? M.rock : M.plain, x, yb + s * 0.5, z, s, s * 0.7, s * (0.8 + R() * 1.2), hex, R() * 6, { cast: s > 0.2 });
+    }
+    /* a few little piles where a wall was hit */
+    for (let p = 0; p < (opt.piles || 4); p++) {
+      const side = R() < 0.5 ? -1 : 1;
+      const px = side * (10.2 + R() * 2.6), pz = z0 + 6 + R() * Math.max(2, z1 - z0 - 12);
+      for (let k = 0; k < 9; k++) {
+        const s = 0.12 + R() * 0.22;
+        V.cube(M.rock, px + (R() - 0.5) * 1.5, 0.42 + s * 0.5 + (R() < 0.3 ? s : 0), pz + (R() - 0.5) * 1.5, s, s * 0.8, s, [0x9a9488, 0x807a70, 0x6c665c][(R() * 3) | 0], R() * 6, { cast: true });
+      }
+    }
+    const out = V.flush(S, (opt.name || "clutter"));
+    out.forEach((m) => { m.userData.noBlock = 1; });
+    /* spent brass in the road: tiny, always there, no shadow */
+    const B = voxBatch();
+    for (let i = 0; i < (opt.cases || 26); i++) {
+      B.cube(M.plain, (R() - 0.5) * 18, 0.32, z0 + R() * (z1 - z0), 0.04, 0.04, 0.09, 0xb08a3a, R() * 3);
+    }
+    B.flush(S, (opt.name || "clutter") + "-cases");
+    return out;
   }
 
   /* an open-bed army truck: cab, canvas tilt over the cab only, and a cargo
@@ -7170,7 +7405,7 @@
     star.position.set(0, 0.062, -0.44);
     star.visible = false;
     aim.add(star);
-    const flashLight = new T.PointLight(0xffc878, 0, 6, 2);
+    const flashLight = new T.PointLight(0xffc878, 0, 14, 1.8);
     flashLight.position.set(0, 0.06, -0.42);
     aim.add(flashLight);
 
@@ -7717,6 +7952,23 @@
     drum(-22.4, 26.6); drum(-34.6, 39.4); drum(-43.4, 33.0);
     drum(-32.6, 47.6);
 
+    /* (v46) the cars nobody drove away: burnt shells along the kerbs, so the
+       street has been fought over before the player arrives. They stand on
+       the pavement, out of the rail, and stop a round like a wall. */
+    makeWreckCar(S, 11.9, -5.2, 0.08);
+    makeWreckCar(S, 12.0, 2.2, -0.05, { paint: 1 });
+    makeWreckCar(S, 12.3, 20.7, 0.1, { tilt: -0.04 });
+    makeWreckCar(S, -33.2, 51.4, 0.42, { paint: 1, tilt: 0.07 });
+    /* projecting shop signs: the boards stick out over the pavement and take
+       the sun, so the shop band gains a side and a shadow */
+    makeBladeSign(S, -13.06, 4.95, -12.4, 0, 0);
+    makeBladeSign(S, -13.06, 4.85, 5.2, 0, 3);
+    makeBladeSign(S, -13.06, 4.9, 12.6, 0, 7);
+    makeBladeSign(S, 13.06, 4.9, -15.2, Math.PI, 1);
+    makeBladeSign(S, 13.06, 4.8, 3.4, Math.PI, 6);
+    /* kerb litter, fallen bricks and spent cases in a single batch */
+    try { dressClutter(S, 41, { z0: -20, z1: 40, n: 120, piles: 5, cases: 30 }); } catch (e) { window.__clutterErr = String(e); }
+
     /* clouds follow the rail */
     const clouds = [];
     for (let i = 0; i < 8; i++) {
@@ -7965,6 +8217,9 @@
     sparks = [];
     smokes.forEach((s) => s.parent && s.parent.remove(s));
     smokes = [];
+    columns.length = 0;
+    lampPools = [];
+    kickV.x = 0; kickV.z = 0;
     shells.forEach((s) => s.parent && s.parent.remove(s));
     shells = [];
     if (dress && dress.root) {
@@ -8284,6 +8539,7 @@
     SCENE = ctx.scene;
     clearStage(ctx);
     setStage(stageIdIn || 1);
+    combatTone = 0;
     resetNumbers(ctx);
     buildWaves();
     coverRoot = new T.Group();
@@ -8774,6 +9030,7 @@
   function startBoss(ctx) {
     const post = stageBoss();
     phase = "boss";
+    setCombatTone(true);
     bossSpawned = true;
     waveT = 40;
     waveClean = true;
@@ -9436,6 +9693,7 @@
     }
     if (finishing) return;
     ended = true;
+    try { setCombatTone(false); } catch (e) {}
     try { window.GunSFX && window.GunSFX.stopLoops && window.GunSFX.stopLoops(); } catch (e) {}
     active = false;
     try { window.GunSFX && window.GunSFX.bgm(false); } catch (e) {}
@@ -9540,8 +9798,68 @@
 
   /* ---------------- effects ---------------- */
 
+  /* (v46) the round the player just sent: a hot streak from the muzzle to the
+     point the ray first met, with a soft warm halo around it. Before this a
+     shot was only a flash at the gun and a spark at the man, so the street
+     never showed the line between them. Two meshes, additive, gone in 60 ms;
+     the pool ceiling keeps a held SMG from stacking streaks. */
+  const TRC = {};
+  function tracerMats() {
+    if (TRC.made) return TRC;
+    TRC.made = 1;
+    TRC.core = new T.MeshBasicMaterial({ color: 0xfff4c8, transparent: true, opacity: 0.95, depthWrite: false, blending: T.AdditiveBlending, toneMapped: false });
+    TRC.glow = new T.MeshBasicMaterial({ color: 0xffb352, transparent: true, opacity: 0.34, depthWrite: false, blending: T.AdditiveBlending, toneMapped: false });
+    TRC.geo = new T.BoxGeometry(1, 1, 1);
+    return TRC;
+  }
+  const _trA = new T.Vector3();
+  function muzzlePoint(out) {
+    if (!pistolAim) return null;
+    pistolAim.updateWorldMatrix(true, false);
+    out.set(0, 0.062, -0.44);
+    return pistolAim.localToWorld(out);
+  }
+  function shotTracer(ctx, to, thin) {
+    if (!ctx || !to || !fxRoom(tracers, FX_CAP.tracers)) return;
+    const M = tracerMats();
+    const from = muzzlePoint(_trA);
+    if (!from) return;
+    const dir = to.clone().sub(from);
+    const len = dir.length();
+    if (len < 1.2) return;
+    /* the streak starts a little ahead of the muzzle so it never fills the eye */
+    if (thin && Math.random() < 0.45) return;
+    const mid = from.clone().addScaledVector(dir, 0.5);
+    const core = new T.Mesh(M.geo, M.core);
+    core.scale.set(thin ? 0.024 : 0.034, thin ? 0.024 : 0.034, len * (thin ? 0.6 : 0.86));
+    core.position.copy(mid);
+    core.lookAt(to);
+    core.userData.noBlock = 1;
+    ctx.scene.add(core);
+    tracers.push({ mesh: core, life: 0.075, fade: "tracer", shared: 1 });
+    const glow = new T.Mesh(M.geo, M.glow);
+    glow.scale.set(0.1, 0.1, len * 0.55);
+    glow.position.copy(mid);
+    glow.lookAt(to);
+    glow.userData.noBlock = 1;
+    ctx.scene.add(glow);
+    tracers.push({ mesh: glow, life: 0.1, fade: "tracer", shared: 1 });
+  }
+  /* a soft travelling leader so the eye catches where the round went */
+  function tracerHead(ctx, to) {
+    if (!ctx || !to) return;
+    const from = muzzlePoint(_trA);
+    if (!from) return;
+    const m = new T.Mesh(new T.SphereGeometry(0.05, 6, 5), new T.MeshBasicMaterial({ color: 0xfff6d8, transparent: true, opacity: 0.9, depthWrite: false, blending: T.AdditiveBlending, toneMapped: false }));
+    m.position.copy(to);
+    m.userData.noBlock = 1;
+    ctx.scene.add(m);
+    tracers.push({ mesh: m, life: 0.08, grow: 1 });
+  }
+
   function burst(scene, x, y, z, big) {
     const n = big ? 12 : 8;
+    if (fxRoom(sparks, FX_CAP.sparks)) {
     for (let i = 0; i < n; i++) {
       const m = new T.Mesh(new T.BoxGeometry(0.07, 0.07, 0.07), new T.MeshBasicMaterial({ color: i % 3 ? 0xfff2a8 : 0xffa424 }));
       m.position.set(x, y, z);
@@ -9550,6 +9868,8 @@
       scene.add(m);
       sparks.push(m);
     }
+    }
+    if (fxRoom(smokes, FX_CAP.smokes)) {
     for (let i = 0; i < (big ? 4 : 2); i++) {
       const p = new T.Mesh(new T.SphereGeometry(0.05 + Math.random() * 0.045, 6, 5), new T.MeshBasicMaterial({ color: 0xd8cfbc, transparent: true, opacity: 0.26, depthWrite: false }));
       p.position.set(x + (Math.random() - 0.5) * 0.18, y + (Math.random() - 0.5) * 0.18, z + 0.08);
@@ -9558,6 +9878,7 @@
       p.userData.smoke = 1;
       scene.add(p);
       smokes.push(p);
+    }
     }
   }
 
@@ -9853,8 +10174,8 @@
     b.dead = true;
     if (b.mesh) b.mesh.visible = false;
     const px = b.x, py = b.y + 0.55, pz = b.z;
-    try { boomFlash(ctx, px, py, pz, 1.2); boomFx(ctx, px, py, pz); } catch (e) {}
-    for (let i = 0; i < 18; i++) {
+    try { boomFlash(ctx, px, py, pz, 1.2); boomFx(ctx, px, py, pz); smokeColumn(ctx, px, py - 0.3, pz, 1.25); } catch (e) {}
+    for (let i = 0; i < 18 && fxRoom(sparks, FX_CAP.sparks); i++) {
       const m = new T.Mesh(
         new T.BoxGeometry(0.1 + Math.random() * 0.12, 0.1 + Math.random() * 0.12, 0.1 + Math.random() * 0.12),
         new T.MeshBasicMaterial({ color: i % 3 ? 0xff9b1e : 0xfff0a6 })
@@ -9866,7 +10187,7 @@
       ctx.scene.add(m);
       sparks.push(m);
     }
-    for (let i = 0; i < 7; i++) {
+    for (let i = 0; i < 7 && fxRoom(smokes, FX_CAP.smokes); i++) {
       const m = new T.Mesh(
         new T.SphereGeometry(0.16 + Math.random() * 0.18, 6, 5),
         new T.MeshBasicMaterial({ color: 0x3a3630, transparent: true, opacity: 0.55, depthWrite: false })
@@ -9878,6 +10199,8 @@
       ctx.scene.add(m);
       smokes.push(m);
     }
+    /* a drum going off throws its lid and gives the street a column */
+    try { smokeColumn(ctx, px, py - 0.2, pz, 0.9); } catch (e) {}
     shake = 1.4;
     hitStop = Math.max(hitStop, 0.12);
     flashScreen(0.72);
@@ -10038,6 +10361,14 @@
     breakables.forEach((b) => { if (!b.broken && b.mesh.visible) addOwned(b.mesh, b, "break"); });
     occluders().forEach((m) => addOwned(m, null, "block"));
     const found = ray.intersectObjects(owned.map((o) => o.mesh), true);
+    /* (v46) the streak is drawn before the outcome is decided, so a body hit,
+       a wall stop and a clean miss all show the same line down the street */
+    try {
+      const endPt = (found && found.length)
+        ? found[0].point.clone()
+        : ray.ray.origin.clone().addScaledVector(ray.ray.direction, ray.far || 30);
+      shotTracer(ctx, endPt, !!quiet);
+    } catch (e) { window.__tracerErr = String(e && e.stack || e); }
     const ownerOf = (obj) => {
       let node = obj;
       while (node) {
@@ -10861,6 +11192,7 @@
     m.position.copy(at);
     ctx.scene.add(m);
     tracers.push({ mesh: m, life: 0.07 });
+    if (!fxRoom(sparks, FX_CAP.sparks)) return;
     for (let i = 0; i < 4; i++) {
       const s = new T.Mesh(new T.BoxGeometry(0.05, 0.05, 0.05), new T.MeshBasicMaterial({ color: 0xfff2b0 }));
       s.position.copy(at);
@@ -11207,16 +11539,28 @@
       lookSmooth.y += (lookGoal.y - lookSmooth.y) * k;
       lookSmooth.z += (lookGoal.z - lookSmooth.z) * k;
     }
-    let sx = 0, sy = 0;
+    let sx = 0, sy = 0, sz = 0, roll = 0;
     if (shake > 0) {
-      sx = (Math.random() - 0.5) * shake * 0.12;
-      sy = (Math.random() - 0.5) * shake * 0.08;
+      /* (v46) a short hand-held jolt: offset on all three axes plus a hair of
+         roll, decaying to zero in about a fifth of a second. Capped so a drum
+         by your feet never throws the aim off what you were shooting at. */
+      const k = Math.min(1.5, shake);
+      sx = (Math.random() - 0.5) * k * 0.11;
+      sy = (Math.random() - 0.5) * k * 0.075;
+      sz = (Math.random() - 0.5) * k * 0.09;
+      roll = (Math.random() - 0.5) * k * 0.014;
       shake *= 0.86;
     }
+    /* the kick an explosion leaves behind: away from the blast, dying fast */
+    kickV.x *= 0.86; kickV.z *= 0.86;
+    if (Math.abs(kickV.x) < 1e-3) kickV.x = 0;
+    if (Math.abs(kickV.z) < 1e-3) kickV.z = 0;
     const sway = Math.sin(nowMs / 2400) * 0.0016;
-    cam.position.x += sx;
+    cam.position.x += sx + kickV.x;
+    cam.position.z += sz + kickV.z;
     if (phase !== "intro") cam.position.y = CAM_Y + sy + Math.sin(nowMs / 1700) * 0.006 + (chase ? Math.sin(nowMs / 90) * 0.012 : 0);
     cam.lookAt(lookSmooth.x, lookSmooth.y + sway, lookSmooth.z);
+    if (roll) cam.rotateZ(roll);
     cam.near = 0.06;
     cam.fov = viewFov();
     cam.updateProjectionMatrix();
@@ -11312,10 +11656,14 @@
       const tr = tracers[i];
       tr.life -= dt;
       if (tr.grow && tr.mesh.scale) tr.mesh.scale.setScalar(1 + (0.06 - tr.life) * 12);
+      if (tr.fade === "tracer" && tr.mesh.material) tr.mesh.material.opacity = Math.max(0, Math.min(0.95, tr.life * 12));
       if (tr.life <= 0) {
         if (tr.mesh.parent) tr.mesh.parent.remove(tr.mesh);
-        if (tr.mesh.geometry) tr.mesh.geometry.dispose();
-        if (tr.mesh.material) tr.mesh.material.dispose();
+        /* the pooled streak shares one box and two materials (v46) */
+        if (!tr.shared) {
+          if (tr.mesh.geometry) tr.mesh.geometry.dispose();
+          if (tr.mesh.material) tr.mesh.material.dispose();
+        }
         tracers.splice(i, 1);
       }
     }
@@ -11425,7 +11773,7 @@
     window.__posts = posts;
     window.__aimN = aimN;
     if (flash) { flash.visible = since < 70; flash.scale.setScalar(1 + (1 - Math.min(1, since / 70)) * 1.4); }
-    if (flashLight) flashLight.intensity = since < 95 ? (1 - since / 95) * 2.8 : 0;
+    if (flashLight) flashLight.intensity = since < 95 ? (1 - since / 95) * 4.6 : 0;
     if (flashHalo) {
       flashHalo.visible = since < 90;
       const k = Math.min(1, since / 90);
@@ -11483,6 +11831,8 @@
     if (debris.length) stepDebris(dt);
     if (dress && dress.fires && dress.fires.length) stepFires(dt);
     stepBoomLight(dt);
+    if (lampPools.length) stepLampPools(nowMs);
+    if (columns.length) stepColumns(ctx, dt);
     if (FXL.length) stepFxl(dt);
     if (!ended && phase !== "intro") { try { stepAmbient(ctx, dt); } catch (e) { window.__ambErr = String(e && e.stack || e); } }
     if (WATER.length) stepWater(dt);
@@ -14339,6 +14689,24 @@
       else if (c[0] === "police") makePoliceCar(S, c[1], c[2], c[3] || 0);
       else if (c[0] === "truck") { const t = makeTruck(c[1], c[2]); t.rotation.y = c[3] || 0; S.add(t); }
     });
+    /* (v46) burnt-out shells on the pavements, projecting shop signs and kerb
+       litter: the same dressing the first stage got, so every city reads as a
+       street that was fought over rather than a clean set */
+    for (let i = 0; i < 3; i++) {
+      const z = zA + 14 + i * ((50 - zA) / 3);
+      const side = i % 2 ? 1 : -1;
+      if (side > 0 && seaHere(z)) continue;
+      try { makeWreckCar(S, side * (11.4 + R() * 0.5), z, side > 0 ? Math.PI * 0.98 : 0.02, { paint: i % 2 }); } catch (e) { window.__wreckErr = String(e); }
+    }
+    [[-14.06, 0, -5, 0], [14.06, Math.PI, -15, 2], [14.06, Math.PI, 13, 5], [-14.06, 0, 21, 7]].forEach(([sx, ry, bz, k]) => {
+      if (nearTurn(bz, 13) || (sx > 0 && seaHere(bz))) return;
+      try { makeBladeSign(S, sx, 4.7, bz, ry, k); } catch (e) { window.__bladeErr = String(e); }
+    });
+    /* an instanced batch cannot turn with the avenue, so the litter only goes
+       down where the street runs straight */
+    if (!TURNS.length) {
+      try { dressClutter(S, (C.seed || 7) * 13 + 1, { z0: zA + 2, z1: 46, n: 90, piles: 4, cases: 20 }); } catch (e) { window.__clutterErr = String(e); }
+    }
     const barrels = [];
     for (let i = 0; i < 6; i++) {
       const z = -46 + i * 18 + R() * 4, x = (i % 2 ? 1 : -1) * (8.6 + R() * 0.6);
@@ -14690,6 +15058,7 @@
   }
 
   function smokeAt(ctx, x, y, z, col) {
+    if (!fxRoom(smokes, FX_CAP.smokes)) return;
     const m = new T.Mesh(new T.SphereGeometry(0.16 + Math.random() * 0.12, 6, 5), new T.MeshBasicMaterial({ color: col || 0x3a3630, transparent: true, opacity: 0.5, depthWrite: false }));
     m.position.set(x, y, z);
     m.userData.v = new T.Vector3((Math.random() - 0.5) * 0.5, 0.35 + Math.random() * 0.4, (Math.random() - 0.5) * 0.5);
@@ -14699,19 +15068,75 @@
     smokes.push(m);
   }
 
-  /* (v24) explosions light the street: one pooled point light that pops
+  /* (v46) explosions light the street: one pooled point light that pops
      and dies away, so the count of lights (and the shaders) never changes */
   let boomLight = null, boomK = 0;
   function boomFlash(ctx, x, y, z, k) {
-    if (!boomLight) { boomLight = new T.PointLight(0xffa040, 0, 22, 1.6); ctx.scene.add(boomLight); }
+    if (!boomLight) { boomLight = new T.PointLight(0xffa040, 0, 26, 1.55); ctx.scene.add(boomLight); }
     if (boomLight.parent !== ctx.scene) ctx.scene.add(boomLight);
     boomLight.position.set(x, y + 1.2, z);
     boomK = Math.max(boomK, k || 1);
+    /* the blast also shoves the camera: a push away from it that dies off in
+       a few frames, so a drum going off by your feet reads as a blast and not
+       just a bright puff */
+    try {
+      const cam = ctx.camera.position;
+      const dx = cam.x - x, dz = cam.z - z;
+      const d = Math.hypot(dx, dz) || 1;
+      const near = Math.max(0.25, Math.min(1, 1 - (d - 4) / 26));
+      kickV.x += (dx / d) * 0.16 * near * (k || 1);
+      kickV.z += (dz / d) * 0.16 * near * (k || 1);
+      kickV.x = Math.max(-0.32, Math.min(0.32, kickV.x));
+      kickV.z = Math.max(-0.32, Math.min(0.32, kickV.z));
+    } catch (e) {}
+  }
+
+  /* (v46) a column of smoke that keeps climbing after the fireball has gone.
+     The puffs go into the same smokes pool, so a wreck or a drum leaves a
+     rising column for a couple of seconds without a single new draw call. */
+  function smokeColumn(ctx, x, y, z, s) {
+    if (!ctx || columns.length >= FX_CAP.columns) return;
+    columns.push({ x: x, y: y == null ? 0.4 : y, z: z, s: s || 1, t: 0, dur: 2.6, next: 0.2, n: 0 });
+  }
+  function stepColumns(ctx, dt) {
+    for (let i = columns.length - 1; i >= 0; i--) {
+      const c = columns[i];
+      c.t += dt;
+      c.next -= dt;
+      const cap = 10;
+      if (c.next <= 0 && c.n < cap) {
+        if (fxRoom(smokes, FX_CAP.smokes)) {
+          c.n++;
+          const k = c.n / cap;
+          const m = new T.Mesh(new T.SphereGeometry((0.2 + k * 0.42) * c.s, 6, 5),
+            new T.MeshBasicMaterial({ color: k < 0.3 ? 0x6e6153 : 0x453f38, transparent: true, opacity: 0.58 - k * 0.2, depthWrite: false }));
+          m.position.set(c.x + (Math.random() - 0.5) * 0.6 * c.s, c.y + 0.5 + c.t * 1.25, c.z + (Math.random() - 0.5) * 0.6 * c.s);
+          m.userData.v = new T.Vector3((Math.random() - 0.5) * 0.32, 0.8 + Math.random() * 0.5, (Math.random() - 0.5) * 0.32);
+          m.userData.life = 1.4 + Math.random() * 0.7;
+          m.userData.smoke = 1;
+          ctx.scene.add(m);
+          smokes.push(m);
+        }
+        c.next = 0.08 + c.t * 0.06;
+      }
+      if (c.t > c.dur && c.n >= cap) columns.splice(i, 1);
+    }
   }
   function stepBoomLight(dt) {
     if (!boomLight) return;
     boomK = Math.max(0, boomK - dt * 3.2);
     boomLight.intensity = boomK * boomK * 9 * (0.85 + Math.random() * 0.3);
+  }
+  /* (v46) the street lamps breathe a little in a burning or dusk city, so the
+     pool under them never looks like a decal that forgot to move */
+  function stepLampPools(nowMs) {
+    const on = window.__mood === "war" || window.__mood === "dusk";
+    if (!on) return;
+    const k = 0.86 + Math.sin(nowMs / 210) * 0.07 + Math.sin(nowMs / 77) * 0.05;
+    for (let i = 0; i < lampPools.length; i++) {
+      const m = lampPools[i] && lampPools[i].material;
+      if (m) m.opacity = 0.74 * k;
+    }
   }
   /* (v24) a living backdrop: jet formations crossing the sky, parachutes
      drifting down far off, and (while the line falls back) refugees on the
@@ -14817,7 +15242,7 @@
   let scorchTex = null;
   function boomFx(ctx, x, y, z) {
     const gy = 0.33;
-    const ring = new T.Mesh(new T.RingGeometry(0.55, 1.0, 40), new T.MeshBasicMaterial({ color: 0xd8c8a8, transparent: true, opacity: 0.85, depthWrite: false, side: T.DoubleSide }));
+    const ring = new T.Mesh(new T.RingGeometry(0.55, 1.0, 40), new T.MeshBasicMaterial({ color: 0xd9c3a2, transparent: true, opacity: 0.6, depthWrite: false, side: T.DoubleSide }));
     ring.rotation.x = -Math.PI / 2; ring.position.set(x, gy + 0.02, z);
     ctx.scene.add(ring);
     FXL.push({ m: ring, t: 0, dur: 0.55, kind: "ring" });
@@ -14825,7 +15250,7 @@
     const ball = new T.Group();
     ball.position.set(x, Math.max(gy + 0.6, y), z);
     for (let i = 0; i < 14; i++) {
-      const c = new T.Mesh(new T.BoxGeometry(1, 1, 1), new T.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 1, depthWrite: false }));
+      const c = new T.Mesh(new T.BoxGeometry(1, 1, 1), new T.MeshBasicMaterial({ color: i < 4 ? 0xfff6e2 : 0xffa838, transparent: true, opacity: 1, depthWrite: false }));
       const a = Math.random() * 6.28, e = Math.random() * 1.2, r = i < 4 ? 0.2 : 0.5 + Math.random() * 0.6;
       c.userData.d = new T.Vector3(Math.cos(a) * Math.cos(e) * r, Math.sin(e) * r + 0.2, Math.sin(a) * Math.cos(e) * r);
       c.userData.core = i < 4;
@@ -14855,17 +15280,17 @@
       const f = FXL[i];
       f.t += dt;
       const k = Math.min(1, f.t / f.dur);
-      if (f.kind === "ring") { f.m.scale.setScalar(1 + k * 9); f.m.material.opacity = 0.8 * (1 - k); }
+      if (f.kind === "ring") { f.m.scale.setScalar(1 + k * 7.5); f.m.material.opacity = 0.55 * (1 - k) * (1 - k); }
       else if (f.kind === "ball") {
         f.m.position.y += dt * (1.8 - k);
-        const grow = 0.6 + Math.sqrt(k) * 3.2;
+        const grow = 0.75 + Math.sqrt(k) * 3.6;
         f.m.children.forEach((c) => {
           const u = c.userData;
           c.position.copy(u.d).multiplyScalar(grow);
           c.scale.setScalar(u.s0 * (0.7 + Math.sqrt(k) * 1.5));
           /* white-hot -> yellow -> orange -> red -> soot, the core lags */
           const kk = Math.min(1, k * (u.core ? 1.15 : 1.5));
-          const col = kk < 0.15 ? [1, 0.97, 0.8] : kk < 0.35 ? [1, 0.75, 0.25] : kk < 0.55 ? [0.95, 0.42, 0.1] : kk < 0.7 ? [0.5, 0.16, 0.06] : [0.12, 0.1, 0.09];
+          const col = kk < 0.12 ? [1, 0.97, 0.82] : kk < 0.3 ? [1, 0.8, 0.3] : kk < 0.5 ? [1, 0.5, 0.12] : kk < 0.72 ? [0.75, 0.2, 0.05] : [0.12, 0.1, 0.09];
           c.material.color.setRGB(col[0], col[1], col[2]).convertSRGBToLinear();
           c.material.opacity = kk < 0.7 ? 1 : Math.max(0, 1 - (kk - 0.7) / 0.3) * 0.8;
           c.rotation.x += dt * 1.5;
@@ -14877,7 +15302,8 @@
   function boomAt(ctx, x, y, z) {
     boomFlash(ctx, x, y, z, 1);
     try { boomFx(ctx, x, y, z); } catch (e) {}
-    for (let i = 0; i < 10; i++) {
+    try { smokeColumn(ctx, x, y - 0.3, z, 1.1); } catch (e) {}
+    for (let i = 0; i < 10 && fxRoom(sparks, FX_CAP.sparks); i++) {
       const m = new T.Mesh(new T.BoxGeometry(0.09 + Math.random() * 0.1, 0.09 + Math.random() * 0.1, 0.09 + Math.random() * 0.1), new T.MeshBasicMaterial({ color: i % 3 ? 0xffa12a : 0xfff2b0 }));
       m.position.set(x, y, z);
       m.userData.v = new T.Vector3((Math.random() - 0.5) * 5, 1 + Math.random() * 4, (Math.random() - 0.5) * 5);
@@ -15530,6 +15956,39 @@
       try { fire(ctx); } catch (err) { window.__fireErr = String(err && err.stack || err); }
     },
     hurt: (n) => { const ctx = window.__railCtx; if (ctx) hurtPlayer(ctx, n || 10); },
+    /* test hook: advance the effect pools (fireball, smoke column, debris,
+       smoke puffs, sparks) by `sec` without running the game, so a screenshot
+       can hold a mid-explosion frame instead of its first one */
+    fxStep: (sec) => {
+      const ctx = window.__railCtx;
+      if (!ctx) return 0;
+      let t = Math.max(0, Math.min(3, sec == null ? 0.2 : sec)), n = 0;
+      while (t > 0.0001) {
+        const d = Math.min(0.05, t);
+        t -= d;
+        if (FXL.length) stepFxl(d);
+        if (columns.length) stepColumns(ctx, d);
+        stepChunks(d);
+        for (let i = smokes.length - 1; i >= 0; i--) {
+          const s = smokes[i];
+          s.userData.life -= d;
+          s.position.add(s.userData.v);
+          if (s.userData.smoke && s.scale) s.scale.multiplyScalar(1 + d * 0.85);
+          s.material.opacity = Math.max(0, Math.min(0.6, s.userData.life * 0.7));
+          if (s.userData.life <= 0) { s.parent && s.parent.remove(s); smokes.splice(i, 1); }
+        }
+        for (let i = sparks.length - 1; i >= 0; i--) {
+          const s = sparks[i];
+          s.userData.life -= d;
+          s.position.addScaledVector(s.userData.v, d);
+          s.userData.v.y -= 6 * d;
+          if (s.userData.life <= 0) { s.parent && s.parent.remove(s); sparks.splice(i, 1); }
+        }
+        n++;
+      }
+      window.__fxStepN = n;
+      return n;
+    },
     killHeli: () => { const ctx = window.__railCtx; posts.slice().forEach((p) => { if (p.air === "heli" && p.live !== false && p.e.alive !== false) { p.e.hp = 1; airDamage(ctx, p, new T.Vector3(p.x, p.y, p.z), new T.Box3(new T.Vector3(p.x - 1, p.y - 1, p.z - 1), new T.Vector3(p.x + 1, p.y + 1, p.z + 1))); } }); },
     boom: (x, y, z) => { const ctx = window.__railCtx; if (ctx) boomAt(ctx, x, y, z); },
     win: () => { const ctx = window.__railCtx; if (ctx) finish(ctx, true); },
