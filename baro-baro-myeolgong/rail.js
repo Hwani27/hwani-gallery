@@ -6383,6 +6383,248 @@
     return { x: w.hold.x + s * dep + c * l, z: w.hold.z + c * dep - s * l };
   }
 
+  /* ---------------- CC0 low-poly models (GLB) ----------------
+     Four public-domain models from poly.pizza — Quaternius' tank and guns,
+     kazuma's helicopter — now stand in for the hand-built boxes of the boss
+     tank, the gunship, the first-person pistol and the SMG pick-up. They are
+     texture-free flat-colour meshes, so each one is repainted into the game's
+     olive/dark palette as it arrives.
+     The box models never go away: they are what the player sees until the
+     .glb is in hand, and what stays if it never arrives (file://, a blocked
+     request, an old cached page). Nothing here may break the game when the
+     loader, the file or the network is missing. */
+  const GLB_BASE = "models/";
+  const GLB_STATE = {};
+  const glbMixers = [];
+  window.__glbState = GLB_STATE;
+  function glbLoad(name, ok, bad) {
+    const L = T && T.GLTFLoader;
+    if (!L) { GLB_STATE[name] = "no-loader"; if (bad) bad("no GLTFLoader"); return; }
+    let ld = null;
+    try { ld = new L(); } catch (e) { GLB_STATE[name] = "no-loader"; if (bad) bad(e); return; }
+    GLB_STATE[name] = "loading";
+    try {
+      ld.load(GLB_BASE + name + ".glb", (gltf) => {
+        try {
+          ok(gltf);
+          if (GLB_STATE[name] !== "fail") GLB_STATE[name] = "ok";
+        } catch (e) {
+          GLB_STATE[name] = "apply-error";
+          window.__glbErr = String(e && e.stack || e);
+          if (bad) bad(e);
+        }
+      }, undefined, (err) => {
+        GLB_STATE[name] = "fail";
+        window.__glbErr = String(err && err.message || err);
+        if (bad) bad(err);
+      });
+    } catch (e) {
+      GLB_STATE[name] = "fail";
+      window.__glbErr = String(e && e.stack || e);
+      if (bad) bad(e);
+    }
+  }
+  /* repaint a loaded model in the game's palette, give every mesh a shadow,
+     and keep one material per original so nothing is cloned per part */
+  function glbPaint(root, pal, opt) {
+    const O = opt || {};
+    const seen = new Map();
+    root.traverse((o) => {
+      if (!o.isMesh) return;
+      o.castShadow = O.shadow !== false;
+      o.receiveShadow = true;
+      const one = (m) => {
+        if (!m) return m;
+        if (seen.has(m)) return seen.get(m);
+        const nm = m.clone();
+        const col = pal && (pal[m.name] != null ? pal[m.name] : pal["*"]);
+        if (col != null) { nm.color = new T.Color(col); nm.color.convertSRGBToLinear(); }
+        nm.metalness = O.metal != null ? O.metal : 0.08;
+        nm.roughness = O.rough != null ? O.rough : 0.84;
+        nm.envMapIntensity = 0.2;
+        nm.flatShading = O.flat !== false;
+        nm.needsUpdate = true;
+        seen.set(m, nm);
+        return nm;
+      };
+      o.material = Array.isArray(o.material) ? o.material.map(one) : one(o.material);
+    });
+  }
+  /* the tank's four clips animate the track links only; Forward is the crawl
+     that reads under a boss crossing the square */
+  function glbPlay(root, gltf, host, want) {
+    if (!gltf || !gltf.animations || !gltf.animations.length) return null;
+    let clip = gltf.animations[0];
+    if (want) {
+      for (let i = 0; i < gltf.animations.length; i++) {
+        if (want.test(gltf.animations[i].name || "")) { clip = gltf.animations[i]; break; }
+      }
+    }
+    try {
+      const mx = new T.AnimationMixer(root);
+      mx.clipAction(clip).play();
+      glbMixers.push({ m: mx, host: host });
+      return mx;
+    } catch (e) { window.__glbErr = String(e && e.stack || e); return null; }
+  }
+  function glbStep(dt) {
+    for (let i = glbMixers.length - 1; i >= 0; i--) {
+      const g = glbMixers[i];
+      if (!g.host || !g.host.parent) { try { g.m.stopAllAction(); } catch (e) {} glbMixers.splice(i, 1); continue; }
+      try { g.m.update(dt); } catch (e) { glbMixers.splice(i, 1); }
+    }
+  }
+  /* the GLB is authored Z-up with the barrel down -X and the hull nose at -X:
+     stand it up, turn the nose to +Z, then scale the nose plate to where the
+     box tank's glacis was so the glowing intake still sits on the front */
+  function glbTankAdd(g, body, boxes, codeTurret) {
+    glbLoad("tank_quaternius_cc0", (gltf) => {
+      const root = gltf.scene;
+      glbPaint(root, {
+        Main: 0x4e5a35, Main_Dark: 0x303a24, Main_Light: 0x67734b,
+        Main_Details: 0x24271c, Wheels: 0x191c15
+      }, { rough: 0.88, metal: 0.06 });
+      root.updateMatrixWorld(true);
+      const hull = root.getObjectByName("Tank_body");
+      const hb = new T.Box3().setFromObject(hull || root);
+      const S = 3.5 / Math.max(0.001, -hb.min.x);
+      const holder = new T.Group();
+      holder.name = "glbTank";
+      holder.rotation.y = Math.PI / 2;
+      holder.scale.setScalar(S);
+      holder.add(root);
+      holder.updateMatrixWorld(true);
+      const bb = new T.Box3().setFromObject(holder);
+      holder.position.set(-(bb.min.x + bb.max.x) / 2, -bb.min.y, 0);
+      body.add(holder);
+      /* the turret and the gun are separate nodes in this model: hang them on
+         one pivot so the boss's recoil still kicks the turret back */
+      const tur = root.getObjectByName("Tank_Turret");
+      const gun = root.getObjectByName("Tank_Gun");
+      g.updateMatrixWorld(true);
+      const pivot = new T.Group();
+      const tp = new T.Vector3();
+      if (tur) tur.getWorldPosition(tp); else tp.set(0, 1.7, 0);
+      pivot.position.copy(body.worldToLocal(tp.clone()));
+      body.add(pivot);
+      g.updateMatrixWorld(true);
+      pivot.updateMatrixWorld(true);
+      if (tur) pivot.attach(tur);
+      if (gun) pivot.attach(gun);
+      if (gun) {
+        /* the barrel tip, for the charge glow and the muzzle-jam check */
+        g.updateMatrixWorld(true);
+        const inv = new T.Matrix4().copy(body.matrixWorld).invert();
+        const gb = new T.Box3().setFromObject(gun).applyMatrix4(inv);
+        const mz = new T.Object3D();
+        mz.name = "glbMuzzle";
+        mz.position.set((gb.min.x + gb.max.x) / 2 - pivot.position.x,
+                        (gb.min.y + gb.max.y) / 2 - pivot.position.y,
+                        gb.max.z - pivot.position.z);
+        pivot.add(mz);
+        g.userData.cannonMuzzle = mz;
+      }
+      pivot.userData.recoilBaseZ = 0;
+      g.userData.turret = pivot;
+      g.userData.cannon = pivot;
+      boxes.forEach((m) => { if (m && m !== pivot) m.visible = false; });
+      if (codeTurret) codeTurret.visible = false;   // its turret, gun and barrel
+      enemyRim(holder);
+      glbPlay(root, gltf, g, /Forward/i);
+    }, () => { /* the box tank simply stays */ });
+  }
+  /* the helicopter is a single static mesh: the rotor is its own material, so
+     it can be lifted onto a pivot and spun. Nose is +Z like the box model. */
+  function glbHeliAdd(g, b, boxes, codeRotor, codeTail, gunner, gunGroup) {
+    glbLoad("military_helicopter_kazuma_cc0", (gltf) => {
+      const root = gltf.scene;
+      glbPaint(root, {
+        "Material.001": 0x3f4a2d, "Material.003": 0x2c3520,
+        "Material.004": 0x9aa79b, "Material.002": 0x1c1f19
+      }, { rough: 0.85, metal: 0.06 });
+      root.updateMatrixWorld(true);
+      const b0 = new T.Box3().setFromObject(root);
+      const S = 6.4 / Math.max(0.001, b0.max.z - b0.min.z);
+      const holder = new T.Group();
+      holder.name = "glbHeli";
+      holder.scale.setScalar(S);
+      holder.add(root);
+      holder.updateMatrixWorld(true);
+      const bb = new T.Box3().setFromObject(holder);
+      holder.position.set(-(bb.min.x + bb.max.x) / 2, -0.95 - bb.min.y, -(bb.min.z + bb.max.z) / 2);
+      b.add(holder);
+      /* the blades are the one part with the grey material */
+      let blades = null;
+      root.traverse((o) => {
+        if (blades || !o.isMesh) return;
+        const m = Array.isArray(o.material) ? o.material[0] : o.material;
+        if (m && m.name === "Material.002") blades = o;
+      });
+      if (blades) {
+        g.updateMatrixWorld(true);
+        const c = new T.Box3().setFromObject(blades).getCenter(new T.Vector3());
+        const pivot = new T.Group();
+        pivot.name = "glbRotor";
+        pivot.position.copy(b.worldToLocal(c.clone()));
+        b.add(pivot);
+        g.updateMatrixWorld(true);
+        pivot.updateMatrixWorld(true);
+        pivot.attach(blades);
+        g.userData.rotor = pivot;
+      }
+      boxes.forEach((m) => { if (m) m.visible = false; });
+      if (codeRotor) codeRotor.visible = false;
+      if (codeTail) codeTail.visible = false;
+      /* the door gunner rides the side the box cabin opened on */
+      if (gunner) { gunner.position.set(0.5, -0.5, 0.1); gunner.rotation.y = Math.PI * 0.5; }
+      if (gunGroup) gunGroup.position.set(0.72, 0.06, 0.18);
+      enemyRim(holder);
+    }, () => { /* the box helicopter simply stays */ });
+  }
+  /* the pistol: repainted to blued steel and polymer, turned to point down
+     -Z and fitted to the box pistol's hold, so the hands, the aiming solve and
+     the muzzle flash all keep working unchanged */
+  function glbPistolAdd(rig, codeGun, host) {
+    glbLoad("pistol_quaternius_cc0", (gltf) => {
+      const root = gltf.scene;
+      glbPaint(root, { Metal: 0x59606a, Black: 0x232629, LightMetal: 0x8b939c }, { metal: 0.72, rough: 0.4 });
+      root.updateMatrixWorld(true);
+      const bb = new T.Box3().setFromObject(root);
+      const S = 0.62 / Math.max(0.001, bb.max.x - bb.min.x);
+      const holder = new T.Group();
+      holder.name = "glbPistolModel";
+      holder.rotation.y = Math.PI / 2;      // the barrel runs down -Z like the box gun
+      holder.scale.setScalar(S);
+      holder.add(root);
+      holder.position.set(0, -0.11, 0.095);
+      host.add(holder);
+      rig.pistolLoaded = true;
+      window.__pistolGlb = holder;
+      codeGun.forEach((m) => { m.visible = false; });
+      host.visible = weapon === "pistol";
+    }, () => { /* the box pistol simply stays */ });
+  }
+  /* the assault rifle stands in for the SMG pick-up viewmodel */
+  function glbRifleAdd(rig, host) {
+    glbLoad("assault_rifle_quaternius_cc0", (gltf) => {
+      const root = gltf.scene;
+      glbPaint(root, { Main: 0x24282c, MainDark: 0x1a1d20, MainLight: 0x353a40 }, { metal: 0.55, rough: 0.5 });
+      root.updateMatrixWorld(true);
+      const bb = new T.Box3().setFromObject(root);
+      const S = 1.12 / Math.max(0.001, bb.max.x - bb.min.x);
+      const holder = new T.Group();
+      holder.name = "glbRifleModel";
+      holder.rotation.y = Math.PI / 2;
+      holder.scale.setScalar(S);
+      holder.add(root);
+      holder.position.set(-0.03, 0.0, -0.1);
+      host.add(holder);
+      rig.rifleLoaded = true;
+      window.__rifleGlb = holder;
+      if (rig.smgBoxes) rig.smgBoxes.forEach((m) => { m.visible = false; });
+      host.visible = weapon === "smg";
+    }, () => { /* the box SMG simply stays */ });
+  }
   /* ---------------- first person pistol ---------------- */
   function makePistol(camera) {
     makeSol();
@@ -6501,6 +6743,9 @@
     add(0.028, 0.028, 0.02, 0, 0.062, -0.386, bore);
 
     // ---- two hands on the grip ----
+    /* (v28) every box from the frame to the muzzle is the fallback: the CC0
+       pistol replaces exactly these once it loads, and the hands stay */
+    const codeGun = aim.children.slice();
     add(0.13, 0.12, 0.135, 0.012, -0.215, 0.055, skin);
     add(0.128, 0.032, 0.032, 0.008, -0.172, -0.028, skin);
     add(0.128, 0.032, 0.032, 0.008, -0.208, -0.028, skin);
@@ -6642,7 +6887,7 @@
        carries the position and the viewport scale. */
     /* (v16) the pick-up weapons are built onto the same `aim` group: the
        pistol pieces are hidden while one of them is in hand */
-    const base = aim.children.filter((c) => c !== f && c !== halo && c !== star && c !== flashLight);
+    const base = aim.children.filter((c) => c !== f && c !== halo && c !== star && c !== flashLight && codeGun.indexOf(c) < 0);
     const wg = (name) => { const gg = new T.Group(); gg.name = name; gg.visible = false; aim.add(gg); return gg; };
     const P = (gg, w, h, d, x, y, z, mat) => { const m = new T.Mesh(new T.BoxGeometry(w, h, d), mat); m.position.set(x, y, z); gg.add(m); return m; };
     const blk = mk(0x23272d, { roughness: 0.5, metalness: 0.6 });
@@ -6668,7 +6913,21 @@
     P(sgG, 0.1, 0.24, 0.12, 0, -0.18, 0.06, wood);            /* grip */
     P(sgG, 0.1, 0.14, 0.34, 0, -0.08, 0.3, wood);             /* stock */
     P(sgG, 0.03, 0.04, 0.03, 0, 0.12, -1.13, mk(0xd0d0d0, { metalness: 0.9, roughness: 0.3 })); /* bead */
-    const weaponRig = { base, smg: smgG, shotgun: sgG, pump, flashZ: { f: f.position.z, h: halo.position.z, s: star.position.z, l: flashLight.position.z } };
+    const weaponRig = { base, smg: smgG, shotgun: sgG, pump, codeGun, smgBoxes: smgG.children.slice(), flashZ: { f: f.position.z, h: halo.position.z, s: star.position.z, l: flashLight.position.z } };
+    /* (v28) the CC0 viewmodels live in their own hosts: empty until the .glb
+       arrives, so the box models show in the meantime */
+    const pistolHost = new T.Group();
+    pistolHost.name = "glbPistol";
+    pistolHost.visible = false;
+    aim.add(pistolHost);
+    const rifleHost = new T.Group();
+    rifleHost.name = "glbRifle";
+    rifleHost.visible = false;
+    aim.add(rifleHost);
+    weaponRig.pistolHost = pistolHost;
+    weaponRig.rifleHost = rifleHost;
+    glbPistolAdd(weaponRig, codeGun, pistolHost);
+    glbRifleAdd(weaponRig, rifleHost);
     g.position.set(0.2, -0.235, -0.66);
     g.rotation.set(0, 0, 0);
     g.scale.setScalar(0.4);
@@ -7512,8 +7771,12 @@
     weapon = WEAPONS[w] ? w : "pistol";
     wAmmo = weapon === "pistol" ? 0 : (ammo != null ? ammo : WEAPONS[weapon].ammo);
     if (weaponRig) {
-      weaponRig.base.forEach((m) => { m.visible = weapon === "pistol"; });
-      weaponRig.smg.visible = weapon === "smg";
+      const pistolOn = weapon === "pistol";
+      weaponRig.base.forEach((m) => { m.visible = pistolOn; });
+      if (weaponRig.codeGun) weaponRig.codeGun.forEach((m) => { m.visible = pistolOn && !weaponRig.pistolLoaded; });
+      if (weaponRig.pistolHost) weaponRig.pistolHost.visible = pistolOn && !!weaponRig.pistolLoaded;
+      weaponRig.smg.visible = weapon === "smg" && !weaponRig.rifleLoaded;
+      if (weaponRig.rifleHost) weaponRig.rifleHost.visible = weapon === "smg" && !!weaponRig.rifleLoaded;
       weaponRig.shotgun.visible = weapon === "shotgun";
       const dz = weapon === "smg" ? -0.44 : weapon === "shotgun" ? -0.8 : 0;
       if (flash) flash.position.z = weaponRig.flashZ.f + dz;
@@ -7575,7 +7838,7 @@
     weaponRig = rig.weapons;
     window.__pistol = pistol;
     /* model factory hooks (handy for eyeballing the cast without playing) */
-    window.__mk = { soldier: makeSoldier, ally: makeAlly, rifle: makeRifle, commander: () => { const m = makeSoldier("boss"); dressCommander(m); return m; } };
+    window.__mk = { soldier: makeSoldier, ally: makeAlly, rifle: makeRifle, commander: () => { const m = makeSoldier("boss"); dressCommander(m); return m; }, heli: makeHeliModel, tank: makeTankModel };
     window.__pistolAim = pistolAim;
     window.__pistolBody = pistolBody;
     const btn = document.createElement("button");
@@ -10255,6 +10518,7 @@
     if (slowmo > 0) { slowmo = Math.max(0, slowmo - dt); dt *= slowK; }
     if (invulT > 0) { invulT -= dt; if (invulT <= 0) { const sh = document.getElementById("railShield"); if (sh) sh.remove(); } }
     frame._t = nowMs;
+    glbStep(dt);
     const t = (nowMs - t0) / 1000;
     clock = Math.max(0, CLOCK0 - t);
 
@@ -13568,6 +13832,8 @@
     star.rotation.y = Math.PI / 2;
     b.add(star);
     g.userData.rotor = rotor;
+    /* (v28) the CC0 gunship takes over once loaded; boxes are the fallback */
+    glbHeliAdd(g, b, b.children.filter((c) => c && c.isMesh), rotor, tail, gunner, gun);
     g.userData.tail = tail;
     g.userData.gunner = gunner;
     g.userData.body = b;
@@ -14216,6 +14482,9 @@
     star.position.set(1.26, 0.38, 0.2);
     star.rotation.y = Math.PI / 2;
     turret.add(star);
+    /* (v28) the CC0 tank takes over once it has loaded; these boxes are what
+       the boss shows until then, and what stays if the model cannot load */
+    glbTankAdd(g, b, b.children.filter((c) => c && c.isMesh), turret);
     g.userData.body = b;
     g.userData.turret = turret;
     g.userData.cannon = gun;
@@ -14410,7 +14679,8 @@
     p.mesh.rotation.z = p.jump ? Math.sin(p.jump.t * Math.PI) * 0.05 : 0;
     if (p.recoil > 0) {
       p.recoil = Math.max(0, p.recoil - dt * 3.2);
-      if (p.mesh.userData && p.mesh.userData.turret) p.mesh.userData.turret.position.z = -0.4 - p.recoil * 0.12;
+      const tu = p.mesh.userData && p.mesh.userData.turret;
+      if (tu) tu.position.z = (tu.userData.recoilBaseZ != null ? tu.userData.recoilBaseZ : -0.4) - p.recoil * 0.12;
     }
     p.visTop = p.y + 2.2;
     const prog = Math.max(0, Math.min(1, 1 - p.aim / Math.max(0.001, p.aimMax)));

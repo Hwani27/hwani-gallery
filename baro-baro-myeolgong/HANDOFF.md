@@ -13,7 +13,7 @@
 | 영어 페이지 | https://hwani27.github.io/hwani-gallery/baro-baro-myeolgong/en.html |
 | 갤러리 카드 | `index.html`의 `baro-baro-myeolgong/` 카드 → `thumb.png` |
 | 폴더 | `work/hwani-gallery/baro-baro-myeolgong/` (완전 독립 빌드) |
-| 현재 버전 | **v18** (`?v=18`, 엄폐 위치 수정) / v17 (`?v=17`, 보스 장갑·전차, 평화의 집 스테이지, 평양 기념상) / v16 (`?v=16`, 스테이지 연장 · Stage 3 · 무기) / v15 (`?v=15`, 시간대·날씨 + 부서지는 유리·간판) / v14 (`?v=14`, 겹침·관통 정리) / v13 (`?v=13`, 레일 관통 수정 · 복셀 텍스처 · 나무/남산/숭례문/버스 · 파편·탄흔) / v12 (`?v=12`, 화면 후처리 `post.js` + 적 테두리 빛) / v11 (`?v=11`, 버그 수정 4건) / 이전 **v10 통합** (`?v=10`) — v10 표면(텍스처·PBR 재질·환경맵·ACES·그림자·총구 화염/탄피) 위에 **Stage 2(DMZ·판문점)** 를 함께 얹은 상태. PR #12(`feat/myeolgong-v9-seoul-polish`)를 main에 병합하며 충돌 4곳을 해소 |
+| 현재 버전 | **v28** (`?v=28`, CC0 3D 모델 4종 + `GLTFLoader`) / v18 (`?v=18`, 엄폐 위치 수정) / v17 (`?v=17`, 보스 장갑·전차, 평화의 집 스테이지, 평양 기념상) / v16 (`?v=16`, 스테이지 연장 · Stage 3 · 무기) / v15 (`?v=15`, 시간대·날씨 + 부서지는 유리·간판) / v14 (`?v=14`, 겹침·관통 정리) / v13 (`?v=13`, 레일 관통 수정 · 복셀 텍스처 · 나무/남산/숭례문/버스 · 파편·탄흔) / v12 (`?v=12`, 화면 후처리 `post.js` + 적 테두리 빛) / v11 (`?v=11`, 버그 수정 4건) / 이전 **v10 통합** (`?v=10`) — v10 표면(텍스처·PBR 재질·환경맵·ACES·그림자·총구 화염/탄피) 위에 **Stage 2(DMZ·판문점)** 를 함께 얹은 상태. PR #12(`feat/myeolgong-v9-seoul-polish`)를 main에 병합하며 충돌 4곳을 해소 |
 | 스테이지 | `STAGES` 표: 1 = 서울(8웨이브+보스), 2 = DMZ·판문점(6웨이브+보스), 3 = 판문점 평화의 집(7웨이브+전차), 4 = 평양 진입(7웨이브+전차, 눈). 타이틀 버튼 4개(`#mgStart`/`2`/`3`/`4`), 결과의 `다음 작전`은 1→2→3→4. 타이틀의 두 버튼 / Stage 1 클리어 결과의 `다음 작전` 버튼으로 진입 |
 | v9 브랜치 | `feat/myeolgong-v9-seoul-polish` → PR #12 (v10도 같은 브랜치) |
 | v6 커밋 | `3df8b62` — full 1st-person arms/torso, adaptive portrait FOV, barrel tracks the aim point |
@@ -34,9 +34,27 @@
 | `rail.js` | **게임 전부**: 절차적 텍스처(`ctex`), 스테이지 표(`STAGES` — Stage 1 서울 / Stage 2 DMZ·판문점), 코스, 웨이브, 적 상태머신, 가림막, 아군, 픽업, 보스, HUD(canvas), 무전 UI, 결과 화면, 1인칭 뷰모델 | 대부분의 작업이 여기서 일어난다. 약 6,900줄 |
 | `gun-sfx.js` | 절차적 총성·재장전·폭발·피격/사망 육성 + 내장 전투 BGM | 샘플 파일 없음. 전부 합성 |
 | `three.min.js` | three.js **r128** 원본 그대로 | **수정 금지** |
+| `vendor/GLTFLoader.js` | three.js r128 호환 GLTFLoader (poly.pizza 샘플 배포본) | `three.min.js`와 같은 리비전이어야 한다. 새 버전으로 올리지 말 것 |
+| `models/*.glb` | CC0 로우폴리 모델 4종 — 전차(Quaternius) · 헬기(kazuma) · 권총 · 돌격소총(Quaternius) | 라이선스 CC0(출처 표기 불필요). 교체 시 `rail.js`의 `glbPaint` 팔레트 키(재질 이름)도 함께 확인 |
 | `thumb.png` | 갤러리 카드 썸네일 640×360 | 화면 인상이 바뀌면 갱신 |
 | `preview/*.png` | 문서용 스크린샷(`standalone-*.png`) | 선택 |
 | `HANDOFF.md` | 이 문서 | **갱신 필수** |
+
+## 1-2. CC0 3D 모델 4종 (v28)
+
+`models/`의 CC0 GLB 4종이 손으로 쌓던 상자 모델을 대신한다. **상자 모델은 지우지 않았다** — 파일이 로드되기 전과, 로드가 실패했을 때(file://, 차단, 옛 캐시) 그대로 보이는 폴백이다.
+
+| 모델 | 파일 | 쓰이는 곳 | 처리 |
+|---|---|---|---|
+| 전차 | `tank_quaternius_cc0.glb` | 보스 전차 (`makeTankModel`) | 사막색 → 올리브/다크그레이, `Box3`로 차체 코를 기존 글라시스(z 3.5)에 맞춰 스케일, 포신이 +Z. 터렛·주포를 피벗에 옮겨 반동(`recoilBaseZ`)·조준점(`cannonMuzzle`) 유지, 내장 클립 `Tank_Forward` 재생 |
+| 헬기 | `military_helicopter_kazuma_cc0.glb` | 헬기 (`makeHeliModel`) | 적갈색 → 군녹/다크올리브, 로터 메시(`Material.002`)만 피벗으로 떼어 매 프레임 회전(`userData.rotor`). 문 거너·문 건은 GLB 동체 옆으로 재배치 |
+| 권총 | `pistol_quaternius_cc0.glb` | 1인칭 기본 무기 | 청색강/폴리머로 도색, 총열 −Z·총구를 기존 기준점(0, 0.062, −0.4)에 맞춤 → 조준 해·반동·총구 화염 그대로. 손·팔은 상자 권총 그립에 맞춰진 것을 그대로 씀 |
+| 돌격소총 | `assault_rifle_quaternius_cc0.glb` | SMG 보급 픽업 뷰모델 | 기존 박스 SMG를 대체(연사 모드 그대로), 탄약·연사·밸런스는 손대지 않음 |
+
+- 로더: `vendor/GLTFLoader.js`(r128)를 `index.html`·`en.html`에서 `three.min.js` 바로 뒤에 넣는다. 로드 상태는 `window.__glbState`(`loading|ok|fail|apply-error`).
+- 안전장치: `glbLoad()`의 onError/예외는 조용히 삼키고 상자 모델을 유지한다. 로드 전에도 게임은 정상 진행.
+- 재질: `glbPaint()`가 glTF 재질 이름→색으로 복제·도색하고 `flatShading`을 켠다. 모델마다 재질 이름이 달라 새 모델로 바꿀 때는 이 표를 먼저 본다.
+- 검증 메모: 스위프트셰이더 헤드리스에서 보스전까지 길게 돌리면 `THREE.WebGLProgram: shader error` + `CONTEXT_LOST_WEBGL` 경고가 간헐적으로 뜨는데, **이번 변경 전 커밋에서도 똑같이 뜬다**(환경 제약). `__railErrs`는 0건이고 404도 0건이다.
 
 ## 2. 지금 되는 것 (검증 완료)
 
@@ -615,7 +633,7 @@ Stage 2 확인용 (v8):
    ```
 8. **Stage 2 인트로 스킵**: `window.__railPhase === "intro"`에서 `__railSpeed`는 인트로에 영향이 없다(실시간 기준). 바로 전투를 보려면 인트로가 끝날 때까지 기다린다.
 
-디버그 훅: `__railDbg`(phase/waveI/u/cam/posts/alive/exposed/states/staged/cover/ally/falls/grunts), `__aimSpot`, `__pistol`, `__pistolAim`, `__pistolBody`, `__gunAim`, `__aimTarget`, `__aimN`, `__posts`, `__mk`(모델 팩토리), `__lastShot`, `__lastBlocked`, `__railSpeed`(시간 배속), `__texSizes`.
+디버그 훅: `__railDbg`(phase/waveI/u/cam/posts/alive/exposed/states/staged/cover/ally/falls/grunts), `__aimSpot`, `__pistol`, `__pistolAim`, `__pistolBody`, `__gunAim`, `__aimTarget`, `__aimN`, `__posts`, `__mk`(모델 팩토리 — `soldier`/`ally`/`rifle`/`commander`/`heli`/`tank`), `__glbState`(GLB 로드 상태), `__lastShot`, `__lastBlocked`, `__railSpeed`(시간 배속), `__texSizes`.
 
 ## 10. 협업 규칙
 
