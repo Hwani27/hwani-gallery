@@ -433,6 +433,11 @@ Stage 1(서울)은 손대지 않았고, 그 뒤에 **Stage 2**를 붙였다. 두
 - **v2**: 레일 슈터 골격(`baro-baro-jump` 엔진 위에 얹었다가 이후 완전 분리).
 - **v1**: `baro-baro-jump` HTML을 fetch/DOMParser로 재파싱해 쓰던 시절 → **지금은 금지된 구조**. 독립 빌드로 되돌리지 말 것.
 
+## 5-7. v30 — 보스도 블록 캐릭터로 (2026-11-23)
+- 적 지휘관(`role: "boss"`)도 `kenneyPerson`으로: 스킨 `nko`(장교 군복·견장·붉은 깃 표지·장화), 붉은 띠 정모(`userData.kCap`), 권총집, AK. 키 `K_H.boss = 2.85`.
+- 총사령관: `dressCommander`가 Kenney 모델이면 스킨을 `cmd`(흰 예복·훈장·붉은 띠, 콧수염 얼굴)로 바꾸고 정모를 숨긴 뒤 흰 대형 정모·금 견장·금장 소총을 붙임. 실존 인물을 닮지 않게 일반적인 얼굴.
+- 둘 다 `-dead` 표정 있음. full.py 5·7·1 클리어 확인. rail.js 캐시버스터 v30.
+
 ## 5-8. v27 — Kenney 블록 캐릭터 + 현대 한국군·북한군 스킨, 20XX 설정, 내 병사·군복 (2026-11-23)
 - **인물 교체**: `kenneyPerson(role, opt)`이 Kenney Blocky Characters(CC0) 리그 `models/characters/character.glb`에 게임 전용 스킨을 입혀 만든다. `makeSoldier`·`makeAlly`의 맨 앞에서 먼저 시도하고, 리그가 아직 없거나 `?oldchars`면 기존 블록 병사. 보스(`boss`)는 기존 모델 유지.
 - 리그 관절을 옛 이름으로 넘김: `armL=arm-right`, `armR=arm-left`, `legL=leg-right`, `legR=leg-left`(옛 L은 −x쪽), `headG=head`, `shinL/R`은 빈 그룹. 그래서 걷기·조준·탑승·쓰러짐 코드가 그대로 동작. 키는 `K_H`로 옛 모델과 같게 맞춤(적 2.3, 정예 2.74, 아군 1.88).

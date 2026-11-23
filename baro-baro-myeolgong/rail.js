@@ -3087,7 +3087,7 @@
     try {
       if (!T.GLTFLoader) return;
       new T.GLTFLoader().load("models/characters/character.glb", (g) => { KCH.src = g.scene; KCH.ready = true; }, undefined, () => {});
-      ["nk", "nkt", "rok", "civ1", "civ2", "civ3", "civ4"].forEach((k) => { kMat(k); kMat(k, true); });
+      ["nk", "nkt", "rok", "civ1", "civ2", "civ3", "civ4", "nko"].forEach((k) => { kMat(k); kMat(k, true); });
     } catch (e) {}
   })();
   /* a Kalashnikov-pattern rifle in blocks: wood stock and handguard, curved
@@ -3147,15 +3147,15 @@
       }
     };
   })();
-  const K_H = { weak: 2.3, throw: 2.3, para: 2.3, tough: 2.74, hostage: 2.27, ally: 1.88 };
+  const K_H = { weak: 2.3, throw: 2.3, para: 2.3, tough: 2.74, hostage: 2.27, ally: 1.88, boss: 2.85 };
   /* the player's own uniforms (bought in the depot) and their helmets */
   const UNI_HELM = { "u-army": "#4f5538", "u-marine": "#5a5038", "u-sf": "#1e1f1f", "u-desert": "#a8916a", "u-snow": "#dfe3e5", "u-reserve": "#4e5a34", "u-guard": "#eeebe2" };
   function kenneyPerson(role, opt) {
-    if (!KCH.ready || role === "boss") return null;
+    if (!KCH.ready) return null;
     makeSol();
-    const civ = role === "hostage", tough = role === "tough", ally = role === "ally";
+    const civ = role === "hostage", tough = role === "tough", ally = role === "ally", boss = role === "boss";
     const uni = opt && opt.uni;
-    const skin = uni || (ally ? "rok" : civ ? "civ" + (1 + ((Math.random() * 4) | 0)) : tough ? "nkt" : "nk");
+    const skin = uni || (ally ? "rok" : civ ? "civ" + (1 + ((Math.random() * 4) | 0)) : boss ? "nko" : tough ? "nkt" : "nk");
     const g = new T.Group(), body = new T.Group();
     g.add(body);
     const K = KCH.src.clone(true);
@@ -3181,6 +3181,12 @@
         B(torso, 0.86, 0.5, 0.09, 0, 0.88, 0.33, vest); B(torso, 0.86, 0.5, 0.09, 0, 0.88, -0.33, vest);
         for (let k = 0; k < 3; k++) B(torso, 0.2, 0.2, 0.12, -0.24 + k * 0.24, 0.66, 0.42, pch);
       }
+    } else if (boss) {
+      /* an officer: peaked cap with a red band, gold badge and a black visor */
+      const cap = new T.Group(); head.add(cap); g.userData.kCap = cap;
+      B(cap, 10.4, 2.2, 10.8, 0, 9.5, -0.2, kKit("#4a4a2e")); B(cap, 9.4, 1.3, 9.6, 0, 8.2, 0, kKit("#a8231c"));
+      B(cap, 9.4, 0.4, 3.4, 0, 7.6, 5.4, kKit("#111111", 0.3)); B(cap, 2.2, 1.6, 0.4, 0, 9.6, 5.5, kKit("#e0b440", 0.35));
+      B(torso, 0.18, 0.24, 0.14, 0.36, 0.42, 0.2, kKit("#3a2416"));   // holster
     } else if (!civ) {
       const hm = kKit(tough ? "#3f4429" : "#4b5232");
       B(head, 9.2, 3.8, 9.4, 0, 9.7, 0, hm); B(head, 8.0, 1.0, 8.2, 0, 12.0, 0, hm); B(head, 9.8, 0.5, 10.0, 0, 7.7, 0, kKit(tough ? "#363a24" : "#434929"));
@@ -3228,6 +3234,8 @@
     g.userData.kSkin = skin;
     g.userData.kMeshes = meshes;
     g.userData.kenney = true;
+    g.userData.kHead = head;
+    g.userData.kTorso = torso;
     if (ally) { g.userData.phase = 0; g.userData.aimK = 0; }
     else if (!civ) enemyRim(g);
     return g;
@@ -8441,6 +8449,24 @@
     const u = mesh.userData;
     const body = u.body;
     if (!body) return;
+    if (u.kenney) {
+      /* (v27) the block-character commander: white dress-uniform skin with
+         medals and a red sash, a parade cap, gold epaulettes, a gilded rifle */
+      kMat("cmd"); kMat("cmd", true);
+      const cm = rimMat(kMat("cmd"));
+      u.kMeshes.forEach((m) => { m.material = cm; });
+      u.kSkin = "cmd";
+      if (u.kCap) u.kCap.visible = false;
+      const gold = kKit("#e0b440", 0.3), white = kKit("#f0ece0", 0.55), red = kKit("#a8231c"), blk = kKit("#0c0c0e", 0.25);
+      const B = (par, w, h, d, x, y, z, m) => { const b = new T.Mesh(new T.BoxGeometry(w, h, d), m); b.position.set(x, y, z); par.add(b); return b; };
+      const hd = u.kHead, to = u.kTorso;
+      B(hd, 11.6, 2.6, 11.8, 0, 9.9, -0.3, white); B(hd, 9.6, 1.3, 9.8, 0, 8.3, 0, red);
+      B(hd, 10.0, 0.4, 3.6, 0, 7.7, 5.6, blk); B(hd, 9.8, 0.35, 0.4, 0, 8.95, 5.0, gold); B(hd, 3.2, 2.6, 0.45, 0, 10.0, 5.95, gold);
+      [-1, 1].forEach((sx) => { B(to, 0.32, 0.08, 0.42, sx * 0.44, 1.23, 0, gold); for (let k = 0; k < 4; k++) B(to, 0.04, 0.12, 0.04, sx * (0.32 + k * 0.07), 1.15, 0.18, gold); });
+      if (u.rifle) u.rifle.traverse((o) => { if (o.isMesh) o.material = gold; });
+      mesh.scale.multiplyScalar(1.08);
+      return;
+    }
     const white = new T.MeshStandardMaterial({ color: 0xece6d4, roughness: 0.62, metalness: 0.02 });
     const white2 = new T.MeshStandardMaterial({ color: 0xd9d1bc, roughness: 0.7 });
     const gold = new T.MeshStandardMaterial({ color: 0xe0b440, roughness: 0.28, metalness: 0.85, emissive: 0x2a1c00 });
