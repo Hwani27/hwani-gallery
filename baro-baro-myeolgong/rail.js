@@ -3118,6 +3118,15 @@
       if (w >= 0.999) node.quaternion.copy(_kq); else node.quaternion.slerp(_kq, w);
     }
   }
+  /* (v34) a civilian with both hands up — "don't shoot": arms high and a
+     little apart, shaking, palms toward the guns */
+  function kHandsUp(u, t, shake) {
+    if (!u.armL || !u.armR) return;
+    const w = Math.sin(t * 7.3) * 0.07 * (shake || 1), w2 = Math.sin(t * 6.1 + 1.3) * 0.07 * (shake || 1);
+    u.armL.rotation.set(-2.85 + w, 0, -0.45);
+    u.armR.rotation.set(-2.85 + w2, 0, 0.45);
+    if (u.headG) u.headG.rotation.set(0.12, Math.sin(t * 0.9) * 0.12, 0);
+  }
   /* the rifle rides in the trigger hand, barrel along his facing, pitched */
   function kRifle(p, pitch, roll) {
     const u = p.mesh.userData;
@@ -3130,7 +3139,7 @@
     u.rifle.position.set(_kv.x + 0.02 * s, _kv.y + 0.13 * s, _kv.z + 0.12 * s);
     u.rifle.rotation.set(pitch || 0, Math.PI, roll || 0);
   }
-  window.__kPose = { kApply: (...a) => kApply(...a), kRifle: (...a) => kRifle(...a), K_BODY, K_ARMS, K_UPPER, K_LEGS, K_TOP };
+  window.__kPose = { hands: (...a) => kHandsUp(...a), kApply: (...a) => kApply(...a), kRifle: (...a) => kRifle(...a), K_BODY, K_ARMS, K_UPPER, K_LEGS, K_TOP };
   const kKit = (hex, r) => KCH.kit[hex] || (KCH.kit[hex] = new T.MeshStandardMaterial({ color: new T.Color(hex).convertSRGBToLinear(), roughness: r == null ? 0.82 : r, metalness: 0.05 }));
   (function loadKCH() {
     if (/[?&]oldchars/.test(location.search)) return;
@@ -10176,6 +10185,11 @@
       p.mesh.rotation.y = Math.atan2(cam.x - p.x, cam.z - p.z);
       p.bob += dt * 1.6;
       if (p.body) p.body.rotation.z = Math.sin(p.bob) * 0.05;
+      if (p.mesh.userData.kN) {
+        /* hands up, knees a little bent, trembling */
+        kHandsUp(p.mesh.userData, p.bob * 2, 1.2);
+        if (p.body) { p.body.rotation.x = 0.08; p.body.position.y = -0.04 + Math.sin(p.bob * 9) * 0.008; }
+      }
       return;
     }
 
@@ -14387,7 +14401,7 @@
         m.userData.fwd = [fx, fz];
         m.traverse((o) => { o.userData.noBlock = 1; });
         ctx.scene.add(m);
-        AMB.refs.push({ m: m, ph: Math.random() * 6, spd: 1.1 + Math.random() * 0.6 });
+        AMB.refs.push({ m: m, ph: Math.random() * 6, spd: 0.9 + Math.random() * 0.4 });
       } catch (e) {}
     }
     AMB.refs = AMB.refs.filter((r) => {
@@ -14399,7 +14413,7 @@
       if (u.armL) u.armL.rotation.x = -Math.sin(r.ph) * 0.4;
       if (u.armR) u.armR.rotation.x = Math.sin(r.ph) * 0.4;
       if (u.body) u.body.position.y = Math.abs(Math.sin(r.ph)) * 0.04;
-      if (u.kN) kApply(u, r.spd > 1.4 ? "sprint" : "walk", r.ph / (Math.PI * 2), K_BODY, 1);
+      if (u.kN) { kApply(u, "walk", r.ph / (Math.PI * 2), K_LEGS, 1); kHandsUp(u, r.ph * 0.7, 0.6); }
       if ((r.m.position.x - cam.x) * fw[0] + (r.m.position.z - cam.z) * fw[1] < -6 || Math.hypot(r.m.position.x - cam.x, r.m.position.z - cam.z) > 90) { r.m.parent && r.m.parent.remove(r.m); return false; }
       return true;
     });
