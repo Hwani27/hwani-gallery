@@ -10215,7 +10215,11 @@
       kApply(u, "holding-both", 0, K_ARMS, 1);
       kApply(u, "holding-both-shoot", 0.4, K_UPPER, ak);
       if (rc) { u.armL.rotateX(rc * 0.35); u.armR.rotateX(rc * 0.3); }
-      kRifle(p, -0.04 + 0.5 * (1 - ak) + rc * 0.25, 0);
+      /* (v37) behind cover the rifle hangs muzzle-down along the body (and is
+         put away altogether while he is fully down), so no barrel pokes out
+         through the front of the wall */
+      if (u.rifle) u.rifle.visible = ak > 0.18 || ex > 0.3;
+      kRifle(p, -0.04 + (1 - ak) * 1.2 + rc * 0.25, 0);
     }
 
     /* keep the visible top around for the tag and for the hit test */
