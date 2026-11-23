@@ -65,10 +65,11 @@
 
       <p>
         지금 바로 쏴!(이하 "앱")는 회원가입과 로그인 없이 기기 안에서 동작하는 1인칭 레일 슈팅 게임입니다.
-        게임 진행 상황은 기기에만 남고 개발자에게 전송되지 않습니다.
-        Google Play에서 내려받는 <strong>Android 앱은 광고 SDK를 포함하지 않고, 인터넷 권한도 요청하지 않습니다.</strong>
-        웹 버전과 토스 미니앱 버전도 현재 광고가 없습니다.
-        광고를 넣는 버전을 배포하게 되면 5항에 적은 내용(Google AdMob)을 배포 전에 이 페이지에 먼저 밝히고 시행일과 함께 확정합니다.
+        게임 진행 상황은 기기에만 남고 개발자에게 전송되지 않습니다. 다만 Google Play에서 내려받는
+        <strong>Android 앱은 광고 게재를 위해 Google AdMob(Google Mobile Ads SDK)을 사용하며,</strong>
+        이 과정에서 아래 5항의 정보가 Google에 의해 처리됩니다.
+        웹 버전에는 광고 SDK가 없고, 토스 미니앱으로 실행할 때 광고가 제공되는 경우에는 토스(비바리퍼블리카)의
+        인앱광고로 제공되며 그 처리는 토스의 개인정보처리방침을 따릅니다.
       </p>
 
       <h2>1. 앱이 직접 수집하는 개인정보</h2>
@@ -96,33 +97,24 @@
       </p>
 
       <h2>3. 권한</h2>
-      <p>
-        현재 배포하는 Android 앱은 <strong>어떤 권한도 요청하지 않습니다</strong>(인터넷 권한 포함).
-        게임에 필요한 모델·효과음·텍스처를 모두 앱 안에 넣어 두고 오프라인으로 동작하기 때문입니다.
-      </p>
       <ul>
+        <li><strong>인터넷(INTERNET), 네트워크 상태(ACCESS_NETWORK_STATE)</strong>: 광고를 불러오고 광고 요청을 보내는 데만 사용합니다.</li>
         <li>위치·카메라·마이크·연락처·사진·알림 권한은 쓰지 않습니다.</li>
-        <li>인터넷 권한이 없으므로 앱이 외부로 요청을 보낼 수 없습니다.</li>
       </ul>
+      <p>게임에 필요한 모델·효과음·텍스처는 모두 앱 안에 들어 있어, 광고를 제외한 게임 플레이는 데이터 없이 오프라인으로 동작합니다.</p>
 
       <h2>4. 제3자 제공 및 공유</h2>
       <ul>
-        <li>현재 앱은 이용자 정보를 <strong>제3자에게 제공하거나 공유하지 않습니다.</strong></li>
-        <li>이용자 행동을 추적하는 분석 SDK(Google Analytics, Firebase 등)를 포함하지 않습니다.</li>
-        <li>광고 SDK도 포함하지 않습니다.</li>
+        <li>Android 앱은 광고를 위해 <strong>Google Mobile Ads SDK(Google AdMob)</strong>를 포함하며, 5항의 정보가 Google과 그 광고 파트너에게 공유됩니다.</li>
+        <li>그 밖에 이용자 행동을 추적하는 분석 SDK(Google Analytics, Firebase 등)는 포함하지 않습니다.</li>
+        <li>웹 버전에는 광고 SDK가 포함되어 있지 않습니다. 토스 미니앱에서 광고가 제공되는 경우에는 토스의
+          인앱광고를 사용하며, 그 처리는 토스의 개인정보처리방침을 따릅니다.</li>
       </ul>
 
-      <h2>5. 광고를 넣는 경우 (Google AdMob) — 배포 전 사전 고지</h2>
-      <div class="note">
-        <p>
-          <strong>아직 적용되지 않은 내용입니다.</strong> 광고가 포함된 Android 버전을 배포하게 되면,
-          배포 전에 이 페이지에 아래 수집 항목과 목적을 고지하고 시행일을 갱신합니다.
-          광고가 없는 지금 배포 버전에는 해당하지 않습니다.
-        </p>
-      </div>
+      <h2>5. 광고(Google AdMob)로 처리되는 정보</h2>
       <p>
-        광고를 넣게 되면 Google의 <strong>Google Mobile Ads SDK(AdMob)</strong>를 사용하며,
-        광고 게재·맞춤 광고·광고 성과 분석·부정행위(무효 트래픽) 방지 목적으로
+        Android 앱은 광고를 보여 주기 위해 Google의 <strong>Google Mobile Ads SDK(AdMob)</strong>를
+        포함합니다. 광고 게재·맞춤 광고·광고 성과 분석·부정행위(무효 트래픽) 방지 목적으로
         아래 정보가 Google과 Google의 광고 파트너에게 <strong>수집·이용·공유</strong>될 수 있습니다.
       </p>
       <ul>
@@ -180,10 +172,11 @@
         </p>
         <p>
           Shoot Right Now ("the app") is a first-person rail shooter that works on your device with no sign-up or login.
-          Your progress stays on your device and is not sent to the developer.
-          The <strong>Android app distributed on Google Play includes no advertising SDK and requests no internet permission.</strong>
-          The web version and the Toss mini-app version currently show no ads either.
-          If a version with ads is released, we will post the details in section 5 here, with a new effective date, before that release.
+          Your progress stays on your device and is not sent to the developer. The <strong>Android app</strong>
+          distributed on Google Play does use <strong>Google AdMob (Google Mobile Ads SDK)</strong> to show ads,
+          and in that process the data described in section 5 is processed by Google. The web version contains no
+          advertising SDK; when ads are shown in the Toss mini-app version, they are served as Toss in-app ads and
+          their processing follows Toss's privacy policy.
         </p>
 
         <h3>1. Personal data the app itself collects</h3>
@@ -204,30 +197,22 @@
         </p>
 
         <h3>3. Permissions</h3>
-        <p>
-          The Android app we currently distribute <strong>requests no permissions at all</strong>, including internet access:
-          every model, sound and texture the game needs is bundled inside the app so it runs offline.
-        </p>
         <ul>
-          <li>No location, camera, microphone, contacts, photos, or notification permission is used.</li>
-          <li>Without the internet permission the app cannot send any request outside the device.</li>
+          <li><strong>Internet (INTERNET) and network state (ACCESS_NETWORK_STATE)</strong> are used only to request and load ads.</li>
+          <li>No location, camera, microphone, contacts, photos or notification permission is used.</li>
         </ul>
+        <p>Every model, sound and texture the game needs is bundled inside the app, so gameplay itself works offline apart from ads.</p>
 
         <h3>4. Third parties</h3>
         <ul>
-          <li>The app <strong>does not provide or share</strong> your information with third parties.</li>
-          <li>It includes no analytics SDK that tracks your behaviour (no Google Analytics, Firebase, etc.).</li>
-          <li>It includes no advertising SDK.</li>
+          <li>The Android app includes <strong>Google Mobile Ads SDK (Google AdMob)</strong>, and the data in section 5 is shared with Google and its advertising partners.</li>
+          <li>No other analytics SDK that tracks your behaviour (Google Analytics, Firebase, etc.) is included.</li>
+          <li>The web version contains no advertising SDK; when ads are shown in the Toss mini-app version, they are Toss in-app ads processed under Toss's privacy policy.</li>
         </ul>
 
-        <h3>5. If ads are added (Google AdMob) — advance notice</h3>
+        <h3>5. Data processed for advertising (Google AdMob)</h3>
         <p>
-          <strong>This does not apply yet.</strong> If we release an Android version with ads, we will disclose the data
-          below and its purpose on this page, and update the effective date, before that release.
-          The version we distribute today has no ads.
-        </p>
-        <p>
-          Such a version would include Google's <strong>Google Mobile Ads SDK (AdMob)</strong>. To serve ads, personalize them,
+          The Android app includes Google's <strong>Google Mobile Ads SDK (AdMob)</strong>. To serve ads, personalize them,
           measure ad performance and prevent fraud or invalid traffic, the following data may be
           <strong>collected, used and shared</strong> with Google and its advertising partners:
         </p>
@@ -239,7 +224,7 @@
         </ul>
         <p>
           This data is transferred over encrypted connections (TLS), and the developer does not keep it in a form
-          that identifies you. Game progress and points are never passed to the ad provider. Processing would follow the
+          that identifies you. Game progress and points are never passed to the ad provider. Processing follows the
           <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Google Privacy Policy</a> and the
           <a href="https://policies.google.com/technologies/ads" target="_blank" rel="noopener">Google advertising policies</a>.
         </p>
