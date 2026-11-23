@@ -202,9 +202,9 @@
       #railPauseMenu .pc{width:min(380px,100%);display:grid;gap:10px;text-align:center}
       #railPauseMenu .k{margin:0;font:800 11px/1 ui-monospace,monospace;letter-spacing:.3em;color:#c9b871}
       #railPauseMenu h2{margin:2px 0 8px;font-size:34px;font-weight:900}
-      #railPauseMenu button{min-height:52px;border-radius:14px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.07);color:#fff;font:800 16px/1 inherit;cursor:pointer;touch-action:manipulation}
-      #railPauseMenu button.primary{background:linear-gradient(180deg,#56682f,#2c3820);border:2px solid #c9b871;font-size:18px}
-      #railPauseMenu .row{display:flex;gap:8px}#railPauseMenu .row button{flex:1;min-height:44px;font-size:13px}
+      #railPauseMenu button{min-height:52px;border-radius:14px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.07);color:#fff;font-family:inherit;font-weight:800;font-size:16px;line-height:1;cursor:pointer;touch-action:manipulation}
+      #railPauseMenu button.primary{background:linear-gradient(180deg,#56682f,#2c3820);border:2px solid #c9b871}
+      #railPauseMenu .row{display:flex;gap:8px}#railPauseMenu .row button{flex:1;min-height:52px}
       #railPauseMenu .tip{margin:4px 0 0;font:700 12px/1 ui-monospace,monospace;color:#9aa58a}
       #railShield{position:fixed;inset:0;z-index:41;pointer-events:none;box-shadow:inset 0 0 60px 18px rgba(90,190,255,.55);animation:railShield .25s steps(2) infinite}
       @keyframes railShield{50%{opacity:.35}}
@@ -218,7 +218,7 @@
       @keyframes railTick{0%{transform:scale(1.35);color:#ff6a4a}100%{transform:scale(1)}}
       #railCont .d{margin:0 0 16px;color:#e8d8d0;font-size:14px}
       #railCont .btns{display:flex;gap:10px}
-      #railCont button{flex:1;min-height:56px;border-radius:14px;border:2px solid #7a6a52;background:#2a2218;color:#eee;font:900 17px/1 inherit;cursor:pointer;touch-action:manipulation}
+      #railCont button{flex:1;min-height:56px;border-radius:14px;border:2px solid #7a6a52;background:#2a2218;color:#eee;font-family:inherit;font-weight:900;font-size:17px;line-height:1;cursor:pointer;touch-action:manipulation}
       #railCont button.primary{flex:1.6;background:linear-gradient(180deg,#e8c65a,#b58a22);border-color:#ffe08a;color:#1e1606}
       #railResult .card{width:min(460px,100%);background:#121a16;border:3px solid #d8c98a;border-radius:18px;padding:22px;box-shadow:0 18px 60px rgba(0,0,0,.55)}
       #railResult h2{margin:0 0 8px;font-size:28px;letter-spacing:.02em}
@@ -14400,7 +14400,7 @@
   function lmMonorail(S, x, zA, zB) {
     const c = cmat(0xe4e6e8, 0.6, 0.2), d = cmat(0x8a9096, 0.6, 0.4);
     for (let z = zA; z <= zB; z += 18) { bx(S, 0.9, 7.2, 0.9, -11.6, 3.9, z, c); bx(S, 4.4, 0.7, 1.2, -9.6, 7.6, z, c); }
-    bx(S, 1.4, 0.9, zB - zA, x, 8.2, (zA + zB) / 2, c);
+    bx(S, 1.4, 0.9, zB - zA, x, 8.2, (zA + zB) / 2, c).userData.air = 1;
     bx(S, 1.6, 0.12, zB - zA, x, 8.7, (zA + zB) / 2, d);
     const car = new T.Group();
     const body = cmat(0xf2f4f6, 0.35, 0.3), band = cmat(0x2a6ab8, 0.4), glass = cmat(0x2a3a48, 0.1, 0.6);
@@ -15004,8 +15004,10 @@
         else if (k === "cranes") lmCranes(S, L[1]);
         else if (k === "boats") lmBoats(S, L[1], anims);
         else if (k === "overpass") {
-          bx(S, 34, 1.0, 6, 0, 7.2, L[1], cmat(0xb4b4ae, 0.85));
-          bx(S, 34, 0.9, 0.3, 0, 8.1, L[1] - 2.9, cmat(0x9a9a94, 0.85)); bx(S, 34, 0.9, 0.3, 0, 8.1, L[1] + 2.9, cmat(0x9a9a94, 0.85));
+          /* (v49) the deck counts as air clearance, so a gunship climbs
+             over the flyover instead of flying through its slab */
+          bx(S, 34, 1.0, 6, 0, 7.2, L[1], cmat(0xb4b4ae, 0.85)).userData.air = 1;
+          bx(S, 34, 0.9, 0.3, 0, 8.1, L[1] - 2.9, cmat(0x9a9a94, 0.85)).userData.air = 1; bx(S, 34, 0.9, 0.3, 0, 8.1, L[1] + 2.9, cmat(0x9a9a94, 0.85)).userData.air = 1;
           [-15, 15].forEach((x) => bx(S, 1.6, 7, 4, x, 3.7, L[1], cmat(0xa4a49e, 0.85), { wall: 1 }));
         } else if (k === "beach") {
           /* (v47) sand from the waterline up to the promenade, laid a hair
@@ -15100,16 +15102,18 @@
     const b = new T.Box3();
     dress.root.traverse((o) => {
       if (!o.isMesh || o.isInstancedMesh || !o.geometry || !o.parent) return;
-      if (!(o.userData && (o.userData.wall || o.userData.solid))) return;
+      const air = o.userData && o.userData.air;
+      if (!(o.userData && (o.userData.wall || o.userData.solid || air))) return;
       try { b.setFromObject(o); } catch (e) { return; }
       if (b.isEmpty() || !isFinite(b.min.x)) return;
       const w = b.max.x - b.min.x, d = b.max.z - b.min.z, h = b.max.y - b.min.y;
-      if (h < 4 || w > 60 || d > 60) return;
+      if (!air && (h < 4 || w > 60 || d > 60)) return;
       if (b.min.y > 34) return;
       if (airBoxes.length < 800) airBoxes.push(b.clone());
     });
   }
   /* the roof height of anything the airframe would clip at (x,z,y) */
+  window.__airCeil = (x, z, y) => airCeil(x, z, y, 3.4);
   function airCeil(x, z, y, r) {
     if (airFor !== dress) buildAirBoxes();
     if (!airBoxes || !airBoxes.length) return 0;

@@ -13,13 +13,22 @@
 | 영어 페이지 | https://hwani27.github.io/hwani-gallery/shoot-right-now/en.html |
 | 갤러리 카드 | `index.html`의 `shoot-right-now/` 카드 → `thumb.png` |
 | 폴더 | `work/hwani-gallery/shoot-right-now/` (완전 독립 빌드) |
-| 현재 버전 | **v48** (차량 관통·간판 겹침) · **v47** (`?v=47`, 관통·해안·텍스처·인질·폭발 버그 5종) · v46 (전장 소품·그림자 티어 / 타격·폭발·트레이서 / 조명·색감 톤) · v45 (`?v=45`, 곡선 차선) · v44 (긴 총 손·군복 2종) · v43 (아이콘 군복·버튼 탭) · v42 (아이콘 얼굴) · v41 (세로 화각·화면 밖 적) · v40 (폴더 이동) · v39 (이름 변경) · v28 (`?v=28`, CC0 3D 모델 4종) / v18 (엄폐 위치 수정) / v17 (보스 장갑·전차, 평화의 집) / v16 (Stage 3·무기) / v15 (시간대·날씨) / v14 (겹침 정리) / v13 (레일 관통·복셀) / v12 (`post.js` 후처리) / v11 / v10 통합 |
+| 현재 버전 | **v49** (고가도로 헬기·메뉴 글자) · **v48** (차량 관통·간판 겹침) · **v47** (`?v=47`, 관통·해안·텍스처·인질·폭발 버그 5종) · v46 (전장 소품·그림자 티어 / 타격·폭발·트레이서 / 조명·색감 톤) · v45 (`?v=45`, 곡선 차선) · v44 (긴 총 손·군복 2종) · v43 (아이콘 군복·버튼 탭) · v42 (아이콘 얼굴) · v41 (세로 화각·화면 밖 적) · v40 (폴더 이동) · v39 (이름 변경) · v28 (`?v=28`, CC0 3D 모델 4종) / v18 (엄폐 위치 수정) / v17 (보스 장갑·전차, 평화의 집) / v16 (Stage 3·무기) / v15 (시간대·날씨) / v14 (겹침 정리) / v13 (레일 관통·복셀) / v12 (`post.js` 후처리) / v11 / v10 통합 |
 | 스테이지 | `STAGES` 표: 1 = 서울(8웨이브+보스), 2 = DMZ·판문점(6웨이브+보스), 3 = 판문점 평화의 집(7웨이브+전차), 4 = 평양 진입(7웨이브+전차, 눈). 타이틀 버튼 4개(`#mgStart`/`2`/`3`/`4`), 결과의 `다음 작전`은 1→2→3→4. 타이틀의 두 버튼 / Stage 1 클리어 결과의 `다음 작전` 버튼으로 진입 |
 | v9 브랜치 | `feat/myeolgong-v9-seoul-polish` → PR #12 (v10도 같은 브랜치) |
 | v6 커밋 | `3df8b62` — full 1st-person arms/torso, adaptive portrait FOV, barrel tracks the aim point |
-| 캐시 버스터 | **`?v=48`** (index.html·en.html의 post·engine·rail 세 줄) · gun-sfx `?v=34` · profile `?v=44` |
+| 캐시 버스터 | **`?v=49`** (index.html·en.html의 post·engine·rail 세 줄) · gun-sfx `?v=34` · profile `?v=44` |
 
 | 로컬 실행 | `cd work/hwani-gallery && python3 -m http.server 8133` → `http://127.0.0.1:8133/shoot-right-now/index.html` |
+
+## 0-0. v49 — 고가도로 헬기·메뉴 글자 크기 (2026-11-24)
+
+| 제보 | 원인 | 수정 |
+|---|---|---|
+| 1-3 대구 **헬기가 고가도로 상판을 뚫고 다님** | v47 `buildAirBoxes`는 `wall/solid`이면서 높이 4 m 이상·60 m 이하만 넣어서, 두께 1 m 상판(높이 7.2 m)은 빠짐 | 상판·난간에 `userData.air=1` → 얇거나 길어도 비행 장애물로 포함. 대전 자기부상 궤도 빔도 동일. 상판 위치 `__airCeil` = 7.7(이전 0) |
+| **일시정지 메뉴 글자 크기 제각각** | CSS `font:800 16px/1 inherit` — `inherit`는 font 단축 속성에 못 들어가 **선언 전체가 무효** → 버튼이 브라우저 기본 글꼴/크기로 표시, `.primary`(18px)·`.row`(13px)만 크기 지정돼 들쭉날쭉 | 같은 패턴 7곳(rail 2, profile 5)을 `font-family:inherit;font-weight;font-size;line-height`로 풀어 씀. 일시정지 버튼은 모두 16px/52px 높이로 통일. 메뉴 `word-break:keep-all`(부제 '슈/팅' 줄바꿈) |
+
+캐시 버스터: post·engine·rail `?v=49`, profile `?v=49`.
 
 ## 0-1. v48 — 차량 관통·간판 겹침 (2026-11-23)
 

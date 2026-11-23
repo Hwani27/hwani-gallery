@@ -240,7 +240,7 @@
   /* ---------------- title menu ---------------- */
   const css = document.createElement("style");
   css.textContent = `
-  #mgMenu{position:relative;width:min(560px,100%);margin:auto;text-align:left}
+  #mgMenu{position:relative;width:min(560px,100%);margin:auto;text-align:left;word-break:keep-all}
   .mRank{display:flex;align-items:center;gap:12px;padding:10px 12px;border:1px solid rgba(201,184,113,.32);border-radius:14px;
     background:linear-gradient(180deg,rgba(30,38,22,.85),rgba(14,18,10,.85));box-shadow:inset 0 1px 0 rgba(255,255,255,.06)}
   .mRank svg{flex:none;filter:drop-shadow(0 2px 4px rgba(0,0,0,.5))}
@@ -266,7 +266,7 @@
   .mGo small{display:block;margin-top:4px;font:700 11px/1 ui-monospace,monospace;letter-spacing:.2em;color:#e2dbb0}
   .mRow{display:flex;gap:8px;margin:12px 0 0}
   .mSeg{flex:1;display:flex;padding:3px;border-radius:12px;background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.08)}
-  .mSeg button{flex:1;min-height:38px;border:0;border-radius:9px;background:transparent;color:#a9b098;font:800 13px/1 inherit;cursor:pointer;touch-action:manipulation;letter-spacing:.02em}
+  .mSeg button{flex:1;min-height:38px;border:0;border-radius:9px;background:transparent;color:#a9b098;font-family:inherit;font-weight:800;font-size:13px;line-height:1;cursor:pointer;touch-action:manipulation;letter-spacing:.02em}
   .mSeg button.on{background:linear-gradient(180deg,#e2d08a,#b9a55c);color:#1b1f10;box-shadow:0 2px 8px rgba(0,0,0,.4)}
   .mSeg.mode button.on[data-v=practice]{background:linear-gradient(180deg,#8fd0e8,#4f98b8)}
   .mNote{margin:8px 2px 0;font-size:12px;color:#98a28c;min-height:16px}
@@ -308,7 +308,7 @@
   .mMe .av{flex:none;width:64px;height:80px;display:flex;align-items:flex-end;justify-content:center}
   .mMe .av img{width:64px;height:80px}
   .mMe .t{flex:1;min-width:0}.mMe .t b{display:block;font-size:14px}.mMe .t small{display:block;font-size:11px;color:#a9b098;margin-top:2px}
-  .mMe button{flex:none;min-height:36px;padding:0 12px;border-radius:10px;border:1px solid rgba(201,184,113,.5);background:rgba(201,184,113,.14);color:#f2ecd0;font:800 12px/1 inherit;cursor:pointer}
+  .mMe button{flex:none;min-height:36px;padding:0 12px;border-radius:10px;border:1px solid rgba(201,184,113,.5);background:rgba(201,184,113,.14);color:#f2ecd0;font-family:inherit;font-weight:800;font-size:12px;line-height:1;cursor:pointer}
   #mgModal .it .av{height:96px;display:flex;justify-content:center}#mgModal .it .av img{height:96px}
   .mMis{margin:8px 0 0;padding:8px 10px;border-radius:14px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04)}
   .mMis h4{margin:0 0 6px;font-size:12px;letter-spacing:.06em;color:#c9b871;display:flex;justify-content:space-between}
@@ -322,7 +322,7 @@
   #mgModal .mc{width:min(520px,100%);max-height:calc(100vh - 28px);overflow:auto;border-radius:18px;border:1px solid rgba(201,184,113,.4);background:linear-gradient(180deg,#1c2414,#0e120a);padding:16px}
   #mgModal h3{margin:0;font-size:20px}#mgModal .bal{float:right;font:900 15px/1.4 ui-monospace,monospace;color:#ffd54a}
   #mgModal .tabs{display:flex;gap:6px;margin:12px 0}
-  #mgModal .tabs button{flex:1;min-height:38px;border-radius:10px;border:0;background:rgba(255,255,255,.07);color:#bbb;font:800 13px/1 inherit;cursor:pointer}
+  #mgModal .tabs button{flex:1;min-height:38px;border-radius:10px;border:0;background:rgba(255,255,255,.07);color:#bbb;font-family:inherit;font-weight:800;font-size:13px;line-height:1;cursor:pointer}
   #mgModal .tabs button.on{background:#c9b871;color:#1b1f10}
   #mgModal .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
   #mgModal .it{display:flex;flex-direction:column;gap:4px;padding:10px;border-radius:12px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);text-align:left;color:#fff;font:inherit;cursor:pointer}
@@ -331,7 +331,7 @@
   #mgModal .it em.no{background:#5a3030}#mgModal .it em.own{background:#2a4a6a}
   #mgModal .it.on{outline:2px solid #ffd54a}
   #mgModal .sw{display:flex;gap:4px}#mgModal .sw i{width:22px;height:14px;border-radius:3px}
-  #mgModal .foot{display:flex;gap:8px;margin-top:12px}#mgModal .foot button{flex:1;min-height:44px;border-radius:12px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.07);color:#fff;font:800 14px/1 inherit;cursor:pointer}
+  #mgModal .foot{display:flex;gap:8px;margin-top:12px}#mgModal .foot button{flex:1;min-height:44px;border-radius:12px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.07);color:#fff;font-family:inherit;font-weight:800;font-size:14px;line-height:1;cursor:pointer}
   #mgModal .box{display:block;margin:18px auto;font-size:88px;background:none;border:0;cursor:pointer;animation:mShake 1.2s infinite}
   @keyframes mShake{0%,100%{transform:rotate(0)}10%{transform:rotate(-8deg)}20%{transform:rotate(8deg)}30%{transform:rotate(0)}}
   #mgModal .prize{text-align:center;margin:10px 0}#mgModal .prize small{display:block;font-weight:800;letter-spacing:.1em}#mgModal .prize b{display:block;font-size:22px;margin-top:6px}
@@ -551,7 +551,7 @@
       })() +
       "</div>" +
       '<div class="mR"><div class="mList">' + cards + "</div>" +
-      '<p class="mFoot">' + L.hint + '</p><p class="mFoot"><button id="mgTut" type="button" style="background:none;border:0;color:#c9b871;font:700 12px/1 inherit;text-decoration:underline;cursor:pointer;padding:6px">' + (ko ? "훈련(튜토리얼) 다시 보기" : "Replay training") + "</button></p></div>";
+      '<p class="mFoot">' + L.hint + '</p><p class="mFoot"><button id="mgTut" type="button" style="background:none;border:0;color:#c9b871;font-family:inherit;font-weight:700;font-size:12px;line-height:1;text-decoration:underline;cursor:pointer;padding:6px">' + (ko ? "훈련(튜토리얼) 다시 보기" : "Replay training") + "</button></p></div>";
     wrap.querySelectorAll(".mSeg button").forEach((b) => b.addEventListener("click", (e) => {
       e.preventDefault();
       const k = b.getAttribute("data-k"), v = b.getAttribute("data-v");
