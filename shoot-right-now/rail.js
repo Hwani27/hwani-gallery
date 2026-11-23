@@ -696,7 +696,14 @@
           rm.repeat.copy(m.map.repeat); rm.offset.copy(m.map.offset);
           m.roughnessMap = rm;
           m.roughness = 1;
-          m.envMapIntensity = Math.max(m.envMapIntensity || 0, rf.facade ? 0.9 : 0.5);
+          /* (v47) a pane that mirrors the sky flashes as the camera moves.
+             Facades keep their relief but lose the mirror: every window used
+             to be a polished specular cell, which is what shimmered. */
+          m.envMapIntensity = rf.facade ? 0.3 : Math.max(m.envMapIntensity || 0, 0.5);
+          if (rf.facade) {
+            m.metalness = Math.min(m.metalness == null ? 0 : m.metalness, 0.08);
+            m.normalScale = new T.Vector2(0.16, 0.16);
+          }
         }
         m.needsUpdate = true;
         n++;
@@ -2890,7 +2897,7 @@
     SOL.facA.roughnessMap = MT["facA@rough"] || null;
     SOL.facB.roughnessMap = MT["facB@rough"] || null;
     SOL.facC.roughnessMap = MT["facC@rough"] || null;
-    SOL.shopGlass = L(shopTex("shopGlass", 3), { roughness: 0.22, metalness: 0.4, envMapIntensity: 0.7 });
+    SOL.shopGlass = L(shopTex("shopGlass", 3), { roughness: 0.22, metalness: 0.4, envMapIntensity: 0.7, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
     SOL.shopFascia = L(null, { color: 0x24282d, roughness: 0.62, metalness: 0.2 });
     SOL.awnA = L(weave, { color: 0x2f6f4e, roughness: 0.78 });
     SOL.awnB = L(weave, { color: 0xb8342c, roughness: 0.78 });
@@ -2936,8 +2943,8 @@
     SOL.concPole = L(concreteTex("concPole", "#a9a9a3", 33),
       { roughness: 0.9, bumpMap: BM("concPole", 2.0), bumpScale: 0.026 });
     SOL.coneOrange = L(null, { color: 0xe2622a, roughness: 0.52, metalness: 0.04 });
-    SOL.paintWhite = L(paintTex("paintW", "#eeece2"), { roughness: 0.62, metalness: 0.02 });
-    SOL.paintYellow = L(paintTex("paintY", "#d3ad30"), { roughness: 0.62, metalness: 0.02 });
+    SOL.paintWhite = L(paintTex("paintW", "#eeece2"), { roughness: 0.62, metalness: 0.02, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+    SOL.paintYellow = L(paintTex("paintY", "#d3ad30"), { roughness: 0.62, metalness: 0.02, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
     SOL.hydrant = L(null, { color: 0xc03a2c, roughness: 0.44, metalness: 0.22 });
     SOL.scaffPlank = L(woodTex("plank", "#9a7440", "#6a4a22", "#c49a60", 19),
       { roughness: 0.82, bumpMap: BM("plank", 1.8), bumpScale: 0.018 });
@@ -3907,7 +3914,7 @@
   function signMat(i) {
     const s = SIGN_LIST[i % SIGN_LIST.length];
     const key = "sign" + (i % SIGN_LIST.length);
-    if (!SOL[key]) SOL[key] = new T.MeshStandardMaterial({ map: signTex(key, s[0], s[1], s[2], s[3]), roughness: 0.42, metalness: 0.08, envMapIntensity: 0.2 });
+    if (!SOL[key]) SOL[key] = new T.MeshStandardMaterial({ map: signTex(key, s[0], s[1], s[2], s[3]), roughness: 0.42, metalness: 0.08, envMapIntensity: 0.2, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
     return SOL[key];
   }
 
@@ -4158,10 +4165,10 @@
     if (o.shop) {
       const side = o.shop;
       const y = 0.3;
-      if (side === "e") streetFront(S, { x: x1 + 0.04, y, z: cz, len: d - 0.6, ax: 1, az: 0, k: o.k || 0 });
-      else if (side === "w") streetFront(S, { x: x0 - 0.04, y, z: cz, len: d - 0.6, ax: -1, az: 0, k: o.k || 0 });
-      else if (side === "s") streetFront(S, { x: cx, y, z: z0 - 0.04, len: w - 0.6, ax: 0, az: -1, k: o.k || 0 });
-      else streetFront(S, { x: cx, y, z: z1 + 0.04, len: w - 0.6, ax: 0, az: 1, k: o.k || 0 });
+      if (side === "e") streetFront(S, { x: x1 + 0.07, y, z: cz, len: d - 0.6, ax: 1, az: 0, k: o.k || 0 });
+      else if (side === "w") streetFront(S, { x: x0 - 0.07, y, z: cz, len: d - 0.6, ax: -1, az: 0, k: o.k || 0 });
+      else if (side === "s") streetFront(S, { x: cx, y, z: z0 - 0.07, len: w - 0.6, ax: 0, az: -1, k: o.k || 0 });
+      else streetFront(S, { x: cx, y, z: z1 + 0.07, len: w - 0.6, ax: 0, az: 1, k: o.k || 0 });
     }
     return body;
   }
@@ -4549,6 +4556,8 @@
     const star2 = star.clone(); star2.position.z = -0.77; star2.rotation.y = Math.PI; g.add(star2);
     g.position.set(x, 0.3, z);
     g.rotation.y = -0.08;
+    g.userData.solid = 1;
+    g.traverse((o) => { if (o.isMesh) o.userData.solid = 1; });
     return g;
   }
 
@@ -5668,7 +5677,7 @@
     g.add(body);
     [-1, 1].forEach((s) => {
       const p = new T.Mesh(new T.PlaneGeometry(w - 0.08, h - 0.1), face);
-      p.position.set(w / 2 + 0.08, 0, s * (d / 2 + 0.008));
+      p.position.set(w / 2 + 0.08, 0, s * (d / 2 + 0.03));
       p.rotation.y = s < 0 ? Math.PI : 0;
       g.add(p);
     });
@@ -6551,7 +6560,7 @@
         cars: [["police", -7.4, 24, Math.PI]],
         banners: [[12.2, -20, "인천상륙작전", "#2a4aa8", 9], [-12.2, 20, "인천", "#c22a2a"]],
         hills: [[-120, 220, 200, 60, 30]],
-        landmarks: [["beach", -72, -56], ["hedgehogs", [[-6, -66], [5, -64], [-9, -60], [8, -60], [-4, -61], [11, -67], [-12, -64]]],
+        landmarks: [["beach", -70.5, -45], ["hedgehogs", [[-6, -66], [5, -64], [-9, -60], [8, -60], [-4, -61], [11, -67], [-12, -64]]],
           ["fire", -18, 0.4, -58, 1.4], ["fire", 16, 0.4, -54, 1.2],
           ["ship", -46, -150, 0.25, 52, 1.1], ["ship", 56, -178, -0.3, 31, 0.9], ["ship", -90, -210, 0.1, 17, 0.8],
           ["taper", 10, 168, 96], ["sculptureS", 30, 82, 1.5], ["cranes", [[-150, -40, -0.2], [-130, -10, -0.2]]], ["fountain", -16, 74, 4], ["suspension", 0, 230, 0, 44, 300],
@@ -8524,6 +8533,32 @@
     if (ctx.pl) ctx.pl.inv = 99999;
   }
 
+  /* (v47) compile the blast's own materials while the stage is still loading.
+     The first explosion of a session used to pay for them in front of the
+     player: a fresh transparent material means a fresh shader program, and
+     that compile is the stall people saw when a gunship came down. The kit
+     is compiled in a throwaway scene with the same fog, so the cache key
+     matches the real one. */
+  function prewarmFx(ctx) {
+    try {
+      if (!ctx.renderer || !ctx.renderer.compile) return;
+      if (!SMOKE_GEO) SMOKE_GEO = new T.SphereGeometry(1, 6, 5);
+      const kit = new T.Group();
+      kit.add(new T.Mesh(new T.RingGeometry(0.55, 1.0, 8), new T.MeshBasicMaterial({ color: 0xd9c3a2, transparent: true, opacity: 0.6, depthWrite: false, side: T.DoubleSide })));
+      const bm = fxBallMats();
+      kit.add(new T.Mesh(fxUnitBox(), bm[0].clone()));
+      kit.add(new T.Mesh(fxUnitBox(), bm[1].clone()));
+      kit.add(new T.Mesh(fxUnitBox(), fxSparkMats()[0]));
+      kit.add(new T.Mesh(SMOKE_GEO, new T.MeshBasicMaterial({ color: 0x3a3630, transparent: true, opacity: 0.5, depthWrite: false })));
+      kit.add(new T.Mesh(new T.PlaneGeometry(3.4, 3.4), new T.MeshBasicMaterial({ color: 0x101008, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 })));
+      const tmp = new T.Scene();
+      tmp.fog = ctx.scene.fog || null;
+      tmp.add(kit);
+      ctx.renderer.compile(tmp, ctx.camera);
+      kit.traverse((o) => { if (o.material && o.material.dispose) o.material.dispose(); });
+      window.__fxWarm = 1;
+    } catch (e) { window.__fxWarmErr = String(e && e.message || e); }
+  }
   function begin(ctx, stageIdIn) {
     TUT.checked = false; TUT.on = false; tutHide();
     threatEls.forEach((d) => { d.style.display = "none"; });
@@ -8567,6 +8602,18 @@
       window.__steerMs = [+(tb1 - tb0).toFixed(0), +(performance.now() - tb1).toFixed(0)];
     } catch (err) { window.__blockErr = String(err && err.stack || err); }
     steerOff = 0;
+    /* (v47) the blast light is created with the stage, not the first time a
+       drum goes off: adding a light changes the light count, which recompiles
+       every material in the scene. That recompile was a one-off stall of over
+       a second on the frame the first explosion played. */
+    try {
+      if (!boomLight) { boomLight = new T.PointLight(0xffa040, 0, 26, 1.55); ctx.scene.add(boomLight); }
+      if (boomLight.parent !== ctx.scene) ctx.scene.add(boomLight);
+      boomLight.position.set(0, -60, 0);
+      boomLight.intensity = 0;
+      boomK = 0;
+    } catch (err) {}
+    try { prewarmFx(ctx); } catch (err) {}
     try { stageWave(waves[0]); } catch (err) { window.__stageErr = String(err && err.stack || err); }
     const cam = ctx.camera;
     cam.near = 0.06; cam.fov = viewFov(); cam.far = 320;
@@ -10361,14 +10408,50 @@
     breakables.forEach((b) => { if (!b.broken && b.mesh.visible) addOwned(b.mesh, b, "break"); });
     occluders().forEach((m) => addOwned(m, null, "block"));
     const found = ray.intersectObjects(owned.map((o) => o.mesh), true);
+    /* (v47) the civilians running across the street are people too. They used
+       to be pure scenery: a round went straight through one, which read as a
+       ghost standing in the middle of the fight. A hit now counts as an
+       innocent hit (score down, combo lost) and the man drops. */
+    let civHit = null;
+    if (AMB && AMB.refs && AMB.refs.length) {
+      const ro = ray.ray.origin, rd = ray.ray.direction, cp = new T.Vector3();
+      for (let i = 0; i < AMB.refs.length; i++) {
+        const r = AMB.refs[i];
+        if (r.dead || !r.m || !r.m.parent) continue;
+        r.m.getWorldPosition(cp);
+        const t = (cp.x - ro.x) * rd.x + (cp.y + 1.0 - ro.y) * rd.y + (cp.z - ro.z) * rd.z;
+        if (t < 1.5 || t > 32) continue;
+        const dx = ro.x + rd.x * t - cp.x, dy = ro.y + rd.y * t - (cp.y + 1.0), dz = ro.z + rd.z * t - cp.z;
+        if (dx * dx + dy * dy + dz * dz > 0.2) continue;
+        if (!civHit || t < civHit.t) civHit = { t: t, r: r };
+      }
+    }
     /* (v46) the streak is drawn before the outcome is decided, so a body hit,
        a wall stop and a clean miss all show the same line down the street */
     try {
-      const endPt = (found && found.length)
-        ? found[0].point.clone()
-        : ray.ray.origin.clone().addScaledVector(ray.ray.direction, ray.far || 30);
+      const endPt = civHit && (!found || !found.length || found[0].distance > civHit.t)
+        ? ray.ray.origin.clone().addScaledVector(ray.ray.direction, civHit.t)
+        : (found && found.length)
+          ? found[0].point.clone()
+          : ray.ray.origin.clone().addScaledVector(ray.ray.direction, ray.far || 30);
       shotTracer(ctx, endPt, !!quiet);
     } catch (e) { window.__tracerErr = String(e && e.stack || e); }
+    if (civHit && (!found || !found.length || found[0].distance > civHit.t)) {
+      const r = civHit.r;
+      r.dead = 1;
+      window.__civHits = (window.__civHits || 0) + 1;
+      window.__lastShot = { sort: "civ", role: "hostage" };
+      combo = 0;
+      addPts(ctx, -100);
+      try { hitMark("civ", window.__lastHitPx ? window.__lastHitPx.x : innerWidth / 2, window.__lastHitPx ? window.__lastHitPx.y : innerHeight / 2, false, "민간인!"); } catch (e) {}
+      try { gun("dry"); } catch (e) {}
+      const m = r.m;
+      if (m.parent) {
+        const wp = new T.Vector3(); m.getWorldPosition(wp);
+        m.parent.remove(m);
+      }
+      return;
+    }
     const ownerOf = (obj) => {
       let node = obj;
       while (node) {
@@ -11848,8 +11931,10 @@
       s.userData.v.y -= 6 * dt;
       if (s.userData.life <= 0) {
         ctx.scene.remove(s);
-        if (s.geometry) s.geometry.dispose();
-        if (s.material) s.material.dispose();
+        if (!s.userData.fxShared) {
+          if (s.geometry) s.geometry.dispose();
+          if (s.material) s.material.dispose();
+        }
         sparks.splice(i, 1);
       }
     }
@@ -12494,7 +12579,10 @@
     g.add(star);
     g.position.set(x, 0.3, z);
     g.rotation.y = rot || 0;
+    /* (v47) a parked jeep is an obstacle for everyone on foot and on wheels:
+       the rail steering and the riders' dodge test read it per mesh */
     g.userData.solid = 1;
+    g.traverse((o) => { if (o.isMesh) o.userData.solid = 1; });
     return g;
   }
 
@@ -14468,6 +14556,11 @@
       for (let gx = -130; gx <= 150 && filled < 40; gx += 13) {
         for (let gz = -120; gz <= 150 && filled < 40; gz += 13) {
           if (C.seaSide && gx > 6) continue;
+          /* (v47) nothing may be built out in the surf: the fill pass clamped
+             every lot south of the avenue's first point onto that point, so it
+             kept dropping blocks into the landing water — right on the lane
+             the assault boats use */
+          if (C.sea && gz < -40) continue;
           const d = near(gx, gz);
           if (d < 0 || d < 17 || d > 44) continue;
           bb.min.set(gx - 6, 0, gz - 6); bb.max.set(gx + 6, 30, gz + 6);
@@ -14482,6 +14575,65 @@
       }
     }
     window.__bend = { legs: legs.length, dropped: drop.length, filled: filled };
+  }
+
+  /* (v47) the Incheon beach, seen from the troop well of a landing craft:
+     a stone breakwater on either side of the run-in, a timber jetty reaching
+     out over the water, beached assault boats on the sand, and the hedgehogs
+     already on the beach. Nothing of it stands in the boat lane (|x| < 14 on
+     the water), so neither the player's craft nor the patrol boats touch it. */
+  function coastProps(S) {
+    const stone = cmat(0x8e8a80, 0.92), stoneD = cmat(0x6e6a62, 0.95), wood = cmat(0x6a5a44, 0.9), steel = cmat(0x5a6066, 0.55, 0.5), rust = cmat(0x6a4a36, 0.85);
+    [-1, 1].forEach((s) => {
+      /* the breakwater: a run of rough stone blocks out into the water */
+      for (let z = -72; z > -104; z -= 3.2) {
+        const k = (-(z + 72)) / 32;
+        const h = 1.35 - k * 0.45 + ((z * 13) & 3) * 0.08;
+        const o = bx(S, 4.6, h, 3.0, s * (31 + k * 3), h / 2 + 0.05, z, k > 0.55 ? stoneD : stone, { ry: 0.05 * s });
+        o.castShadow = true;
+        if (k > 0.3) bx(S, 2.2, 0.5, 1.4, s * (31 + k * 3 + 1.4), 0.3, z + 1.1, stoneD);
+      }
+      /* a channel marker at the head of each arm */
+      cyl(S, 0.16, 0.2, 2.6, s * 34.4, 1.3, -104.6, cmat(0xb03a2a, 0.6), 8);
+    });
+    /* the jetty: a timber deck on posts, steps down to the sand */
+    {
+      const jx = 24, z0 = -70.5, z1 = -88;
+      bx(S, 4.0, 0.24, z1 - z0, jx, 1.15, (z0 + z1) / 2, wood);
+      for (let z = z0 - 1.4; z > z1; z -= 4.2) {
+        [-1.6, 1.6].forEach((dx) => cyl(S, 0.17, 0.19, 2.2, jx + dx, 0.2, z, stoneD, 8));
+      }
+      [-2.0, 2.0].forEach((dx) => bx(S, 0.1, 0.9, z1 - z0, jx + dx, 1.7, (z0 + z1) / 2, steel));
+      /* the crate and the oil drums a beach party left on the deck */
+      bx(S, 1.0, 0.8, 1.0, jx - 0.8, 1.7, z0 - 4.0, wood);
+      [[1.1, z0 - 7.4], [1.1, z0 - 8.6]].forEach(([dx, z]) => cyl(S, 0.34, 0.34, 0.9, jx + dx, 1.72, z, rust, 10));
+    }
+    /* two assault boats already beached on the sand, bows inland */
+    [[-19, -63.4, 0.5], [17.5, -61.2, -0.7]].forEach(([x, z, ry]) => {
+      bx(S, 3.0, 0.34, 1.5, x, 0.62, z, steel, { ry });
+      bx(S, 5.2, 0.26, 1.1, x - 1.6, 0.72, z + 0.1, steel, { ry });
+      [-0.85, 0.85].forEach((dz) => bx(S, 5.0, 0.42, 0.12, x - 1.6, 0.9, z + dz, steel, { ry }));
+      const bow = bx(S, 0.14, 1.5, 2.0, x - 4.2, 0.9, z, steel, { ry, rz: 0.5 });
+      bow.userData.noBlock = 1;
+      bx(S, 1.1, 0.5, 0.5, x + 0.2, 0.95, z, rust, { ry });
+    });
+  }
+
+  /* (v47) is there a shop wall behind this point to bolt a sign to? */
+  function signWallAt(S, sx, z) {
+    const px = sx > 0 ? sx - 0.7 : sx + 0.7;
+    const b = new T.Box3();
+    let ok = false;
+    S.traverse((o) => {
+      if (ok || !o.isMesh || !o.userData || !o.userData.wall) return;
+      const bb = b.setFromObject(o);
+      if (bb.isEmpty() || bb.max.y < 6.4) return;
+      if (z < bb.min.z + 0.6 || z > bb.max.z - 0.6) return;
+      if (px < bb.min.x - 0.4 || px > bb.max.x + 0.4) return;
+      if (bb.max.x - bb.min.x > 40 || bb.max.z - bb.min.z > 40) return;
+      ok = true;
+    });
+    return ok;
   }
 
   function dressCity(ctx) {
@@ -14529,7 +14681,9 @@
     const GS = TURNS.length ? 460 : 320;
     const ground = new T.Mesh(new T.PlaneGeometry(GS, GS), new T.MeshStandardMaterial({ map: gtx, roughness: 0.86, metalness: 0.02, envMapIntensity: 0.1, color: C.paved ? new T.Color(0xd8d0c0).convertSRGBToLinear() : 0xffffff }));
     ground.rotation.x = -Math.PI / 2;
-    ground.position.set(C.seaSide ? -150 : 0, 0.24, C.sea ? 90 : 20);
+    /* (v47) a landing beach: the asphalt stops at the waterline instead of
+       running out over the sea, so the boats really are on water */
+    ground.position.set(C.seaSide ? -150 : 0, 0.24, C.sea ? -70 + GS / 2 : 20);
     if (C.seaSide) { ground.geometry.dispose(); ground.geometry = new T.PlaneGeometry(GS, GS); ground.position.x = -GS / 2 + 12; }
     if (TURNS.length) gtx.repeat.set(GS / 8, GS / 8);
     ground.receiveShadow = true;
@@ -14555,6 +14709,7 @@
       dress0.sea = sea;
       if (C.sea) foamStrip(S, 0, -70.5, 260, 3, 0);
       if (C.seaSide) foamStrip(S, 17.4, 0, 3, 200, 0);
+      if (C.sea) coastProps(S);
     }
     /* everything so far (sky, ground, water) stays put; what follows is laid
        along the avenue and turns its corners with it */
@@ -14576,7 +14731,7 @@
         g.setAttribute("position", new T.Float32BufferAttribute(pos, 3)); g.setAttribute("uv", new T.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals();
         const me = new T.Mesh(g, m); me.receiveShadow = true; me.userData.noBlock = 1; me.userData.leg = cityLeg(TURNS, (za + zb) / 2); S.add(me);
       };
-      legSpans(CITY_Z0 - 12, CITY_Z1 + 20).forEach(([a, b], si, arr) => {
+      legSpans(C.sea ? -44 : CITY_Z0 - 12, CITY_Z1 + 20).forEach(([a, b], si, arr) => {
         stripe(-0.18, 0.13, a, b, SOL.paintYellow); stripe(0.18, 0.13, a, b, SOL.paintYellow);
         [-5, 5].forEach((lx) => { for (let z = a + 2; z + 3.2 < b - 2; z += 7) stripe(lx, 0.16, z, z + 3.2, SOL.paintWhite); });
         /* stop lines where the lanes meet a crossing */
@@ -14591,7 +14746,7 @@
       const m = new T.Mesh(new T.BoxGeometry(w, 0.12, d), repMat(SOL.pave, w / 3.2, d / 3.2));
       m.position.set((x0 + x1) / 2, 0.36, (zz0 + zz1) / 2); m.receiveShadow = true; m.userData.noBlock = 1; S.add(m);
     };
-    const zA = C.sea ? -56 : z0;
+    const zA = C.sea ? -44 : z0;
     legSpans(zA, 52).forEach(([a, b]) => { walk(-13.8, -10, a, b); if (!seaHere(a)) walk(10, 13.8, a, b); else walk(10, 16, a, TURNS.length ? b : z1); });
     /* ---- the blocks either side, with gaps for side streets ---- */
     /* each city's own facade palette: the shared facades, tinted */
@@ -14700,6 +14855,11 @@
     }
     [[-14.06, 0, -5, 0], [14.06, Math.PI, -15, 2], [14.06, Math.PI, 13, 5], [-14.06, 0, 21, 7]].forEach(([sx, ry, bz, k]) => {
       if (nearTurn(bz, 13) || (sx > 0 && seaHere(bz))) return;
+      /* (v47) hang it only on a wall that is really there, and not across a
+         banner or a lamp: a fixed z could land in a gap between two blocks
+         and leave the board floating in the middle of the street */
+      if (!signWallAt(S, sx, bz)) return;
+      if ((C.banners || []).some((b) => Math.sign(b[0]) === Math.sign(sx) && Math.abs(b[1] - bz) < 3.2)) return;
       try { makeBladeSign(S, sx, 4.7, bz, ry, k); } catch (e) { window.__bladeErr = String(e); }
     });
     /* an instanced batch cannot turn with the avenue, so the litter only goes
@@ -14762,8 +14922,15 @@
           bx(S, 34, 0.9, 0.3, 0, 8.1, L[1] - 2.9, cmat(0x9a9a94, 0.85)); bx(S, 34, 0.9, 0.3, 0, 8.1, L[1] + 2.9, cmat(0x9a9a94, 0.85));
           [-15, 15].forEach((x) => bx(S, 1.6, 7, 4, x, 3.7, L[1], cmat(0xa4a49e, 0.85), { wall: 1 }));
         } else if (k === "beach") {
+          /* (v47) sand from the waterline up to the promenade, laid a hair
+             above the asphalt so the two never fight for the same pixel */
           const sand = new T.Mesh(new T.PlaneGeometry(240, L[2] - L[1]), new T.MeshStandardMaterial({ color: new T.Color(0xe2cc98).convertSRGBToLinear(), roughness: 0.95 }));
-          sand.rotation.x = -Math.PI / 2; sand.position.set(0, 0.2, (L[1] + L[2]) / 2); sand.userData.noBlock = 1; S.add(sand);
+          sand.rotation.x = -Math.PI / 2; sand.position.set(0, 0.27, (L[1] + L[2]) / 2); sand.userData.noBlock = 1; S.add(sand);
+          /* the wet line the surf leaves, and a second line a metre up the sand */
+          [[-0.6, 0.9, 0.34], [1.6, 0.5, 0.22]].forEach(([dz, h, op]) => {
+            const w = new T.Mesh(new T.PlaneGeometry(236, h), new T.MeshBasicMaterial({ color: 0xdfeef6, transparent: true, opacity: op, depthWrite: false }));
+            w.rotation.x = -Math.PI / 2; w.position.set(0, 0.285, L[1] + dz); w.userData.noBlock = 1; S.add(w);
+          });
         }
       } catch (e) { window.__lmErr = String(e && e.stack || e); }
       })(G);
@@ -14795,7 +14962,7 @@
       c.scale.y = 0.4; S.add(c); clouds.push(c);
     }
     const ally = makeAlly();
-    ally.position.set(4.6, 0.3, (C.sea ? -50 : CITY_Z0) + 2);
+    ally.position.set(4.6, 0.3, (C.sea ? -44 : CITY_Z0) + 2);
     S.add(ally);
     const flags = [];
     S.traverse((o) => { if (o.userData && o.userData.cloth) flags.push(o); });
@@ -14830,6 +14997,45 @@
   }
 
   /* ---------------- the helicopter ---------------- */
+
+  /* (v47) air clearance for anything that flies. A gunship used to sweep the
+     street at five metres, which is below the roof line of a Pyongyang slab
+     block or the Peace House gate, so it drove straight through the walls.
+     Every solid wall of the set is boxed once per stage, and a flight target
+     that would sit inside one is lifted just over its roof instead: the
+     aircraft now climbs over the buildings and settles back down over the
+     open square. */
+  let airBoxes = null, airFor = null;
+  function buildAirBoxes() {
+    airBoxes = [];
+    airFor = dress;
+    if (!dress || !dress.root) return;
+    try { dress.root.updateMatrixWorld(true); } catch (e) {}
+    const b = new T.Box3();
+    dress.root.traverse((o) => {
+      if (!o.isMesh || o.isInstancedMesh || !o.geometry || !o.parent) return;
+      if (!(o.userData && (o.userData.wall || o.userData.solid))) return;
+      try { b.setFromObject(o); } catch (e) { return; }
+      if (b.isEmpty() || !isFinite(b.min.x)) return;
+      const w = b.max.x - b.min.x, d = b.max.z - b.min.z, h = b.max.y - b.min.y;
+      if (h < 4 || w > 60 || d > 60) return;
+      if (b.min.y > 34) return;
+      if (airBoxes.length < 800) airBoxes.push(b.clone());
+    });
+  }
+  /* the roof height of anything the airframe would clip at (x,z,y) */
+  function airCeil(x, z, y, r) {
+    if (airFor !== dress) buildAirBoxes();
+    if (!airBoxes || !airBoxes.length) return 0;
+    let top = 0;
+    for (let i = 0; i < airBoxes.length; i++) {
+      const b = airBoxes[i];
+      if (x <= b.min.x - r || x >= b.max.x + r || z <= b.min.z - r || z >= b.max.z + r) continue;
+      if (y + 2.2 <= b.min.y) continue;
+      if (b.max.y > top) top = b.max.y;
+    }
+    return top;
+  }
 
   function makeHeliModel() {
     makeSol();
@@ -15029,12 +15235,23 @@
       oz = p.cz + Math.cos(p.orbitT * 0.8) * p.orbitR * 0.42;
       oy = p.baseY;
     }
+    /* (v47) climb over the roof line instead of flying through it */
+    const ceil = airCeil(ox, oz, Math.max(oy, p.yB == null ? p.y : p.yB), 3.4);
+    if (ceil > 0 && oy < ceil + 2.4) oy = ceil + 2.4;
     const kk = Math.min(1, dt * (p.enterT < 1 ? 1.1 : 1.6));
     p.x += (ox - p.x) * kk;
     p.z += (oz - p.z) * kk;
     p.bob += dt * 1.3;
-    p.yB = (p.yB == null ? p.y : p.yB) + (oy - (p.yB == null ? p.y : p.yB)) * kk;
+    const yPrev = p.yB == null ? p.y : p.yB;
+    const ky = oy > yPrev ? Math.min(1, dt * 6.5) : kk;
+    p.yB = yPrev + (oy - yPrev) * ky;
     p.y = p.yB + Math.sin(p.bob) * 0.3;
+    /* a hard floor, so a fast target change can never leave the airframe
+       inside a wall for the frame or two the smoothing takes */
+    {
+      const now = airCeil(p.x, p.z, p.y, 3.4);
+      if (now > 0 && p.y < now + 1.9) { p.y = now + 1.9; p.yB = p.y; }
+    }
     p.mesh.position.set(p.x, p.y, p.z);
     p.mesh.rotation.y = Math.atan2(cam.x - p.x, cam.z - p.z) + 0.28;
     p.mesh.rotation.z = Math.sin(p.bob * 0.7) * 0.05 - 0.04 + lean;
@@ -15059,7 +15276,12 @@
 
   function smokeAt(ctx, x, y, z, col) {
     if (!fxRoom(smokes, FX_CAP.smokes)) return;
-    const m = new T.Mesh(new T.SphereGeometry(0.16 + Math.random() * 0.12, 6, 5), new T.MeshBasicMaterial({ color: col || 0x3a3630, transparent: true, opacity: 0.5, depthWrite: false }));
+    /* (v47) one sphere for every puff, scaled: a crash used to allocate a
+       new geometry per puff (sixteen a second) and hitch the frame */
+    if (!SMOKE_GEO) SMOKE_GEO = new T.SphereGeometry(1, 6, 5);
+    const r = 0.16 + Math.random() * 0.12;
+    const m = new T.Mesh(SMOKE_GEO, new T.MeshBasicMaterial({ color: col || 0x3a3630, transparent: true, opacity: 0.5, depthWrite: false }));
+    m.scale.setScalar(r);
     m.position.set(x, y, z);
     m.userData.v = new T.Vector3((Math.random() - 0.5) * 0.5, 0.35 + Math.random() * 0.4, (Math.random() - 0.5) * 0.5);
     m.userData.life = 0.9 + Math.random() * 0.7;
@@ -15094,6 +15316,25 @@
   /* (v46) a column of smoke that keeps climbing after the fireball has gone.
      The puffs go into the same smokes pool, so a wreck or a drum leaves a
      rising column for a couple of seconds without a single new draw call. */
+  /* (v47) the effect pools share their geometry and their plain materials:
+     a gunship going down fires off three blasts plus a smoke column, and the
+     allocations, not the pixels, were what cost the frame */
+  let SMOKE_GEO = null, FX_UNIT_BOX = null, FX_BALL_MATS = null, FX_SPARK_MATS = null;
+  function fxUnitBox() { if (!FX_UNIT_BOX) FX_UNIT_BOX = new T.BoxGeometry(1, 1, 1); return FX_UNIT_BOX; }
+  function fxBallMats() {
+    if (!FX_BALL_MATS) FX_BALL_MATS = [
+      new T.MeshBasicMaterial({ color: 0xfff6e2, transparent: true, opacity: 1, depthWrite: false }),
+      new T.MeshBasicMaterial({ color: 0xffa838, transparent: true, opacity: 1, depthWrite: false })
+    ];
+    return FX_BALL_MATS;
+  }
+  function fxSparkMats() {
+    if (!FX_SPARK_MATS) FX_SPARK_MATS = [
+      new T.MeshBasicMaterial({ color: 0xffa12a }),
+      new T.MeshBasicMaterial({ color: 0xfff2b0 })
+    ];
+    return FX_SPARK_MATS;
+  }
   function smokeColumn(ctx, x, y, z, s) {
     if (!ctx || columns.length >= FX_CAP.columns) return;
     columns.push({ x: x, y: y == null ? 0.4 : y, z: z, s: s || 1, t: 0, dur: 2.6, next: 0.2, n: 0 });
@@ -15108,8 +15349,10 @@
         if (fxRoom(smokes, FX_CAP.smokes)) {
           c.n++;
           const k = c.n / cap;
-          const m = new T.Mesh(new T.SphereGeometry((0.2 + k * 0.42) * c.s, 6, 5),
+          if (!SMOKE_GEO) SMOKE_GEO = new T.SphereGeometry(1, 6, 5);
+          const m = new T.Mesh(SMOKE_GEO,
             new T.MeshBasicMaterial({ color: k < 0.3 ? 0x6e6153 : 0x453f38, transparent: true, opacity: 0.58 - k * 0.2, depthWrite: false }));
+          m.scale.setScalar((0.2 + k * 0.42) * c.s);
           m.position.set(c.x + (Math.random() - 0.5) * 0.6 * c.s, c.y + 0.5 + c.t * 1.25, c.z + (Math.random() - 0.5) * 0.6 * c.s);
           m.userData.v = new T.Vector3((Math.random() - 0.5) * 0.32, 0.8 + Math.random() * 0.5, (Math.random() - 0.5) * 0.32);
           m.userData.life = 1.4 + Math.random() * 0.7;
@@ -15216,6 +15459,7 @@
       } catch (e) {}
     }
     AMB.refs = AMB.refs.filter((r) => {
+      if (r.dead) return false;
       const fw = r.m.userData.fwd || [0, 1];
       r.m.position.x -= fw[0] * r.spd * dt; r.m.position.z -= fw[1] * r.spd * dt; r.ph += dt * r.spd * 5;
       const u = r.m.userData;
@@ -15249,8 +15493,9 @@
     /* a cluster of blocks: white-yellow core, orange shell, then soot */
     const ball = new T.Group();
     ball.position.set(x, Math.max(gy + 0.6, y), z);
+    const mats = fxBallMats().map((m) => m.clone());
     for (let i = 0; i < 14; i++) {
-      const c = new T.Mesh(new T.BoxGeometry(1, 1, 1), new T.MeshBasicMaterial({ color: i < 4 ? 0xfff6e2 : 0xffa838, transparent: true, opacity: 1, depthWrite: false }));
+      const c = new T.Mesh(fxUnitBox(), i < 4 ? mats[0] : mats[1]);
       const a = Math.random() * 6.28, e = Math.random() * 1.2, r = i < 4 ? 0.2 : 0.5 + Math.random() * 0.6;
       c.userData.d = new T.Vector3(Math.cos(a) * Math.cos(e) * r, Math.sin(e) * r + 0.2, Math.sin(a) * Math.cos(e) * r);
       c.userData.core = i < 4;
@@ -15304,7 +15549,10 @@
     try { boomFx(ctx, x, y, z); } catch (e) {}
     try { smokeColumn(ctx, x, y - 0.3, z, 1.1); } catch (e) {}
     for (let i = 0; i < 10 && fxRoom(sparks, FX_CAP.sparks); i++) {
-      const m = new T.Mesh(new T.BoxGeometry(0.09 + Math.random() * 0.1, 0.09 + Math.random() * 0.1, 0.09 + Math.random() * 0.1), new T.MeshBasicMaterial({ color: i % 3 ? 0xffa12a : 0xfff2b0 }));
+      const sm = fxSparkMats();
+      const m = new T.Mesh(fxUnitBox(), i % 3 ? sm[0] : sm[1]);
+      m.scale.setScalar(0.09 + Math.random() * 0.1);
+      m.userData.fxShared = 1;
       m.position.set(x, y, z);
       m.userData.v = new T.Vector3((Math.random() - 0.5) * 5, 1 + Math.random() * 4, (Math.random() - 0.5) * 5);
       m.userData.life = 0.4 + Math.random() * 0.3;
