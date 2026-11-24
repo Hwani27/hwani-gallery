@@ -221,7 +221,7 @@
       #mgBark b{display:block;font-size:11px;font-weight:900;color:var(--c,#c9b871)}
       #mgBark span{display:block;font-size:13.5px;font-weight:700;line-height:1.35;word-break:keep-all}
       body.mgStoryOn #mgBark{display:none}
-      #mgStory{position:fixed;inset:0;z-index:55;font-family:Pretendard,system-ui,sans-serif;color:#fff;-webkit-user-select:none;user-select:none;touch-action:manipulation;cursor:pointer;transition:opacity .45s}
+      #mgStory{position:fixed;inset:0;z-index:85;font-family:Pretendard,system-ui,sans-serif;color:#fff;-webkit-user-select:none;user-select:none;touch-action:manipulation;cursor:pointer;transition:opacity .45s}
       #mgStory.out{opacity:0}
       #mgStory .sBar{position:absolute;left:0;right:0;height:9vh;background:#000;transition:transform .6s ease}
       #mgStory .sBar.t{top:0;transform:translateY(-100%)}#mgStory .sBar.b{bottom:0;transform:translateY(100%)}
@@ -247,6 +247,26 @@
       #mgStory .sNext.on{opacity:1}
       @keyframes mgSNext{to{transform:translateY(3px)}}
       #mgStory .sSkip{position:absolute;top:calc(9vh + 10px + env(safe-area-inset-top));right:12px;min-height:36px;padding:0 14px;border-radius:18px;border:1px solid rgba(255,255,255,.3);background:rgba(0,0,0,.45);color:#fff;font-family:inherit;font-weight:800;font-size:13px;line-height:1;cursor:pointer}
+      #mgStory .sDlg.narr{justify-content:center}#mgStory .sDlg.narr .sPort{display:none}#mgStory .sDlg.narr .sName{display:none}
+      #mgStory .sDlg.narr .sBody{flex:none;width:min(640px,100%);background:rgba(0,0,0,.62);border-color:rgba(232,220,184,.25);text-align:center;min-height:0;padding:16px 20px 18px}
+      #mgStory .sDlg.narr .sText{font-family:"Noto Serif KR","Nanum Myeongjo",serif;font-style:italic;font-weight:700;color:#f0e6c8;min-height:0}
+      #mgStory.k-end{background:linear-gradient(180deg,rgba(0,0,0,.25),rgba(0,0,0,0) 40%,rgba(0,0,0,.35))}
+      #mgStory.k-end .sCard p{color:#9fd0a0}
+      #mgStory.k-chap,#mgStory.k-final{background:radial-gradient(ellipse at 50% 40%,rgba(30,24,10,.55),rgba(0,0,0,.82))}
+      #mgStory.k-chap .sCard h2,#mgStory.k-final .sCard h2{font-size:46px;font-family:"Noto Serif KR","Nanum Myeongjo",serif;color:#f4e6b8;text-shadow:0 0 24px rgba(240,200,110,.5),0 2px 10px #000}
+      #mgStory.k-chap .sCard p,#mgStory.k-final .sCard p{font-size:13px;color:#e8c870}
+      #mgStory.k-chap .sCard::before,#mgStory.k-chap .sCard::after,#mgStory.k-final .sCard::before,#mgStory.k-final .sCard::after{content:"";display:block;width:min(360px,70%);height:1px;margin:14px auto;background:linear-gradient(90deg,transparent,#e8c870,transparent)}
+      #mgStory.k-final{background:radial-gradient(ellipse at 50% 30%,rgba(60,44,14,.45),rgba(0,0,0,.86))}
+      #mgStory .sRoll{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;background:#000;opacity:0;transition:opacity 1.2s}
+      #mgStory.roll .sRoll{display:flex;animation:mgRollIn 1.4s forwards}
+      #mgStory.roll .sDlg,#mgStory.roll .sEp,#mgStory.roll .sSkip{display:none}
+      @keyframes mgRollIn{to{opacity:1}}
+      #mgStory .sRoll p{margin:0;font:800 13px/1 ui-monospace,monospace;letter-spacing:.4em;color:#c9b871}
+      #mgStory .sRoll h1{margin:14px 0 26px;font:900 54px/1 "Noto Serif KR",serif;letter-spacing:.12em;color:#f4e6b8;text-shadow:0 0 30px rgba(240,200,110,.45)}
+      #mgStory .sRoll ul{list-style:none;margin:0;padding:0;animation:mgRollUp 9s ease-out both}
+      #mgStory .sRoll li{font-size:15px;font-weight:700;line-height:2;color:#e8e2d0}
+      #mgStory .sRoll small{margin-top:28px;font-size:12px;color:#9a9480}
+      @keyframes mgRollUp{from{transform:translateY(40px);opacity:0}to{transform:none;opacity:1}}
       #mgStory .sEp{position:absolute;top:calc(9vh + 18px + env(safe-area-inset-top));left:16px;font:800 11px/1 ui-monospace,monospace;letter-spacing:.24em;color:#c9b871;text-shadow:0 1px 6px #000}
       body.mgStoryOn #railHud,body.mgStoryOn #railX,body.mgStoryOn #railPause,body.mgStoryOn #railNade,body.mgStoryOn #railReload,body.mgStoryOn #railRadio,body.mgStoryOn .railThreat,body.mgStoryOn .railEdge{visibility:hidden!important}
       #railPauseMenu .tip{margin:4px 0 0;font:700 12px/1 ui-monospace,monospace;color:#9aa58a}
@@ -1904,6 +1924,62 @@
   /* sidewalk pavers: four 0.75 m blocks across, staggered joints packed with
      grit and a little moss, chipped corners, rain-dark blotches and chewing gum
      pressed into the face */
+  /* (v63) 박석: the irregular granite slabs of an old palace court, with
+     dark joints, moss in the cracks and a few stained stones */
+  function bakseokTex(key, seed) {
+    return ctex(key, 512, 512, (g, w, h) => {
+      const R = rng(seed);
+      g.fillStyle = "#5e5a52"; g.fillRect(0, 0, w, h);
+      const rows = 8, rh = h / rows;
+      for (let r = 0; r < rows; r++) {
+        let x = -R() * 40;
+        while (x < w) {
+          const sw = 44 + R() * 46, y0 = r * rh + (R() - 0.5) * 6;
+          const base = ["#b9b2a4", "#a9a295", "#c4bdae", "#9d978a", "#b0a796"][(R() * 5) | 0];
+          g.fillStyle = shade(base, 0.9 + R() * 0.16);
+          g.beginPath();
+          const j = () => (R() - 0.5) * 7;
+          g.moveTo(x + 3 + j(), y0 + 3 + j()); g.lineTo(x + sw - 3 + j(), y0 + 3 + j()); g.lineTo(x + sw - 3 + j(), y0 + rh - 3 + j()); g.lineTo(x + 3 + j(), y0 + rh - 3 + j());
+          g.closePath(); g.fill();
+          g.globalAlpha = 0.18;
+          for (let i = 0; i < 14; i++) { g.fillStyle = R() < 0.5 ? "#e8e2d4" : "#6e685c"; g.fillRect(x + 6 + R() * (sw - 12), y0 + 6 + R() * (rh - 12), 3 + R() * 6, 3 + R() * 4); }
+          if (R() < 0.12) { g.fillStyle = "#4a4236"; g.globalAlpha = 0.25; g.fillRect(x + 8, y0 + 10, sw * 0.5, rh * 0.4); }
+          g.globalAlpha = 1;
+          x += sw;
+        }
+      }
+      g.globalAlpha = 0.5;
+      for (let i = 0; i < 220; i++) { g.fillStyle = R() < 0.6 ? "#5a6a3a" : "#3e3a32"; g.fillRect(R() * w, ((R() * rows) | 0) * rh + (R() - 0.5) * 4, 4 + R() * 10, 3); }
+      g.globalAlpha = 1;
+    });
+  }
+  /* (v63) the far mountain ranges round the horizon: three hazy layers of
+     ridges on an open band that rides with the camera, so every stage has
+     mountains behind it instead of bare sky */
+  function makeRidgeBand(seed) {
+    const t = ctex("skyRidge" + seed, 2048, 256, (g, w, h) => {
+      const R = rng(seed);
+      g.clearRect(0, 0, w, h);
+      const layer = (col, lo, hi, n) => {
+        const pk = []; for (let i = 0; i <= n; i++) pk.push(lo + R() * (hi - lo));
+        pk[n] = pk[0];
+        g.fillStyle = col; g.beginPath(); g.moveTo(0, h);
+        for (let x = 0; x <= w; x += 4) {
+          const f = (x / w) * n, i = Math.floor(f), k = f - i, e = k * k * (3 - 2 * k);
+          const y = pk[i] + (pk[Math.min(n, i + 1)] - pk[i]) * e + 0.012 * Math.sin(x * 0.09 + i) + 0.02 * Math.sin(x * 0.023);
+          g.lineTo(x, h - y * h);
+        }
+        g.lineTo(w, h); g.closePath(); g.fill();
+      };
+      layer("rgb(200,210,216)", 0.42, 0.86, 18);
+      layer("rgb(150,166,170)", 0.28, 0.62, 28);
+      layer("rgb(104,124,116)", 0.16, 0.4, 42);
+    }, { smooth: true });
+    t.wrapT = T.ClampToEdgeWrapping; t.needsUpdate = true;
+    const m = new T.Mesh(new T.CylinderGeometry(240, 240, 90, 64, 1, true), new T.MeshBasicMaterial({ map: t, transparent: true, side: T.BackSide, depthWrite: false, fog: false }));
+    m.renderOrder = -99; m.userData.ridge = 1; m.userData.noBlock = 1;
+    return m;
+  }
   function paveTex(key, seed) {
     return ctex(key, 512, 512, (g, w, h) => {
       const R = rng(seed);
@@ -3044,8 +3120,23 @@
     SOL.armyDark = L(weave, { color: 0x3a4426, roughness: 0.8, metalness: 0.1 });
     SOL.truckWhite = L(null, { color: 0xe9ecee, roughness: 0.32, metalness: 0.18 });
     SOL.truckBlue = L(null, { color: 0x3f6f9e, roughness: 0.36, metalness: 0.18 });
-    SOL.barrier = L(concreteTex("barrierConc", "#cfcdc4", 41),
-      { roughness: 0.9, metalness: 0.0, bumpMap: BM("barrierConc", 2.0), bumpScale: 0.032 });
+    /* (v63) the road barriers: weathered grey concrete with chipped edges,
+       rain streaks, a road-dirt skirt and a yellow reflective band (they
+       burnt out to plain white boxes in the sun before) */
+    ctex("barrierJ", 256, 256, (g, w, h) => {
+      const R = rng(4111);
+      g.fillStyle = "#a9a79d"; g.fillRect(0, 0, w, h);
+      for (let i = 0; i < 520; i++) { g.globalAlpha = 0.2; g.fillStyle = ["#bdbbb1", "#96948a", "#8a887e", "#c8c6bc"][(R() * 4) | 0]; const sz = 6 + R() * 18; g.fillRect(R() * w, R() * h, sz, sz * (0.5 + R())); }
+      g.globalAlpha = 1;
+      for (let i = 0; i < 22; i++) { const x = R() * w, y = R() * h * 0.5; const lg = g.createLinearGradient(0, y, 0, y + 90); lg.addColorStop(0, "rgba(60,56,48,.28)"); lg.addColorStop(1, "rgba(60,56,48,0)"); g.fillStyle = lg; g.fillRect(x, y, 3 + R() * 6, 90); }
+      /* yellow reflective band, a little worn */
+      g.fillStyle = "#e0b428"; g.fillRect(0, h * 0.36, w, h * 0.07);
+      g.fillStyle = "rgba(90,80,50,.35)"; for (let i = 0; i < 30; i++) g.fillRect(R() * w, h * 0.36 + R() * h * 0.07, 3 + R() * 10, 2 + R() * 4);
+      /* road dirt along the foot */
+      const dg = g.createLinearGradient(0, h * 0.7, 0, h); dg.addColorStop(0, "rgba(70,62,48,0)"); dg.addColorStop(1, "rgba(70,62,48,.55)"); g.fillStyle = dg; g.fillRect(0, h * 0.7, w, h * 0.3);
+      for (let i = 0; i < 40; i++) { g.fillStyle = "rgba(220,218,210,.5)"; g.fillRect(R() * w, R() * h, 2 + R() * 5, 2 + R() * 3); }
+    });
+    SOL.barrier = L(MT.barrierJ, { roughness: 0.92, metalness: 0.0, bumpMap: BM("barrierJ", 2.2), bumpScale: 0.035 });
     SOL.concBlock = L(concreteTex("concBlock", "#bab8ae", 43),
       { roughness: 0.91, bumpMap: BM("concBlock", 2.0), bumpScale: 0.03 });
     SOL.siteWall = L(null, { color: 0xc2c6c4, roughness: 0.72, metalness: 0.08 });
@@ -10921,7 +11012,7 @@
       const ko = (document.documentElement.lang || "").startsWith("ko");
       fl.innerHTML = '<div class="cc"><h2>' + (ko ? "작전 성공" : "MISSION CLEAR") + "</h2></div>";
       document.body.appendChild(fl);
-      setTimeout(() => { fl.remove(); finishing = false; finishNow = true; finish(ctx, true); }, 1500);
+      setTimeout(() => { fl.remove(); playEndings(stageId, () => { finishing = false; finishNow = true; finish(ctx, true); }); }, 1500);
       return;
     }
     if (finishing) return;
@@ -10959,7 +11050,8 @@
     /* (v21) the campaign runs in war order, not in id order */
     const ORD = [6, 7, 8, 9, 10, 11, 12, 14, 1, 16, 2, 3, 13, 4, 15, 5];
     const NM = { 1: ["서울 수복", "RETAKE SEOUL"], 2: ["DMZ·판문점", "DMZ & PANMUNJOM"], 3: ["평화의 집", "PEACE HOUSE"], 4: ["평양 진입", "INTO PYONGYANG"], 5: ["압록강·백두산", "YALU & PAEKTU"],
-      6: ["서울 함락", "FALL OF SEOUL"], 7: ["대전", "DAEJEON"], 8: ["대구", "DAEGU"], 9: ["광주", "GWANGJU"], 10: ["경주", "GYEONGJU"], 11: ["부산", "BUSAN"], 12: ["인천 상륙작전", "INCHEON LANDING"] };
+      6: ["서울 함락", "FALL OF SEOUL"], 7: ["대전", "DAEJEON"], 8: ["대구", "DAEGU"], 9: ["광주", "GWANGJU"], 10: ["경주", "GYEONGJU"], 11: ["부산", "BUSAN"], 12: ["인천 상륙작전", "INCHEON LANDING"],
+      13: ["개성공단", "KAESONG"], 14: ["한강 도하", "HAN RIVER CROSSING"], 15: ["흥남", "HEUNGNAM"], 16: ["수원 화성", "SUWON HWASEONG"] };
     const oi = ORD.indexOf(stageId);
     const nId = oi >= 0 && oi < ORD.length - 1 ? ORD[oi + 1] : 0;
     const nx = cleared && nId ? [nId, "다음 작전 · " + NM[nId][0], "NEXT · " + NM[nId][1]] : null;
@@ -12718,9 +12810,31 @@
   }
   window.__tut = TUT;
 
+  const _skyV = new T.Vector3();
+  const nowSky = () => performance.now();
   function frame(ctx) {
     if (!armed || !active || !ctx || !ctx.scene || !ctx.camera) return;
     const cam = ctx.camera;
+    /* (v63) the sky domes ride with the camera, inside its far plane: a
+       320 m dome pinned at one spot put its far side past the 320 m clip
+       plane, and a flat wedge of bare background colour showed through
+       where the distant mountains should have been */
+    if (frame._skyScene !== ctx.scene || nowSky() - (frame._skyT || 0) > 2000) {
+      frame._skyScene = ctx.scene; frame._skyT = nowSky(); frame._skies = [];
+      ctx.scene.traverse((o) => { const gp = o.geometry && o.geometry.parameters; if (o.isMesh && (o.renderOrder === -100 || o.userData.ridge) && gp && (gp.radius || gp.radiusTop) > 100) frame._skies.push(o); });
+    }
+    (frame._skies || []).forEach((o) => {
+      const gp = o.geometry.parameters;
+      const k = Math.min(1, (cam.far * 0.9) / (gp.radius || gp.radiusTop));
+      if (o.userData.ridge && ctx.scene.fog && o.userData.fogHex !== ctx.scene.fog.color.getHex()) {
+        /* the ranges take the air's colour: blue-green by day, the dusk's
+           orange, near-black at night */
+        o.userData.fogHex = ctx.scene.fog.color.getHex();
+        o.material.color.setHex(0x7a948a).convertSRGBToLinear().lerp(ctx.scene.fog.color, 0.34);
+      }
+      o.scale.setScalar(k);
+      if (o.parent) { _skyV.set(cam.position.x, 0, cam.position.z); o.parent.worldToLocal(_skyV); o.position.x = _skyV.x; o.position.z = _skyV.z; }
+    });
     const nowMs = performance.now();
     let dt = Math.min(0.05, (nowMs - (frame._t || nowMs)) / 1000) || 0.016;
     if (hitStop > 0) { hitStop = Math.max(0, hitStop - dt); dt *= 0.16; }
@@ -13296,21 +13410,40 @@
     if (!force && STORY.lastStage === stageId) return false;
     STORY.lastStage = stageId;
     const ko = (document.documentElement.lang || "").startsWith("ko");
-    STORY.ko = ko; STORY.ep = ep; STORY.i = -1; STORY.on = true; STORY.skipRadio = true;
+    storyOpen(ep, { top: "EPISODE " + ep.ep + " · " + (STAGE.label || ""), title: ko ? ep.ko : ep.en, sub: ko ? ep.when : ep.whenEn, tag: "EP." + ep.ep + " " + (ko ? ep.ko : ep.en) }, "", null);
+    STORY.skipRadio = true;
+    window.__story = { stage: stageId, lines: ep.lines.length };
+    return true;
+  }
+  /* (v63) the scene player shared by openings, endings, chapter endings and
+     the finale. card: {top, title, sub, tag}; cls: "" | "end" | "chap" |
+     "final"; onDone runs when it closes (none = an opening: the mission's
+     intro clock picks up again) */
+  function storyOpen(ep, card, cls, onDone) {
+    const S = window.MGStory;
+    const ko = (document.documentElement.lang || "").startsWith("ko");
+    if (STORY.el) { try { STORY.el.remove(); } catch (e) {} STORY.el = null; }
+    STORY.ko = ko; STORY.ep = ep; STORY.i = -1; STORY.on = true; STORY.onDone = onDone || null; STORY.cls = cls || ""; STORY.credits = false;
     /* start the portraits rendering now so they are ready by their line */
     ep.lines.forEach((l) => { try { storyArt(S.cast[l.who]); } catch (e) {} });
     const el = document.createElement("div");
     el.id = "mgStory";
+    if (cls) el.className = "k-" + cls;
+    const roll = cls === "final" ? '<div class="sRoll"><p>' + (ko ? "지금 바로 쏴!" : "SHOOT RIGHT NOW!") + "</p><h1>THE END</h1>" +
+      "<ul>" + (ko
+        ? ["강 중위 · 박 병장 · 김 일병", "그리고 끝까지 싸워 준 당신", "", "서울 · 대전 · 대구 · 광주 · 경주 · 부산", "인천 · 한강 · 서울 · 수원", "판문점 · 개성 · 평양 · 흥남 · 백두산"]
+        : ["Lt. Kang · Sgt. Park · Pvt. Kim", "and you, who fought to the end", "", "Seoul · Daejeon · Daegu · Gwangju · Gyeongju · Busan", "Incheon · the Han · Seoul · Suwon", "Panmunjom · Kaesong · Pyongyang · Heungnam · Paektu"]).map((t) => "<li>" + (t || "&nbsp;") + "</li>").join("") +
+      "</ul><small>" + (ko ? "탭해서 닫기" : "tap to close") + "</small></div>" : "";
     el.innerHTML = '<div class="sBar t"></div><div class="sBar b"></div>' +
-      '<div class="sCard"><p>EPISODE ' + ep.ep + " · " + (STAGE.label || "") + "</p><h2>" + (ko ? ep.ko : ep.en) + "</h2><small>" + (ko ? ep.when : ep.whenEn) + "</small></div>" +
-      '<div class="sEp">EP.' + ep.ep + " " + (ko ? ep.ko : ep.en) + "</div>" +
-      '<div class="sDlg"><div class="sPort"></div><div class="sBody"><b class="sName"></b><p class="sText"></p><i class="sNext">▼</i></div></div>' +
+      '<div class="sCard"><p>' + card.top + "</p><h2>" + card.title + "</h2><small>" + (card.sub || "") + "</small></div>" +
+      '<div class="sEp">' + (card.tag || "") + "</div>" +
+      '<div class="sDlg"><div class="sPort"></div><div class="sBody"><b class="sName"></b><p class="sText"></p><i class="sNext">▼</i></div></div>' + roll +
       '<button class="sSkip" type="button">' + (ko ? "건너뛰기 ▸▸" : "SKIP ▸▸") + "</button>";
     document.body.appendChild(el);
     document.body.classList.add("mgStoryOn");
     STORY.el = el;
     requestAnimationFrame(() => { el.classList.add("in"); el.querySelector(".sCard").classList.add("show"); });
-    STORY.cardT = setTimeout(() => storyNext(), 2600);
+    STORY.cardT = setTimeout(() => storyNext(), cls === "chap" || cls === "final" ? 3400 : 2600);
     const tap = (e) => {
       e.preventDefault(); e.stopPropagation();
       if (e.target && e.target.closest && e.target.closest(".sSkip")) { storyEnd(); return; }
@@ -13318,8 +13451,7 @@
     };
     el.addEventListener("pointerdown", tap);
     el.querySelector(".sEp").style.opacity = "0";
-    window.__story = { stage: stageId, lines: ep.lines.length };
-    return true;
+    return el;
   }
   function storyNext() {
     if (!STORY.on || !STORY.el) return;
@@ -13334,7 +13466,12 @@
     }
     STORY.i++;
     const lines = STORY.ep.lines;
-    if (STORY.i >= lines.length) { storyEnd(); return; }
+    if (STORY.i >= lines.length) {
+      /* (v63) the finale rolls its credits before it closes */
+      if (STORY.cls === "final" && !STORY.credits) { STORY.credits = true; STORY.rollT = performance.now(); el.classList.add("roll"); return; }
+      if (STORY.credits && performance.now() - (STORY.rollT || 0) < 2500) return;
+      storyEnd(); return;
+    }
     el.querySelector(".sCard").classList.remove("show");
     el.querySelector(".sEp").style.opacity = "1";
     const ln = lines[STORY.i], c = (window.MGStory.cast[ln.who]) || {};
@@ -13342,10 +13479,12 @@
     dlg.classList.remove("show");
     dlg.classList.toggle("en", !!c.enemy);
     dlg.classList.toggle("radio", !!c.radio);
+    dlg.classList.toggle("narr", !!c.narr);
     dlg.style.setProperty("--c", c.col || "#c9b871");
     const port = el.querySelector(".sPort");
     const put = () => {
       if (c.radio) { port.innerHTML = '<span class="rd">📻</span>'; return true; }
+      if (c.narr) { port.innerHTML = ""; return true; }
       const src = storyArt(c);
       if (src) { port.innerHTML = '<img alt="" src="' + src + '">'; return true; }
       port.innerHTML = ""; return false;
@@ -13364,20 +13503,67 @@
       tEl.textContent = txt.slice(0, k);
       if (k >= txt.length) { clearInterval(STORY.typing); STORY.typing = 0; el.querySelector(".sNext").classList.add("on"); }
     }, 30);
-    try { gun(c.radio ? "radio" : "tick"); } catch (e) {}
+    try { if (!c.narr) gun(c.radio ? "radio" : "tick"); } catch (e) {}
   }
   function storyEnd(quiet) {
     if (!STORY.on) return;
     STORY.on = false;
     if (STORY.typing) { clearInterval(STORY.typing); STORY.typing = 0; }
     if (STORY.cardT) { clearTimeout(STORY.cardT); STORY.cardT = 0; }
-    storyMark(stageId);
+    const cb = STORY.onDone; STORY.onDone = null;
+    if (!cb) storyMark(stageId);
     const el = STORY.el; STORY.el = null;
     document.body.classList.remove("mgStoryOn");
-    if (phase === "intro") introT0 = performance.now();
+    if (!cb && phase === "intro") introT0 = performance.now();
     frame._t = performance.now();
     if (el) { if (quiet) el.remove(); else { el.classList.add("out"); setTimeout(() => el.remove(), 480); } }
+    if (cb) { try { cb(); } catch (e) { window.__storyErr = String(e); } }
   }
+  /* (v63) after a cleared mission: its short ending, then the chapter's
+     ending if this was the chapter's last mission (the finale after the
+     last of all), then the result card */
+  function endingQueue(id) {
+    const S = window.MGStory; if (!S) return [];
+    const q = [], ko = (document.documentElement.lang || "").startsWith("ko");
+    const e = S.ends && S.ends[id], op = S.eps && S.eps[id];
+    const lab = (window.MGProfile && window.MGProfile.stageLab && window.MGProfile.stageLab(id)) || "";
+    if (e) q.push([e, { top: "EPILOGUE" + (op ? " · EP." + op.ep : "") + (lab ? " · " + lab : ""), title: ko ? e.ko : e.en, sub: ko ? e.when : e.whenEn, tag: (ko ? "엔딩 · " : "ENDING · ") + (ko ? e.ko : e.en) }, "end"]);
+    const chs = S.chapters || {};
+    Object.keys(chs).forEach((k) => {
+      const c = chs[k]; if (c.after !== id) return;
+      q.push([c, { top: c.final ? (ko ? "최종 엔딩" : "THE FINAL ENDING") : (ko ? c.ko + " · 완" : c.en + " · END"), title: ko ? c.title : c.titleEn, sub: c.final ? (ko ? "지금 바로 쏴! · 대단원" : "SHOOT RIGHT NOW! · THE END") : (ko ? c.ko : c.en), tag: ko ? c.ko : c.en }, c.final ? "final" : "chap"]);
+    });
+    return q;
+  }
+  function playQueue(q, done) {
+    const next = () => { const it = q.shift(); if (!it) { if (done) done(); return; } storyOpen(it[0], it[1], it[2], next); };
+    next();
+  }
+  function playEndings(id, done) {
+    if (practice || (navigator.webdriver && !window.__wantEnd)) { done(); return; }
+    const q = endingQueue(id);
+    if (!q.length) { done(); return; }
+    if (pistol) pistol.visible = false;
+    playQueue(q, done);
+  }
+  /* replay from the menu's story archive: kind "open" | "end" | "chap" */
+  window.MGStoryPlay = function (kind, id) {
+    const S = window.MGStory; if (!S || STORY.on) return false;
+    try { css(); } catch (e) {}
+    const ko = (document.documentElement.lang || "").startsWith("ko");
+    if (kind === "open") {
+      const ep = S.eps && S.eps[id]; if (!ep) return false;
+      const lab = (window.MGProfile && window.MGProfile.stageLab && window.MGProfile.stageLab(id)) || "";
+      storyOpen(ep, { top: "EPISODE " + ep.ep + (lab ? " · STAGE " + lab : ""), title: ko ? ep.ko : ep.en, sub: ko ? ep.when : ep.whenEn, tag: "EP." + ep.ep + " " + (ko ? ep.ko : ep.en) }, "", () => {});
+      return true;
+    }
+    if (kind === "end") { const q = endingQueue(id).filter((it) => it[2] === "end"); if (!q.length) return false; playQueue(q); return true; }
+    if (kind === "chap") {
+      const c = S.chapters && S.chapters[id]; if (!c) return false;
+      const q = endingQueue(c.after).filter((it) => it[2] !== "end"); if (!q.length) return false; playQueue(q); return true;
+    }
+    return false;
+  };
   /* (v53) squad chatter in the fight: a small portrait card under the
      score, so the briefing's people are still beside you once it starts */
   const BARKS = {
@@ -14723,6 +14909,7 @@
     sky.geometry = new T.SphereGeometry(260, 24, 16);
     sky.position.set(0, 0, 20);
     S.add(sky);
+    try { const rb = makeRidgeBand(701); rb.position.set(0, 30, 20); S.add(rb); } catch (e) { window.__ridgeErr = String(e); }
     ctx.scene.background = new T.Color(0x72b8f0).convertSRGBToLinear();
     ctx.scene.fog = new T.Fog(0xd6e6f2, 110, 380);
     if (ctx.scene.fog.color.convertSRGBToLinear) ctx.scene.fog.color.convertSRGBToLinear();
@@ -14753,11 +14940,19 @@
     const ground = new T.Mesh(new T.PlaneGeometry(360, 360), new T.MeshStandardMaterial({ map: gT, color: 0xc8dcae, roughness: 0.96 }));
     ground.rotation.x = -Math.PI / 2; ground.position.set(0, 0.24, 30); ground.receiveShadow = true;
     S.add(ground);
-    const paveT = ctex("summitPave", 128, 128, (g, w, h) => {
+    /* (v63) granite slabs in running bond with dark joints and weathering
+       (the old pale tile read as a white sheet in the sun) */
+    const paveT = ctex("summitPave2", 256, 256, (g, w, h) => {
       const r = rng(61);
-      g.fillStyle = "#c9c2b2"; g.fillRect(0, 0, w, h);
-      g.fillStyle = "#aea796"; for (let i = 0; i < w; i += 32) { g.fillRect(i, 0, 3, h); g.fillRect(0, i, w, 3); }
-      for (let i = 0; i < 240; i++) { g.fillStyle = r() < 0.5 ? "#d8d2c3" : "#b6af9e"; g.fillRect((r() * 16 | 0) * 8, (r() * 16 | 0) * 8, 8, 8); }
+      g.fillStyle = "#5e5a52"; g.fillRect(0, 0, w, h);
+      for (let row = 0; row < 4; row++) for (let c = -1; c < 3; c++) {
+        const x = c * 128 + (row % 2 ? 64 : 0), y = row * 64;
+        g.fillStyle = shade(["#aaa498", "#9e988c", "#b4ae a2".replace(" ", ""), "#a49e90"][(r() * 4) | 0], 0.92 + r() * 0.12);
+        g.fillRect(x + 3, y + 3, 122, 58);
+        for (let i = 0; i < 40; i++) { g.globalAlpha = 0.22; g.fillStyle = r() < 0.5 ? "#c8c2b4" : "#80796c"; g.fillRect(x + 4 + r() * 116, y + 4 + r() * 52, 4 + r() * 8, 3 + r() * 5); }
+        g.globalAlpha = 1;
+      }
+      for (let i = 0; i < 18; i++) { g.globalAlpha = 0.25; g.fillStyle = "#4a463c"; g.fillRect(r() * w, r() * h, 10 + r() * 30, 6 + r() * 12); } g.globalAlpha = 1;
     });
     const paveM = (rx, ry) => { const t = paveT.clone(); t.needsUpdate = true; t.wrapS = t.wrapT = T.RepeatWrapping; t.repeat.set(rx, ry); return new T.MeshStandardMaterial({ map: t, roughness: 0.85 }); };
     const flat = (w, d, x, z, m, y) => { const o = new T.Mesh(new T.PlaneGeometry(w, d), m); o.rotation.x = -Math.PI / 2; o.position.set(x, y || 0.27, z); o.receiveShadow = true; o.userData.noBlock = 1; S.add(o); return o; };
@@ -14934,6 +15129,7 @@
     sky.geometry = new T.SphereGeometry(260, 24, 16);
     sky.position.set(0, 0, 20);
     S.add(sky);
+    try { const rb = makeRidgeBand(701); rb.position.set(0, 30, 20); S.add(rb); } catch (e) { window.__ridgeErr = String(e); }
     const R = rng(3303);
     const box = (w, h, d, x, y, z, m, opt) => {
       const o = new T.Mesh(new T.BoxGeometry(w, h, d), m);
@@ -16827,6 +17023,7 @@
     sky.geometry = new T.SphereGeometry(320, 24, 16);
     sky.position.set(0, 0, 20);
     S.add(sky);
+    try { const rb = makeRidgeBand(701); rb.position.set(0, 30, 20); S.add(rb); } catch (e) { window.__ridgeErr = String(e); }
     ctx.scene.background = new T.Color(0x72b8f0).convertSRGBToLinear();
     ctx.scene.fog = new T.Fog(C.fog || 0xd6e6f2, 130, 520);
     if (ctx.scene.fog.color.convertSRGBToLinear) ctx.scene.fog.color.convertSRGBToLinear();
@@ -16843,10 +17040,10 @@
     const z0 = (C.sea ? -70 : CITY_Z0 - 18), z1 = CITY_Z1 + 30;
     /* ground: asphalt, or stone paving for the old capital */
     const gKey = C.paved ? "cityPave" : "asphaltC";
-    const gt = C.paved ? paveTex("cityPave", 31) : asphaltTex("asphaltC", 23, 768);
-    const gtx = gt.clone(); gtx.needsUpdate = true; gtx.wrapS = gtx.wrapT = T.RepeatWrapping; gtx.repeat.set(C.paved ? 70 : 40, C.paved ? 70 : 40);
+    const gt = C.paved ? bakseokTex("cityBakseok", 31) : asphaltTex("asphaltC", 23, 768);
+    const gtx = gt.clone(); gtx.needsUpdate = true; gtx.wrapS = gtx.wrapT = T.RepeatWrapping; gtx.repeat.set(C.paved ? 64 : 40, C.paved ? 64 : 40);
     const GS = TURNS.length ? 460 : 320;
-    const ground = new T.Mesh(new T.PlaneGeometry(GS, GS), new T.MeshStandardMaterial({ map: gtx, roughness: 0.86, metalness: 0.02, envMapIntensity: 0.1, color: C.paved ? new T.Color(0xd8d0c0).convertSRGBToLinear() : 0xffffff }));
+    const ground = new T.Mesh(new T.PlaneGeometry(GS, GS), new T.MeshStandardMaterial({ map: gtx, roughness: 0.86, metalness: 0.02, envMapIntensity: 0.1, color: C.paved ? new T.Color(0xcfc6b4).convertSRGBToLinear() : 0xffffff }));
     ground.rotation.x = -Math.PI / 2;
     /* (v47) a landing beach: the asphalt stops at the waterline instead of
        running out over the sea, so the boats really are on water */
@@ -17125,7 +17322,20 @@
         } else if (k === "beach") {
           /* (v47) sand from the waterline up to the promenade, laid a hair
              above the asphalt so the two never fight for the same pixel */
-          const sand = new T.Mesh(new T.PlaneGeometry(240, L[2] - L[1]), new T.MeshStandardMaterial({ color: new T.Color(0xe2cc98).convertSRGBToLinear(), roughness: 0.95 }));
+          /* (v63) wind ripples, pebbles, boot prints and shell debris on the
+             sand (it was one flat cream sheet that burnt white in the sun) */
+          const st = ctex("beachSand", 256, 256, (g, w, h) => {
+            const R = rng(1201);
+            g.fillStyle = "#c2ad84"; g.fillRect(0, 0, w, h);
+            for (let i = 0; i < 900; i++) { g.globalAlpha = 0.25; g.fillStyle = ["#d4c098", "#b09a72", "#cab690", "#a8936a"][(R() * 4) | 0]; g.fillRect(R() * w, R() * h, 3 + R() * 6, 3 + R() * 6); }
+            g.globalAlpha = 0.28; g.strokeStyle = "#8e7a56"; g.lineWidth = 3;
+            for (let y = 6; y < h; y += 14) { g.beginPath(); for (let x = 0; x <= w; x += 8) { const yy = y + Math.sin(x * 0.05 + y) * 3; if (!x) g.moveTo(x, yy); else g.lineTo(x, yy); } g.stroke(); }
+            g.globalAlpha = 0.5; for (let i = 0; i < 14; i++) { const x = R() * w, y = R() * h; g.fillStyle = "#7e6a4a"; g.fillRect(x, y, 6, 10); g.fillRect(x + 10, y + 14, 6, 10); }
+            g.globalAlpha = 0.8; for (let i = 0; i < 60; i++) { g.fillStyle = ["#6e665c", "#8a8278", "#4e4a44"][(R() * 3) | 0]; g.fillRect(R() * w, R() * h, 3 + R() * 4, 3 + R() * 3); }
+            g.globalAlpha = 1;
+          }).clone();
+          st.needsUpdate = true; st.wrapS = st.wrapT = T.RepeatWrapping; st.repeat.set(240 / 4, (L[2] - L[1]) / 4);
+          const sand = new T.Mesh(new T.PlaneGeometry(240, L[2] - L[1]), new T.MeshStandardMaterial({ map: st, roughness: 0.95 }));
           sand.rotation.x = -Math.PI / 2; sand.position.set(0, 0.27, (L[1] + L[2]) / 2); sand.userData.noBlock = 1; S.add(sand);
           /* the wet line the surf leaves, and a second line a metre up the sand */
           [[-0.6, 0.9, 0.34], [1.6, 0.5, 0.22]].forEach(([dz, h, op]) => {

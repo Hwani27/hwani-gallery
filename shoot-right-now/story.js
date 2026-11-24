@@ -11,7 +11,8 @@
     hq:   { ko: "본부",    en: "HQ",        radio: true,                                           col: "#7fd08a" },
     cha:  { ko: "적 지휘관 차 대좌", en: "COL. CHA (ENEMY)", art: { role: "boss", skin: "cmd" }, enemy: true, col: "#e0574a" },
     civ:  { ko: "시민",    en: "CIVILIAN",  art: { role: "hostage", skin: "civ2" },                col: "#d8d4cc" },
-    civ2: { ko: "시민",    en: "CIVILIAN",  art: { role: "hostage", skin: "civ3" },                col: "#d8d4cc" }
+    civ2: { ko: "시민",    en: "CIVILIAN",  art: { role: "hostage", skin: "civ3" },                col: "#d8d4cc" },
+    narr: { ko: "",      en: "",          narr: true,                                           col: "#e8dcb8" }
   };
   const L = (who, ko, en) => ({ who: who, ko: ko, en: en });
   const EPS = {
@@ -148,5 +149,119 @@
       L("kang", "전원 탑승! 출발!", "Everyone in! Go!")
     ] }
   };
-  window.MGStory = { cast: CAST, eps: EPS };
+  /* (v63) endings: a short one after every mission, a chapter ending after
+     the last mission of chapters 1 and 2, and the grand ending after the
+     last mission of all. `narr` is narration (no portrait). */
+  const ENDS = {
+    6: { ko: "철수", en: "WITHDRAWAL", when: "서울 · 한강 남단", whenEn: "SEOUL · SOUTH OF THE HAN", lines: [
+      L("narr", "마지막 피난 행렬이 한강을 건넜다. 다리 뒤로 서울이 타오르고 있었다.", "The last column of refugees crossed the Han. Behind the bridge, Seoul was burning."),
+      L("kim", "다 건넜어요… 우리가 버틴 덕분에요.", "They all made it across… because we held."),
+      L("kang", "고개 들어, 김 일병. 우린 진 게 아니다. 시간을 산 거다.", "Chin up, Kim. We didn't lose. We bought time."),
+      L("park", "이자 붙여서 받으러 올 거다. 꼭.", "And we'll be back to collect. With interest.")
+    ] },
+    7: { ko: "대전 지연전", en: "THE DELAY AT DAEJEON", when: "대전역 · 해 질 녘", whenEn: "DAEJEON STATION · SUNSET", lines: [
+      L("hq", "지연 성공. 후방 방어선 구축까지 하루를 벌었다.", "Delay successful. You bought the rear line a full day."),
+      L("kim", "하루요? 그거 하나 벌려고…", "A day? All that, for one day…"),
+      L("kang", "전쟁에서 하루는 도시 하나다. 잘했다.", "In a war, a day is a city. Well done.")
+    ] },
+    8: { ko: "낙동강", en: "THE NAKDONG", when: "대구 · 방어선", whenEn: "DAEGU · THE LINE", lines: [
+      L("park", "여기서는 한 발짝도 안 물러났다. 처음으로.", "We didn't give an inch here. First time."),
+      L("civ", "군인 아저씨들, 주먹밥이라도 드세요.", "Soldiers, please — have some rice balls."),
+      L("kim", "…엄마가 해주던 맛이에요.", "…Tastes like my mum's."),
+      L("kang", "먹어 둬. 내일도 버텨야 한다.", "Eat up. We hold again tomorrow.")
+    ] },
+    9: { ko: "빛고을", en: "CITY OF LIGHT", when: "광주 · 금남로", whenEn: "GWANGJU · GEUMNAM-RO", lines: [
+      L("hq", "광주 방면 우회 부대 격퇴. 호남선 보급로가 살았다.", "The flanking force is broken. The southwest supply line lives."),
+      L("park", "비 맞으며 싸운 보람이 있네.", "Worth fighting soaked to the skin."),
+      L("me", "시민들이 창문에서 손을 흔들고 있습니다.", "People are waving from the windows.")
+    ] },
+    10: { ko: "천년의 탑", en: "THE THOUSAND-YEAR TOWER", when: "경주 · 대릉원", whenEn: "GYEONGJU · THE TOMBS", lines: [
+      L("kim", "탑, 멀쩡해요! 첨성대도요!", "The pagoda's fine! The observatory too!"),
+      L("kang", "천 년을 버틴 걸 우리 때 무너뜨릴 순 없지.", "It stood a thousand years. It wasn't falling on our watch."),
+      L("park", "다음은 부산이다. 마지막 선이야.", "Busan's next. The last line.")
+    ] },
+    11: { ko: "최후 방어선", en: "THE LAST PERIMETER", when: "부산 · 새벽", whenEn: "BUSAN · DAWN", lines: [
+      L("narr", "밤새 이어진 공세가 멎었다. 수평선 위로 해가 떠올랐다.", "The night-long assault fell quiet. The sun rose over the sea."),
+      L("hq", "부산 방어선 유지. 전 부대, 잘 버텼다.", "The Busan perimeter holds. All units — you held."),
+      L("kim", "살았어요… 우리 살아 있어요.", "We're alive… we're actually alive.")
+    ] },
+    12: { ko: "상륙 성공", en: "ASHORE", when: "인천 · 월미도", whenEn: "INCHEON · WOLMIDO", lines: [
+      L("park", "봐라, 막내. 이게 반격이라는 거다.", "Look at that, kid. That's what a counterstrike looks like."),
+      L("kim", "바다가 온통 우리 배예요!", "The sea's full of our ships!"),
+      L("kang", "이제 서울로 간다. 돌아가겠다는 약속, 지킬 때다.", "Now we go to Seoul. Time to keep that promise.")
+    ] },
+    14: { ko: "북단 호안", en: "THE NORTH BANK", when: "한강 · 용산", whenEn: "THE HAN · YONGSAN", lines: [
+      L("kim", "다리 없이 건넜어요… 엔진 소리 아직도 귀에서 울려요.", "We crossed without a bridge… my ears are still ringing from the engine."),
+      L("park", "서울역이 코앞이다. 숨 돌려.", "Seoul Station's right there. Catch your breath."),
+      L("kang", "내일 아침, 숭례문이다.", "Tomorrow morning — Sungnyemun.")
+    ] },
+    1: { ko: "깃발", en: "THE FLAG", when: "서울 · 숭례문", whenEn: "SEOUL · SUNGNYEMUN", lines: [
+      L("narr", "숭례문 위로 태극기가 다시 올랐다.", "The Taegukgi rose over Sungnyemun once more."),
+      L("civ", "돌아왔어… 정말 돌아왔어!", "They're back… they really came back!"),
+      L("kang", "약속 지켰다. 이제 남쪽 아군과 손잡으러 간다.", "Promise kept. Now we go to meet the southern force.")
+    ] },
+    16: { ko: "팔달문의 악수", en: "HANDSHAKE AT PALDALMUN", when: "수원 · 팔달문", whenEn: "SUWON · PALDALMUN", lines: [
+      L("hq", "남쪽 주력과 연결 확인. 포위망이 닫혔다.", "Link-up confirmed with the southern force. The ring is closed."),
+      L("kim", "저기 우리 군이에요! 낙동강에서 온!", "That's our army over there! All the way from the Nakdong!"),
+      L("park", "부산에서 같이 버티던 얼굴들이네.", "Faces from the Busan line.")
+    ] },
+    2: { ko: "철책 너머", en: "PAST THE WIRE", when: "판문점 · JSA", whenEn: "PANMUNJOM · JSA", lines: [
+      L("park", "넘었다. 진짜로 넘었어.", "We're across. We really crossed it."),
+      L("kim", "발밑 조심… 공병이 낸 길만 밟을게요.", "Watching my step… only the engineers' lane."),
+      L("kang", "판문점 확보. 다음은 평화의 집이다.", "Panmunjom is ours. The Peace House next.")
+    ] },
+    3: { ko: "이름값", en: "LIVING UP TO THE NAME", when: "판문점 · 도보다리", whenEn: "PANMUNJOM · THE FOOTBRIDGE", lines: [
+      L("kim", "이제 다시 평화의 집이네요.", "It's the Peace House again now."),
+      L("kang", "언젠가 여기서 다시 악수하는 날이 오겠지.", "One day there'll be handshakes here again."),
+      L("hq", "개성 방면으로 진격하라.", "Advance on Kaesong.")
+    ] },
+    13: { ko: "정문", en: "THE MAIN GATE", when: "개성공업지구", whenEn: "KAESONG INDUSTRIAL ZONE", lines: [
+      L("park", "공장은 거의 멀쩡하다. 다행이야.", "Factories are mostly intact. Good."),
+      L("civ", "…남쪽 사람들이 다시 왔네요.", "…The southerners have come back."),
+      L("kang", "평양으로 간다. 문은 열렸다.", "On to Pyongyang. The door's open.")
+    ] },
+    4: { ko: "눈 내린 광장", en: "THE SQUARE IN THE SNOW", when: "평양 · 광장", whenEn: "PYONGYANG · THE SQUARE", lines: [
+      L("hq", "평양 광장 확보. 그러나 차 대좌는 탈출했다.", "The square is ours. But Colonel Cha got out."),
+      L("park", "기다린다더니 도망치냐.", "Said he'd wait. Then ran."),
+      L("kang", "동해안 철길이다. 놓치지 않는다.", "He's on the east-coast line. We don't lose him.")
+    ] },
+    15: { ko: "흥남 부두", en: "THE HEUNGNAM DOCKS", when: "흥남항", whenEn: "HEUNGNAM PORT", lines: [
+      L("narr", "부두에 남아 있던 피난민들이 배에 올랐다.", "The refugees left on the docks were taken aboard."),
+      L("civ2", "고맙습니다… 이 은혜 잊지 않겠습니다.", "Thank you… we will never forget this."),
+      L("kim", "이번엔 우리가 지켰어요. 서울 때랑은 반대로요.", "This time we were the ones who got them out. The other way round from Seoul."),
+      L("kang", "마지막이다. 압록강으로.", "One last push. To the Yalu.")
+    ] },
+    5: { ko: "천지", en: "CHEONJI", when: "백두산 · 천지", whenEn: "PAEKTU · THE CRATER LAKE", lines: [
+      L("cha", "…이렇게 끝나는군.", "…So this is how it ends."),
+      L("kang", "끝난 건 전쟁이다. 당신은 법정에서 마저 대답해.", "What's ended is the war. You'll answer the rest in a courtroom."),
+      L("park", "후, 백두산 꼭대기에서 숨 좀 쉬어 보네.", "Phew. Finally get to breathe on top of Paektu.")
+    ] }
+  };
+  const CHAPTERS = {
+    1: { after: 11, ko: "CHAPTER 1 · 남침", en: "CHAPTER 1 · INVASION", title: "버틴 자들", titleEn: "THOSE WHO HELD", lines: [
+      L("narr", "서울에서 부산까지, 석 달. 지도 위의 선은 매일 남쪽으로 밀려났다.", "Seoul to Busan in three months. Every day the line on the map moved south."),
+      L("narr", "그러나 낙동강에서, 그리고 부산 앞바다에서 선은 더 이상 움직이지 않았다.", "But at the Nakdong, and at the sea off Busan, the line stopped moving."),
+      L("kim", "소대장님, 우리… 이제 반격하는 거죠?", "Lieutenant… we're hitting back now, right?"),
+      L("kang", "그래. 이제부터 지도 위의 선은 북쪽으로 간다.", "We are. From now on that line moves north."),
+      L("hq", "작전명 크로마이트. 인천으로 간다.", "Operation Chromite. We go to Incheon.")
+    ] },
+    2: { after: 16, ko: "CHAPTER 2 · 반격", en: "CHAPTER 2 · COUNTERSTRIKE", title: "돌아온 사람들", titleEn: "THE ONES WHO CAME BACK", lines: [
+      L("narr", "인천에서 한강으로, 서울에서 수원으로. 남과 북에서 온 두 군대가 팔달문에서 만났다.", "Incheon to the Han, Seoul to Suwon. Two armies, one from the south and one from the sea, met at Paldalmun."),
+      L("park", "부산에서 헤어질 때, 다시 볼 줄 몰랐다.", "When we split up at Busan, I never thought we'd see them again."),
+      L("kim", "다들 살아 있어요. 다들…", "Everyone's alive. Everyone…"),
+      L("cha", "아직 끝나지 않았다. 휴전선 너머에서 기다리겠다.", "It isn't over. I'll be waiting past the line."),
+      L("kang", "38선이다. 이번엔 우리가 넘는다.", "The 38th parallel. This time we're the ones who cross.")
+    ] },
+    3: { after: 5, final: true, ko: "FINAL · 북진", en: "FINAL · NORTHWARD", title: "다시, 봄", titleEn: "SPRING, AGAIN", lines: [
+      L("narr", "천지 위로 아침 해가 떠올랐다. 국경의 포성이 멎었다.", "The morning sun rose over Cheonji. The guns at the border fell silent."),
+      L("hq", "전 부대에 알린다. 적 총사령부 항복. 작전을 종료한다. …수고했다.", "All units: enemy high command has surrendered. Operations are over. …Well done."),
+      L("kim", "끝났어요…? 정말요? 그럼 저 집에 가도 돼요?", "It's over…? Really? Can I… can I go home?"),
+      L("park", "가라, 막내. 어머니 주먹밥 먹으러. 대신 나도 데려가.", "Go, kid. Go eat your mum's rice balls. Take me with you, though."),
+      L("kang", "서울에서 시작해 백두산까지. 한 명도 빠짐없이 여기 서 있다.", "From Seoul all the way to Paektu. And every one of us is standing here."),
+      L("kang", "고맙다. 네가 있어서 끝까지 왔다.", "Thank you. We made it this far because you were with us."),
+      L("me", "…다 같이 돌아가죠. 집으로.", "…Let's all go back. Home."),
+      L("narr", "그해 봄, 서울의 벚꽃은 유난히 일찍 피었다.", "That spring, the cherry blossoms in Seoul came out early.")
+    ] }
+  };
+  window.MGStory = { cast: CAST, eps: EPS, ends: ENDS, chapters: CHAPTERS };
 })();

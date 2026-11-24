@@ -250,6 +250,8 @@
 
   window.MGProfile = {
     RANKS: RANKS, DIFFS: DIFFS, STAGES: STAGES,
+    stageLab: (id) => { const st = STAGES.find((x) => x.id === id); return st ? st.lab : ""; },
+    openStory: () => openStory(),
     get data() { return D; },
     get xp() { return D.xp; },
     get diff() { return D.diff; },
@@ -349,6 +351,15 @@
   .mShopBtn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border-radius:14px;border:1px solid rgba(140,200,255,.45);background:linear-gradient(180deg,#244a6a,#14283a);color:#fff;cursor:pointer;font:inherit;touch-action:manipulation;position:relative}
   .mShopBtn b{font-size:14px}.mShopBtn small{font:800 11px/1 ui-monospace,monospace;color:#ffd54a}
   .mShopBtn .badge{position:absolute;top:-6px;right:-6px;min-width:20px;height:20px;border-radius:10px;background:#e8402a;color:#fff;font:900 11px/20px ui-monospace,monospace;padding:0 5px}
+  .mStoryBtn{display:flex;align-items:center;gap:10px;width:100%;margin:8px 0 0;padding:10px 12px;border-radius:14px;border:1px solid rgba(232,200,112,.45);background:linear-gradient(90deg,#2a2412,#14120a);color:#fff;font:inherit;cursor:pointer;text-align:left}
+  .mStoryBtn span{font-size:22px}.mStoryBtn b{display:block;font-size:14px}.mStoryBtn small{display:block;font-size:11px;color:#c9b871;margin-top:2px}
+  #mgModal .stCh{margin:14px 0 6px;font:800 12px/1 ui-monospace,monospace;letter-spacing:.16em;color:#c9b871}
+  #mgModal .stRow{display:flex;align-items:center;gap:6px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.07)}
+  #mgModal .stRow .n{flex:1;min-width:0;font-size:13px;font-weight:700}#mgModal .stRow .n i{font-style:normal;color:#a9b098;font:700 11px ui-monospace,monospace;margin-right:6px}
+  #mgModal .stRow button{flex:none;min-height:32px;padding:0 10px;border-radius:9px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.07);color:#fff;font-family:inherit;font-weight:800;font-size:12px;line-height:1;cursor:pointer}
+  #mgModal .stRow button:disabled{opacity:.3;cursor:default}
+  #mgModal .stRow.big{border:1px solid rgba(232,200,112,.4);border-radius:12px;padding:9px 10px;margin-top:8px;background:rgba(232,200,112,.06)}
+  #mgModal .stRow.big .n{color:#f4e6b8}
   .mChest{display:flex;align-items:center;gap:10px;width:100%;margin:8px 0 0;padding:10px 12px;border-radius:14px;border:2px solid #ffd54a;background:linear-gradient(90deg,#6a3a10,#2a1606);color:#fff;font:inherit;cursor:pointer;animation:mPulse 1.4s infinite}
   .mChest b{font-size:15px}.mChest span{font-size:22px}
   .mLoad{margin:6px 2px 0;font-size:11px;color:#a8d8ff}
@@ -442,6 +453,38 @@
     document.body.appendChild(m);
     if (bind) bind(m, close);
     return m;
+  }
+  /* (v63) the story archive: every opening and ending you have reached,
+     the chapter endings and the finale, replayable from the menu */
+  function openStory() {
+    const S = window.MGStory || {}, eps = S.eps || {}, ends = S.ends || {}, chs = S.chapters || {};
+    const clr = (id) => !!(D.best[id] && D.best[id].stars > 0);
+    let html = '<h3>📖 ' + (ko ? "스토리 · 엔딩 다시 보기" : "Story & endings") + "</h3>";
+    [1, 2, 3].forEach((c) => {
+      html += '<div class="stCh">' + (CHAPTERS[c] ? (ko ? CHAPTERS[c][0] : CHAPTERS[c][1]) : "") + "</div>";
+      STAGES.filter((st) => st.ch === c).forEach((st) => {
+        const op = !!eps[st.id] && unlocked(st.id), en = !!ends[st.id] && clr(st.id);
+        html += '<div class="stRow"><span class="n"><i>' + st.lab + "</i>" + (ko ? st.ko : st.en) + "</span>" +
+          '<button type="button" data-sk="open" data-sid="' + st.id + '"' + (op ? "" : " disabled") + ">" + (ko ? "오프닝" : "Opening") + "</button>" +
+          '<button type="button" data-sk="end" data-sid="' + st.id + '"' + (en ? "" : " disabled") + ">" + (op && !en ? "🔒 " : "") + (ko ? "엔딩" : "Ending") + "</button></div>";
+      });
+      const ch = chs[c];
+      if (ch) {
+        const ok = clr(ch.after);
+        html += '<div class="stRow big"><span class="n">' + (ch.final ? "👑 " : "🎬 ") + (ok ? (ko ? ch.title : ch.titleEn) : "???") + " <small style=\"color:#a9b098\">" + (ch.final ? (ko ? "최종 엔딩" : "FINAL ENDING") : (ko ? "챕터 엔딩" : "CHAPTER ENDING")) + "</small></span>" +
+          '<button type="button" data-sk="chap" data-sid="' + c + '"' + (ok ? "" : " disabled") + ">" + (ok ? (ko ? "보기" : "Watch") : "🔒") + "</button></div>";
+      }
+    });
+    html += '<div class="foot"><button type="button" data-x>' + (ko ? "닫기" : "Close") + "</button></div>";
+    modal(html, (m, close) => {
+      m.querySelector("[data-x]").addEventListener("click", close);
+      m.querySelectorAll("[data-sk]").forEach((b) => b.addEventListener("click", () => {
+        if (b.disabled) return;
+        const k = b.getAttribute("data-sk"), id = +b.getAttribute("data-sid");
+        m.remove();
+        if (!(window.MGStoryPlay && window.MGStoryPlay(k, id))) toast(ko ? "지금은 재생할 수 없어요" : "Can't play that right now");
+      }));
+    });
   }
   const attDone = () => D.att.last === kst();
   function checkIn() {
@@ -622,7 +665,9 @@
           (done ? (ko ? "내일 또 와요" : "See you tomorrow") : (ko ? (n + 1) + "일차 보상 받기" : "Claim day " + (n + 1))) + '</small></span><span class="dots">' + dots + "</span></button>" +
           '<button class="mShopBtn" id="mgShop" type="button"><b>' + (ko ? "🛒 보급소" : "🛒 Depot") + "</b><small>" + (D.pts || 0).toLocaleString() + "P</small></button></div>" +
           ((D.chest.pending || 0) > 0 ? '<button class="mChest" id="mgChest" type="button"><span>🎁</span><b>' + (ko ? "행운 상자 " + D.chest.pending + "개 · 눌러서 열기" : D.chest.pending + " lucky box(es) · tap to open") + "</b></button>" : "") +
-          (inv ? '<p class="mLoad">' + (ko ? "다음 작전 투입 보급품: " : "Packed for next mission: ") + inv + "</p>" : "");
+          (inv ? '<p class="mLoad">' + (ko ? "다음 작전 투입 보급품: " : "Packed for next mission: ") + inv + "</p>" : "") +
+          (() => { const S = window.MGStory || {}; const nEnd = STAGES.filter((st) => (S.ends || {})[st.id] && D.best[st.id] && D.best[st.id].stars > 0).length; const tot = Object.keys(S.ends || {}).length;
+            return '<button class="mStoryBtn" id="mgStoryArc" type="button"><span>📖</span><span><b>' + (ko ? "스토리 · 엔딩 다시 보기" : "Story & endings") + "</b><small>" + (ko ? "엔딩 " + nEnd + "/" + tot + " 해금" : nEnd + "/" + tot + " endings unlocked") + "</small></span></button>"; })();
       })() +
       (() => {
         const dm = dailyMis();
@@ -670,6 +715,7 @@
     const tb = document.getElementById("mgTut"); if (tb) tb.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); try { localStorage.removeItem("myeolgong_tut"); } catch (err) {} toast(ko ? "다음 작전에서 훈련 안내가 다시 나와요" : "Training will show in your next mission"); });
     const un = document.getElementById("mgUni"); if (un) un.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); openShop("uni"); });
     const sh = document.getElementById("mgShop"); if (sh) sh.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); openShop(); });
+    const sa = document.getElementById("mgStoryArc"); if (sa) sa.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); openStory(); });
     const ch = document.getElementById("mgChest"); if (ch) ch.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); openBox(); });
     const g = document.getElementById("mgGo");
     if (g) g.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); go(goStage); });
