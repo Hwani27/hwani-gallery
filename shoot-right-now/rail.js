@@ -6784,6 +6784,31 @@
       introLines: [{ t: 0.4, text: "20XX년 9월 15일, 인천 상륙작전 개시!" }, { t: 2.4, text: "상륙정 전진! 해안의 적을 쓸고 인천을 되찾아라!" }],
       bossRadio: "송도 상공에 적 공격헬기! 기체에 집중 사격!"
     },
+    /* (v60) 3-5 HEUNGNAM: after Pyongyang, Colonel Cha's men fall back up
+       the east-coast line. The squad rides a flatcar on a parallel track,
+       overtakes their troop train, crosses a river on a truss bridge, and
+       gets off at Heungnam station for the fight through the plant to the
+       port. Tracks at x −7 (their train, same way), 0 (ours), +7 (the
+       squad's car), +14 (a train coming the other way). */
+    15: {
+      id: 15, music: "pyongyang", label: "STAGE 3-5", clock: 440, train: true,
+      path: cityPath([[0, -380], [0, -360], [0, -340], [0, -320], [0, -300], [0, -280], [0, -260], [0, -240], [0, -220], [0, -200], [0, -180], [0, -160], [0, -140], [0, -120], [0, -100], [0, -86], [0, -76], [0, -68]]),
+      boss: cityBoss(), chase: "train",
+      waves: genWaves(1515, ["HEUNGNAM STN", "FERTILIZER PLANT", "PORT"], [
+        "흥남역 도착! 하차, 역 광장을 확보하라!", "공장 지대에 적 오토바이!", "적 헬기 출현! 공장 아래 엄폐!",
+        "부두로 피난민이 몰린다, 오사 주의!", "적 증원, 비료공장 방면!", "적 헬기 재접근!", "적 공수 강하! 부두를 지켜라!"], { bikes: true, hostage: true }),
+      dress: "citygen", bossKind: "heli", bossHp: 52, armorWave: 4, armorTank: true, armorHp: 14,
+      city: {
+        seed: 15, mood: "dusk", industrial: true, rails: true, tints: [0xe2ddd2, 0xd6d8d4, 0xc8c4bc], sign: [12.4, -44, "흥남", "HEUNGNAM", -Math.PI / 2, "#8a2a2a"],
+        cars: [["truck", -7.8, -10, 0.1], ["truck", 7.8, 18, Math.PI]],
+        banners: [[-12.2, -10, "흥남 비료공장", "#8a2a2a", 9], [12.2, 26, "흥남항", "#2a4a8a"]],
+        hills: [[-60, 200, 220, 70, 40], [90, 230, 140, 60, 30]],
+        landmarks: [["hnStation", -66], ["cranes", [[60, 40, 0.3], [78, 70, 0.3], [96, 100, 0.3]]], ["ship", 110, 90, 0.4, 52, 0.9], ["guardTower", -24, 10, Math.PI / 2], ["fire", -16, 0.4, 20, 1.3], ["fire", 18, 0.4, 44, 1.1]]
+      },
+      introDur: 5.0, introCam: [[24, 14, -420, 0, 3, -330], [0, 2.9, -380, 0, 2.6, -366]],
+      introLines: [{ t: 0.4, text: "흥남선 추격! 적 수송열차를 따라잡아라!" }, { t: 2.4, text: "옆 선로 열차의 적을 제압하며 흥남역까지 간다!" }],
+      bossRadio: "흥남항 상공에 적 공격헬기! 기체에 집중 사격!"
+    },
     /* (v58) 2-2 HAN RIVER: every bridge is down, so the squad crosses in
        rubber boats, up the river past Yeouido under a broken bridge, lands
        on the north bank and fights into Yongsan toward Seoul Station */
@@ -6853,12 +6878,12 @@
       bossRadio: "판문각 상공에 적 공격헬기! 기총 소사를 피해 기체를 집중 사격하라!"
     },
     5: {
-      id: 5, music: "paektu", label: "STAGE 3-5", clock: 400, path: PATH5, waves: WAVES5, boss: BOSS5,
+      id: 5, music: "paektu", label: "STAGE 3-6", clock: 400, path: PATH5, waves: WAVES5, boss: BOSS5,
       dress: "paektu", bossKind: "commander", bossHp: 40, chase: true,
       introDur: 5.2,
       introCam: [[7.0, 9.0, -176.0, 0, 1.0, -128.0], [0, 1.68, -152.0, 0, 1.55, -138.0]],
       introLines: [
-        { t: 0.4, text: "여기는 본부. 평양 광장 확보 완료. 마지막 작전이다." },
+        { t: 0.4, text: "여기는 본부. 흥남 확보 완료. 마지막 작전이다." },
         { t: 2.2, text: "지프로 국경 도로를 돌파해 압록강, 백두산 천지까지 진격하라!" }
       ],
       bossRadio: "천지 전망대에 적 총사령관 확인! 경호원을 쓰러뜨리고 사령관을 제압하라!"
@@ -7129,7 +7154,7 @@
     /* the vehicle is only under you until the first stop (jeep) or the
        beach (landing craft); after that it is a man on foot again */
     let vehU = -1;
-    if (STAGE.chase && STAGE.chase !== "heli") {
+    if (STAGE.chase && STAGE.chase !== "heli" && STAGE.chase !== "train") {
       vehU = holdUs && holdUs.length ? holdUs[0] : 0;
       if (STAGE.chase === "boat") { vehU = 1; const zEnd = STAGE.raft ? -76 : -69; for (let i = 0; i <= 200; i++) if (curve.getPointAt(i / 200).z > zEnd) { vehU = i / 200; break; } }
     }
@@ -9024,6 +9049,7 @@
       }
     });
     if (chase && chase.heli) G.loop("myheli", "rotor", 0.34, 1);
+    else if (chase && chase.train) G.loop("mytrain", "diesel", 0.3, 0.8 + Math.sin(chase.t * 0.5) * 0.05);
     else if (chase) G.loop("jeep", "jeep", chase.boat ? 0.16 : 0.12, (chase.boat ? 0.8 : 1) + Math.sin(chase.t * 0.7) * 0.08);
   }
 
@@ -9720,6 +9746,23 @@
     g.visible = false;
     return g;
   }
+  /* (v60) the flatcar we ride on the Heungnam line: plank deck under the
+     lens, stake posts, a sandbag breastwork with an MG at the front */
+  let trainRig = null;
+  function makeTrainRig() {
+    const g = new T.Group();
+    const wood = cmat(0x6a5a44, 0.85), dark = cmat(0x2c3226, 0.8), sand = cmat(0x8a7a56, 0.9), steel = cmat(0x5a5e62, 0.5, 0.5);
+    const B = (w, h, d, x, y, z, m) => { const o = new T.Mesh(worldUV(new T.BoxGeometry(w, h, d)), m); o.position.set(x, y, z); g.add(o); return o; };
+    B(2.9, 0.25, 9, 0, -1.33, -1.5, wood);
+    for (let k = 0; k < 9; k++) B(2.88, 0.02, 0.06, 0, -1.2, -5.6 + k * 1.0, dark);
+    [-1.42, 1.42].forEach((x) => { for (let z = -5.5; z <= 1.5; z += 2.2) B(0.14, 0.9, 0.14, x, -0.8, z, dark); });
+    for (let i = 0; i < 5; i++) { B(0.9, 0.42, 0.5, -1.0 + (i % 3) * 1.0, -1.0 + ((i / 3) | 0) * 0.42, -5.4, sand); }
+    const gun = new T.Group(); gun.position.set(0.85, -0.45, -5.2);
+    [[0.1, 0.12, 1.1, 0, 0, -0.5], [0.2, 0.2, 0.36, 0, 0, 0]].forEach((q) => { const m = new T.Mesh(new T.BoxGeometry(q[0], q[1], q[2]), steel); m.position.set(q[3], q[4], q[5]); gun.add(m); });
+    g.add(gun);
+    g.visible = false;
+    return g;
+  }
   /* (v58) the rubber assault boat: black tubes round a grey floor, a
      rounded bow and an outboard motor */
   let raftRig = null;
@@ -9886,6 +9929,14 @@
       ctx.scene.add(g);
       allyRides.push({ g: g, lead: lead, lat: lat, ph: Math.random() * 6, boat: boat === true, stop: false });
     };
+    if (boat === "train") {
+      /* the squad's own flatcar and its engine on the next track (x +7) */
+      put(makeRailcar("flat", "rok"), 3, 7, [["kang", -0.6, 1.68, 1.5], ["park", 0.6, 1.68, -0.5], ["kim", -0.5, 1.68, -2.5], ["rifle", 0.6, 1.68, 3.2]]);
+      put(makeRailcar("loco", "rok"), 15, 7, []);
+      allyRides.forEach((r) => { r.train = true; });
+      window.__allyRides = allyRides.length;
+      return;
+    }
     if (boat === "heli") {
       /* Kang's bird, flying echelon off the left and a little ahead */
       put(makeAllyHeli(), 16, 9, []);
@@ -9925,6 +9976,7 @@
         if (r.exitT > 7 && r.g.parent) { r.g.parent.remove(r.g); r.g.visible = false; }
         return;
       }
+      if (r.stop && r.train) return;
       if (r.stop) {
         /* (v53) parked: ease off to the verge, and never let the camera walk
            through it — the landing craft used to stop in the lane at the
@@ -9961,11 +10013,14 @@
       r.g.rotation.y = Math.atan2(tx, tz);
       r.g.rotation.z = r.boat ? Math.sin(t * 1.2 + r.ph) * 0.03 : Math.sin(t * 9 + r.ph) * 0.006;
       (r.g.userData.wheels || []).forEach((w) => { w.rotation.x += dt * 14; });
+      if (r.train) { r.g.position.y = 0; r.g.rotation.z = 0; if (r.g.userData.kind === "loco" && Math.random() < 0.3) smokeAt(ctx, x, 4.6, z + 3, 0x3a3a3a); return; }
       if (Math.random() < (r.boat ? 0.5 : 0.25)) smokeAt(ctx, x - tx * (r.boat ? 3 : 2), r.boat ? 0.15 : 0.35, z - tz * (r.boat ? 3 : 2), r.boat ? 0xf2f6fa : 0x9a8c74);
     });
   }
   /* (v55) the assault helicopter's height over the rail: 14 m out over the
      paddies, settling over the last 44 m to the landing at the first stop */
+  /* camera height over the rail while riding: the helicopter's, or the flatcar's deck */
+  function chaseAlt(u) { return chase && chase.heli ? heliAlt(u) : chase && chase.train ? 1.2 : 0; }
   const HELI_ALT = 14;
   function heliAlt(u) {
     if (STAGE.chase !== "heli" || !waves || !waves[0]) return 0;
@@ -9978,6 +10033,17 @@
 
   function startChase(ctx) {
     const boat = STAGE.chase === "boat";
+    if (STAGE.chase === "train") {
+      if (!trainRig) { trainRig = makeTrainRig(); ctx.camera.add(trainRig); }
+      trainRig.visible = true;
+      [jeepRig, boatRig, heliRig, raftRig].forEach((r) => { if (r) r.visible = false; });
+      chase = { t: 0, i: 0, plan: [], riders: [], train: true, fx: [], sink: [], splashT: 9, trains: [], sched: [[0, "A"], [19, "B"], [32, "C"]] };
+      if (dress && dress.ally) dress.ally.visible = false;
+      try { addAllyRides(ctx, "train"); } catch (e) { window.__allyRideErr = String(e); }
+      radio("흥남선 추격 개시! 옆 선로 적 열차를 제압하라!", 3400);
+      bark("chaseTrain", 4200);
+      return;
+    }
     if (STAGE.chase === "heli") {
       if (!heliRig) { heliRig = makeHeliRig(); ctx.camera.add(heliRig); }
       heliRig.visible = true;
@@ -10033,6 +10099,55 @@
     if (dress && dress.ally) dress.ally.visible = false;
     radio("추격전! 국경 도로 돌파 중 — 정면에서 적 오토바이 부대!", 3400);
     gun("motor");
+  }
+  /* (v60) enemy trains on the parallel tracks: A (x −7, same way, slower,
+     we overtake it car by car), B (x +14, the other way, fast), C (x −7,
+     a second, shorter troop train). Their men stand in the box-car doors,
+     on the roofs, behind sandbags on the flats */
+  const TRAINS = {
+    A: { x: -7, dir: 1, speed: 3.4, ahead: 84, cars: ["loco", "box", "flat", "box", "tank", "box", "flat"] },
+    B: { x: 14, dir: -1, speed: 9, ahead: 150, cars: ["loco", "flat", "box", "flat", "box"] },
+    C: { x: -7, dir: 1, speed: 2.6, ahead: 96, cars: ["loco", "box", "flat", "box"] }
+  };
+  const CAR_MEN = { box: [[1.05, 1.45, 0.4], [0, 4.35, -2.6]], flat: [[0.9, 1.68, -1.5], [-0.3, 1.68, 1.2], [0.9, 1.68, 3.4]], tank: [[0.4, 4.2, 1.5]], loco: [] };
+  function spawnEnemyTrain(ctx, key) {
+    const D = TRAINS[key], cam = ctx.camera.position;
+    const train = { cars: [], speed: D.speed * D.dir, key: key };
+    D.cars.forEach((kind, i) => {
+      const car = makeRailcar(kind, "kpa");
+      car.userData.dir = D.dir;
+      car.position.set(D.x, 0, cam.z + D.ahead - i * 12 * D.dir);
+      if (D.dir < 0) car.rotation.y = Math.PI;
+      ctx.scene.add(car);
+      train.cars.push(car);
+      (CAR_MEN[kind] || []).forEach((o, j) => {
+        const p = makePost({ yaw: 0, hold: { x: car.position.x, z: car.position.z } }, { role: (i + j) % 4 === 3 ? "tough" : "weak", lat: 0, dep: 2, cover: "rail" }, 140 + i * 4 + j);
+        p.run = null; p.live = true; p.state = "chase"; p.expose = 1; p.coverTop = undefined;
+        p.chase = { ahead: 99, lat: 0, ph: Math.random() * 6, speed: 0, ground: true, car: car, off: o };
+        p.aimMax = 2.0 * (DIFF.aim || 1); p.aim = p.aimMax * (0.7 + Math.random() * 0.8);
+        chase.riders.push(p);
+      });
+    });
+    chase.trains.push(train);
+    window.__enemyTrains = (window.__enemyTrains || 0) + 1;
+    radio(key === "B" ? "맞은편 선로에 적 열차! 스쳐 지나간다, 빨리 쏴!" : "옆 선로에 적 수송열차! 화차 문과 지붕을 노려라!", 2600);
+  }
+  function stepEnemyTrains(ctx, dt) {
+    while (chase.sched.length && chase.t >= chase.sched[0][0]) spawnEnemyTrain(ctx, chase.sched.shift()[1]);
+    const cz = ctx.camera.position.z;
+    chase.trains = chase.trains.filter((tr) => {
+      tr.cars.forEach((c) => { c.position.z += tr.speed * dt; (c.userData.wheels || []).forEach((w) => { w.rotation.x += dt * Math.abs(tr.speed) * 2; }); });
+      const lead = tr.cars[0];
+      if (lead.userData.kind === "loco" && Math.random() < 0.3) smokeAt(ctx, lead.position.x, 4.6, lead.position.z + 3 * (lead.userData.dir || 1), 0x3a3a3a);
+      const gone = tr.cars.every((c) => c.position.z < cz - 30);
+      if (gone) { tr.cars.forEach((c) => c.parent && c.parent.remove(c)); return false; }
+      return true;
+    });
+  }
+  function clearEnemyTrains() {
+    if (!chase || !chase.trains) return;
+    chase.trains.forEach((tr) => tr.cars.forEach((c) => c.parent && c.parent.remove(c)));
+    chase.trains = [];
   }
   /* (v57) a tank on the ground under the helicopter: the convoy post
      (cannon bursts, glowing intake weak point, grenades work) parked in a
@@ -10123,6 +10238,7 @@
       if (k === 0 || k === 4) gun("motor");
     }
     const cam = ctx.camera;
+    if (chase.train) stepEnemyTrains(ctx, dt);
     if (chase.bridges) chase.bridges.forEach((B) => {
       /* (v58) a section on each bridge deck, firing down at the boats */
       if (B.done || cam.position.z < B.z - 44) return;
@@ -10144,6 +10260,11 @@
         const u0 = Math.max(0, Math.min(1, pathU + c.ahead / pathLen));
         const q = pathAt(u0), tq = curve.getTangentAt(u0);
         const ql = Math.hypot(tq.x, tq.z) || 1;
+        if (c.car) {
+          const dir = c.car.userData.dir || 1;
+          c.gx = c.car.position.x + c.off[0] * dir; c.gz = c.car.position.z + c.off[2] * dir; c.gy = c.off[1];
+          c.ahead = c.gz - cam.position.z;
+        }
         if (c.gx == null) { c.gx = q.x + (tq.z / ql) * c.lat; c.gz = q.z - (tq.x / ql) * c.lat; }
         p.x = c.gx; p.z = c.gz; p.y = c.gy != null ? c.gy : 0.3;
         posePost(p, cam.position, dt);
@@ -10254,9 +10375,11 @@
     const down = chase.riders.filter((p) => p.e.alive === false && !p.escaped && p.mesh && p.mesh.parent).length;
     const wasBoat = chase.boat;
     chase.fx.forEach((m) => m.parent && m.parent.remove(m));
+    clearEnemyTrains();
     allyRides.forEach((r) => {
       if (r.stop) return;
       r.stop = true;
+      if (r.train) return;
       /* the jeep pulls over onto the verge, out of the walking line */
       const tt = r.lastT || [0, 1], side = Math.sign(r.lat || 1);
       r.park = { x: r.g.position.x + tt[1] * side * 4.2, z: r.g.position.z - tt[0] * side * 4.2 };
@@ -10266,8 +10389,10 @@
     if (boatRig) boatRig.visible = false;
     if (heliRig) heliRig.visible = false;
     if (raftRig) raftRig.visible = false;
+    if (trainRig) trainRig.visible = false;
     if (dress && dress.ally) dress.ally.visible = true;
-    if (STAGE.raft) radio("도하 성공! 호안 계단으로 올라가 교두보를 확보하라!", 3200);
+    if (STAGE.chase === "train") radio("흥남역 도착! 하차, 역 광장을 확보하라!", 3200);
+    else if (STAGE.raft) radio("도하 성공! 호안 계단으로 올라가 교두보를 확보하라!", 3200);
     else if (STAGE.chase === "heli") radio("착륙! 전원 하기, 개성공단 정문을 확보하라!", 3200);
     else if (wasBoat) radio("램프 개방! 상륙, 상륙! 해안 교두보를 확보하라!", 3200);
     else radio(down >= 6 ? "추격대 전멸! 하차, 압록강 초소로 진입한다!" : "하차! 압록강 국경 초소로 진입한다!", 3000);
@@ -10740,7 +10865,7 @@
     try { shot = window.MG && window.MG.snap ? window.MG.snap(1280) : null; } catch (e) {}
     const ko = (document.documentElement.lang || "").startsWith("ko");
     /* (v21) the campaign runs in war order, not in id order */
-    const ORD = [6, 7, 8, 9, 10, 11, 12, 14, 1, 2, 3, 13, 4, 5];
+    const ORD = [6, 7, 8, 9, 10, 11, 12, 14, 1, 2, 3, 13, 4, 15, 5];
     const NM = { 1: ["서울 수복", "RETAKE SEOUL"], 2: ["DMZ·판문점", "DMZ & PANMUNJOM"], 3: ["평화의 집", "PEACE HOUSE"], 4: ["평양 진입", "INTO PYONGYANG"], 5: ["압록강·백두산", "YALU & PAEKTU"],
       6: ["서울 함락", "FALL OF SEOUL"], 7: ["대전", "DAEJEON"], 8: ["대구", "DAEGU"], 9: ["광주", "GWANGJU"], 10: ["경주", "GYEONGJU"], 11: ["부산", "BUSAN"], 12: ["인천 상륙작전", "INCHEON LANDING"] };
     const oi = ORD.indexOf(stageId);
@@ -10751,7 +10876,7 @@
     const adB = (!cleared && canOfferReviveAd()) ? "<button class=ad data-act=adrev type=button>🎬 <b>" + (ko ? "광고 보고 이어하기" : "WATCH AD TO CONTINUE") + "</b></button>" : "";
     const head = cleared
       ? ({ 6: ko ? "철수 성공 · 시민 대피 완료" : "WITHDRAWAL COMPLETE", 7: ko ? "지연전 성공 · 대전" : "DAEJEON HELD", 8: ko ? "방어 성공 · 대구" : "DAEGU HELD", 9: ko ? "방어 성공 · 광주" : "GWANGJU HELD",
-          10: ko ? "방어 성공 · 경주" : "GYEONGJU HELD", 11: ko ? "최후 방어선 사수 · 부산" : "THE PERIMETER HOLDS", 12: ko ? "상륙 성공 · 인천 탈환" : "INCHEON RETAKEN", 13: ko ? "개성공단 탈환 · 관리위원회 확보" : "KAESONG RETAKEN", 14: ko ? "한강 도하 성공 · 용산 진입" : "THE HAN IS CROSSED" }[stageId]) || (stageId === 2 ? (ko ? "작전 성공 · JSA 확보" : "MISSION CLEAR · JSA SECURED") : stageId === 3 ? (ko ? "작전 성공 · 판문각 확보" : "MISSION CLEAR · PANMUNGAK SECURED") : stageId === 4 ? (ko ? "작전 성공 · 평양 광장 확보" : "MISSION CLEAR · SQUARE SECURED") : stageId === 5 ? (ko ? "최종 작전 성공 · 총사령관 제압" : "FINAL MISSION · LEADER DOWN")  : (ko ? "서울 수복 · 숭례문 탈환" : "SEOUL RETAKEN"))
+          10: ko ? "방어 성공 · 경주" : "GYEONGJU HELD", 11: ko ? "최후 방어선 사수 · 부산" : "THE PERIMETER HOLDS", 12: ko ? "상륙 성공 · 인천 탈환" : "INCHEON RETAKEN", 13: ko ? "개성공단 탈환 · 관리위원회 확보" : "KAESONG RETAKEN", 14: ko ? "한강 도하 성공 · 용산 진입" : "THE HAN IS CROSSED", 15: ko ? "흥남 확보 · 부두 장악" : "HEUNGNAM SECURED" }[stageId]) || (stageId === 2 ? (ko ? "작전 성공 · JSA 확보" : "MISSION CLEAR · JSA SECURED") : stageId === 3 ? (ko ? "작전 성공 · 판문각 확보" : "MISSION CLEAR · PANMUNGAK SECURED") : stageId === 4 ? (ko ? "작전 성공 · 평양 광장 확보" : "MISSION CLEAR · SQUARE SECURED") : stageId === 5 ? (ko ? "최종 작전 성공 · 총사령관 제압" : "FINAL MISSION · LEADER DOWN")  : (ko ? "서울 수복 · 숭례문 탈환" : "SEOUL RETAKEN"))
       : (ko ? "작전 실패" : "MISSION FAILED");
     const box = document.createElement("div");
     box.id = "railResult";
@@ -12559,9 +12684,9 @@
         const tl = Math.hypot(tng.x, tng.z) || 1;
         const tx = tng.x / tl, tz = tng.z / tl;
         const so = steerStep(p, tx, tz, dt, pathU);
-        const alt = chase && chase.heli ? heliAlt(pathU) : 0;
+        const alt = chaseAlt(pathU);
         cam.position.set(p.x + tz * so, CAM_Y + alt, p.z - tx * so);
-        if (chase && !chase.heli) vehSmash(ctx, cam.position.x, cam.position.z, tx, tz);
+        if (chase && !chase.heli && !chase.train) vehSmash(ctx, cam.position.x, cam.position.z, tx, tz);
         const ahead = pathAt(pathU + (7 + alt * 1.3) / pathLen);
         const zone = phase === "toBoss" ? { x: BOSS_DEF.look[0], y: BOSS_DEF.look[1], z: BOSS_DEF.look[2] }
                                         : (waves[waveI] ? waves[waveI].look : null);
@@ -12645,7 +12770,7 @@
     const sway = Math.sin(nowMs / 2400) * 0.0016;
     cam.position.x += sx + kickV.x;
     cam.position.z += sz + kickV.z;
-    if (phase !== "intro") cam.position.y = CAM_Y + sy + Math.sin(nowMs / 1700) * 0.006 + (chase ? Math.sin(nowMs / 90) * 0.012 : 0) + (chase && chase.heli ? heliAlt(pathU) + Math.sin(nowMs / 700) * 0.12 : 0);
+    if (phase !== "intro") cam.position.y = CAM_Y + sy + Math.sin(nowMs / 1700) * 0.006 + (chase ? Math.sin(nowMs / 90) * 0.012 : 0) + (chase && chase.heli ? heliAlt(pathU) + Math.sin(nowMs / 700) * 0.12 : chase && chase.train ? 1.2 + Math.sin(nowMs / 140) * 0.015 : 0);
     cam.lookAt(lookSmooth.x, lookSmooth.y + sway, lookSmooth.z);
     if (roll) cam.rotateZ(roll);
     cam.near = 0.06;
@@ -13172,6 +13297,7 @@
     hurt: [["kang", "부상당했나? 엄호한다, 버텨!", "Are you hit? I'll cover you — hang on!"], ["kim", "괜찮으세요?! 제가 막을게요!", "Are you okay?! I'll hold them!"]],
     chaseJeep: [["kim", "꽉 잡으세요! 밟습니다!", "Hold on! Flooring it!"]],
     chaseBoat: [["kim", "우욱… 해안까지 얼마나 남았죠…", "Urgh… how far to the beach…"]],
+    chaseTrain: [["park", "옆 열차 화차 문 열린다! 안에서 쏜다!", "Box-car doors opening! They'll fire from inside!"], ["kim", "기차 위에서 싸우는 건 영화에서만 봤는데요!", "I've only seen fights on a train in movies!"]],
     chaseRaft: [["kim", "저 수영 못 하는 거 아시죠…?! 엔진 최대로 갑니다!", "You know I can't swim…! Full throttle!"], ["park", "고개 숙여! 다리 위에서 쏜다!", "Heads down! They're firing off the bridge!"]],
     chaseHeli: [["park", "도어건 쏜다! 지상 사격 조심해!", "Door gun's hot! Watch the ground fire!"], ["kim", "저, 저 아래 전부 적입니다!", "Th-that's all enemy down there!"]]
   };
@@ -15554,6 +15680,92 @@
      canopy over the top step and the green line sign — the one piece of a
      modern Korean street the old cities were missing */
   /* ---------------- (v55) Kaesong industrial complex ---------------- */
+  /* ---------------- (v60) the Heungnam line ---------------- */
+  const HN_TRACKS = [-7, 0, 7, 14];
+  function hnApproach(S) {
+    const M = voxMats(), VB = voxBatch(), R = rng(1515);
+    const Z0 = -440, Z1 = -64;
+    const skirt = new T.Mesh(new T.PlaneGeometry(1400, 1400), new T.MeshStandardMaterial({ color: new T.Color(0x8a9a62).convertSRGBToLinear(), roughness: 1 }));
+    skirt.rotation.x = -Math.PI / 2; skirt.position.set(0, 0.2, -200); skirt.userData.noBlock = 1; S.add(skirt);
+    /* the sea to the east, a pebble shore */
+    const sea = new T.Mesh(new T.PlaneGeometry(500, 420), waterMat(0x2a5a80, 60, 0.008));
+    sea.rotation.x = -Math.PI / 2; sea.position.set(60 + 250, 0.23, -250); sea.userData.noBlock = 1; S.add(sea);
+    VB.cube(M.rock, 56, 0.3, -250, 10, 0.3, 420, 0xb8b0a0);
+    /* ballast bed, sleepers and rails on four tracks */
+    const L = Z1 - Z0, zc = (Z0 + Z1) / 2;
+    HN_TRACKS.forEach((x) => {
+      VB.cube(M.rock, x, 0.35, zc, 4.2, 0.3, L, 0x8a8478);
+      for (let z = Z0 + 0.5; z < Z1; z += 1.2) VB.cube(M.plain, x, 0.53, z, 2.8, 0.12, 0.3, 0x5a4636);
+      [-0.72, 0.72].forEach((dx) => VB.cube(M.plain, x + dx, 0.66, zc, 0.12, 0.16, L, 0x6a6e74));
+    });
+    /* telegraph poles on the west side, wires */
+    for (let z = Z0; z < Z1; z += 24) { VB.cube(M.plain, -12, 4, z, 0.28, 7.5, 0.28, 0x5a4632); VB.cube(M.plain, -12, 7.4, z, 2.0, 0.16, 0.16, 0x5a4632); }
+    [-0.7, 0.7].forEach((dx) => bx(S, 0.03, 0.03, L, -12 + dx, 7.5, zc, cmat(0x222222, 0.6), { noCast: 1 }));
+    /* paddies and hamlets between the line and the hills */
+    for (let i = 0; i < 70; i++) { const x = -18 - R() * 80, z = Z0 + R() * (L - 20); voxPine(VB, x, 0.25, z, 5 + R() * 6, i + 71); }
+    for (let i = 0; i < 26; i++) {
+      const x = -26 - R() * 60, z = Z0 + 10 + R() * (L - 30), w = 5 + R() * 3, h = 2.8;
+      VB.cube(M.plain, x, 0.25 + h / 2, z, w, h, 4.5, 0xf0ece2, 0, { cast: true });
+      VB.cube(M.plain, x, 0.25 + h + 0.4, z, w + 0.6, 0.8, 3.4, [0x8a3a2a, 0x4a5a6a, 0x6a7a4a][i % 3]);
+    }
+    VB.flush(S, "hnLine");
+    const VH = voxBatch();
+    voxHill(VH, -140, -300, 120, 220, 46, 1501, { cube: 3.2 });
+    voxHill(VH, -150, -110, 120, 140, 38, 1502, { cube: 3.2 });
+    VH.flush(S, "hnHills");
+    /* a steel truss bridge over a river at z −250 */
+    const riv = new T.Mesh(new T.PlaneGeometry(260, 18), waterMat(0x3a6a88, 40, 0.006));
+    riv.rotation.x = -Math.PI / 2; riv.position.set(-80, 0.25, -250); riv.userData.noBlock = 1; S.add(riv);
+    const steel = cmat(0x4a5a4a, 0.5, 0.5);
+    [-10.5, 17.5].forEach((x) => {
+      for (let z = -262; z <= -238; z += 4) bx(S, 0.4, 6, 0.4, x, 3.6, z, steel, { noCast: 1 });
+      bx(S, 0.4, 0.4, 24, x, 6.6, -250, steel, { noCast: 1 }).userData.air = 1;
+      for (let z = -262; z < -238; z += 4) bx(S, 0.25, 7.2, 0.25, x, 3.6, z + 2, steel, { rx: 0.58, noCast: 1 });
+    });
+    for (let z = -262; z <= -238; z += 4) bx(S, 28, 0.3, 0.3, 3.5, 6.8, z, steel, { noCast: 1 }).userData.air = 1;
+  }
+  function lmHnStation(S, z) {
+    const conc = cmat(0xd8d4cc, 0.9), roof = cmat(0x5a3a2a, 0.8), wall = cmat(0xe8e2d6, 0.88);
+    /* platforms between the tracks, a canopy, and the station house */
+    [-3.5, 3.5, 10.5].forEach((x) => bx(S, 3.4, 0.9, 30, x, 0.55, z - 22, conc, { noCast: 1 }));
+    [-3.5, 3.5].forEach((x) => { for (let k = 0; k < 4; k++) bx(S, 0.25, 3.2, 0.25, x, 2.6, z - 34 + k * 8, cmat(0x5a5e64, 0.6, 0.4)); bx(S, 3.4, 0.25, 28, x, 4.3, z - 22, roof); });
+    bx(S, 24, 7, 10, -24, 3.8, z - 18, wall, { wall: 1 });
+    bx(S, 25, 0.6, 11, -24, 7.6, z - 18, roof);
+    const sg = new T.Mesh(new T.PlaneGeometry(10, 1.6), new T.MeshStandardMaterial({ map: hiSign("hnStn", "흥 남 역", "HEUNGNAM STATION", "#f4f2ea", "#1f2f4f", 1000, 180), roughness: 0.6 }));
+    sg.position.set(-11.9, 6.2, z - 18); sg.rotation.y = Math.PI / 2; sg.userData.noBlock = 1; S.add(sg);
+    makeFlagPlane(S, "kp", -16, 10.6, z - 18, 2.4, 1.6, Math.PI / 2, true);
+    /* buffer stops where the line ends */
+    HN_TRACKS.forEach((x) => { bx(S, 2.6, 1.0, 0.8, x, 0.9, z + 1.2, cmat(0xc8302a, 0.6)); });
+  }
+  /* rolling stock (all +z forward): locomotive, box car, flat car, tank car */
+  function makeRailcar(kind, scheme) {
+    const g = new T.Group();
+    const S0 = scheme === "rok" ? { body: 0x4e5a40, dark: 0x2c3226, trim: 0xd8d4c8 } : { body: 0x6a3a2a, dark: 0x2a2420, trim: 0xc8b070 };
+    const M = (c, r, m) => cmat(c, r || 0.8, m || 0);
+    const B = (w, h, d, x, y, z, m) => { const o = new T.Mesh(worldUV(new T.BoxGeometry(w, h, d)), m); o.position.set(x, y, z); o.castShadow = true; g.add(o); return o; };
+    const black = M(0x1a1a1a, 0.7), steel = M(0x5a5e62, 0.5, 0.5);
+    B(2.8, 0.5, 11, 0, 1.2, 0, black);
+    [-3.6, 3.6].forEach((z) => [-0.75, 0.75].forEach((x) => { const w = new T.Mesh(new T.CylinderGeometry(0.45, 0.45, 0.2, 10), steel); w.rotation.z = Math.PI / 2; w.position.set(x, 0.75, z); g.add(w); (g.userData.wheels = g.userData.wheels || []).push(w); }));
+    if (kind === "loco") {
+      B(2.9, 2.6, 8.4, 0, 2.75, -1.0, M(scheme === "rok" ? 0x3a5a3a : 0x2a4a3a));
+      B(3.0, 0.3, 11, 0, 1.55, 0, M(scheme === "rok" ? 0x2a4a2a : 0xa82a2a));
+      B(2.9, 2.8, 2.4, 0, 2.85, 4.2, M(scheme === "rok" ? 0x3a5a3a : 0x2a4a3a));
+      B(2.4, 0.9, 0.1, 0, 3.4, 5.42, M(0x6a8aa8, 0.2, 0.3));
+      if (scheme !== "rok") { const st = new T.Mesh(new T.CircleGeometry(0.5, 5), M(0xc8302a)); st.position.set(0, 2.6, 5.43); g.add(st); }
+    } else if (kind === "box") {
+      B(2.9, 2.7, 10.6, 0, 2.8, 0, M(S0.body));
+      B(3.0, 0.2, 10.8, 0, 4.25, 0, M(S0.dark));
+      [-1.46, 1.46].forEach((x) => B(0.06, 2.0, 2.6, x, 2.6, 0, M(0x111111)));    /* open doors */
+    } else if (kind === "flat") {
+      B(2.9, 0.25, 10.8, 0, 1.55, 0, M(0x6a5a44));
+      for (let z = -4.5; z <= 4.5; z += 3) [-1.4, 1.4].forEach((x) => B(0.14, 0.9, 0.14, x, 2.1, z, M(S0.dark)));
+      if (scheme !== "rok") for (let i = 0; i < 6; i++) B(0.9, 0.45, 0.5, -1 + (i % 3), 1.9 + ((i / 3) | 0) * 0.45, 3.6, M(0x8a7a56));
+    } else if (kind === "tank") {
+      const t = new T.Mesh(new T.CylinderGeometry(1.35, 1.35, 9.6, 12), M(0x2a2a2a, 0.5, 0.3)); t.rotation.x = Math.PI / 2; t.position.set(0, 2.85, 0); t.castShadow = true; g.add(t);
+    }
+    g.userData.kind = kind;
+    return g;
+  }
   /* ---------------- (v58) the Han river ---------------- */
   const HAN_BANK = 34;          /* the river runs between x = ±HAN_BANK south of z −70 */
   function hanRiver(S) {
@@ -16170,6 +16382,7 @@
     S.add(ground);
     void gKey;
     if (C.approach) { try { kaesongApproach(S); } catch (e) { window.__lmErr = String(e && e.stack || e); } }
+    if (C.rails) { try { hnApproach(S); } catch (e) { window.__lmErr = String(e && e.stack || e); } }
     /* the water for the seafront cities */
     if (C.seaSide || C.sea) {
       const wt = ctex("seaTex", 256, 256, (g, w, h) => {
@@ -16419,6 +16632,7 @@
         else if (k === "subway") lmSubway(S, L[1], L[2], L[3]);
         else if (k === "kaesongGate") lmKaesongGate(S, L[1]);
         else if (k === "hanBridge") lmHanBridge(S, L[1], L[2]);
+        else if (k === "hnStation") lmHnStation(S, L[1]);
         else if (k === "guardTower") lmGuardTower(S, L[1], L[2], L[3]);
         else if (k === "kaesongHQ") lmKaesongHQ(S, L[1], L[2]);
         else if (k === "boats") lmBoats(S, L[1], anims);

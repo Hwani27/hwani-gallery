@@ -121,8 +121,16 @@
       L("cha", "평양은 무너지지 않는다! 광장에서 기다리겠다.", "Pyongyang does not fall! I'll be waiting in the square."),
       L("kang", "기다려 준다니 고맙군. 늦지 않게 가 주자.", "Kind of him to wait. Let's not be late.")
     ] },
-    5: { ep: 14, ko: "압록강 · 백두산", en: "YALU & PAEKTU", when: "마지막 작전 · 국경 도로", whenEn: "THE LAST OPERATION · THE BORDER ROAD", lines: [
-      L("hq", "평양 광장 확보. 적 지휘관 차 대좌가 국경 방면으로 도주 중.", "The square is ours. Colonel Cha is running for the border."),
+    15: { ep: 14, ko: "흥남", en: "HEUNGNAM", when: "평양 함락 이틀 뒤 · 동해안 흥남선", whenEn: "TWO DAYS AFTER PYONGYANG · THE EAST-COAST LINE", lines: [
+      L("hq", "차 대좌의 잔존 병력이 열차로 흥남을 거쳐 북쪽으로 빠진다. 옆 선로로 따라붙어라.", "Cha's remnants are pulling north by train through Heungnam. Run them down on the next track."),
+      L("kim", "기차로 기차를 쫓는 거예요? 진짜요?", "We're chasing a train… with a train? Seriously?"),
+      L("park", "평판차 위에 모래주머니 쌓아놨다. 화차 문 열리면 그게 사격 신호야.", "Sandbags are stacked on the flatcar. When their box-car doors slide open, that's your cue."),
+      L("cha", "흥남은 우리가 지킨다. 너희가 닿을 즈음엔 부두는 텅 비어 있을 거다.", "Heungnam is ours. By the time you get there, the docks will be empty."),
+      L("kang", "부두에 아직 피난민이 남아 있다는 첩보다. 그들부터 지킨다.", "Word is there are still refugees down at the docks. They come first."),
+      L("me", "옆 선로는 제가 맡겠습니다. 끝까지 따라붙죠.", "I'll take the next track. We stay on them all the way.")
+    ] },
+    5: { ep: 15, ko: "압록강 · 백두산", en: "YALU & PAEKTU", when: "마지막 작전 · 국경 도로", whenEn: "THE LAST OPERATION · THE BORDER ROAD", lines: [
+      L("hq", "흥남 확보. 적 지휘관 차 대좌가 국경 방면으로 도주 중.", "Heungnam is ours. Colonel Cha is running for the border."),
       L("kang", "여기서 놓치면 다시 시작이다. 끝까지 쫓는다.", "If he gets away, this starts all over again. We run him down."),
       L("kim", "운전은 제가 하겠습니다! …면허는 2종 보통이지만요.", "I'll drive! …I've only got a car licence, though."),
       L("park", "하하, 지프는 1종이다, 막내. 그래도 밟아!", "Ha! That's a truck licence job, kid. Floor it anyway!"),
