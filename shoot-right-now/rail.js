@@ -9932,7 +9932,7 @@
         const pk = seatSquad(heliRig, "park", 1.6, -1.3, -0.7, "stand"); if (pk) { pk.rotation.y = Math.PI - 1.2; if (pk.userData.rifle) pk.userData.rifle.visible = false; }
         seatSquad(heliRig, "kim", -1.45, -1.3, -0.3, "stand");
       }
-      chase = { t: 0, i: 0, plan: [2.0, 4.2, 6.4, 8.8, 11.0, 13.4, 15.6, 18.0, 20.4, 22.6], riders: [], heli: true, fx: [], sink: [], splashT: 9 };
+      chase = { t: 0, i: 0, plan: [1.6, 3.4, 5.2, 7.0, 8.8, 10.6, 12.4, 14.2, 16.0, 17.8, 19.6, 21.4], riders: [], heli: true, fx: [], sink: [], splashT: 9 };
       if (dress && dress.ally) dress.ally.visible = false;
       try { addAllyRides(ctx, "heli"); } catch (e) { window.__allyRideErr = String(e); }
       radio("헬기 강습 개시! 착륙 지점까지 지상 사격을 제압하라!", 3400);
@@ -9961,6 +9961,24 @@
     if (dress && dress.ally) dress.ally.visible = false;
     radio("추격전! 국경 도로 돌파 중 — 정면에서 적 오토바이 부대!", 3400);
     gun("motor");
+  }
+  /* (v57) a tank on the ground under the helicopter: the convoy post
+     (cannon bursts, glowing intake weak point, grenades work) parked in a
+     field beside the road; gone with the chase if it is not killed */
+  function spawnHeliTank(ctx, side, k) {
+    const ahead = 46;
+    if ((waves[0].u - pathU) * pathLen - ahead < 10) return null;
+    const u = Math.min(1, pathU + ahead / pathLen), pt = pathAt(u), tg = curve.getTangentAt(u);
+    const tl = Math.hypot(tg.x, tg.z) || 1, lat = side * (9 + Math.random() * 4);
+    const yaw = Math.atan2(tg.x / tl, tg.z / tl);
+    const p = makeAPCPost({ hold: { x: pt.x, z: pt.z }, yaw: yaw, halfTan: 9 }, { lat: lat, dep: 0.01, tank: true, hp: 10 }, 90 + k);
+    p.x = pt.x + (tg.z / tl) * lat; p.z = pt.z - (tg.x / tl) * lat; p.mesh.position.set(p.x, p.y, p.z);
+    p.live = true; p.state = "fire"; p.moveT = 99;
+    p.aim = p.aimMax * 0.8;
+    chase.riders.push(p);
+    window.__heliTanks = (window.__heliTanks || 0) + 1;
+    radio(STAGE.chase === "heli" ? "지상에 적 전차! 흡기구를 노리거나 수류탄!" : "적 전차!", 2400);
+    return p;
   }
   function spawnChaser(ctx, lat, k) {
     if (chase.heli) {
@@ -10021,6 +10039,13 @@
     while (chase.i < chase.plan.length && chase.t >= chase.plan[chase.i]) {
       const k = chase.i++;
       const side = k % 2 ? 1 : -1;
+      if (chase.heli) {
+        /* (v57) a squad each time, both sides, and armour twice on the run in */
+        spawnChaser(ctx, side, k); spawnChaser(ctx, -side, k + 20);
+        if (k % 3 === 1) spawnChaser(ctx, side, k + 40);
+        if (k === 3 || k === 7) spawnHeliTank(ctx, -side, k);
+        continue;
+      }
       spawnChaser(ctx, side * (2.3 + Math.random() * 0.7), k);
       if (k === 2 || k === 5) spawnChaser(ctx, -side * (2.3 + Math.random() * 0.7), k + 10);
       if (k === 0 || k === 4) gun("motor");
@@ -10131,6 +10156,7 @@
     if (!chase) return;
     chase.riders.forEach((p) => {
       if (p.live === false || p.e.alive === false) return;
+      if (p.convoy) { tagOff(p); p.live = false; p.escaped = true; if (p.mesh && p.mesh.parent) p.mesh.parent.remove(p.mesh); return; }
       tagOff(p);
       p.live = false;
       p.e.alive = false;
@@ -15578,6 +15604,57 @@
     /* the border fence line and its yellow markers, flown over on the way in */
     lmFence(S, -120, -150, 120, -150); lmFence(S, -120, -154, 120, -154);
     for (let x = -100; x <= 100; x += 25) { bx(S, 0.3, 1.6, 0.3, x, 1.1, -160, cmat(0xe8c020, 0.7)); bx(S, 0.8, 0.5, 0.06, x, 1.8, -160.2, cmat(0xe8c020, 0.7)); }
+    /* (v57) filling the view: villages in the paddies, a stream with a
+       bridge, power lines along the road, more factory sheds behind the
+       avenue, Kaesong's flats to the north-east and green ridges near
+       enough to read as hills rather than haze */
+    const M = voxMats(), VB = voxBatch(), R2 = rng(5757);
+    const walls = [0xf2efe6, 0xe8e2d4, 0xf6f4ee], roofs = [0xd0663a, 0x3a6aa8, 0x4a8a5a, 0xb84a3a];
+    const house = (x, z, ry) => {
+      const w = 5 + R2() * 3, d = 4 + R2() * 1.5, h = 2.8 + R2() * 0.8, rc = roofs[(R2() * roofs.length) | 0];
+      VB.cube(M.plain, x, 0.25 + h / 2, z, w, h, d, walls[(R2() * 3) | 0], ry, { cast: true });
+      VB.cube(M.plain, x, 0.25 + h + 0.45, z, w + 0.6, 0.9, d * 0.7, rc, ry);
+      VB.cube(M.plain, x, 0.25 + h + 1.05, z, w + 0.6, 0.5, d * 0.35, rc, ry);
+      VB.cube(M.plain, x + Math.cos(ry) * w * 0.25, 0.25 + h * 0.45, z - Math.sin(ry) * w * 0.25, 0.9, 1.6, 0.1, 0x6a5a44, ry);
+    };
+    [[-44, -290], [52, -270], [-60, -220], [40, -200], [-36, -120], [70, -110], [-80, -175], [90, -240]].forEach(([cx, cz]) => {
+      const n = 5 + ((R2() * 4) | 0);
+      for (let i = 0; i < n; i++) house(cx + (R2() - 0.5) * 26, cz + (R2() - 0.5) * 20, (R2() < 0.5 ? 0 : Math.PI / 2) + (R2() - 0.5) * 0.2);
+      for (let i = 0; i < 3; i++) VB.cube(M.grass, cx + (R2() - 0.5) * 30, 0.9, cz + (R2() - 0.5) * 26, 1.6, 1.4, 1.6, 0xd8c070);   /* haystacks */
+    });
+    /* a stream across the fields, and the road's concrete bridge */
+    const wtr = new T.Mesh(new T.PlaneGeometry(520, 7), waterMat(0x3a6a88, 40, 0.006));
+    wtr.rotation.x = -Math.PI / 2; wtr.position.set(0, 0.27, -258); wtr.userData.noBlock = 1; S.add(wtr);
+    VB.cube(M.plain, 0, 0.55, -258, 10, 0.5, 9, 0xb8b4aa); [-5, 5].forEach((x) => VB.cube(M.plain, x, 1.0, -258, 0.3, 0.6, 9, 0xd8d4ca));
+    /* power line: wooden poles with three wires down the road's east side */
+    for (let z = -330; z < -70; z += 26) { VB.cube(M.plain, 7.5, 4.5, z, 0.3, 8.5, 0.3, 0x5a4632, 0, { cast: true }); VB.cube(M.plain, 7.5, 8.4, z, 2.4, 0.18, 0.18, 0x5a4632); }
+    [-0.9, 0, 0.9].forEach((dx) => bx(S, 0.03, 0.03, 260, 7.5 + dx, 8.55, -200, cmat(0x222222, 0.6), { noCast: 1 }));
+    /* more sheds: two deeper rows behind the avenue, with saw-tooth roofs */
+    [-1, 1].forEach((sd) => {
+      for (let z = -56; z < 60; z += 26) {
+        [44, 78].forEach((off, row) => {
+          const x = sd * (off + R2() * 6), w = 22 + R2() * 8, d = 20 + R2() * 4, h = 7 + R2() * 3 + row * 2;
+          VB.cube(M.plain, x, 0.25 + h / 2, z, w, h, d, [0xeef0f2, 0xe2e6ea, 0xd8dde2][(R2() * 3) | 0], 0, { cast: true });
+          for (let k = 0; k < 4; k++) VB.cube(M.plain, x, 0.25 + h + 0.7, z - d / 2 + d * (k + 0.5) / 4, w, 1.4, 1.2, 0xa8b0b8);
+          VB.cube(M.plain, x - sd * (w / 2 + 0.05), 1.4, z, 0.1, 0.8, d - 1, 0x2a6ab8);
+          if (R2() < 0.4) VB.cube(M.plain, x + w * 0.3, 0.25 + h + 4, z + d * 0.3, 1.2, 8, 1.2, 0xb04a3a);   /* chimney */
+        });
+      }
+    });
+    /* Kaesong's flats beyond the complex: slabs in pastel, rows of windows */
+    for (let i = 0; i < 22; i++) {
+      const x = (R2() < 0.5 ? -1 : 1) * (60 + R2() * 110), z = 110 + R2() * 90, w = 24 + R2() * 12, h = 14 + R2() * 22;
+      const col = [0xf0e6d0, 0xe6eef0, 0xf2dede, 0xe0ecd8][(R2() * 4) | 0];
+      VB.cube(M.plain, x, h / 2, z, w, h, 9, col, (R2() - 0.5) * 0.4);
+      for (let f = 3; f < h - 1; f += 3) VB.cube(M.plain, x, f, z - 4.55, w - 2, 1.1, 0.12, 0x5a7a9a);
+    }
+    VB.flush(S, "kaesongFill");
+    const VH = voxBatch();
+    voxHill(VH, -150, 150, 140, 90, 30, 911, { cube: 3.2 });
+    voxHill(VH, 160, 120, 120, 80, 26, 912, { cube: 3.2 });
+    voxHill(VH, -170, -120, 120, 140, 22, 913, { cube: 3.2 });
+    voxHill(VH, 170, -200, 120, 140, 24, 914, { cube: 3.2 });
+    VH.flush(S, "kaesongRidges");
   }
   function lmSubway(S, x, z, rot) {
     const G = new T.Group();
