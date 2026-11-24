@@ -9728,12 +9728,44 @@
     g.visible = false;
     return g;
   }
+  /* the loaded model arrives in the enemy's tan scheme: tint every hull mesh
+     (not the ROK gunner, not glass) to our olive, once per new mesh */
+  function allyHeliPaint(g) {
+    let n = 0; g.traverse((o) => { if (o.isMesh) n++; });
+    if (n === g.userData.painted) return;
+    g.userData.painted = n;
+    const rk = g.userData.rokGunner;
+    const skip = new Set(); if (rk) rk.traverse((o) => skip.add(o));
+    g.traverse((o) => {
+      if (!o.isMesh || skip.has(o) || !o.visible || o.userData.olive) return;
+      const m = Array.isArray(o.material) ? o.material[0] : o.material;
+      if (!m || !m.color || m.transparent) return;
+      const c = m.clone(); c.color = m.color.clone().multiply(new T.Color(0x8fa070).convertSRGBToLinear());
+      o.material = c; o.userData.olive = 1;
+    });
+  }
   function makeAllyHeli() {
     const h = makeHeliModel();
     const olive = cmat(0x5a6448, 0.7), star = cmat(0xf2f2ee, 0.6);
-    h.traverse((o) => { if (o.isMesh && o.material === SOL.camoP) o.material = olive; });
+    h.traverse((o) => { if (o.isMesh && o.material === SOL.camoP) { o.material = olive; o.userData.olive = 1; } });
     const sb = new T.Mesh(new T.BoxGeometry(0.02, 0.4, 0.4), star); sb.position.set(0.82, 0.1, 0.2); h.add(sb);
     const sb2 = sb.clone(); sb2.position.x = -0.82; h.add(sb2);
+    /* (v56) the code model carries an enemy door gunner: blank his meshes
+       and seat one of ours in his place */
+    const gn = h.userData.gunner;
+    if (gn && KCH.ready) {
+      h.updateMatrixWorld(true);
+      const hG = new T.Box3().setFromObject(gn).getSize(new T.Vector3()).y || 1;
+      gn.traverse((o) => { if (o.isMesh) o.visible = false; });
+      const rk = kenneyPerson("ally", { uni: "u-army" });
+      if (rk) {
+        rk.updateMatrixWorld(true);
+        const hR = new T.Box3().setFromObject(rk).getSize(new T.Vector3()).y || 1;
+        rk.scale.multiplyScalar(hG / (hR * (gn.scale.x || 1)));
+        gn.add(rk);
+        h.userData.rokGunner = rk;
+      }
+    } else if (gn) gn.visible = false;
     h.scale.setScalar(1.7);
     h.userData.ally = 1;
     return h;
@@ -9867,6 +9899,7 @@
         r.g.rotation.y = Math.atan2(tx, tz);
         r.g.rotation.x = 0.1; r.g.rotation.z = Math.sin(t * 0.8 + r.ph) * 0.05;
         if (r.g.userData.rotor) r.g.userData.rotor.rotation.y += dt * 30;
+        allyHeliPaint(r.g);
         return;
       }
       r.g.rotation.y = Math.atan2(tx, tz);
@@ -9896,7 +9929,7 @@
       if (boatRig) boatRig.visible = false;
       if (KCH.ready && !heliRig.userData.crew) {
         heliRig.userData.crew = 1;
-        const pk = seatSquad(heliRig, "park", 1.3, -1.3, -1.9, "stand"); if (pk) { pk.rotation.y = Math.PI - 0.9; if (pk.userData.rifle) pk.userData.rifle.visible = false; }
+        const pk = seatSquad(heliRig, "park", 1.6, -1.3, -0.7, "stand"); if (pk) { pk.rotation.y = Math.PI - 1.2; if (pk.userData.rifle) pk.userData.rifle.visible = false; }
         seatSquad(heliRig, "kim", -1.45, -1.3, -0.3, "stand");
       }
       chase = { t: 0, i: 0, plan: [2.0, 4.2, 6.4, 8.8, 11.0, 13.4, 15.6, 18.0, 20.4, 22.6], riders: [], heli: true, fx: [], sink: [], splashT: 9 };
@@ -15399,6 +15432,28 @@
      canopy over the top step and the green line sign — the one piece of a
      modern Korean street the old cities were missing */
   /* ---------------- (v55) Kaesong industrial complex ---------------- */
+  /* (v56) crisp signboards: a large canvas, never voxelized (ctex smooth),
+     anisotropic so the letters hold up at a slant */
+  const KFONT = '"Noto Sans CJK KR","Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic","Nanum Gothic",sans-serif';
+  function hiSign(key, text, sub, bg, fg, W, H) {
+    W = W || 1024; H = H || 220;
+    const t = ctex(key, W, H, (g, w, h) => {
+      g.fillStyle = bg; g.fillRect(0, 0, w, h);
+      g.strokeStyle = "rgba(0,0,0,.28)"; g.lineWidth = Math.max(6, h * 0.04); g.strokeRect(g.lineWidth / 2, g.lineWidth / 2, w - g.lineWidth, h - g.lineWidth);
+      g.fillStyle = fg; g.textAlign = "center"; g.textBaseline = "middle";
+      let fs = sub ? h * 0.46 : h * 0.6;
+      g.font = "900 " + fs + "px " + KFONT;
+      while (g.measureText(text).width > w * 0.9 && fs > 10) { fs -= 4; g.font = "900 " + fs + "px " + KFONT; }
+      g.fillText(text, w / 2, sub ? h * 0.4 : h * 0.53);
+      if (sub) {
+        let fs2 = h * 0.17; g.font = "700 " + fs2 + "px " + KFONT;
+        while (g.measureText(sub).width > w * 0.9 && fs2 > 8) { fs2 -= 2; g.font = "700 " + fs2 + "px " + KFONT; }
+        g.globalAlpha = 0.85; g.fillText(sub, w / 2, h * 0.79); g.globalAlpha = 1;
+      }
+    }, { smooth: true });
+    t.anisotropy = 8;
+    return t;
+  }
   /* chain-link fence with Y-arm posts and barbed wire, from (x0,z0) to (x1,z1) */
   function lmFence(S, x0, z0, x1, z1) {
     const len = Math.hypot(x1 - x0, z1 - z0), rot = Math.atan2(x1 - x0, z1 - z0);
@@ -15439,7 +15494,7 @@
     const conc = cmat(0xe2e0da, 0.9), glass = cmat(0x5a8ab0, 0.25, 0.3), red = cmat(0xd8282a, 0.6), white = cmat(0xf4f4f0, 0.6);
     [-10.6, 10.6].forEach((x) => { bx(S, 1.4, 5.2, 1.4, x, 2.9, z, conc, { wall: 1 }); bx(S, 1.7, 0.4, 1.7, x, 5.7, z, conc); });
     bx(S, 22.6, 1.4, 1.2, 0, 6.4, z, conc);
-    const sg = new T.Mesh(new T.PlaneGeometry(14, 1.1), new T.MeshStandardMaterial({ map: signTex("kgGate", "개성공업지구 출입사무소", "#1f4f8f", "#ffffff", "KAESONG INDUSTRIAL ZONE · CHECKPOINT"), roughness: 0.6 }));
+    const sg = new T.Mesh(new T.PlaneGeometry(14, 1.1), new T.MeshStandardMaterial({ map: hiSign("kgGateHi", "개성공업지구 출입사무소", "KAESONG INDUSTRIAL ZONE · CHECKPOINT", "#1f4f8f", "#ffffff", 1400, 110), roughness: 0.6 }));
     sg.position.set(0, 6.4, z - 0.62); sg.rotation.y = Math.PI; sg.userData.noBlock = 1; S.add(sg);
     const sg2 = sg.clone(); sg2.position.z = z + 0.62; sg2.rotation.y = 0; S.add(sg2);
     /* booth */
@@ -15465,23 +15520,34 @@
     bx(S, 12, 0.4, 4, x, 4.2, z - 2, trim); [-5.6, 5.6].forEach((dx) => bx(S, 0.5, 3.9, 0.5, x + dx, 2.25, z - 3.8, trim));
     bx(S, 10, 3.4, 0.2, x, 2.0, z - 0.12, glass, { noCast: 1 });
     /* the signboard */
-    const tx = ctex("kgSign", 1024, 300, (g, w, h) => {
-      g.fillStyle = "#f6f5f0"; g.fillRect(0, 0, w, h);
-      g.strokeStyle = "#c8c6c0"; g.lineWidth = 8; g.strokeRect(4, 4, w - 8, h - 8);
+    /* (v56) 2048 px, never voxelized: the letters were being blocked into
+       mush by the pixel filter at 1024 */
+    const tx = ctex("kgSignHi", 2048, 600, (g, w, h) => {
+      const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, "#ffffff"); gr.addColorStop(1, "#e8eaec");
+      g.fillStyle = gr; g.fillRect(0, 0, w, h);
+      g.strokeStyle = "#9aa4ae"; g.lineWidth = 16; g.strokeRect(8, 8, w - 16, h - 16);
       /* a blue flower of eight petals */
-      const cx = 150, cy = h / 2;
-      g.fillStyle = "#2a6ab8";
-      for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2; g.beginPath(); g.ellipse(cx + Math.cos(a) * 52, cy + Math.sin(a) * 52, 40, 22, a, 0, Math.PI * 2); g.fill(); }
-      g.fillStyle = "#7fd4e8"; g.beginPath(); g.arc(cx, cy, 26, 0, Math.PI * 2); g.fill();
-      g.fillStyle = "#1f3f78"; g.textAlign = "left"; g.textBaseline = "middle";
-      g.font = '900 120px "Noto Sans CJK KR","Noto Sans KR","Malgun Gothic","Apple SD Gothic Neo",sans-serif';
-      g.fillText("개 성 공 단", 280, h * 0.4);
-      g.font = '700 46px "Noto Sans CJK KR","Malgun Gothic",sans-serif';
-      g.fillText("Kaesong Industrial Complex", 284, h * 0.78);
-    });
-    const sg = new T.Mesh(new T.PlaneGeometry(26, 7.6), new T.MeshStandardMaterial({ map: tx, roughness: 0.7 }));
-    sg.position.set(x - 6, H - 3.2, z - 0.25); sg.rotation.y = Math.PI; sg.userData.noBlock = 1; S.add(sg);
-    makeFlagPlane(S, "kr", x + 14, H + 4.4, z + 3, 3.0, 2.0, Math.PI, true);
+      const cx = 300, cy = h / 2;
+      for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * Math.PI * 2;
+        g.fillStyle = i % 2 ? "#2a6ab8" : "#1f5aa8";
+        g.beginPath(); g.ellipse(cx + Math.cos(a) * 108, cy + Math.sin(a) * 108, 86, 46, a, 0, Math.PI * 2); g.fill();
+      }
+      g.fillStyle = "#8fdcf0"; g.beginPath(); g.arc(cx, cy, 54, 0, Math.PI * 2); g.fill();
+      g.fillStyle = "#ffffff"; g.beginPath(); g.arc(cx - 14, cy - 14, 16, 0, Math.PI * 2); g.fill();
+      g.textAlign = "left"; g.textBaseline = "middle";
+      g.font = "900 250px " + KFONT;
+      g.lineJoin = "round"; g.lineWidth = 14; g.strokeStyle = "#ffffff"; g.strokeText("개 성 공 단", 560, h * 0.4);
+      g.fillStyle = "#16386e"; g.fillText("개 성 공 단", 560, h * 0.4);
+      g.font = "800 92px " + KFONT;
+      g.fillStyle = "#1f4f8f"; g.fillText("Kaesong Industrial Complex", 566, h * 0.8);
+    }, { smooth: true });
+    tx.anisotropy = 8;
+    bx(S, 27, 8.4, 0.4, x - 6, H - 3.2, z - 0.1, trim);
+    const sg = new T.Mesh(new T.PlaneGeometry(26, 7.6), new T.MeshStandardMaterial({ map: tx, roughness: 0.55, emissive: 0xffffff, emissiveIntensity: 0.12, emissiveMap: tx }));
+    sg.position.set(x - 6, H - 3.2, z - 0.32); sg.rotation.y = Math.PI; sg.userData.noBlock = 1; S.add(sg);
+    /* the complex is in northern hands when we come in: their flag flies */
+    makeFlagPlane(S, "kp", x + 14, H + 4.4, z + 3, 3.0, 2.0, Math.PI, true);
     const pole = new T.Mesh(new T.CylinderGeometry(0.08, 0.09, 4.6, 6), SOL.poleGray); pole.position.set(x + 15.6, H + 2.6, z + 3); S.add(pole);
   }
   /* the approach: paddies, a farm road, tree lines and the fence line of
@@ -15943,7 +16009,7 @@
           bx(S, 0.12, 0.7, zb - za - 0.4, fx, 1.3, (za + zb) / 2, cmat(0x2a6ab8, 0.5), { noCast: 1 });
           const FIRMS = [["한빛섬유", "HANBIT TEXTILE"], ["새길전자", "SAEGIL ELECTRONICS"], ["푸른식품", "PUREUN FOODS"], ["대동정밀", "DAEDONG PRECISION"], ["누리의류", "NURI APPAREL"], ["다온화학", "DAON CHEMICAL"]];
           const fm = FIRMS[(R() * FIRMS.length) | 0];
-          const sg = new T.Mesh(new T.PlaneGeometry(Math.min(9, zb - za - 2), 1.6), new T.MeshStandardMaterial({ map: signTex("firm" + fm[0], fm[0], "#f4f6f8", "#1f4f8f", fm[1]), roughness: 0.6 }));
+          const sg = new T.Mesh(new T.PlaneGeometry(Math.min(9, zb - za - 2), 1.6), new T.MeshStandardMaterial({ map: hiSign("firmHi" + fm[0], fm[0], fm[1], "#f4f6f8", "#1f4f8f", 900, 160), roughness: 0.6 }));
           sg.position.set(fx + (side < 0 ? 0.02 : -0.02), hh - 1.2, (za + zb) / 2); sg.rotation.y = ry; sg.userData.noBlock = 1; S.add(sg);
         }
         return;
