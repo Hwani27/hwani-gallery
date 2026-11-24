@@ -64,7 +64,7 @@
   /* (v51) rewarded ads: one revive per stage and one supply doubler per stage.
      adReviveUsed is what stops an endless string of revives; pending flags keep
      a double tap from opening two ads at once */
-  let adReviveUsed = false, adRevivePending = false, adSupplyUsed = false, adSupplyPending = false;
+  let adReviveUsed = false, adRevivePending = false, adSupplyUsed = false, adSupplyPending = false, adSupplyOffered = false;
   let resumePhase = "fight", endedAt = 0;
   let DIFF = { dmg: 1, aim: 1, lives: 3, boss: 1, xp: 1 }, PERK = { hp: 100, nades: 0, reload: 1, lives: 0 }, diffKey = "normal";
   /* (v26) pistol finishes bought at the supply depot */
@@ -7131,7 +7131,7 @@
     let vehU = -1;
     if (STAGE.chase && STAGE.chase !== "heli") {
       vehU = holdUs && holdUs.length ? holdUs[0] : 0;
-      if (STAGE.chase === "boat") { vehU = 1; for (let i = 0; i <= 200; i++) if (curve.getPointAt(i / 200).z > -69) { vehU = i / 200; break; } }
+      if (STAGE.chase === "boat") { vehU = 1; const zEnd = STAGE.raft ? -76 : -69; for (let i = 0; i <= 200; i++) if (curve.getPointAt(i / 200).z > zEnd) { vehU = i / 200; break; } }
     }
     const free = new Uint8Array((N + 1) * STEER_K);
     for (let i = 0; i <= N; i++) {
@@ -8694,7 +8694,7 @@
     { const sh = document.getElementById("railShield"); if (sh) sh.remove(); const pm = document.getElementById("railPauseMenu"); if (pm) pm.remove(); }
     clock = CLOCK0; bullets = 20; hp = HPMAX; lives = LIVES0; continues = 0; contOpen = false;
     /* (v51) every stage starts with its ad slots unused */
-    adReviveUsed = false; adRevivePending = false; adSupplyUsed = false; adSupplyPending = false;
+    adReviveUsed = false; adRevivePending = false; adSupplyUsed = false; adSupplyPending = false; adSupplyOffered = false;
     resumePhase = "fight"; endedAt = 0; closeSupplyAd();
     grenades = 2 + (PERK.nades || 0); holding = false;
     if (LOAD) {
@@ -9721,7 +9721,7 @@
     return g;
   }
   /* (v58) the rubber assault boat: black tubes round a grey floor, a
-     rounded bow, Kim paddling at the left front and Park at the right */
+     rounded bow and an outboard motor */
   let raftRig = null;
   function makeRaftRig() {
     const g = new T.Group();
@@ -9730,7 +9730,8 @@
     [-1, 1].forEach((sd) => { B(0.5, 0.5, 3.6, sd * 1.05, -1.25, -1.2, tube); B(0.52, 0.06, 3.6, sd * 1.05, -0.99, -1.2, tubeD); for (let k = 0; k < 4; k++) B(0.06, 0.04, 0.6, sd * 1.28, -1.1, -2.6 + k * 0.9, cmat(0x9aa0a4, 0.6)); });
     B(1.7, 0.5, 0.5, 0, -1.25, -3.05, tube, 0); B(1.1, 0.48, 0.5, -0.62, -1.25, -2.85, tube, 0.6); B(1.1, 0.48, 0.5, 0.62, -1.25, -2.85, tube, -0.6);
     B(1.7, 0.06, 3.4, 0, -1.45, -1.2, floor);
-    B(0.4, 0.12, 0.12, -0.7, -0.9, -2.0, wood).rotation.z = 0.8;
+    /* an outboard on the transom behind the lens (seen only on a steep look) */
+    B(0.5, 0.9, 0.6, 0, -0.9, 0.9, cmat(0x2a2e32, 0.6)); B(0.2, 0.9, 0.2, 0, -1.6, 1.05, cmat(0x2a2e32, 0.6)); void wood;
     g.visible = false;
     return g;
   }
@@ -9946,7 +9947,7 @@
       if (r.boat) { const fan = Math.max(0, Math.min(1, (pt.z + 104) / 24)); r.latNow = r.lat + (Math.sign(r.lat) * 5.5 - r.lat) * fan; }
       const L = r.latNow != null ? r.latNow : r.lat;
       let x = pt.x + tz * L, z = pt.z - tx * L;
-      if (r.boat && z > -67) { r.stop = true; return; }
+      if (r.boat && z > (STAGE.raft ? -77 : -67)) { r.stop = true; return; }
       r.lastT = [tx, tz];
       r.g.position.set(x, r.boat ? 0.12 + Math.sin(t * 1.6 + r.ph) * 0.08 : 0, z);
       if (r.heli) {
@@ -10072,7 +10073,7 @@
     if (chase.boat) {
       /* boats stay on the water: never spawn past the shoreline */
       const here = pathAt(pathU);
-      ahead = Math.min(36, -74 - here.z);
+      ahead = Math.min(36, (STAGE.raft ? -80 : -74) - here.z);
       if (ahead < 12) return null;
     }
     const u = Math.min(1, pathU + ahead / pathLen);
@@ -10106,7 +10107,7 @@
   function stepChase(ctx, dt) {
     if (!chase) return;
     chase.t += dt;
-    if (chase.boat && ctx.camera.position.z > -69) { endChase(ctx); return; }
+    if (chase.boat && ctx.camera.position.z > (STAGE.raft ? -76 : -69)) { endChase(ctx); return; }   /* (v59) the raft's bow stops short of the river steps */
     while (chase.i < chase.plan.length && chase.t >= chase.plan[chase.i]) {
       const k = chase.i++;
       const side = k % 2 ? 1 : -1;
@@ -10615,13 +10616,17 @@
     if (el) el.remove();
   }
   function canOfferSupplyAd() {
-    if (adSupplyUsed || !window.MGAds || !window.MGAds.available()) return false;
+    /* (v59) one offer per mission, and only from the middle on: every
+       supply crate used to raise the card (Kaesong had a dozen) */
+    if (adSupplyUsed || adSupplyOffered || !window.MGAds || !window.MGAds.available()) return false;
     if (ended || contOpen || pauseOpen || finishing || STORY.on) return false;
-    return phase === "fight" || phase === "boss";
+    if (phase !== "fight") return false;
+    return waveI >= Math.max(2, Math.floor(waves.length / 2) - 1);
   }
   function offerSupplyAd(ctx) {
     if (!canOfferSupplyAd()) return;
     closeSupplyAd();
+    adSupplyOffered = true;
     const ko = (document.documentElement.lang || "").startsWith("ko");
     const el = document.createElement("div");
     el.id = "railAdOffer";
@@ -13167,7 +13172,7 @@
     hurt: [["kang", "부상당했나? 엄호한다, 버텨!", "Are you hit? I'll cover you — hang on!"], ["kim", "괜찮으세요?! 제가 막을게요!", "Are you okay?! I'll hold them!"]],
     chaseJeep: [["kim", "꽉 잡으세요! 밟습니다!", "Hold on! Flooring it!"]],
     chaseBoat: [["kim", "우욱… 해안까지 얼마나 남았죠…", "Urgh… how far to the beach…"]],
-    chaseRaft: [["kim", "저 수영 못 하는 거 아시죠…?! 노 젓습니다!", "You know I can't swim…! Paddling!"], ["park", "고개 숙여! 다리 위에서 쏜다!", "Heads down! They're firing off the bridge!"]],
+    chaseRaft: [["kim", "저 수영 못 하는 거 아시죠…?! 엔진 최대로 갑니다!", "You know I can't swim…! Full throttle!"], ["park", "고개 숙여! 다리 위에서 쏜다!", "Heads down! They're firing off the bridge!"]],
     chaseHeli: [["park", "도어건 쏜다! 지상 사격 조심해!", "Door gun's hot! Watch the ground fire!"], ["kim", "저, 저 아래 전부 적입니다!", "Th-that's all enemy down there!"]]
   };
   let barkT = 0, barkHide = 0, barkHurt = false;
@@ -15591,7 +15596,10 @@
     VB.flush(S, "hanBanks");
     /* the north bank's stepped concrete revetment where the boats land */
     const conc = cmat(0xb8b4ac, 0.9);
-    for (let k = 0; k < 4; k++) bx(S, 2 * HAN_BANK, 0.5, 1.2, 0, 0.1 + k * 0.5, -70.8 + k * 1.2, conc, { noCast: 1 });
+    /* (v59) a low quay, three shallow steps up to street level: the old 2 m
+       stair block stood in the walking line and the camera passed through it */
+    for (let k = 0; k < 3; k++) bx(S, 2 * HAN_BANK, 0.12 + k * 0.1, 1.4, 0, 0.06 + k * 0.05, -74.6 + k * 1.4, conc, { noCast: 1 });
+    bx(S, 2 * HAN_BANK, 0.3, 2.4, 0, 0.12, -71.2, conc, { noCast: 1 });
   }
   /* a bridge across the river at z: steel arches over the deck, or one with
      its middle span dropped into the water */

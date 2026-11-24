@@ -77,10 +77,10 @@
     14: { ep: 8, ko: "한강 도하", en: "CROSSING THE HAN", when: "상륙 일주일 뒤 · 한강 남단", whenEn: "A WEEK AFTER THE LANDING · SOUTH BANK OF THE HAN", lines: [
       L("hq", "한강 다리는 전부 끊겼다. 고무보트로 도하해 북단 교두보를 확보하라.", "Every bridge over the Han is down. Cross in rubber boats and take the north bank."),
       L("kim", "저… 수영 못 하는데요.", "Um… I can't swim."),
-      L("park", "구명조끼 꽉 매. 그리고 노 저어. 빠지면 내가 건진다.", "Strap that life vest tight and paddle. If you go in, I'll fish you out."),
+      L("park", "구명조끼 꽉 매. 엔진 소리 크다, 고개 숙이고 있어. 빠지면 내가 건진다.", "Strap that life vest tight. The engine is loud — keep your head down. If you go in, I'll fish you out."),
       L("cha", "한강을 헤엄쳐 오겠다고? 강물이 너희 무덤이 될 거다.", "You'd swim the Han? The river will be your grave."),
       L("kang", "서울이 바로 저기다. 약속 지키러 가자. 다리 위 사수부터 정리한다.", "Seoul is right there. Let's go keep that promise. Clear the gunners on the bridges first."),
-      L("me", "노 잡겠습니다. 엄호는 맡겨 주십시오.", "I've got a paddle. Leave the covering fire to me.")
+      L("me", "엔진 최대로! 엄호는 제가 맡겠습니다.", "Full throttle! I've got the covering fire.")
     ] },
     1: { ep: 9, ko: "서울 수복", en: "RETAKE SEOUL", when: "상륙 열흘 뒤 · 서울", whenEn: "TEN DAYS AFTER THE LANDING · SEOUL", lines: [
       L("kim", "서울이다… 진짜 돌아왔어요.", "It's Seoul… we really came back."),
