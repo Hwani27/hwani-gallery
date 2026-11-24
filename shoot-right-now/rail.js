@@ -6855,6 +6855,37 @@
       introLines: [{ t: 0.4, text: "개성공업지구 탈환 작전. 헬기 강습으로 진입한다!" }, { t: 2.4, text: "정문 앞 착륙 지점까지 지상 사격을 버텨라!" }],
       bossRadio: "관리위원회 건물 앞에 적 경비사령관! 경호원부터 쓰러뜨려라!"
     },
+    /* (v62) 2-4 SUWON HWASEONG: south from Seoul to meet the forces coming
+       up from the Nakdong. A jeep run outside the north wall with gunners
+       behind the parapet, in through Janganmun's half-moon wall, then the
+       old town on foot to Paldalmun */
+    16: {
+      id: 16, refugees: true, music: "heritage", label: "STAGE 2-4", clock: 420,
+      path: cityPath([[0, -236], [1, -222], [2, -206], [2, -190], [1, -174], [0, -158], [-1, -142], [-1.2, -126], [-0.6, -112], [0, -100], [0, -90], [0, -80], [0, -72]]),
+      boss: cityBoss(), chase: "jeep",
+      walls: [
+        { z: -196, msg: "성벽 위에 적! 여장 뒤를 노려라!", men: [[19.3, -200, 5.45], [19.3, -193, 5.45], [19.3, -186, 5.45, 1]] },
+        { z: -160, msg: "공심돈에서 쏜다! 위를 봐!", men: [[19.3, -164, 5.45], [26, -168, 12.0, 1], [19.3, -152, 5.45]] },
+        { z: -122, msg: "치성 위에 적 기관총!", men: [[15.8, -116, 5.45, 1], [19.3, -126, 5.45], [19.3, -108, 5.45]] },
+        { z: -100, msg: "장안문 문루에 적! 옹성 위도 조심!", men: [[-6, -89, 7.1], [-2, -89, 7.1, 1], [3, -89, 7.1], [7, -89, 7.1], [-11, -99, 5.45], [11, -99, 5.45]] }
+      ],
+      waves: genWaves(1616, ["HAENGGUNG", "HWASEONG-RO", "PALDALMUN"], [
+        "장안문 돌파! 하차, 행궁 방면으로 진격하라!", "골목으로 적 오토바이!", "적 헬기 출현! 처마 아래로 엄폐!",
+        "주민 대피 중, 오사 주의!", "적 증원, 봉돈 방면!", "적 헬기 재접근!", "적 공수 강하! 팔달문 앞 광장을 지켜라!"], { bikes: true, hostage: true }),
+      dress: "citygen", bossKind: "apc", bossTank: true, bossHp: 84, armorWave: 4, armorTank: false, armorHp: 14,
+      city: {
+        seed: 16, mood: "morning", suwon: true, paved: true, hanok: true, low: true, tints: [0xeee6d6, 0xe8e2d4, 0xd4ccbc],
+        sign: [12.4, -44, "수원", "SUWON", -Math.PI / 2, "#8a4a2a"],
+        cars: [["truck", -7.8, -16, 0.08]],
+        banners: [[-12.2, -8, "수원 화성", "#8a4a2a", 9], [12.2, 18, "남북 연결", "#2a4aa8"], [-12.2, 36, "팔달문", "#2a6a3a", 8]],
+        hills: [[0, 200, 260, 60, 30], [-90, 150, 90, 60, 26], [90, 140, 80, 60, 30]],
+        landmarks: [["hwGate", 0, 104, "八達門", { flag: "kp", wings: 36 }], ["hwBongdon", 34, 74], ["hwPav", -32, 40, 11, 6, true], ["hwPav", 34, 0, 6, 5, false], ["hwPav", -36, -30, 7, 5, false],
+          ["fire", -17, 0.4, 24, 1.2], ["fire", 16, 0.4, 48, 1.1]]
+      },
+      introDur: 5.0, introCam: [[-30, 24, -268, 8, 4, -150], [0, 1.68, -236, 0, 1.55, -222]],
+      introLines: [{ t: 0.4, text: "서울 수복. 남쪽에서 올라오는 아군과 수원에서 만난다!" }, { t: 2.4, text: "화성 성곽을 따라 달려 장안문을 돌파하라!" }],
+      bossRadio: "팔달문 앞에 적 전차! 흡기구를 노리거나 수류탄!"
+    },
     1: {
       id: 1, music: "seoul", label: "STAGE 2-3", clock: 360, path: PATH1, waves: WAVES1, boss: BOSS1,
       dress: "city", bossKind: "man",
@@ -9788,7 +9819,8 @@
   let trainRig = null;
   function makeTrainRig() {
     const g = new T.Group();
-    const wood = cmat(0x6a5a44, 0.85), dark = cmat(0x2c3226, 0.8), sand = cmat(0x8a7a56, 0.9), steel = cmat(0x5a5e62, 0.5, 0.5);
+    makeSol();
+    const wood = SOL.wood, dark = cmat(0x2c3226, 0.8), sand = SOL.sand || cmat(0x8a7a56, 0.9), steel = cmat(0x5a5e62, 0.5, 0.5);
     const B = (w, h, d, x, y, z, m) => { const o = new T.Mesh(worldUV(new T.BoxGeometry(w, h, d)), m); o.position.set(x, y, z); g.add(o); return o; };
     B(2.9, 0.25, 9, 0, -1.33, -1.5, wood);
     for (let k = 0; k < 9; k++) B(2.88, 0.02, 0.06, 0, -1.2, -5.6 + k * 1.0, dark);
@@ -10120,8 +10152,10 @@
     }
     if (boat && !STAGE.raft && boatRig && !boatRig.userData.kim && KCH.ready) boatRig.userData.kim = seatSquad(boatRig, "kim", -1.0, -1.5, -3.15, "stand");
     try { addAllyRides(ctx, boat); } catch (e) { window.__allyRideErr = String(e); }
-    bark(boat ? (STAGE.raft ? "chaseRaft" : "chaseBoat") : "chaseJeep", 4200);
+    bark(boat ? (STAGE.raft ? "chaseRaft" : "chaseBoat") : (STAGE.walls ? "chaseWall" : "chaseJeep"), 4200);
     chase = { t: 0, i: 0, plan: [1.4, 3.0, 5.2, 7.0, 9.2, 11.4, 13.0, 15.2], riders: [], boat: boat, fx: [], sink: [], splashT: 0.6 };
+    /* (v62) gunners on the fortress wall beside the road */
+    if (!boat && STAGE.walls) chase.bridges = STAGE.walls.map((w) => Object.assign({ done: false }, w));
     if (boat) {
       if (dress && dress.ally) dress.ally.visible = false;
       if (STAGE.raft) {
@@ -10284,6 +10318,20 @@
       /* (v58) a section on each bridge deck, firing down at the boats */
       if (B.done || cam.position.z < B.z - 44) return;
       B.done = true;
+      if (B.men) {
+        B.men.forEach(([x, z, gy, tough], k) => {
+          const p = makePost({ yaw: 0, hold: { x: x, z: z - 1.4 } }, { role: tough ? "tough" : "weak", lat: 0, dep: 2, cover: "rail" }, 140 + k + ((-B.z) & 15));
+          p.run = null; p.live = true; p.state = "chase"; p.expose = 1; p.coverTop = undefined;
+          const amin = Math.max(-2, Math.abs(x - cam.position.x) * 1.3);
+          /* (v62) only fire while still on a portrait screen: off to the side
+             and close, a wall gunner would be shooting from outside the frame */
+          p.chase = { ahead: z - cam.position.z, lat: 0, ph: Math.random() * 6, speed: 0, ground: true, gx: x, gz: z, gy: gy, armMin: amin, armMax: Math.max(30, amin + 18) };
+          p.aimMax = 1.9 * (DIFF.aim || 1); p.aim = p.aimMax * (0.7 + Math.random() * 0.6);
+          chase.riders.push(p);
+        });
+        if (B.msg) radio(B.msg, 2000);
+        return;
+      }
       ((B.z === -128) ? [-21, -16, 16, 21] : [-9, -4.5, 5, 10]).forEach((x, k) => {
         const p = makePost({ yaw: 0, hold: { x: x, z: B.z - 6 } }, { role: k === 2 ? "tough" : "weak", lat: 0, dep: 2, cover: "rail" }, 120 + k + (B.z & 7));
         p.run = null; p.live = true; p.state = "chase"; p.expose = 1; p.coverTop = undefined;
@@ -10311,7 +10359,7 @@
         posePost(p, cam.position, dt);
         p.mesh.rotation.y = Math.atan2(cam.position.x - p.x, cam.position.z - p.z);
         p.visTop = p.y + 1.9;
-        const armedG = c.ahead < 30 && c.ahead > -2 && p.aim < 90;
+        const armedG = c.ahead < (c.armMax || 30) && c.ahead > (c.armMin != null ? c.armMin : -2) && p.aim < 90;
         if (armedG) { p.aim -= dt * seenK(p); if (p.aim <= 0) { enemyFire(ctx, p, p.role === "tough" ? 10 : 7); p.aim = p.aimMax * (1.3 + Math.random()); } }
         placeTag(p, ctx, armedG ? Math.max(0, Math.min(1, 1 - p.aim / p.aimMax)) : 0, armedG);
         if (c.ahead < -10) { tagOff(p); p.live = false; p.e.alive = false; p.escaped = true; if (p.mesh && p.mesh.parent) p.mesh.parent.remove(p.mesh); }
@@ -10424,6 +10472,8 @@
       /* the jeep pulls over onto the verge, out of the walking line */
       const tt = r.lastT || [0, 1], side = Math.sign(r.lat || 1);
       r.park = { x: r.g.position.x + tt[1] * side * 4.2, z: r.g.position.z - tt[0] * side * 4.2 };
+      /* (v62) in Suwon's old town the street is the fight: right up to the kerb */
+      if (STAGE.walls) r.park = { x: 8.6, z: r.g.position.z + 3 };
     });
     chase = null;
     if (jeepRig) jeepRig.visible = false;
@@ -10435,6 +10485,7 @@
     if (STAGE.chase === "train") radio("흥남역 도착! 하차, 역 광장을 확보하라!", 3200);
     else if (STAGE.raft) radio("도하 성공! 호안 계단으로 올라가 교두보를 확보하라!", 3200);
     else if (STAGE.chase === "heli") radio("착륙! 전원 하기, 개성공단 정문을 확보하라!", 3200);
+    else if (STAGE.walls) radio("장안문 돌파! 하차, 행궁 방면으로 진격하라!", 3200);
     else if (wasBoat) radio("램프 개방! 상륙, 상륙! 해안 교두보를 확보하라!", 3200);
     else radio(down >= 6 ? "추격대 전멸! 하차, 압록강 초소로 진입한다!" : "하차! 압록강 국경 초소로 진입한다!", 3000);
   }
@@ -10906,7 +10957,7 @@
     try { shot = window.MG && window.MG.snap ? window.MG.snap(1280) : null; } catch (e) {}
     const ko = (document.documentElement.lang || "").startsWith("ko");
     /* (v21) the campaign runs in war order, not in id order */
-    const ORD = [6, 7, 8, 9, 10, 11, 12, 14, 1, 2, 3, 13, 4, 15, 5];
+    const ORD = [6, 7, 8, 9, 10, 11, 12, 14, 1, 16, 2, 3, 13, 4, 15, 5];
     const NM = { 1: ["서울 수복", "RETAKE SEOUL"], 2: ["DMZ·판문점", "DMZ & PANMUNJOM"], 3: ["평화의 집", "PEACE HOUSE"], 4: ["평양 진입", "INTO PYONGYANG"], 5: ["압록강·백두산", "YALU & PAEKTU"],
       6: ["서울 함락", "FALL OF SEOUL"], 7: ["대전", "DAEJEON"], 8: ["대구", "DAEGU"], 9: ["광주", "GWANGJU"], 10: ["경주", "GYEONGJU"], 11: ["부산", "BUSAN"], 12: ["인천 상륙작전", "INCHEON LANDING"] };
     const oi = ORD.indexOf(stageId);
@@ -10917,7 +10968,7 @@
     const adB = (!cleared && canOfferReviveAd()) ? "<button class=ad data-act=adrev type=button>🎬 <b>" + (ko ? "광고 보고 이어하기" : "WATCH AD TO CONTINUE") + "</b></button>" : "";
     const head = cleared
       ? ({ 6: ko ? "철수 성공 · 시민 대피 완료" : "WITHDRAWAL COMPLETE", 7: ko ? "지연전 성공 · 대전" : "DAEJEON HELD", 8: ko ? "방어 성공 · 대구" : "DAEGU HELD", 9: ko ? "방어 성공 · 광주" : "GWANGJU HELD",
-          10: ko ? "방어 성공 · 경주" : "GYEONGJU HELD", 11: ko ? "최후 방어선 사수 · 부산" : "THE PERIMETER HOLDS", 12: ko ? "상륙 성공 · 인천 탈환" : "INCHEON RETAKEN", 13: ko ? "개성공단 탈환 · 관리위원회 확보" : "KAESONG RETAKEN", 14: ko ? "한강 도하 성공 · 용산 진입" : "THE HAN IS CROSSED", 15: ko ? "흥남 확보 · 부두 장악" : "HEUNGNAM SECURED" }[stageId]) || (stageId === 2 ? (ko ? "작전 성공 · JSA 확보" : "MISSION CLEAR · JSA SECURED") : stageId === 3 ? (ko ? "작전 성공 · 판문각 확보" : "MISSION CLEAR · PANMUNGAK SECURED") : stageId === 4 ? (ko ? "작전 성공 · 평양 광장 확보" : "MISSION CLEAR · SQUARE SECURED") : stageId === 5 ? (ko ? "최종 작전 성공 · 총사령관 제압" : "FINAL MISSION · LEADER DOWN")  : (ko ? "서울 수복 · 숭례문 탈환" : "SEOUL RETAKEN"))
+          10: ko ? "방어 성공 · 경주" : "GYEONGJU HELD", 11: ko ? "최후 방어선 사수 · 부산" : "THE PERIMETER HOLDS", 12: ko ? "상륙 성공 · 인천 탈환" : "INCHEON RETAKEN", 13: ko ? "개성공단 탈환 · 관리위원회 확보" : "KAESONG RETAKEN", 14: ko ? "한강 도하 성공 · 용산 진입" : "THE HAN IS CROSSED", 15: ko ? "흥남 확보 · 부두 장악" : "HEUNGNAM SECURED", 16: ko ? "수원 화성 탈환 · 남북 연결" : "HWASEONG RETAKEN · LINK-UP" }[stageId]) || (stageId === 2 ? (ko ? "작전 성공 · JSA 확보" : "MISSION CLEAR · JSA SECURED") : stageId === 3 ? (ko ? "작전 성공 · 판문각 확보" : "MISSION CLEAR · PANMUNGAK SECURED") : stageId === 4 ? (ko ? "작전 성공 · 평양 광장 확보" : "MISSION CLEAR · SQUARE SECURED") : stageId === 5 ? (ko ? "최종 작전 성공 · 총사령관 제압" : "FINAL MISSION · LEADER DOWN")  : (ko ? "서울 수복 · 숭례문 탈환" : "SEOUL RETAKEN"))
       : (ko ? "작전 실패" : "MISSION FAILED");
     const box = document.createElement("div");
     box.id = "railResult";
@@ -13337,6 +13388,7 @@
     boss: [["kang", "적 지휘부다! 전원 집중 사격!", "That's their command! Everyone, focus fire!"], ["park", "큰 놈 나왔다. 수류탄 아끼지 마!", "Here's the big one. Don't save your grenades!"]],
     hurt: [["kang", "부상당했나? 엄호한다, 버텨!", "Are you hit? I'll cover you — hang on!"], ["kim", "괜찮으세요?! 제가 막을게요!", "Are you okay?! I'll hold them!"]],
     chaseJeep: [["kim", "꽉 잡으세요! 밟습니다!", "Hold on! Flooring it!"]],
+    chaseWall: [["kim", "성벽에서 쏴요! 수학여행 때 걷던 길인데!", "They're shooting off the wall! I walked that on a school trip!"], ["park", "여장 틈으로 머리 내밀 때를 노려!", "Wait for heads between the crenels!"]],
     chaseBoat: [["kim", "우욱… 해안까지 얼마나 남았죠…", "Urgh… how far to the beach…"]],
     chaseTrain: [["park", "옆 열차 화차 문 열린다! 안에서 쏜다!", "Box-car doors opening! They'll fire from inside!"], ["kim", "기차 위에서 싸우는 건 영화에서만 봤는데요!", "I've only seen fights on a train in movies!"]],
     chaseRaft: [["kim", "저 수영 못 하는 거 아시죠…?! 엔진 최대로 갑니다!", "You know I can't swim…! Full throttle!"], ["park", "고개 숙여! 다리 위에서 쏜다!", "Heads down! They're firing off the bridge!"]],
@@ -15723,10 +15775,137 @@
   /* ---------------- (v55) Kaesong industrial complex ---------------- */
   /* ---------------- (v60) the Heungnam line ---------------- */
   const HN_TRACKS = [-7, 0, 7, 14];
+  /* (v62) Heungnam texture pass: the line was flat colour — painted plank
+     sides with steel ribs on the box cars, riveted panels on the engines and
+     tank cars, gravel ballast, dry dusk grass, a stucco station front with
+     arched windows, concrete platform slabs with the yellow edge, corrugated
+     canopies and stencilled car numbers */
+  let HNM = null;
+  function hnMats() {
+    if (HNM) return HNM;
+    makeSol();
+    const BM = (key, gain) => bumpTex(key, TXCV[key], { gain: gain });
+    const L = (tex, o) => new T.MeshStandardMaterial(Object.assign({ map: tex, envMapIntensity: 0.18 }, o || {}));
+    const spots = (g, R, w, h, n, cols, s0, s1) => { for (let i = 0; i < n; i++) { g.fillStyle = cols[(R() * cols.length) | 0]; const s = s0 + R() * (s1 - s0); g.fillRect(R() * w, R() * h, s, s); } };
+    /* vertical boards, a steel post every half tile with rivets, rust */
+    const plank = ctex("hnPlank", 256, 256, (g, w, h) => {
+      const R = rng(1561);
+      for (let b = 0; b < 8; b++) {
+        g.fillStyle = shade("#d8d2c6", 0.86 + R() * 0.2); g.fillRect(b * 32, 0, 32, h);
+        for (let i = 0; i < 6; i++) { g.globalAlpha = 0.18; g.fillStyle = R() < 0.5 ? "#8a8070" : "#f0eadc"; g.fillRect(b * 32 + 4 + R() * 24, 0, 2, h); }
+        g.globalAlpha = 1; g.fillStyle = "#3a342c"; g.fillRect(b * 32, 0, 3, h);
+      }
+      [0, 128].forEach((x) => { g.fillStyle = "#4a4640"; g.fillRect(x + 56, 0, 16, h); g.fillStyle = "#6a6660"; g.fillRect(x + 58, 0, 4, h); for (let y = 8; y < h; y += 32) { g.fillStyle = "#2a2824"; g.fillRect(x + 60, y, 8, 8); } });
+      g.globalAlpha = 0.5; spots(g, R, w, h, 70, ["#7a4a2a", "#5a3a22", "#8a5a34"], 3, 10); g.globalAlpha = 1;
+      for (let i = 0; i < 10; i++) { g.globalAlpha = 0.25; g.fillStyle = "#6a3e22"; g.fillRect(R() * w, R() * h * 0.5, 4, 40 + R() * 80); } g.globalAlpha = 1;
+    });
+    /* riveted steel panels with grime streaks */
+    const panel = ctex("hnPanel", 256, 256, (g, w, h) => {
+      const R = rng(1573);
+      g.fillStyle = "#cfd0cc"; g.fillRect(0, 0, w, h);
+      for (let i = 0; i < 4; i++) for (let j = 0; j < 2; j++) { g.fillStyle = shade("#cfd0cc", 0.9 + R() * 0.16); g.fillRect(j * 128 + 4, i * 64 + 4, 120, 56); }
+      g.fillStyle = "#4a4c4a"; for (let i = 0; i <= 4; i++) g.fillRect(0, i * 64 - 2, w, 4); for (let j = 0; j <= 2; j++) g.fillRect(j * 128 - 2, 0, 4, h);
+      g.fillStyle = "#6a6c6a"; for (let i = 0; i < 4; i++) for (let x = 8; x < w; x += 16) g.fillRect(x, i * 64 + 6, 4, 4);
+      for (let i = 0; i < 26; i++) { g.globalAlpha = 0.16 + R() * 0.2; g.fillStyle = R() < 0.6 ? "#3a3632" : "#7a4a2a"; g.fillRect(R() * w, R() * h, 3 + R() * 5, 30 + R() * 90); }
+      g.globalAlpha = 0.6; spots(g, R, w, h, 60, ["#8a5a34", "#6a3e22", "#3a3a36"], 2, 7); g.globalAlpha = 1;
+    });
+    /* gravel: a thousand small stones */
+    const gravel = ctex("hnGravel", 256, 256, (g, w, h) => {
+      const R = rng(1583);
+      g.fillStyle = "#8a8478"; g.fillRect(0, 0, w, h);
+      spots(g, R, w, h, 2600, ["#a29c90", "#6e685e", "#b4aea2", "#5a554c", "#948a7a", "#7a7062", "#c0b8aa"], 4, 10);
+      g.globalAlpha = 0.25; spots(g, R, w, h, 40, ["#5a4232", "#3a3028"], 14, 30); g.globalAlpha = 1;
+    });
+    /* dry autumn grass and dirt for the open country */
+    const ground = ctex("hnGround", 256, 256, (g, w, h) => {
+      const R = rng(1597);
+      g.fillStyle = "#8a9258"; g.fillRect(0, 0, w, h);
+      spots(g, R, w, h, 900, ["#7a8448", "#9aa064", "#a89a5a", "#6e7a42", "#b0a468", "#8a7a4a"], 8, 16);
+      g.globalAlpha = 0.6; spots(g, R, w, h, 30, ["#7a6a46", "#6a5a3a"], 20, 40); g.globalAlpha = 1;
+    });
+    /* corrugated sheet */
+    const corr = ctex("hnCorr", 128, 128, (g, w, h) => {
+      const R = rng(1601);
+      for (let x = 0; x < w; x += 16) { g.fillStyle = "#c8c6c0"; g.fillRect(x, 0, 8, h); g.fillStyle = "#8a8884"; g.fillRect(x + 8, 0, 8, h); }
+      g.globalAlpha = 0.45; spots(g, R, w, h, 50, ["#7a4a2a", "#5a3a22"], 3, 12); g.globalAlpha = 1;
+    });
+    /* platform slabs, yellow edge strips both sides (a tile is one platform wide) */
+    const slab = ctex("hnSlab", 128, 128, (g, w, h) => {
+      const R = rng(1609);
+      g.fillStyle = "#c8c4ba"; g.fillRect(0, 0, w, h);
+      for (let i = 0; i < 4; i++) for (let j = 0; j < 3; j++) { g.fillStyle = shade("#c8c4ba", 0.9 + R() * 0.14); g.fillRect(16 + j * 32 + 1, i * 32 + 1, 30, 30); }
+      g.fillStyle = "#e8c020"; g.fillRect(0, 0, 14, h); g.fillRect(w - 14, 0, 14, h);
+      g.fillStyle = "#b89818"; for (let y = 4; y < h; y += 8) { g.fillRect(4, y, 6, 3); g.fillRect(w - 10, y, 6, 3); }
+      g.globalAlpha = 0.3; spots(g, R, w, h, 40, ["#7a766c", "#5a564e"], 2, 6); g.globalAlpha = 1;
+    });
+    HNM = {
+      plank: L(plank, { roughness: 0.86, bumpMap: BM("hnPlank", 2.2), bumpScale: 0.03 }),
+      panel: L(panel, { roughness: 0.72, metalness: 0.12, bumpMap: BM("hnPanel", 2.0), bumpScale: 0.02 }),
+      gravel: L(gravel, { roughness: 0.98, bumpMap: BM("hnGravel", 2.6), bumpScale: 0.05 }),
+      ground: ground, corr: corr,
+      sleeper: SOL.woodDark,
+      rail: new T.MeshStandardMaterial({ color: new T.Color(0x5a5048).convertSRGBToLinear(), roughness: 0.6, metalness: 0.5 }),
+      railTop: new T.MeshStandardMaterial({ color: new T.Color(0xc8ccd0).convertSRGBToLinear(), roughness: 0.25, metalness: 0.9 }),
+      slab: slab
+    };
+    return HNM;
+  }
+  /* a material for one car body: the shared texture under its own tint */
+  const HNC = {};
+  function hnTint(kind, hex) {
+    const k = kind + hex;
+    if (HNC[k]) return HNC[k];
+    const m = hnMats()[kind].clone(); m.color = new T.Color(hex).convertSRGBToLinear();
+    return (HNC[k] = m);
+  }
+  /* stencilled marks on a car side (transparent, sharp text) */
+  function hnStencil(text, sub, col) {
+    const key = "sign@hn" + text + sub + col;
+    if (HNC[key]) return HNC[key];
+    const t = ctex(key, 512, 128, (g, w, h) => {
+      g.clearRect(0, 0, w, h);
+      g.fillStyle = col; g.textBaseline = "middle"; g.textAlign = "left";
+      g.font = "900 58px " + KFONT; g.fillText(text, 14, 46);
+      g.font = "700 30px " + KFONT; g.globalAlpha = 0.85; g.fillText(sub, 16, 100); g.globalAlpha = 1;
+    }, { smooth: true });
+    return (HNC[key] = new T.MeshStandardMaterial({ map: t, transparent: true, alphaTest: 0.2, roughness: 0.8, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
+  }
+  /* the station front: stucco, a brick plinth, tall arched windows, and a
+     central door when the face is wide enough */
+  function hnFacade(key, wM, hM) {
+    return ctex(key, Math.round(wM * 48), Math.round(hM * 48), (g, w, h) => {
+      const R = rng(1621), u = 48;
+      g.fillStyle = "#e6dcc8"; g.fillRect(0, 0, w, h);
+      for (let i = 0; i < 300; i++) { g.globalAlpha = 0.12; g.fillStyle = R() < 0.5 ? "#c8bca4" : "#f4ecdc"; g.fillRect(R() * w, R() * h, 4 + R() * 8, 4 + R() * 8); } g.globalAlpha = 1;
+      /* brick plinth */
+      const py = h - 1.1 * u; g.fillStyle = "#8a4a34"; g.fillRect(0, py, w, h - py);
+      for (let y = py; y < h; y += 10) for (let x = ((y - py) / 10) % 2 ? -12 : 0; x < w; x += 24) { g.fillStyle = shade("#9a5a3e", 0.85 + R() * 0.3); g.fillRect(x + 1, y + 1, 22, 8); }
+      g.fillStyle = "#cfc4ae"; g.fillRect(0, py - 6, w, 6); g.fillRect(0, 0.6 * u, w, 8);
+      /* windows: tall, arched, white frames, dark panes with a sky glint */
+      const n = Math.max(2, Math.round(wM / 2.6)), mid = wM > 14 ? (n >> 1) : -1;
+      for (let i = 0; i < n; i++) {
+        const cx = (i + 0.5) * w / n, ww = 0.95 * u, top = 1.4 * u, bot = py - 0.5 * u;
+        if (i === mid) {
+          g.fillStyle = "#f4f0e6"; g.fillRect(cx - 1.1 * u, top + 0.6 * u - 8, 2.2 * u, h - top);
+          g.fillStyle = "#3a2a20"; g.fillRect(cx - 0.95 * u, top + 0.6 * u, 1.9 * u, h - top - 0.6 * u);
+          g.fillStyle = "#5a4232"; g.fillRect(cx - 4, top + 0.6 * u, 8, h - top);
+          continue;
+        }
+        g.fillStyle = "#f4f0e6"; g.beginPath(); g.arc(cx, top + ww / 2, ww / 2 + 6, Math.PI, 0); g.fillRect(cx - ww / 2 - 6, top + ww / 2, ww + 12, bot - top - ww / 2 + 6); g.fill();
+        const gr = g.createLinearGradient(0, top, 0, bot); gr.addColorStop(0, "#9ab8cc"); gr.addColorStop(0.45, "#2a3a48"); gr.addColorStop(1, "#1a2430");
+        g.fillStyle = gr; g.beginPath(); g.arc(cx, top + ww / 2, ww / 2, Math.PI, 0); g.fillRect(cx - ww / 2, top + ww / 2, ww, bot - top - ww / 2); g.fill();
+        g.fillStyle = "#f4f0e6"; g.fillRect(cx - 2, top, 4, bot - top); for (let y = top + ww / 2 + 30; y < bot; y += 34) g.fillRect(cx - ww / 2, y, ww, 4);
+        if (R() < 0.35) { g.fillStyle = "#0e1014"; g.beginPath(); g.moveTo(cx - ww / 2, bot - 20); g.lineTo(cx, bot - 40 - R() * 30); g.lineTo(cx + ww / 3, bot); g.fill(); }
+      }
+      /* soot from the shelling */
+      for (let i = 0; i < 4; i++) { const x = R() * w, y = R() * py; const rg = g.createRadialGradient(x, y, 2, x, y, 40 + R() * 50); rg.addColorStop(0, "rgba(30,26,22,.55)"); rg.addColorStop(1, "rgba(30,26,22,0)"); g.fillStyle = rg; g.fillRect(x - 100, y - 100, 200, 200); }
+    });
+  }
   function hnApproach(S) {
     const M = voxMats(), VB = voxBatch(), R = rng(1515);
     const Z0 = -440, Z1 = -64;
-    const skirt = new T.Mesh(new T.PlaneGeometry(1400, 1400), new T.MeshStandardMaterial({ color: new T.Color(0x8a9a62).convertSRGBToLinear(), roughness: 1 }));
+    const HM = hnMats(), gtx = HM.ground.clone(); gtx.needsUpdate = true; gtx.repeat.set(1400 / 3.2, 1400 / 3.2);
+    const skirt = new T.Mesh(new T.PlaneGeometry(1400, 1400), new T.MeshStandardMaterial({ map: gtx, roughness: 1 }));
     skirt.rotation.x = -Math.PI / 2; skirt.position.set(0, 0.2, -200); skirt.userData.noBlock = 1; S.add(skirt);
     /* the sea to the east, a pebble shore */
     const sea = new T.Mesh(new T.PlaneGeometry(500, 420), waterMat(0x2a5a80, 60, 0.008));
@@ -15735,9 +15914,11 @@
     /* ballast bed, sleepers and rails on four tracks */
     const L = Z1 - Z0, zc = (Z0 + Z1) / 2;
     HN_TRACKS.forEach((x) => {
-      VB.cube(M.rock, x, 0.35, zc, 4.2, 0.3, L, 0x8a8478);
-      for (let z = Z0 + 0.5; z < Z1; z += 1.2) VB.cube(M.plain, x, 0.53, z, 2.8, 0.12, 0.3, 0x5a4636);
-      [-0.72, 0.72].forEach((dx) => VB.cube(M.plain, x + dx, 0.66, zc, 0.12, 0.16, L, 0x6a6e74));
+      /* gravel bed with sloped shoulders, oiled sleepers, rails with a polished head */
+      const bed = new T.Mesh(worldUV(new T.BoxGeometry(3.6, 0.32, L), 1.2), HM.gravel); bed.position.set(x, 0.36, zc); bed.receiveShadow = true; bed.userData.noBlock = 1; S.add(bed);
+      [-1, 1].forEach((sd) => { const sh = new T.Mesh(worldUV(new T.BoxGeometry(1.0, 0.2, L), 1.2), HM.gravel); sh.position.set(x + sd * 2.1, 0.3, zc); sh.rotation.z = -sd * 0.28; sh.receiveShadow = true; sh.userData.noBlock = 1; S.add(sh); });
+      for (let z = Z0 + 0.5; z < Z1; z += 1.2) VB.cube(HM.sleeper, x, 0.56, z, 2.8, 0.14, 0.32, 0x8a7460);
+      [-0.72, 0.72].forEach((dx) => { VB.cube(HM.rail, x + dx, 0.68, zc, 0.14, 0.16, L, 0xffffff); VB.cube(HM.railTop, x + dx, 0.77, zc, 0.12, 0.03, L, 0xffffff); });
     });
     /* telegraph poles on the west side, wires */
     for (let z = Z0; z < Z1; z += 24) { VB.cube(M.plain, -12, 4, z, 0.28, 7.5, 0.28, 0x5a4632); VB.cube(M.plain, -12, 7.4, z, 2.0, 0.16, 0.16, 0x5a4632); }
@@ -15766,12 +15947,27 @@
     for (let z = -262; z <= -238; z += 4) bx(S, 28, 0.3, 0.3, 3.5, 6.8, z, steel, { noCast: 1 }).userData.air = 1;
   }
   function lmHnStation(S, z) {
-    const conc = cmat(0xd8d4cc, 0.9), roof = cmat(0x5a3a2a, 0.8), wall = cmat(0xe8e2d6, 0.88);
+    const conc = cmat(0xd8d4cc, 0.9), roof = cmat(0x5a3a2a, 0.8), wall = cmat(0xe8e2d6, 0.88), HM = hnMats();
+    const corr = new T.MeshStandardMaterial({ map: HM.corr, color: new T.Color(0x9a6a52).convertSRGBToLinear(), roughness: 0.6, metalness: 0.3 });
     /* platforms between the tracks, a canopy, and the station house */
-    [-3.5, 3.5, 10.5].forEach((x) => bx(S, 3.4, 0.9, 30, x, 0.55, z - 22, conc, { noCast: 1 }));
-    [-3.5, 3.5].forEach((x) => { for (let k = 0; k < 4; k++) bx(S, 0.25, 3.2, 0.25, x, 2.6, z - 34 + k * 8, cmat(0x5a5e64, 0.6, 0.4)); bx(S, 3.4, 0.25, 28, x, 4.3, z - 22, roof); });
+    [-3.5, 3.5, 10.5].forEach((x) => {
+      bx(S, 3.4, 0.9, 30, x, 0.55, z - 22, conc, { noCast: 1 });
+      const st = HM.slab.clone(); st.needsUpdate = true; st.repeat.set(1, 30 / 3.4);
+      const top = new T.Mesh(new T.PlaneGeometry(3.4, 30), new T.MeshStandardMaterial({ map: st, roughness: 0.9 }));
+      top.rotation.x = -Math.PI / 2; top.position.set(x, 1.006, z - 22); top.receiveShadow = true; top.userData.noBlock = 1; S.add(top);
+      [-1.7, 1.7].forEach((dx) => bx(S, 0.06, 0.8, 30, x + dx, 0.55, z - 22, cmat(0x9a968c, 0.9), { noCast: 1 }));
+    });
+    [-3.5, 3.5].forEach((x) => { for (let k = 0; k < 4; k++) { bx(S, 0.25, 3.2, 0.25, x, 2.6, z - 34 + k * 8, cmat(0x5a5e64, 0.6, 0.4)); bx(S, 2.6, 0.16, 0.16, x, 4.05, z - 34 + k * 8, cmat(0x5a5e64, 0.6, 0.4)); } const c = bx(S, 3.6, 0.12, 28, x, 4.3, z - 22, corr); c.rotation.z = 0.05; });
     bx(S, 24, 7, 10, -24, 3.8, z - 18, wall, { wall: 1 });
     bx(S, 25, 0.6, 11, -24, 7.6, z - 18, roof);
+    /* painted fronts on the two faces the line sees */
+    const fz = new T.Mesh(new T.PlaneGeometry(24, 7), new T.MeshStandardMaterial({ map: hnFacade("hnFacW", 24, 7), roughness: 0.9 }));
+    fz.position.set(-24, 3.8, z - 23.03); fz.rotation.y = Math.PI; fz.userData.noBlock = 1; S.add(fz);
+    const fx = new T.Mesh(new T.PlaneGeometry(10, 7), new T.MeshStandardMaterial({ map: hnFacade("hnFacN", 10, 7), roughness: 0.9 }));
+    fx.position.set(-11.97, 3.8, z - 18); fx.rotation.y = Math.PI / 2; fx.userData.noBlock = 1; S.add(fx);
+    /* a clock over the sign and a lamp on each canopy post row */
+    const ck = new T.Mesh(new T.CircleGeometry(0.7, 20), cmat(0xf4f0e6, 0.5)); ck.position.set(-11.9, 7.1, z - 18); ck.rotation.y = Math.PI / 2; ck.userData.noBlock = 1; S.add(ck);
+    [[0.32, 0.06, 0], [0.5, 0.05, -1.3]].forEach(([l, wd, a]) => { const hnd = new T.Mesh(new T.PlaneGeometry(wd, l), cmat(0x1a1a1a, 0.6)); hnd.position.set(-11.88, 7.1 + Math.cos(a) * l / 2, z - 18 - Math.sin(a) * l / 2); hnd.rotation.set(0, Math.PI / 2, a); hnd.userData.noBlock = 1; S.add(hnd); });
     const sg = new T.Mesh(new T.PlaneGeometry(10, 1.6), new T.MeshStandardMaterial({ map: hiSign("hnStn", "흥 남 역", "HEUNGNAM STATION", "#f4f2ea", "#1f2f4f", 1000, 180), roughness: 0.6 }));
     sg.position.set(-11.9, 6.2, z - 18); sg.rotation.y = Math.PI / 2; sg.userData.noBlock = 1; S.add(sg);
     makeFlagPlane(S, "kp", -16, 10.6, z - 18, 2.4, 1.6, Math.PI / 2, true);
@@ -15781,31 +15977,270 @@
   /* rolling stock (all +z forward): locomotive, box car, flat car, tank car */
   function makeRailcar(kind, scheme) {
     const g = new T.Group();
-    const S0 = scheme === "rok" ? { body: 0x4e5a40, dark: 0x2c3226, trim: 0xd8d4c8 } : { body: 0x6a3a2a, dark: 0x2a2420, trim: 0xc8b070 };
+    const S0 = scheme === "rok" ? { body: 0x6e7a5a, dark: 0x2c3226, trim: 0xd8d4c8 } : { body: 0x9a5a40, dark: 0x2a2420, trim: 0xc8b070 };
+    const PL = (hex) => hnTint("plank", hex), PN = (hex) => hnTint("panel", hex);
+    const num = 1000 + ((Math.random() * 8999) | 0);
+    const mark = (text, sub, col, w, h, x, y, z, hw) => [-1, 1].forEach((sd) => { const d = new T.Mesh(new T.PlaneGeometry(w, h), hnStencil(text, sub, col)); d.position.set(x + sd * (hw || 1.48), y, z); d.rotation.y = sd * Math.PI / 2; d.userData.noBlock = 1; g.add(d); });
     const M = (c, r, m) => cmat(c, r || 0.8, m || 0);
     const B = (w, h, d, x, y, z, m) => { const o = new T.Mesh(worldUV(new T.BoxGeometry(w, h, d)), m); o.position.set(x, y, z); o.castShadow = true; g.add(o); return o; };
     const black = M(0x1a1a1a, 0.7), steel = M(0x5a5e62, 0.5, 0.5);
     B(2.8, 0.5, 11, 0, 1.2, 0, black);
     [-3.6, 3.6].forEach((z) => [-0.75, 0.75].forEach((x) => { const w = new T.Mesh(new T.CylinderGeometry(0.45, 0.45, 0.2, 10), steel); w.rotation.z = Math.PI / 2; w.position.set(x, 0.75, z); g.add(w); (g.userData.wheels = g.userData.wheels || []).push(w); }));
     if (kind === "loco") {
-      B(2.9, 2.6, 8.4, 0, 2.75, -1.0, M(scheme === "rok" ? 0x3a5a3a : 0x2a4a3a));
+      const body = PN(scheme === "rok" ? 0x4a6440 : 0x3a6450);
+      B(2.6, 2.6, 8.4, 0, 2.75, -1.0, body);
       B(3.0, 0.3, 11, 0, 1.55, 0, M(scheme === "rok" ? 0x2a4a2a : 0xa82a2a));
-      B(2.9, 2.8, 2.4, 0, 2.85, 4.2, M(scheme === "rok" ? 0x3a5a3a : 0x2a4a3a));
+      B(2.9, 2.8, 2.4, 0, 2.85, 4.2, body);
       B(2.4, 0.9, 0.1, 0, 3.4, 5.42, M(0x6a8aa8, 0.2, 0.3));
+      /* cab side windows, roof, handrails, grille, headlight, number plate */
+      [-1.46, 1.46].forEach((x) => { B(0.04, 0.8, 1.4, x, 3.55, 4.2, M(0x2a3a48, 0.2, 0.3)); B(0.04, 0.06, 8.2, x * 0.94, 2.4, -1.0, steel); });
+      B(3.1, 0.2, 2.8, 0, 4.35, 4.2, M(0x2a2e2a, 0.7));
+      for (let z = -4.6; z < 2.6; z += 0.5) B(2.62, 0.06, 0.18, 0, 4.07, z, M(0x2a2e2a, 0.6));
+      B(1.6, 1.0, 0.06, 0, 2.2, 5.43, M(0x1a1c1a, 0.6, 0.4));
+      const hl = B(0.5, 0.5, 0.1, 0, 4.0, 5.45, cmat(0xfff2c0, 0.3, 0, { emissive: 0xffe08a, emissiveIntensity: 1.4 })); hl.castShadow = false;
+      mark(scheme === "rok" ? "국군 수송" : "조선 국철", (scheme === "rok" ? "ROK ARMY · " : "내연 ") + num, scheme === "rok" ? "#f4f0e2" : "#f2d88a", 3.2, 0.8, 0, 2.6, -1.4, 1.32);
       if (scheme !== "rok") { const st = new T.Mesh(new T.CircleGeometry(0.5, 5), M(0xc8302a)); st.position.set(0, 2.6, 5.43); g.add(st); }
     } else if (kind === "box") {
-      B(2.9, 2.7, 10.6, 0, 2.8, 0, M(S0.body));
-      B(3.0, 0.2, 10.8, 0, 4.25, 0, M(S0.dark));
-      [-1.46, 1.46].forEach((x) => B(0.06, 2.0, 2.6, x, 2.6, 0, M(0x111111)));    /* open doors */
+      B(2.9, 2.7, 10.6, 0, 2.8, 0, PL(S0.body));
+      B(3.0, 0.2, 10.8, 0, 4.25, 0, PN(0x6a6660));
+      [-1.46, 1.46].forEach((x) => { B(0.06, 2.0, 2.6, x, 2.6, 0, M(0x111111)); B(0.08, 0.1, 6.0, x * 1.02, 3.95, 0.9, steel); B(0.1, 2.2, 0.1, x * 1.02, 2.6, -1.35, steel); });    /* open doors, door rail */
+      mark(scheme === "rok" ? "군 용" : "화 차", (scheme === "rok" ? "철도청 " : "조선 국철 ") + num, scheme === "rok" ? "#f4f0e2" : "#f4ecd6", 2.6, 0.65, 0, 3.4, -3.4);
     } else if (kind === "flat") {
-      B(2.9, 0.25, 10.8, 0, 1.55, 0, M(0x6a5a44));
+      B(2.9, 0.25, 10.8, 0, 1.55, 0, SOL.wood);
       for (let z = -4.5; z <= 4.5; z += 3) [-1.4, 1.4].forEach((x) => B(0.14, 0.9, 0.14, x, 2.1, z, M(S0.dark)));
       if (scheme !== "rok") for (let i = 0; i < 6; i++) B(0.9, 0.45, 0.5, -1 + (i % 3), 1.9 + ((i / 3) | 0) * 0.45, 3.6, M(0x8a7a56));
     } else if (kind === "tank") {
-      const t = new T.Mesh(new T.CylinderGeometry(1.35, 1.35, 9.6, 12), M(0x2a2a2a, 0.5, 0.3)); t.rotation.x = Math.PI / 2; t.position.set(0, 2.85, 0); t.castShadow = true; g.add(t);
+      const t = new T.Mesh(worldUV(new T.CylinderGeometry(1.35, 1.35, 9.6, 14)), PN(0x5a5a56)); t.rotation.x = Math.PI / 2; t.position.set(0, 2.85, 0); t.castShadow = true; g.add(t);
+      [-4.4, 4.4].forEach((z) => { const cap = new T.Mesh(new T.SphereGeometry(1.35, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2), PN(0x5a5a56)); cap.scale.y = 0.3; cap.rotation.x = z > 0 ? Math.PI / 2 : -Math.PI / 2; cap.position.set(0, 2.85, z + Math.sign(z) * 0.4); g.add(cap); });
+      [-3, 0, 3].forEach((z) => { const band = new T.Mesh(new T.CylinderGeometry(1.38, 1.38, 0.12, 14), M(0x2a2a28, 0.6, 0.4)); band.rotation.x = Math.PI / 2; band.position.set(0, 2.85, z); g.add(band); });
+      B(0.8, 0.5, 0.8, 0, 4.3, 0, PN(0x4a4a46)); B(2.0, 0.08, 1.2, 0, 4.25, 0, steel);
+      mark("위험 · 연료", "조선 국철 " + num, "#f2c83a", 2.8, 0.7, 0, 2.6, -1.6, 1.33);
     }
     g.userData.kind = kind;
     return g;
+  }
+  /* ---------------- (v62) 2-4 Suwon Hwaseong ---------------- */
+  /* the squad comes down from Seoul by jeep along the outside of the
+     fortress wall (gunners behind the brick parapet), drives in through
+     Janganmun's half-moon outer wall and gate, and fights down the old
+     town to Paldalmun, where the forces from the south meet them */
+  let HWM = null;
+  function hwMats() {
+    if (HWM) return HWM;
+    makeSol();
+    const BM = (key, gain) => bumpTex(key, TXCV[key], { gain: gain });
+    const L = (tex, o) => new T.MeshStandardMaterial(Object.assign({ map: tex, envMapIntensity: 0.15 }, o || {}));
+    /* big dressed granite courses, the lower wall of the fortress */
+    const granite = ctex("hwGranite", 256, 256, (g, w, h) => {
+      const R = rng(1631);
+      g.fillStyle = "#6a6458"; g.fillRect(0, 0, w, h);
+      for (let row = 0, y = 0; y < h; row++) {
+        const rh = 40 + ((R() * 3) | 0) * 8; let x = -((R() * 60) | 0);
+        while (x < w) { const sw = 50 + R() * 50; g.fillStyle = shade(["#c4baa6", "#b4ab98", "#cfc6b2", "#a89e8a"][(R() * 4) | 0], 0.92 + R() * 0.14); g.fillRect(x + 3, y + 3, sw - 6, Math.min(rh, h - y) - 6); x += sw; }
+        y += rh;
+      }
+      for (let i = 0; i < 500; i++) { g.globalAlpha = 0.15; g.fillStyle = R() < 0.5 ? "#7a7262" : "#e4dccc"; g.fillRect(R() * w, R() * h, 3, 3); } g.globalAlpha = 1;
+      for (let i = 0; i < 6; i++) { g.globalAlpha = 0.18; g.fillStyle = "#3a4a2a"; g.fillRect(R() * w, R() * h, 18 + R() * 30, 6 + R() * 10); } g.globalAlpha = 1;
+    });
+    /* the grey fired brick of the parapets and the gun towers */
+    const brick = ctex("hwBrick", 128, 128, (g, w, h) => {
+      const R = rng(1637);
+      g.fillStyle = "#d8d4cc"; g.fillRect(0, 0, w, h);
+      for (let y = 0, r = 0; y < h; y += 16, r++) for (let x = r % 2 ? -16 : 0; x < w; x += 32) { g.fillStyle = shade(["#6e7074", "#7a7c80", "#62646a", "#84868a"][(R() * 4) | 0], 0.94 + R() * 0.1); g.fillRect(x + 2, y + 2, 28, 12); }
+    });
+    /* glazed-black roof tiles in ridged rows */
+    const giwa = ctex("hwGiwa", 128, 128, (g, w, h) => {
+      const R = rng(1643);
+      for (let x = 0; x < w; x += 16) { g.fillStyle = "#3e4248"; g.fillRect(x, 0, 10, h); g.fillStyle = "#24272c"; g.fillRect(x + 10, 0, 6, h); }
+      for (let y = 0; y < h; y += 16) { g.fillStyle = "rgba(10,12,14,.5)"; g.fillRect(0, y, w, 3); }
+      g.globalAlpha = 0.2; for (let i = 0; i < 40; i++) { g.fillStyle = R() < 0.5 ? "#8a9098" : "#1a1c20"; g.fillRect(R() * w, R() * h, 4, 4); } g.globalAlpha = 1;
+    });
+    /* dancheong: the green-red-blue painted band under the eaves */
+    const dan = ctex("hwDan", 128, 64, (g, w, h) => {
+      g.fillStyle = "#2f7a6e"; g.fillRect(0, 0, w, h);
+      g.fillStyle = "#b8302a"; g.fillRect(0, 0, w, 8); g.fillRect(0, h - 8, w, 8);
+      for (let x = 0; x < w; x += 32) {
+        g.fillStyle = "#f2ead6"; g.beginPath(); g.arc(x + 16, h / 2, 13, 0, 6.3); g.fill();
+        g.fillStyle = "#2a5aa8"; g.beginPath(); g.arc(x + 16, h / 2, 9, 0, 6.3); g.fill();
+        g.fillStyle = "#e8b83a"; g.beginPath(); g.arc(x + 16, h / 2, 4, 0, 6.3); g.fill();
+        g.fillStyle = "#c84a3a"; g.fillRect(x, h / 2 - 2, 3, 4);
+      }
+    });
+    HWM = {
+      granite: L(granite, { roughness: 0.9, bumpMap: BM("hwGranite", 2.6), bumpScale: 0.05 }),
+      brick: L(brick, { roughness: 0.86, bumpMap: BM("hwBrick", 2.4), bumpScale: 0.035 }),
+      giwa: L(giwa, { roughness: 0.62, bumpMap: BM("hwGiwa", 2.2), bumpScale: 0.03 }),
+      dan: L(dan, { roughness: 0.7 }),
+      red: cmat(0x9a2a20, 0.6), white: cmat(0xe8e2d4, 0.8), wood: cmat(0x5a3a26, 0.85),
+      hole: cmat(0x1a1612, 0.95), walk: cmat(0x9a9486, 0.95)
+    };
+    return HWM;
+  }
+  /* a hipped tile roof with lifted corners, eaves at y, w × d under it */
+  function hwRoof(S, x, y, z, w, d) {
+    const M = hwMats();
+    bx(S, w + 0.5, 0.55, d + 0.5, x, y - 0.4, z, M.dan, { noCast: 1 });
+    bx(S, w + 3.0, 0.32, d + 3.0, x, y, z, M.giwa);
+    bx(S, w + 2.0, 0.55, d + 1.8, x, y + 0.42, z, M.giwa);
+    bx(S, w + 0.8, 0.6, d * 0.55, x, y + 0.96, z, M.giwa);
+    bx(S, w + 1.6, 0.28, 0.42, x, y + 1.34, z, M.white);
+    [-1, 1].forEach((sx) => bx(S, 0.4, 0.7, 0.5, x + sx * (w / 2 + 0.9), y + 1.42, z, M.giwa));
+    [-1, 1].forEach((sx) => [-1, 1].forEach((sz) => {
+      const c = bx(S, 1.8, 0.3, 0.5, x + sx * (w / 2 + 1.4), y + 0.16, z + sz * (d / 2 + 1.4), M.giwa, { ry: sx * sz * 0.78 });
+      c.rotation.z = sx * 0.3;
+    }));
+  }
+  /* an open pavilion standing at height y0: red posts, a rail, the roof;
+     two = a second storey with its own roof (a gate tower) */
+  function hwPavilion(S, x, y0, z, w, d, two) {
+    const M = hwMats();
+    bx(S, w + 1.0, 0.35, d + 1.0, x, y0 + 0.18, z, M.walk);
+    const cols = Math.max(2, Math.round(w / 2.8)), rows = Math.max(1, Math.round(d / 2.8));
+    for (let i = 0; i <= cols; i++) for (let j = 0; j <= rows; j++) {
+      if (i > 0 && i < cols && j > 0 && j < rows) continue;
+      cyl(S, 0.2, 0.24, 3.0, x - w / 2 + i * (w / cols), y0 + 1.85, z - d / 2 + j * (d / rows), M.red, 10);
+    }
+    for (let i = 0; i < cols * 3; i++) [-1, 1].forEach((s) => bx(S, 0.07, 0.6, 0.07, x - w / 2 + (i + 0.5) * (w / cols / 3), y0 + 0.65, z + s * d / 2, M.red, { noCast: 1 }));
+    [-1, 1].forEach((s) => bx(S, w, 0.08, 0.1, x, y0 + 0.95, z + s * d / 2, M.red, { noCast: 1 }));
+    if (!two) { hwRoof(S, x, y0 + 3.75, z, w, d); return y0 + 5.2; }
+    hwRoof(S, x, y0 + 3.75, z, w + 0.6, d + 0.6);
+    const w2 = w * 0.78, d2 = d * 0.7, y1 = y0 + 4.2;
+    bx(S, w2 + 0.6, 1.4, d2 + 0.6, x, y1 + 0.7, z, M.wood);
+    for (let i = 0; i < 6; i++) bx(S, 0.5, 0.5, 0.05, x - w2 / 2 + (i + 0.5) * w2 / 6, y1 + 0.75, z - d2 / 2 - 0.33, M.hole, { noCast: 1 });
+    const c2 = Math.max(2, Math.round(w2 / 2.8));
+    for (let i = 0; i <= c2; i++) [-1, 1].forEach((s) => cyl(S, 0.18, 0.2, 2.2, x - w2 / 2 + i * (w2 / c2), y1 + 2.4, z + s * d2 / 2, M.red, 8));
+    hwRoof(S, x, y1 + 3.6, z, w2, d2);
+    return y1 + 5.0;
+  }
+  /* the five-colour banners strung along the walk */
+  const HW_FLAGS = [0xe8c020, 0x2a5aa8, 0xc8302a, 0xf2f0ea, 0x2a2a2a];
+  function hwFlag(S, x, y, z, k, rot) {
+    cyl(S, 0.05, 0.06, 3.6, x, y + 1.8, z, cmat(0x6a4a30, 0.8), 6, { noCast: 1 });
+    const f = new T.Mesh(new T.PlaneGeometry(1.1, 1.5), new T.MeshStandardMaterial({ color: new T.Color(HW_FLAGS[k % 5]).convertSRGBToLinear(), roughness: 0.8, side: T.DoubleSide }));
+    f.position.set(x, y + 2.75, z); f.rotation.y = (rot || 0) + 0.25; f.userData.noBlock = 1; f.userData.flutter = 1; S.add(f);
+    const tr = new T.Mesh(new T.PlaneGeometry(0.4, 1.5), new T.MeshStandardMaterial({ color: new T.Color(HW_FLAGS[(k + 2) % 5]).convertSRGBToLinear(), roughness: 0.8, side: T.DoubleSide }));
+    tr.position.set(0.72, 0, 0.001); f.add(tr);
+  }
+  /* a run of wall from (x0,z0) to (x1,z1): granite face, a walk on top,
+     the brick parapet with crenels and gun loops on the outer side (out: the
+     side the parapet faces, ±1 in the run's local x) */
+  const HW_H = 5.0, HW_T = 4.2;
+  function hwWall(S, x0, z0, x1, z1, out, flags) {
+    const M = hwMats();
+    const len = Math.hypot(x1 - x0, z1 - z0);
+    const G = new T.Group(); G.position.set((x0 + x1) / 2, 0, (z0 + z1) / 2); G.rotation.y = Math.atan2(x1 - x0, z1 - z0); S.add(G);
+    bx(G, HW_T, HW_H, len, 0, 0.25 + HW_H / 2, 0, M.granite, { wall: 1 });
+    bx(G, HW_T - 0.2, 0.2, len, 0, 0.25 + HW_H + 0.1, 0, M.walk);
+    const px = out * (HW_T / 2 - 0.3);
+    const n = Math.max(1, Math.floor(len / 2.8));
+    for (let i = 0; i < n; i++) {
+      const zz = -len / 2 + (i + 0.5) * len / n;
+      bx(G, 0.6, 1.35, len / n - 0.5, px, 0.25 + HW_H + 0.75, zz, M.brick);
+      bx(G, 0.66, 0.16, len / n - 0.3, px, 0.25 + HW_H + 1.48, zz, M.giwa, { noCast: 1 });
+      bx(G, 0.64, 0.24, 0.3, px, 0.25 + HW_H + 0.75, zz, M.hole, { noCast: 1 });
+    }
+    /* drain spouts and a plinth course */
+    bx(G, HW_T + 0.5, 0.5, len, 0, 0.5, 0, M.granite);
+    if (flags) for (let i = 0, k = 0; i < len - 4; i += 11, k++) hwFlag(G, -out * 0.9, 0.25 + HW_H + 0.2, -len / 2 + 3 + i, k + ((x0 * 7) | 0));
+    return G;
+  }
+  /* a gate: granite base with the arched passage, doors swung in, the
+     two-storey tower, an optional half-moon outer wall (ongseong) on the −z
+     side with its own opening, and the name board */
+  function hwGate(S, x, z, name, opt) {
+    const M = hwMats(), o = opt || {};
+    const BW = 24, BD = 11, BH = 6.8, OW = 7.2, OH = 5.4;
+    const side = (BW - OW) / 2;
+    [-1, 1].forEach((s) => bx(S, side, BH, BD, x + s * (OW / 2 + side / 2), 0.25 + BH / 2, z, M.granite, { wall: 1 }));
+    bx(S, OW, BH - OH, BD, x, 0.25 + OH + (BH - OH) / 2, z, M.granite);
+    /* the arch's shoulders, stepped in under the lintel */
+    [-1, 1].forEach((s) => { bx(S, 0.9, 0.9, BD, x + s * (OW / 2 - 0.45), 0.25 + OH - 0.45, z, M.granite); bx(S, 0.45, 0.45, BD, x + s * (OW / 2 - 1.1), 0.25 + OH - 0.22, z, M.granite); });
+    bx(S, OW, 0.2, BD, x, 0.27, z, cmat(0x9a9284, 0.95), { noCast: 1 });
+    [-1, 1].forEach((s) => { const d = bx(S, OW / 2, OH - 0.6, 0.25, x + s * (OW / 2 + 0.2), 0.25 + (OH - 0.6) / 2, z + BD / 2 - 0.9, M.red); d.rotation.y = s * 1.35; d.position.x = x + s * (OW / 2 - 0.45); d.position.z = z + BD / 2 - 2.2; d.userData.noBlock = 1; });
+    /* parapet round the top of the base */
+    for (let i = 0; i < 8; i++) [-1, 1].forEach((sz) => { if (Math.abs(-BW / 2 + (i + 0.5) * BW / 8) < 1.6) return; bx(S, BW / 8 - 0.4, 1.1, 0.5, x - BW / 2 + (i + 0.5) * BW / 8, 0.25 + BH + 0.55, z + sz * (BD / 2 - 0.25), M.brick); });
+    const top = hwPavilion(S, x, 0.25 + BH, z, 14, 6.4, true);
+    if (o.flag) makeFlagPlane(S, o.flag, x + 8, top + 2.2, z, 2.4, 1.6, 0, true);
+    if (o.flag) cyl(S, 0.06, 0.07, 4.4, x + 6.8, top + 0.6, z, SOL.poleGray || cmat(0x8a8e92, 0.5, 0.5), 6, { noCast: 1 });
+    /* the board between the storeys */
+    const sg = new T.Mesh(new T.PlaneGeometry(3.6, 1.3), new T.MeshStandardMaterial({ map: hiSign("hwBoard" + name, name, "", "#1e2a26", "#e8c870", 600, 220), roughness: 0.6 }));
+    sg.position.set(x, 0.25 + BH + 5.0, z - 2.6); sg.rotation.y = Math.PI; sg.userData.noBlock = 1; S.add(sg);
+    if (o.wings) { hwWall(S, x - BW / 2, z, x - BW / 2 - o.wings, z, -1, true); hwWall(S, x + BW / 2, z, x + BW / 2 + o.wings, z, 1, true); }
+    if (o.ongseong) {
+      /* the half-moon wall: segments round a 14 m arc in front, a gap on the road */
+      const R0 = 14, N = 14;
+      for (let i = 0; i < N; i++) {
+        const a0 = Math.PI * i / N, a1 = Math.PI * (i + 1) / N, am = (a0 + a1) / 2;
+        if (Math.abs(am - Math.PI / 2) < 0.26) continue;
+        const xa = x + Math.cos(a0) * R0, za = z - BD / 2 - Math.sin(a0) * R0, xb = x + Math.cos(a1) * R0, zb = z - BD / 2 - Math.sin(a1) * R0;
+        hwWall(S, xa, za, xb, zb, 1, false);
+      }
+    }
+  }
+  /* 공심돈: the tall hollow gun tower, three storeys of brick with loops */
+  function hwGongsimdon(S, x, z) {
+    const M = hwMats();
+    bx(S, 7, 6.0, 7, x, 3.25, z, M.granite, { wall: 1 });
+    bx(S, 6.2, 5.5, 6.2, x, 6.25 + 2.75, z, M.brick, { wall: 1 });
+    for (let y = 7.4; y < 11.4; y += 1.6) for (let k = -1; k <= 1; k++) [[3.12, 0], [-3.12, 0], [0, 3.12], [0, -3.12]].forEach(([dx, dz]) => bx(S, dx ? 0.1 : 0.45, 0.55, dz ? 0.1 : 0.45, x + dx + (dz ? k * 1.8 : 0), y, z + dz + (dx ? k * 1.8 : 0), M.hole, { noCast: 1 }));
+    for (let i = 0; i < 4; i++) [-1, 1].forEach((s) => { bx(S, 1.1, 0.9, 0.4, x - 2.4 + i * 1.6, 12.2, z + s * 2.9, M.brick); bx(S, 0.4, 0.9, 1.1, x + s * 2.9, 12.2, z - 2.4 + i * 1.6, M.brick); });
+    hwPavilion(S, x, 11.75, z, 3.6, 3.6, false);
+  }
+  /* 봉돈: the beacon platform with five chimneys */
+  function hwBongdon(S, x, z) {
+    const M = hwMats();
+    bx(S, 9, 4.2, 6, x, 2.35, z, M.granite, { wall: 1 });
+    bx(S, 9.4, 1.2, 6.4, x, 5.05, z, M.brick);
+    for (let i = 0; i < 5; i++) { const cx = x - 3.6 + i * 1.8; bx(S, 1.2, 2.4, 1.2, cx, 6.9, z, M.brick); bx(S, 0.7, 0.2, 0.7, cx, 8.2, z, M.hole); }
+    hwPavilion(S, x + 6.6, 0.25, z, 3.4, 3.4, false);
+  }
+  /* the open country outside the north wall */
+  function suwonApproach(S) {
+    const M = voxMats(), HM = hnMats(), VB = voxBatch(), R = rng(1616);
+    const gtx = ctex("hwField", 256, 256, (g, w, h) => {
+      const r = rng(61); g.fillStyle = "#7ea456"; g.fillRect(0, 0, w, h);
+      const cols = ["#6f9a4a", "#86b05a", "#8fb868", "#749e4c", "#9ab86a", "#a6a058"];
+      for (let i = 0; i < 900; i++) { g.fillStyle = cols[(r() * cols.length) | 0]; g.fillRect(r() * w, r() * h, 8 + r() * 8, 8 + r() * 8); }
+    }).clone(); gtx.needsUpdate = true; gtx.wrapS = gtx.wrapT = T.RepeatWrapping; gtx.repeat.set(1400 / 4, 1400 / 4);
+    const skirt = new T.Mesh(new T.PlaneGeometry(1400, 1400), new T.MeshStandardMaterial({ map: gtx, roughness: 1 }));
+    skirt.rotation.x = -Math.PI / 2; skirt.position.set(0, 0.2, -200); skirt.userData.noBlock = 1; S.add(skirt);
+    /* the road from Seoul, kerbs, centre line */
+    const rd = new T.Mesh(new T.PlaneGeometry(10, 170), cmat(0x5e5c58, 0.92)); rd.rotation.x = -Math.PI / 2; rd.position.set(0, 0.262, -170); rd.userData.noBlock = 1; S.add(rd);
+    for (let z = -252; z < -90; z += 6) { const m = new T.Mesh(new T.PlaneGeometry(0.22, 3), cmat(0xe8c020, 0.7)); m.rotation.x = -Math.PI / 2; m.position.set(0, 0.27, z); m.userData.noBlock = 1; S.add(m); }
+    [-5.2, 5.2].forEach((x) => bx(S, 0.3, 0.2, 165, x, 0.32, -172, cmat(0xb8b4aa, 0.9), { noCast: 1 }));
+    /* the north wall: a long run beside the road, then across it with the gate */
+    hwWall(S, 20, -214, 20, -90, -1, true);
+    hwGate(S, 0, -86, "長安門", { ongseong: true, flag: "kp" });
+    hwWall(S, 12, -86, 22.1, -86, 1, false);
+    hwWall(S, -12, -86, -27, -86, -1, true);
+    hwWall(S, -53, -86, -130, -86, -1, true);
+    hwWall(S, 20, -214, 60, -236, -1, true);
+    /* a gun platform (치) jutting out every so often */
+    [-190, -150, -114].forEach((z) => { bx(S, 4, HW_H, 6, 16, 0.25 + HW_H / 2, z, hwMats().granite, { wall: 1 }); for (let k = -1; k <= 1; k++) bx(S, 0.6, 1.35, 1.6, 14.3, 0.25 + HW_H + 0.75, z + k * 2.1, hwMats().brick); });
+    hwGongsimdon(S, 26, -168);
+    /* 방화수류정 on the corner */
+    hwPavilion(S, 20, 0.25 + HW_H + 0.2, -96, 5, 5, false);
+    /* 화홍문: seven arches over the stream */
+    const W0 = -27, W1 = -53, xm = (W0 + W1) / 2;
+    for (let i = 0; i <= 7; i++) bx(S, 1.2, HW_H - 1.2, HW_T + 1, W0 - i * (W0 - W1) / 7 * 1, 0.25 + (HW_H - 1.2) / 2, -86, hwMats().granite, { wall: 1 });
+    bx(S, Math.abs(W0 - W1), 1.2, HW_T + 1, xm, 0.25 + HW_H - 0.6, -86, hwMats().granite);
+    hwPavilion(S, xm, 0.25 + HW_H, -86, 10, 4.4, false);
+    const water = new T.Mesh(new T.PlaneGeometry(22, 170), waterMat(0x3a6a7a, 30, 0.01)); water.rotation.x = -Math.PI / 2; water.position.set(xm, 0.24, -172); water.userData.noBlock = 1; S.add(water);
+    [-1, 1].forEach((s) => VB.cube(M.rock, xm + s * 11.5, 0.5, -172, 1.6, 0.6, 170, 0xb8b0a0));
+    /* 팔달산 behind the wall with 서장대 on the top */
+    const HX = 78, HZ = -170;
+    for (let k = 0; k < 6; k++) { const r = 44 - k * 7; VB.cube(M.grass, HX, 0.25 + k * 3.2 + 1.6, HZ, r * 2, 3.2, r * 1.6, k % 2 ? 0x6e9a4c : 0x7aa652, 0, { cast: true }); }
+    for (let i = 0; i < 40; i++) { const a = R() * 6.28, d = 6 + R() * 36, h = Math.max(0, 5 - Math.floor(d / 7)); voxPine(VB, HX + Math.cos(a) * d, 0.25 + h * 3.2 + 1.6, HZ + Math.sin(a) * d * 0.8, 4 + R() * 4, i + 161); }
+    hwPavilion(S, HX, 0.25 + 6 * 3.2, HZ, 6, 5, true);
+    /* pines and a few tiled farmhouses on the open side */
+    for (let i = 0; i < 70; i++) { const x = -9 - R() * 90, z = -260 + R() * 160; if (Math.abs(x - xm) < 15) continue; voxPine(VB, x, 0.25, z, 5 + R() * 5, i + 91); }
+    for (let i = 0; i < 12; i++) {
+      const x = -70 - R() * 40, z = -240 + R() * 130, w = 6;
+      VB.cube(M.plain, x, 1.65, z, w, 2.8, 4.4, 0xece6d6, 0, { cast: true });
+      VB.cube(M.plain, x, 3.5, z, w + 1.6, 0.9, 5.4, 0x3a3e44, 0, { cast: true });
+    }
+    void HM;
+    VB.flush(S, "hwOut");
   }
   /* ---------------- (v58) the Han river ---------------- */
   const HAN_BANK = 34;          /* the river runs between x = ±HAN_BANK south of z −70 */
@@ -16424,6 +16859,7 @@
     void gKey;
     if (C.approach) { try { kaesongApproach(S); } catch (e) { window.__lmErr = String(e && e.stack || e); } }
     if (C.rails) { try { hnApproach(S); } catch (e) { window.__lmErr = String(e && e.stack || e); } }
+    if (C.suwon) { try { suwonApproach(S); } catch (e) { window.__lmErr = String(e && e.stack || e); } }
     /* the water for the seafront cities */
     if (C.seaSide || C.sea) {
       const wt = ctex("seaTex", 256, 256, (g, w, h) => {
@@ -16676,6 +17112,9 @@
         else if (k === "hnStation") lmHnStation(S, L[1]);
         else if (k === "guardTower") lmGuardTower(S, L[1], L[2], L[3]);
         else if (k === "kaesongHQ") lmKaesongHQ(S, L[1], L[2]);
+        else if (k === "hwGate") hwGate(S, L[1], L[2], L[3], L[4]);
+        else if (k === "hwBongdon") hwBongdon(S, L[1], L[2]);
+        else if (k === "hwPav") { bx(S, L[3] + 3, 1.2, L[4] + 3, L[1], 0.85, L[2], hwMats().granite); hwPavilion(S, L[1], 1.45, L[2], L[3], L[4], L[5]); }
         else if (k === "boats") lmBoats(S, L[1], anims);
         else if (k === "overpass") {
           /* (v49) the deck counts as air clearance, so a gunship climbs
