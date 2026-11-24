@@ -6784,6 +6784,29 @@
       introLines: [{ t: 0.4, text: "20XX년 9월 15일, 인천 상륙작전 개시!" }, { t: 2.4, text: "상륙정 전진! 해안의 적을 쓸고 인천을 되찾아라!" }],
       bossRadio: "송도 상공에 적 공격헬기! 기체에 집중 사격!"
     },
+    /* (v58) 2-2 HAN RIVER: every bridge is down, so the squad crosses in
+       rubber boats, up the river past Yeouido under a broken bridge, lands
+       on the north bank and fights into Yongsan toward Seoul Station */
+    14: {
+      id: 14, music: "landing", label: "STAGE 2-2", clock: 420, raft: true,
+      path: cityPath([[0, -236], [1, -224], [2, -210], [1.5, -196], [0, -182], [-1.5, -168], [-2, -154], [-1, -140], [0, -126], [1, -112], [0.5, -98], [0, -86], [0, -76], [0, -68]]),
+      boss: cityBoss(), chase: "boat",
+      waves: genWaves(1414, ["NORTH BANK", "YONGSAN", "SEOUL STN"], [
+        "도하 성공! 북단 호안 교두보를 확보하라!", "강변북로에 적 오토바이!", "적 헬기 출현! 고가 아래로 엄폐!",
+        "피난민 대피 중, 오사 주의!", "적 증원, 용산 방면!", "적 헬기 재접근!", "적 공수 강하! 서울역 앞을 지켜라!"], { bikes: true, hostage: true }),
+      dress: "citygen", bossKind: "apc", bossHp: 60, armorWave: 4, armorTank: true, armorHp: 14,
+      city: {
+        seed: 14, mood: "day", sea: true, river: true, tall: 16, tints: [0xeae6de, 0xdfe6ee, 0xc4ccd4], sign: [-12.4, -44, "용산", "YONGSAN", Math.PI / 2, "#2f8a4a"],
+        cars: [["bus", 7.6, -20, Math.PI, "503"], ["police", -7.4, 22, Math.PI]],
+        banners: [[-12.2, -14, "서울 수복", "#2a4aa8", 9], [12.2, 24, "한강을 건넜다", "#c22a2a"]],
+        hills: [[0, 230, 240, 60, 34], [-90, 150, 90, 60, 26]],
+        landmarks: [["hanBridge", -200, "arch"], ["hanBridge", -128, "broken"], ["tower", 30, 210, 74, "slim"], ["taper", -160, 260, 150],
+          ["fire", -18, 0.4, -58, 1.4], ["fire", 16, 0.4, -50, 1.2], ["glass", [[-34, 84, 10, 10, 30, 0], [36, 120, 12, 10, 40, 1]]]]
+      },
+      introDur: 5.0, introCam: [[-26, 16, -270, 0, 3, -170], [0, 1.68, -236, 0, 1.55, -222]],
+      introLines: [{ t: 0.4, text: "한강 다리는 모두 끊겼다. 고무보트로 도하한다!" }, { t: 2.4, text: "북단 호안까지 강 위의 적을 쓸어라!" }],
+      bossRadio: "서울역 앞에 적 전차! 흡기구와 수류탄을 노려라!"
+    },
     /* (v55) 3-3 KAESONG: the squad goes in by helicopter over the southern
        fence and the paddies, lands at the complex's gate, and fights up the
        factory avenue to the management committee building */
@@ -6808,7 +6831,7 @@
       bossRadio: "관리위원회 건물 앞에 적 경비사령관! 경호원부터 쓰러뜨려라!"
     },
     1: {
-      id: 1, music: "seoul", label: "STAGE 2-2", clock: 360, path: PATH1, waves: WAVES1, boss: BOSS1,
+      id: 1, music: "seoul", label: "STAGE 2-3", clock: 360, path: PATH1, waves: WAVES1, boss: BOSS1,
       dress: "city", bossKind: "man",
       introDur: 4.2,
       introCam: [[9.0, 11.5, -26.0, 0, 7.0, 40.0], [0, 1.68, -10.0, 0, 1.55, 3.5]],
@@ -9697,6 +9720,32 @@
     g.visible = false;
     return g;
   }
+  /* (v58) the rubber assault boat: black tubes round a grey floor, a
+     rounded bow, Kim paddling at the left front and Park at the right */
+  let raftRig = null;
+  function makeRaftRig() {
+    const g = new T.Group();
+    const tube = cmat(0x26282a, 0.75), tubeD = cmat(0x18191a, 0.8), floor = cmat(0x4a4e50, 0.9), wood = cmat(0x7a5a3a, 0.85);
+    const B = (w, h, d, x, y, z, m, ry) => { const o = new T.Mesh(worldUV(new T.BoxGeometry(w, h, d)), m); o.position.set(x, y, z); if (ry) o.rotation.y = ry; g.add(o); return o; };
+    [-1, 1].forEach((sd) => { B(0.5, 0.5, 3.6, sd * 1.05, -1.25, -1.2, tube); B(0.52, 0.06, 3.6, sd * 1.05, -0.99, -1.2, tubeD); for (let k = 0; k < 4; k++) B(0.06, 0.04, 0.6, sd * 1.28, -1.1, -2.6 + k * 0.9, cmat(0x9aa0a4, 0.6)); });
+    B(1.7, 0.5, 0.5, 0, -1.25, -3.05, tube, 0); B(1.1, 0.48, 0.5, -0.62, -1.25, -2.85, tube, 0.6); B(1.1, 0.48, 0.5, 0.62, -1.25, -2.85, tube, -0.6);
+    B(1.7, 0.06, 3.4, 0, -1.45, -1.2, floor);
+    B(0.4, 0.12, 0.12, -0.7, -0.9, -2.0, wood).rotation.z = 0.8;
+    g.visible = false;
+    return g;
+  }
+  function makeAllyRaft() {
+    const g = new T.Group();
+    const tube = cmat(0x26282a, 0.75), floor = cmat(0x4a4e50, 0.9);
+    const B = (w, h, d, x, y, z, m, ry) => { const o = new T.Mesh(worldUV(new T.BoxGeometry(w, h, d)), m); o.position.set(x, y, z); if (ry) o.rotation.y = ry; o.castShadow = true; g.add(o); return o; };
+    [-1, 1].forEach((sd) => B(0.5, 0.5, 4.2, sd * 0.95, 0.2, 0, tube));
+    B(1.9, 0.5, 0.5, 0, 0.2, 2.2, tube); B(1.9, 0.5, 0.5, 0, 0.2, -2.1, tube);
+    B(1.6, 0.06, 4.0, 0, -0.02, 0, floor);
+    B(0.4, 0.6, 0.5, 0, 0.3, -2.55, cmat(0x3a3e44, 0.7));     /* outboard */
+    g.userData.wake = B(2.4, 0.03, 1.6, 0, -0.06, -3.4, cmat(0xffffff, 0.3));
+    g.userData.ally = 1;
+    return g;
+  }
   /* (v55) the assault helicopter's cabin, seen from the forward seat by the
      open door: floor, door frame pillars, roof edge, a spinning rotor disc
      above, Park on the door gun at the right and Kim strapped in at left */
@@ -9843,6 +9892,12 @@
       window.__allyRides = allyRides.length;
       return;
     }
+    if (boat && STAGE.raft) {
+      put(makeAllyRaft(), 9, 2.4, [["kang", -0.4, -0.35, 1.2, "drive"], ["park", 0.4, -0.35, 0.3, "drive"], ["kim", -0.4, -0.35, -0.6, "drive"]]);
+      put(makeAllyRaft(), 17, -2.6, [["rifle", 0.4, -0.35, 1.2, "drive"], ["rifle", -0.4, -0.35, 0.2, "drive"], ["rifle", 0.4, -0.35, -0.8, "drive"]]);
+      window.__allyRides = allyRides.length;
+      return;
+    }
     if (boat) {
       /* in the lane ahead (enemy boats come down the flanks at |lat| > 3.5),
          so they are in frame on a portrait phone too */
@@ -9939,7 +9994,17 @@
       bark("chaseHeli", 4200);
       return;
     }
-    if (boat) {
+    if (boat && STAGE.raft) {
+      if (!raftRig) { raftRig = makeRaftRig(); ctx.camera.add(raftRig); }
+      raftRig.visible = true;
+      if (boatRig) boatRig.visible = false;
+      if (jeepRig) jeepRig.visible = false;
+      if (KCH.ready && !raftRig.userData.crew) {
+        raftRig.userData.crew = 1;
+        /* Kim and Park ride in Kang's boat just ahead: seated in this one they
+           filled half a portrait screen */
+      }
+    } else if (boat) {
       if (!boatRig) { boatRig = makeBoatRig(); ctx.camera.add(boatRig); }
       boatRig.visible = true;
       if (jeepRig) jeepRig.visible = false;
@@ -9949,12 +10014,18 @@
       if (boatRig) boatRig.visible = false;
       if (!jeepRig.userData.kim && KCH.ready) { const d = jeepRig.userData.driverSlot; jeepRig.userData.kim = seatSquad(jeepRig, "kim", d.x, d.y, d.z, "drive"); }
     }
-    if (boat && boatRig && !boatRig.userData.kim && KCH.ready) boatRig.userData.kim = seatSquad(boatRig, "kim", -1.0, -1.5, -3.15, "stand");
+    if (boat && !STAGE.raft && boatRig && !boatRig.userData.kim && KCH.ready) boatRig.userData.kim = seatSquad(boatRig, "kim", -1.0, -1.5, -3.15, "stand");
     try { addAllyRides(ctx, boat); } catch (e) { window.__allyRideErr = String(e); }
-    bark(boat ? "chaseBoat" : "chaseJeep", 4200);
+    bark(boat ? (STAGE.raft ? "chaseRaft" : "chaseBoat") : "chaseJeep", 4200);
     chase = { t: 0, i: 0, plan: [1.4, 3.0, 5.2, 7.0, 9.2, 11.4, 13.0, 15.2], riders: [], boat: boat, fx: [], sink: [], splashT: 0.6 };
     if (boat) {
       if (dress && dress.ally) dress.ally.visible = false;
+      if (STAGE.raft) {
+        chase.plan = [1.4, 3.6, 6.0, 8.4, 11.0, 13.6, 16.2, 18.8, 21.4];
+        chase.bridges = [-200, -128].map((z) => ({ z: z, done: false }));
+        radio("도하 개시! 다리 위와 강 위의 적을 제압하며 북단으로!", 3400);
+        return;
+      }
       radio("상륙정 전진! 적 경비정이 다가온다, 해안까지 버텨라!", 3400);
       return;
     }
@@ -10051,6 +10122,19 @@
       if (k === 0 || k === 4) gun("motor");
     }
     const cam = ctx.camera;
+    if (chase.bridges) chase.bridges.forEach((B) => {
+      /* (v58) a section on each bridge deck, firing down at the boats */
+      if (B.done || cam.position.z < B.z - 44) return;
+      B.done = true;
+      ((B.z === -128) ? [-21, -16, 16, 21] : [-9, -4.5, 5, 10]).forEach((x, k) => {
+        const p = makePost({ yaw: 0, hold: { x: x, z: B.z - 6 } }, { role: k === 2 ? "tough" : "weak", lat: 0, dep: 2, cover: "rail" }, 120 + k + (B.z & 7));
+        p.run = null; p.live = true; p.state = "chase"; p.expose = 1; p.coverTop = undefined;
+        p.chase = { ahead: B.z - 4.6 - cam.position.z, lat: 0, ph: Math.random() * 6, speed: 0, ground: true, gx: x, gz: B.z - 4.6, gy: 9.5 };
+        p.aimMax = 1.8 * (DIFF.aim || 1); p.aim = p.aimMax * (0.6 + Math.random() * 0.6);
+        chase.riders.push(p);
+      });
+      radio("다리 위에 적! 머리 위를 조심해!", 2000);
+    });
     chase.riders.forEach((p) => {
       if (!p.chase || p.live === false || p.e.alive === false) return;
       const c = p.chase;
@@ -10060,7 +10144,7 @@
         const q = pathAt(u0), tq = curve.getTangentAt(u0);
         const ql = Math.hypot(tq.x, tq.z) || 1;
         if (c.gx == null) { c.gx = q.x + (tq.z / ql) * c.lat; c.gz = q.z - (tq.x / ql) * c.lat; }
-        p.x = c.gx; p.z = c.gz; p.y = 0.3;
+        p.x = c.gx; p.z = c.gz; p.y = c.gy != null ? c.gy : 0.3;
         posePost(p, cam.position, dt);
         p.mesh.rotation.y = Math.atan2(cam.position.x - p.x, cam.position.z - p.z);
         p.visTop = p.y + 1.9;
@@ -10128,6 +10212,10 @@
       jeepRig.rotation.z = Math.sin(t * 1.3) * 0.012;
       if (jeepRig.userData.wheel) jeepRig.userData.wheel.rotation.z = Math.sin(t * 0.9) * 0.4;
     }
+    if (chase.boat && raftRig && STAGE.raft) {
+      const t = chase.t;
+      raftRig.position.y = Math.sin(t * 2.1) * 0.06; raftRig.rotation.z = Math.sin(t * 1.4) * 0.035; raftRig.rotation.x = Math.sin(t * 1.8) * 0.025;
+    }
     if (chase.boat) {
       const t = chase.t;
       if (boatRig) { boatRig.position.y = Math.sin(t * 1.7) * 0.05; boatRig.rotation.z = Math.sin(t * 1.1) * 0.025; boatRig.rotation.x = Math.sin(t * 1.5) * 0.02; }
@@ -10176,8 +10264,10 @@
     if (jeepRig) jeepRig.visible = false;
     if (boatRig) boatRig.visible = false;
     if (heliRig) heliRig.visible = false;
+    if (raftRig) raftRig.visible = false;
     if (dress && dress.ally) dress.ally.visible = true;
-    if (STAGE.chase === "heli") radio("착륙! 전원 하기, 개성공단 정문을 확보하라!", 3200);
+    if (STAGE.raft) radio("도하 성공! 호안 계단으로 올라가 교두보를 확보하라!", 3200);
+    else if (STAGE.chase === "heli") radio("착륙! 전원 하기, 개성공단 정문을 확보하라!", 3200);
     else if (wasBoat) radio("램프 개방! 상륙, 상륙! 해안 교두보를 확보하라!", 3200);
     else radio(down >= 6 ? "추격대 전멸! 하차, 압록강 초소로 진입한다!" : "하차! 압록강 국경 초소로 진입한다!", 3000);
   }
@@ -10645,7 +10735,7 @@
     try { shot = window.MG && window.MG.snap ? window.MG.snap(1280) : null; } catch (e) {}
     const ko = (document.documentElement.lang || "").startsWith("ko");
     /* (v21) the campaign runs in war order, not in id order */
-    const ORD = [6, 7, 8, 9, 10, 11, 12, 1, 2, 3, 13, 4, 5];
+    const ORD = [6, 7, 8, 9, 10, 11, 12, 14, 1, 2, 3, 13, 4, 5];
     const NM = { 1: ["서울 수복", "RETAKE SEOUL"], 2: ["DMZ·판문점", "DMZ & PANMUNJOM"], 3: ["평화의 집", "PEACE HOUSE"], 4: ["평양 진입", "INTO PYONGYANG"], 5: ["압록강·백두산", "YALU & PAEKTU"],
       6: ["서울 함락", "FALL OF SEOUL"], 7: ["대전", "DAEJEON"], 8: ["대구", "DAEGU"], 9: ["광주", "GWANGJU"], 10: ["경주", "GYEONGJU"], 11: ["부산", "BUSAN"], 12: ["인천 상륙작전", "INCHEON LANDING"] };
     const oi = ORD.indexOf(stageId);
@@ -10656,7 +10746,7 @@
     const adB = (!cleared && canOfferReviveAd()) ? "<button class=ad data-act=adrev type=button>🎬 <b>" + (ko ? "광고 보고 이어하기" : "WATCH AD TO CONTINUE") + "</b></button>" : "";
     const head = cleared
       ? ({ 6: ko ? "철수 성공 · 시민 대피 완료" : "WITHDRAWAL COMPLETE", 7: ko ? "지연전 성공 · 대전" : "DAEJEON HELD", 8: ko ? "방어 성공 · 대구" : "DAEGU HELD", 9: ko ? "방어 성공 · 광주" : "GWANGJU HELD",
-          10: ko ? "방어 성공 · 경주" : "GYEONGJU HELD", 11: ko ? "최후 방어선 사수 · 부산" : "THE PERIMETER HOLDS", 12: ko ? "상륙 성공 · 인천 탈환" : "INCHEON RETAKEN", 13: ko ? "개성공단 탈환 · 관리위원회 확보" : "KAESONG RETAKEN" }[stageId]) || (stageId === 2 ? (ko ? "작전 성공 · JSA 확보" : "MISSION CLEAR · JSA SECURED") : stageId === 3 ? (ko ? "작전 성공 · 판문각 확보" : "MISSION CLEAR · PANMUNGAK SECURED") : stageId === 4 ? (ko ? "작전 성공 · 평양 광장 확보" : "MISSION CLEAR · SQUARE SECURED") : stageId === 5 ? (ko ? "최종 작전 성공 · 총사령관 제압" : "FINAL MISSION · LEADER DOWN")  : (ko ? "서울 수복 · 숭례문 탈환" : "SEOUL RETAKEN"))
+          10: ko ? "방어 성공 · 경주" : "GYEONGJU HELD", 11: ko ? "최후 방어선 사수 · 부산" : "THE PERIMETER HOLDS", 12: ko ? "상륙 성공 · 인천 탈환" : "INCHEON RETAKEN", 13: ko ? "개성공단 탈환 · 관리위원회 확보" : "KAESONG RETAKEN", 14: ko ? "한강 도하 성공 · 용산 진입" : "THE HAN IS CROSSED" }[stageId]) || (stageId === 2 ? (ko ? "작전 성공 · JSA 확보" : "MISSION CLEAR · JSA SECURED") : stageId === 3 ? (ko ? "작전 성공 · 판문각 확보" : "MISSION CLEAR · PANMUNGAK SECURED") : stageId === 4 ? (ko ? "작전 성공 · 평양 광장 확보" : "MISSION CLEAR · SQUARE SECURED") : stageId === 5 ? (ko ? "최종 작전 성공 · 총사령관 제압" : "FINAL MISSION · LEADER DOWN")  : (ko ? "서울 수복 · 숭례문 탈환" : "SEOUL RETAKEN"))
       : (ko ? "작전 실패" : "MISSION FAILED");
     const box = document.createElement("div");
     box.id = "railResult";
@@ -13077,6 +13167,7 @@
     hurt: [["kang", "부상당했나? 엄호한다, 버텨!", "Are you hit? I'll cover you — hang on!"], ["kim", "괜찮으세요?! 제가 막을게요!", "Are you okay?! I'll hold them!"]],
     chaseJeep: [["kim", "꽉 잡으세요! 밟습니다!", "Hold on! Flooring it!"]],
     chaseBoat: [["kim", "우욱… 해안까지 얼마나 남았죠…", "Urgh… how far to the beach…"]],
+    chaseRaft: [["kim", "저 수영 못 하는 거 아시죠…?! 노 젓습니다!", "You know I can't swim…! Paddling!"], ["park", "고개 숙여! 다리 위에서 쏜다!", "Heads down! They're firing off the bridge!"]],
     chaseHeli: [["park", "도어건 쏜다! 지상 사격 조심해!", "Door gun's hot! Watch the ground fire!"], ["kim", "저, 저 아래 전부 적입니다!", "Th-that's all enemy down there!"]]
   };
   let barkT = 0, barkHide = 0, barkHurt = false;
@@ -15458,6 +15549,83 @@
      canopy over the top step and the green line sign — the one piece of a
      modern Korean street the old cities were missing */
   /* ---------------- (v55) Kaesong industrial complex ---------------- */
+  /* ---------------- (v58) the Han river ---------------- */
+  const HAN_BANK = 34;          /* the river runs between x = ±HAN_BANK south of z −70 */
+  function hanRiver(S) {
+    const M = voxMats(), VB = voxBatch(), R = rng(1414);
+    const Z0 = -360, Z1 = -70.5, L = Z1 - Z0, zc = (Z0 + Z1) / 2;
+    [-1, 1].forEach((sd) => {
+      const xb = sd * HAN_BANK;
+      /* stone revetment, the riverside park, the expressway on its wall */
+      VB.cube(M.rock, xb + sd * 1.5, 0.9, zc, 3, 2.2, L, 0xb8b4aa);
+      VB.cube(M.grass, xb + sd * 9, 1.9, zc, 14, 0.4, L, 0x86b060);
+      VB.cube(M.plain, xb + sd * 9, 2.12, zc, 2.4, 0.06, L, 0xc84a3a);                /* the red bike path */
+      VB.cube(M.plain, xb + sd * 20, 3.0, zc, 8, 2.2, L, 0xc8c4bc);                  /* expressway wall */
+      VB.cube(M.plain, xb + sd * 26, 4.3, zc, 14, 0.4, L, 0x5a5e64);                 /* expressway deck */
+      for (let z = Z0 + 4; z < Z1; z += 3.5) VB.cube(M.plain, xb + sd * 26, 4.55, z, 0.25, 0.04, 1.6, 0xf0f0e8);
+      VB.cube(M.plain, xb + sd * 19.2, 5.0, zc, 0.3, 1.0, L, 0xd8d4cc);
+      for (let i = 0; i < 26; i++) {
+        const z = Z0 + R() * L, lane = xb + sd * (22 + R() * 8);
+        VB.cube(M.plain, lane, 5.0, z, 1.8, 1.2, 4.2, [0xf0f0f0, 0x2a2e34, 0xb83a32, 0x3a5a8a, 0xc8ccd0][(R() * 5) | 0], 0, { cast: true });
+      }
+      VB.cube(M.grass, xb + sd * 120, 0.3, zc, 190, 0.5, L + 40, 0x7da656);            /* ground beyond */
+      /* apartment slabs with their block numbers, row after row */
+      for (let row = 0; row < 3; row++) {
+        for (let z = Z0 + 10 + row * 7; z < Z1 - 6; z += 24 + R() * 8) {
+          const x = xb + sd * (44 + row * 26 + R() * 6), h = 30 + R() * 30 + row * 6, w = 9;
+          const col = [0xf2efe8, 0xe8ecef, 0xf0e8de][(R() * 3) | 0];
+          VB.cube(M.plain, x, h / 2, z, w, h, 20, col, 0, { cast: row === 0 });
+          for (let f = 3; f < h - 1; f += 3) VB.cube(M.plain, x - sd * 4.55, f, z, 0.12, 1.1, 18, 0x6a8aa8);
+          VB.cube(M.plain, x - sd * 4.6, h - 3, z + 6, 0.1, 2.4, 4, [0x2a6ab8, 0x3a8a4a, 0xc84a3a][row]);
+        }
+      }
+    });
+    /* Yeouido's gold tower on the south bank, and a couple of glass towers */
+    {
+      const gold = cmat(0xd8b25a, 0.14, 0.75);
+      const tw = new T.Mesh(new T.BoxGeometry(18, 1, 26), gold);
+      const g = new T.Group();
+      for (let k = 0; k < 6; k++) { const m = new T.Mesh(new T.BoxGeometry(18 - k * 1.6, 22, 26 - k * 2.2), gold); m.position.set(0, 11 + k * 20, 0); m.castShadow = true; g.add(m); }
+      g.position.set(-64, 0, -196); g.traverse((o) => { o.userData.noBlock = 1; }); S.add(g); void tw;
+    }
+    VB.flush(S, "hanBanks");
+    /* the north bank's stepped concrete revetment where the boats land */
+    const conc = cmat(0xb8b4ac, 0.9);
+    for (let k = 0; k < 4; k++) bx(S, 2 * HAN_BANK, 0.5, 1.2, 0, 0.1 + k * 0.5, -70.8 + k * 1.2, conc, { noCast: 1 });
+  }
+  /* a bridge across the river at z: steel arches over the deck, or one with
+     its middle span dropped into the water */
+  function lmHanBridge(S, z, kind) {
+    const deck = cmat(0x9a9890, 0.85), steel = cmat(0x8a9aa8, 0.45, 0.5), pier = cmat(0xb4b0a6, 0.9), dark = cmat(0x3a3e44, 0.7);
+    const W = 2 * HAN_BANK + 30, Y = 9.0;
+    const span = (x0, x1, y0, y1, broken) => {
+      const len = x1 - x0, cx = (x0 + x1) / 2, rz = Math.atan2(y1 - y0, len);
+      const d = bx(S, Math.hypot(len, y1 - y0), 0.9, 11, cx, (y0 + y1) / 2, z, deck, { rz: rz }); d.userData.air = 1;
+      [-5.3, 5.3].forEach((dz) => bx(S, Math.hypot(len, y1 - y0), 1.0, 0.25, cx, (y0 + y1) / 2 + 0.9, z + dz, cmat(0xd8d4cc, 0.8), { rz: rz }).userData.air = 1);
+      void broken;
+    };
+    [-46, -24, 24, 46].forEach((x) => { bx(S, 4, Y, 6, x, Y / 2 - 0.5, z, pier, { wall: 1 }); });
+    if (kind === "broken") {
+      span(-W / 2, -24, Y, Y); span(-24, -12, Y, Y - 1.2); span(12, 24, Y - 1.4, Y); span(24, W / 2, Y, Y);
+      /* the fallen middle: two slabs tipped into the river, clear of the boat lane */
+      const f1 = bx(S, 12, 0.9, 11, -17, 3.2, z, deck, { rz: -0.75 }); f1.userData.air = 1;
+      const f2 = bx(S, 10, 0.9, 11, 17, 2.6, z, deck, { rz: 0.8 }); f2.userData.air = 1;
+      for (let i = 0; i < 6; i++) bx(S, 0.12, 1.6 + i * 0.3, 0.12, -12 + i * 0.3, Y - 1.6 - i * 0.2, z - 4 + i * 1.6, dark, { rz: 0.4 });
+    } else {
+      span(-W / 2, W / 2, Y, Y);
+      /* three steel arches over the deck */
+      [-35, 0, 35].forEach((cx) => {
+        [-5.6, 5.6].forEach((dz) => {
+          for (let i = 0; i < 12; i++) {
+            const a0 = (i / 12) * Math.PI, a1 = ((i + 1) / 12) * Math.PI;
+            const x0 = cx - 17 * Math.cos(a0), y0 = Y + 0.5 + 9 * Math.sin(a0), x1 = cx - 17 * Math.cos(a1), y1 = Y + 0.5 + 9 * Math.sin(a1);
+            bx(S, Math.hypot(x1 - x0, y1 - y0) + 0.1, 0.5, 0.5, (x0 + x1) / 2, (y0 + y1) / 2, z + dz, steel, { rz: Math.atan2(y1 - y0, x1 - x0), noCast: 1 }).userData.air = 1;
+          }
+          for (let i = 1; i < 8; i++) { const x = cx - 17 + i * 34 / 8, h = 9 * Math.sin(Math.acos((x - cx) / 17)); bx(S, 0.12, h, 0.12, x, Y + 0.5 + h / 2, z + dz, steel, { noCast: 1 }); }
+        });
+      });
+    }
+  }
   /* (v56) crisp signboards: a large canvas, never voxelized (ctex smooth),
      anisotropic so the letters hold up at a slant */
   const KFONT = '"Noto Sans CJK KR","Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic","Nanum Gothic",sans-serif';
@@ -16013,7 +16181,8 @@
       dress0.sea = sea;
       if (C.sea) foamStrip(S, 0, -70.5, 260, 3, 0);
       if (C.seaSide) foamStrip(S, 17.4, 0, 3, 200, 0);
-      if (C.sea) coastProps(S);
+      if (C.sea && !C.river) coastProps(S);
+      if (C.river) { try { hanRiver(S); } catch (e) { window.__lmErr = String(e && e.stack || e); } }
     }
     /* everything so far (sky, ground, water) stays put; what follows is laid
        along the avenue and turns its corners with it */
@@ -16241,6 +16410,7 @@
         else if (k === "cranes") lmCranes(S, L[1]);
         else if (k === "subway") lmSubway(S, L[1], L[2], L[3]);
         else if (k === "kaesongGate") lmKaesongGate(S, L[1]);
+        else if (k === "hanBridge") lmHanBridge(S, L[1], L[2]);
         else if (k === "guardTower") lmGuardTower(S, L[1], L[2], L[3]);
         else if (k === "kaesongHQ") lmKaesongHQ(S, L[1], L[2]);
         else if (k === "boats") lmBoats(S, L[1], anims);

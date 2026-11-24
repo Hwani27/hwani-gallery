@@ -74,7 +74,15 @@
       L("cha", "인천에 상륙이라고? …누가 그런 미친 짓을!", "A landing at Incheon? …Who would be mad enough!"),
       L("kang", "램프 내린다! 전원 돌격!", "Ramp going down! Everyone, go!")
     ] },
-    1: { ep: 8, ko: "서울 수복", en: "RETAKE SEOUL", when: "상륙 열흘 뒤 · 서울", whenEn: "TEN DAYS AFTER THE LANDING · SEOUL", lines: [
+    14: { ep: 8, ko: "한강 도하", en: "CROSSING THE HAN", when: "상륙 일주일 뒤 · 한강 남단", whenEn: "A WEEK AFTER THE LANDING · SOUTH BANK OF THE HAN", lines: [
+      L("hq", "한강 다리는 전부 끊겼다. 고무보트로 도하해 북단 교두보를 확보하라.", "Every bridge over the Han is down. Cross in rubber boats and take the north bank."),
+      L("kim", "저… 수영 못 하는데요.", "Um… I can't swim."),
+      L("park", "구명조끼 꽉 매. 그리고 노 저어. 빠지면 내가 건진다.", "Strap that life vest tight and paddle. If you go in, I'll fish you out."),
+      L("cha", "한강을 헤엄쳐 오겠다고? 강물이 너희 무덤이 될 거다.", "You'd swim the Han? The river will be your grave."),
+      L("kang", "서울이 바로 저기다. 약속 지키러 가자. 다리 위 사수부터 정리한다.", "Seoul is right there. Let's go keep that promise. Clear the gunners on the bridges first."),
+      L("me", "노 잡겠습니다. 엄호는 맡겨 주십시오.", "I've got a paddle. Leave the covering fire to me.")
+    ] },
+    1: { ep: 9, ko: "서울 수복", en: "RETAKE SEOUL", when: "상륙 열흘 뒤 · 서울", whenEn: "TEN DAYS AFTER THE LANDING · SEOUL", lines: [
       L("kim", "서울이다… 진짜 돌아왔어요.", "It's Seoul… we really came back."),
       L("park", "이자까지 받아낼 차례다, 막내.", "Time to collect the interest, kid."),
       L("hq", "숭례문 일대에 적 지휘부가 버티고 있다.", "Enemy command is dug in around Sungnyemun."),
@@ -82,7 +90,7 @@
       L("civ", "국군이다! 국군이 돌아왔다!", "It's our army! They've come back!"),
       L("me", "모두 엎드리세요! 저희가 끝내겠습니다.", "Everyone get down! We'll finish this.")
     ] },
-    2: { ep: 9, ko: "DMZ · 판문점", en: "DMZ & PANMUNJOM", when: "북진 · 비무장지대", whenEn: "THE ADVANCE NORTH · THE DMZ", lines: [
+    2: { ep: 10, ko: "DMZ · 판문점", en: "DMZ & PANMUNJOM", when: "북진 · 비무장지대", whenEn: "THE ADVANCE NORTH · THE DMZ", lines: [
       L("hq", "남방한계선 돌파를 허가한다. 판문점을 확보하라.", "You're cleared to cross the southern boundary. Secure Panmunjom."),
       L("park", "GOP 근무할 때 저 철책을 매일 봤지. 넘어갈 날이 올 줄은 몰랐다.", "I stared at that fence every day on guard duty. Never thought I'd cross it."),
       L("kim", "지뢰 지대는… 괜찮은 겁니까?", "The minefields… are we okay?"),
@@ -90,14 +98,14 @@
       L("cha", "여기서부턴 우리 땅이다. 한 걸음마다 피를 흘리게 될 거다.", "From here on it's our ground. Every step will cost you."),
       L("park", "말은 끝까지 많네.", "Still talking, that one.")
     ] },
-    3: { ep: 10, ko: "평화의 집", en: "PEACE HOUSE", when: "판문점 · 군사분계선", whenEn: "PANMUNJOM · THE LINE", lines: [
+    3: { ep: 11, ko: "평화의 집", en: "PEACE HOUSE", when: "판문점 · 군사분계선", whenEn: "PANMUNJOM · THE LINE", lines: [
       L("hq", "평화의 집 일대에 적 특수부대가 침투했다.", "Enemy special forces have moved into the Peace House grounds."),
       L("kim", "이름이 평화의 집인데… 여기서 싸워야 하네요.", "It's called the Peace House… and we have to fight in it."),
       L("kang", "그러니 빨리 끝내자. 이름값 하게 돌려놓자고.", "Then let's be quick about it, and give it back its name."),
       L("park", "도보다리 건너면 판문각이다. 엄폐 잘 해.", "Across the footbridge is Panmungak. Stay in cover."),
       L("me", "선두는 제가 서겠습니다.", "I'll lead.")
     ] },
-    13: { ep: 11, ko: "개성공단", en: "KAESONG", when: "북진 · 개성공업지구 상공", whenEn: "THE ADVANCE · OVER KAESONG", lines: [
+    13: { ep: 12, ko: "개성공단", en: "KAESONG", when: "북진 · 개성공업지구 상공", whenEn: "THE ADVANCE · OVER KAESONG", lines: [
       L("hq", "개성공업지구를 탈환한다. 정문 앞까지 헬기로 강습 진입하라.", "We retake the Kaesong complex. Air assault to the main gate."),
       L("kim", "여기… 남북이 같이 일하던 곳이죠? 뉴스에서 봤어요.", "This is… where North and South used to work together, right? I saw it on the news."),
       L("park", "그래. 공장은 멀쩡하다더라. 사람만 바뀌었지.", "That's the one. They say the factories are fine. Only the people changed."),
@@ -106,14 +114,14 @@
       L("park", "착륙 지점까지 지상 사격이 셀 거다. 도어건은 내가 맡는다.", "Ground fire will be heavy all the way in. I'll take the door gun."),
       L("me", "착륙하면 제가 먼저 내리겠습니다.", "When we touch down, I'm first out.")
     ] },
-    4: { ep: 12, ko: "평양 진입", en: "INTO PYONGYANG", when: "북진 · 눈보라 속 평양", whenEn: "THE ADVANCE · PYONGYANG IN THE SNOW", lines: [
+    4: { ep: 13, ko: "평양 진입", en: "INTO PYONGYANG", when: "북진 · 눈보라 속 평양", whenEn: "THE ADVANCE · PYONGYANG IN THE SNOW", lines: [
       L("hq", "평양 외곽 돌파. 마지막 시가전이다.", "We're through the outskirts. This is the last street fight."),
       L("kim", "눈이… 손가락이 얼 것 같습니다.", "This snow… I can't feel my fingers."),
       L("park", "총은 품에 안고 다녀. 얼면 안 나간다.", "Keep your rifle under your coat. A frozen gun won't fire."),
       L("cha", "평양은 무너지지 않는다! 광장에서 기다리겠다.", "Pyongyang does not fall! I'll be waiting in the square."),
       L("kang", "기다려 준다니 고맙군. 늦지 않게 가 주자.", "Kind of him to wait. Let's not be late.")
     ] },
-    5: { ep: 13, ko: "압록강 · 백두산", en: "YALU & PAEKTU", when: "마지막 작전 · 국경 도로", whenEn: "THE LAST OPERATION · THE BORDER ROAD", lines: [
+    5: { ep: 14, ko: "압록강 · 백두산", en: "YALU & PAEKTU", when: "마지막 작전 · 국경 도로", whenEn: "THE LAST OPERATION · THE BORDER ROAD", lines: [
       L("hq", "평양 광장 확보. 적 지휘관 차 대좌가 국경 방면으로 도주 중.", "The square is ours. Colonel Cha is running for the border."),
       L("kang", "여기서 놓치면 다시 시작이다. 끝까지 쫓는다.", "If he gets away, this starts all over again. We run him down."),
       L("kim", "운전은 제가 하겠습니다! …면허는 2종 보통이지만요.", "I'll drive! …I've only got a car licence, though."),
