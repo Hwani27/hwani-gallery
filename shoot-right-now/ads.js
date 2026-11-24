@@ -27,12 +27,12 @@
 
    ■ 광고 ID
    · PUBLISHER           pub-6817381579747852   (AdMob 게시자 ID — 네이티브 래퍼가 읽어 간다)
-   · REWARDED_UNIT       보상형 광고 단위 ID. 구글플레이 빌드에서 채운다. 비면 래퍼 기본값.
-   · INTERSTITIAL_UNIT   전면 광고 단위 ID. 구글플레이 빌드에서 채운다. 비면 래퍼 기본값.
-   · BANNER_UNIT         배너 광고 단위 ID. 구글플레이 빌드에서 채운다. 비면 래퍼 기본값.
-   · tossGroup           토스 보상형 광고 그룹 ID (없으면 'ait-ad-test-rewarded-id')
-   · tossInterstitialGroup  토스 전면 광고 그룹 ID (없으면 'ait-ad-test-interstitial-id')
-   · tossBannerGroup        토스 배너 광고 그룹 ID (없으면 'ait-ad-test-banner-id')
+   · APP_ID              ca-app-pub-6817381579747852~8081569254  (AdMob 앱 ID, 구글플레이/네이티브만)
+   · REWARDED_UNIT       ca-app-pub-6817381579747852/1238948404  (구글플레이/네이티브만)
+   · INTERSTITIAL_UNIT   ca-app-pub-6817381579747852/6682846774  (구글플레이/네이티브만)
+   · BANNER_UNIT         ca-app-pub-6817381579747852/3210505621  (구글플레이/네이티브만)
+   · tossGroup / tossInterstitialGroup / tossBannerGroup
+        앱인토스 전용. 비워 두고, 토스 경로에서는 이 AdMob ID를 쓰지 않는다.
 
    ■ 테스트 훅
    · ?ads=off    광고 슬롯을 아예 쓰지 않는다 (버튼도 뜨지 않음)
@@ -45,9 +45,12 @@
 (function () {
   "use strict";
   var PUBLISHER = "pub-6817381579747852";
-  var REWARDED_UNIT = "";
-  var INTERSTITIAL_UNIT = "";
-  var BANNER_UNIT = "";
+  /* AdMob IDs — used only on the native / Google Play path (viaNative*).
+     The Apps in Toss path keeps toss*Group empty and uses Toss test/live group IDs, never these. */
+  var APP_ID = "ca-app-pub-6817381579747852~8081569254";
+  var REWARDED_UNIT = "ca-app-pub-6817381579747852/1238948404";
+  var INTERSTITIAL_UNIT = "ca-app-pub-6817381579747852/6682846774";
+  var BANNER_UNIT = "ca-app-pub-6817381579747852/3210505621";
   var TOSS_TEST_GROUP = "ait-ad-test-rewarded-id";
   var TOSS_TEST_INTERSTITIAL = "ait-ad-test-interstitial-id";
   var TOSS_TEST_BANNER = "ait-ad-test-banner-id";
@@ -158,8 +161,8 @@
       }
       window[cb] = function (ok) { finish(ok); };
       try {
-        if (b.kind === "js") b.fn.call(b.api, placement, cb, REWARDED_UNIT || "", PUBLISHER);
-        else b.api.postMessage({ action: "rewarded", placement: placement, callback: cb, unit: REWARDED_UNIT, publisher: PUBLISHER });
+        if (b.kind === "js") b.fn.call(b.api, placement, cb, REWARDED_UNIT || "", PUBLISHER, APP_ID);
+        else b.api.postMessage({ action: "rewarded", placement: placement, callback: cb, unit: REWARDED_UNIT, publisher: PUBLISHER, appId: APP_ID });
       } catch (e) { finish(false, "native:" + e); }
     });
   }
@@ -278,8 +281,8 @@
       }
       window[cb] = function (ok) { finish(ok); };
       try {
-        if (b.kind === "js") b.fn.call(b.api, placement, cb, INTERSTITIAL_UNIT || "", PUBLISHER);
-        else b.api.postMessage({ action: "interstitial", placement: placement, callback: cb, unit: INTERSTITIAL_UNIT, publisher: PUBLISHER });
+        if (b.kind === "js") b.fn.call(b.api, placement, cb, INTERSTITIAL_UNIT || "", PUBLISHER, APP_ID);
+        else b.api.postMessage({ action: "interstitial", placement: placement, callback: cb, unit: INTERSTITIAL_UNIT, publisher: PUBLISHER, appId: APP_ID });
       } catch (e) { finish(false, "native-interstitial:" + e); }
     });
   }
@@ -386,7 +389,7 @@
     if (!api) return false;
     try {
       if (api.__ios) {
-        api.__ios.postMessage({ action: "banner", visible: !!visible, placement: placement || "banner", unit: BANNER_UNIT, publisher: PUBLISHER });
+        api.__ios.postMessage({ action: "banner", visible: !!visible, placement: placement || "banner", unit: BANNER_UNIT, publisher: PUBLISHER, appId: APP_ID });
         return true;
       }
       if (typeof api.setBannerVisible === "function") { api.setBannerVisible(!!visible, BANNER_UNIT || "", PUBLISHER); return true; }
@@ -498,6 +501,7 @@
 
   window.MGAds = {
     publisher: PUBLISHER,
+    appId: APP_ID,
     rewardedUnit: REWARDED_UNIT,
     interstitialUnit: INTERSTITIAL_UNIT,
     bannerUnit: BANNER_UNIT,
