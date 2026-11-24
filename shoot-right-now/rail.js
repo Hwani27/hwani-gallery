@@ -6912,11 +6912,11 @@
         "피난민 대피 중, 오사 주의!", "적 증원, 용산 방면!", "적 헬기 재접근!", "적 공수 강하! 서울역 앞을 지켜라!"], { bikes: true, hostage: true }),
       dress: "citygen", bossKind: "apc", bossHp: 60, armorWave: 4, armorTank: true, armorHp: 14,
       city: {
-        seed: 14, mood: "day", sea: true, river: true, tall: 16, tints: [0xeae6de, 0xdfe6ee, 0xc4ccd4], sign: [-12.4, -44, "용산", "YONGSAN", Math.PI / 2, "#2f8a4a"],
+        seed: 14, mood: "morning", sea: true, river: true, tall: 16, tints: [0xeae6de, 0xdfe6ee, 0xc4ccd4], sign: [-12.4, -44, "용산", "YONGSAN", Math.PI / 2, "#2f8a4a"],
         cars: [["bus", 7.6, -20, Math.PI, "503"], ["police", -7.4, 22, Math.PI]],
         banners: [[-12.2, -14, "서울 수복", "#2a4aa8", 9], [12.2, 24, "한강을 건넜다", "#c22a2a"]],
         hills: [[0, 230, 240, 60, 34], [-90, 150, 90, 60, 26]],
-        landmarks: [["hanBridge", -200, "arch"], ["hanBridge", -128, "broken"], ["tower", 30, 210, 74, "slim"], ["taper", -160, 260, 150],
+        landmarks: [["hanBridge", -200, "arch"], ["hanBridge", -128, "broken"], ["fire", -12.6, 8.2, -128, 1.0], ["fire", 12.8, 8.0, -126, 0.9], ["tower", 30, 210, 74, "slim"], ["taper", -160, 260, 150],
           ["fire", -18, 0.4, -58, 1.4], ["fire", 16, 0.4, -50, 1.2], ["glass", [[-34, 84, 10, 10, 30, 0], [36, 120, 12, 10, 40, 1]]]]
       },
       introDur: 5.0, introCam: [[-26, 16, -270, 0, 3, -170], [0, 1.68, -236, 0, 1.55, -222]],
@@ -9946,7 +9946,7 @@
     B(1.9, 0.5, 0.5, 0, 0.2, 2.2, tube); B(1.9, 0.5, 0.5, 0, 0.2, -2.1, tube);
     B(1.6, 0.06, 4.0, 0, -0.02, 0, floor);
     B(0.4, 0.6, 0.5, 0, 0.3, -2.55, cmat(0x3a3e44, 0.7));     /* outboard */
-    g.userData.wake = B(2.4, 0.03, 1.6, 0, -0.06, -3.4, cmat(0xffffff, 0.3));
+    g.userData.wake = hanWake(g, 3.2, 7, 0, 0.0, -5.4);
     g.userData.ally = 1;
     return g;
   }
@@ -10033,7 +10033,7 @@
     B(1.0, 0.6, 1.0, 0, 0.6, -0.8, dark);
     B(0.9, 0.08, 0.9, 0, 0.94, -0.8, white);
     B(1.74, 0.08, 4.24, 0, 0.36, 0, dark);
-    g.userData.wake = B(1.9, 0.04, 1.4, 0, -0.1, -2.6, M(0xffffff, 0.3));
+    g.userData.wake = hanWake(g, 2.6, 6, 0, -0.06, -4.8);
     return g;
   }
   function splashAt(ctx, x, z, big) {
@@ -10075,7 +10075,7 @@
     B(2.9, 0.1, 5.2, 0, -0.15, 0, hullD);
     B(2.96, 0.9, 0.16, 0, 0.3, -2.6, hull);
     B(1.0, 0.9, 0.8, 0.8, 1.2, -2.1, hullD);
-    g.userData.wake = B(3.4, 0.04, 2.0, 0, -0.18, -3.6, white);
+    g.userData.wake = hanWake(g, 4.2, 8, 0, -0.14, -6.4);
     g.userData.ally = 1;
     return g;
   }
@@ -16438,6 +16438,96 @@
     void HM;
     VB.flush(S, "hwOut");
   }
+  /* (v64) the Han in more detail: shared materials for the bridges, the
+     apartment blocks, wakes and the smoke over the burning city */
+  let HANM = null;
+  function hanMats() {
+    if (HANM) return HANM;
+    makeSol();
+    const BM = (key, gain) => bumpTex(key, TXCV[key], { gain: gain });
+    const L = (tex, o) => new T.MeshStandardMaterial(Object.assign({ map: tex, envMapIntensity: 0.15 }, o || {}));
+    /* weathered bridge concrete: form-tie holes, rust bleeding, rain streaks */
+    const conc = ctex("hanConc", 256, 256, (g, w, h) => {
+      const R = rng(1451);
+      g.fillStyle = "#b2aea4"; g.fillRect(0, 0, w, h);
+      for (let i = 0; i < 700; i++) { g.globalAlpha = 0.18; g.fillStyle = ["#c4c0b6", "#9c988e", "#a8a49a", "#8e8a80"][(R() * 4) | 0]; const s = 4 + R() * 14; g.fillRect(R() * w, R() * h, s, s * (0.5 + R())); }
+      g.globalAlpha = 1;
+      g.fillStyle = "rgba(70,66,58,.35)"; for (let y = 0; y < h; y += 64) g.fillRect(0, y, w, 2);
+      for (let x = 16; x < w; x += 64) for (let y = 16; y < h; y += 32) { g.fillStyle = "#5e5a52"; g.fillRect(x, y, 4, 4); g.fillStyle = "rgba(120,70,40,.25)"; g.fillRect(x, y + 4, 3, 10 + R() * 18); }
+      for (let i = 0; i < 26; i++) { const x = R() * w, y = R() * h; const lg = g.createLinearGradient(0, y, 0, y + 100); lg.addColorStop(0, "rgba(50,48,42,.3)"); lg.addColorStop(1, "rgba(50,48,42,0)"); g.fillStyle = lg; g.fillRect(x, y, 3 + R() * 8, 100); }
+    });
+    /* apartment face: two floors × two units per tile (6 m): balconies with
+       sliding glass, white rails, a dividing pier, the odd lit window */
+    const apt = ctex("hanApt", 256, 256, (g, w, h) => {
+      const R = rng(1459);
+      g.fillStyle = "#ece8e0"; g.fillRect(0, 0, w, h);
+      for (let f = 0; f < 2; f++) for (let u = 0; u < 2; u++) {
+        const x = u * 128, y = f * 128;
+        g.fillStyle = "#d6d2ca"; g.fillRect(x, y + 104, 128, 24);              /* slab edge */
+        const gl = g.createLinearGradient(0, y + 22, 0, y + 92);
+        const lit = R() < 0.14;
+        gl.addColorStop(0, lit ? "#e8d8a8" : "#9ab4c8"); gl.addColorStop(1, lit ? "#c8a860" : "#2e4252");
+        g.fillStyle = gl; g.fillRect(x + 12, y + 22, 104, 70);
+        g.fillStyle = "#f4f2ec"; g.fillRect(x + 62, y + 22, 4, 70); g.fillRect(x + 12, y + 22, 104, 4);
+        if (R() < 0.5) { g.fillStyle = ["#d8c8a8", "#c8d4dc", "#e0d0d8"][(R() * 3) | 0]; g.fillRect(x + 14 + R() * 50, y + 26, 30 + R() * 20, 64); }   /* curtains */
+        g.fillStyle = "#f8f8f4"; g.fillRect(x + 8, y + 74, 112, 4); for (let k = 0; k < 14; k++) g.fillRect(x + 10 + k * 8, y + 76, 2, 24); g.fillRect(x + 8, y + 98, 112, 4);
+        if (R() < 0.35) { g.fillStyle = "#c8c8c4"; g.fillRect(x + 90, y + 82, 22, 16); g.fillStyle = "#8a8a86"; g.beginPath(); g.arc(x + 101, y + 90, 5, 0, 6.3); g.fill(); }   /* AC unit */
+        g.fillStyle = "#cfcbc2"; g.fillRect(x, y, 6, 128);
+      }
+      g.globalAlpha = 0.12; for (let i = 0; i < 10; i++) { g.fillStyle = "#6a665e"; g.fillRect(R() * w, R() * h, 2 + R() * 4, 30 + R() * 60); } g.globalAlpha = 1;
+    });
+    /* foam behind a boat: a V of churned water, alpha cut */
+    const foam = ctex("sign@hanFoam", 128, 256, (g, w, h) => {
+      g.clearRect(0, 0, w, h);
+      const R = rng(1471);
+      for (let i = 0; i < 900; i++) {
+        const t = R(), y = t * h, spread = 10 + t * (w / 2 - 12);
+        const side = R() < 0.5 ? -1 : 1, x = w / 2 + side * spread * (0.55 + R() * 0.45) * (R() < 0.3 ? R() : 1);
+        g.fillStyle = "rgba(255,255,255," + (0.55 * (1 - t * 0.85)).toFixed(2) + ")";
+        const s = 2 + R() * 5; g.fillRect(x - s / 2, y, s, s);
+      }
+      const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, "rgba(255,255,255,.6)"); gr.addColorStop(0.3, "rgba(255,255,255,.12)"); gr.addColorStop(1, "rgba(255,255,255,0)");
+      g.fillStyle = gr; g.fillRect(w * 0.38, 0, w * 0.24, h);
+    }, { smooth: true });
+    /* soft smoke puff for the far columns */
+    const puff = ctex("sign@hanPuff", 128, 128, (g, w, h) => {
+      g.clearRect(0, 0, w, h);
+      const R = rng(1481);
+      for (let i = 0; i < 9; i++) {
+        const x = 30 + R() * 68, y = 30 + R() * 68, r = 20 + R() * 26;
+        const rg = g.createRadialGradient(x, y, 2, x, y, r); rg.addColorStop(0, "rgba(255,255,255,.55)"); rg.addColorStop(1, "rgba(255,255,255,0)");
+        g.fillStyle = rg; g.fillRect(0, 0, w, h);
+      }
+    }, { smooth: true });
+    HANM = {
+      conc: L(conc, { roughness: 0.9, bumpMap: BM("hanConc", 2.2), bumpScale: 0.035 }),
+      apt: L(apt, { roughness: 0.7 }),
+      foam: new T.MeshBasicMaterial({ map: foam, transparent: true, depthWrite: false, opacity: 0.9 }),
+      puff: puff,
+      girder: hnTint("panel", 0x3e6a8e), arch: hnTint("panel", 0x9aaab6),
+      rail: cmat(0xe4e6e8, 0.4, 0.5), lamp: cmat(0x4a4e54, 0.5, 0.5),
+      algae: cmat(0x4a5440, 0.95), rebar: cmat(0x5a3a2a, 0.6, 0.6)
+    };
+    return HANM;
+  }
+  /* a wake plane under a boat (local +z ahead, so the V opens to −z) */
+  function hanWake(g, w, d, x, y, z) {
+    const m = new T.Mesh(new T.PlaneGeometry(w, d), hanMats().foam);
+    m.rotation.set(-Math.PI / 2, 0, Math.PI); m.position.set(x, y, z); m.renderOrder = 2; m.userData.noBlock = 1;
+    g.add(m); return m;
+  }
+  /* a smoke column standing over the burning city: stacked soft puffs that
+     lean with the wind and thin out as they climb */
+  function hanSmoke(S, x, z, hgt, dark) {
+    const tex = hanMats().puff;
+    for (let i = 0; i < 14; i++) {
+      const k = i / 13;
+      const sp = new T.Sprite(new T.SpriteMaterial({ map: tex, color: dark ? 0x2e2a26 : 0x5a544e, transparent: true, opacity: 0.9 - k * 0.45, depthWrite: false, fog: false }));
+      const s = 8 + k * 26;
+      sp.scale.set(s, s, 1); sp.position.set(x + k * k * hgt * 0.5, 4 + k * hgt, z + k * 6);
+      sp.userData.noBlock = 1; S.add(sp);
+    }
+  }
   /* ---------------- (v58) the Han river ---------------- */
   const HAN_BANK = 34;          /* the river runs between x = ±HAN_BANK south of z −70 */
   function hanRiver(S) {
@@ -16462,10 +16552,17 @@
       for (let row = 0; row < 3; row++) {
         for (let z = Z0 + 10 + row * 7; z < Z1 - 6; z += 24 + R() * 8) {
           const x = xb + sd * (44 + row * 26 + R() * 6), h = 30 + R() * 30 + row * 6, w = 9;
-          const col = [0xf2efe8, 0xe8ecef, 0xf0e8de][(R() * 3) | 0];
-          VB.cube(M.plain, x, h / 2, z, w, h, 20, col, 0, { cast: row === 0 });
-          for (let f = 3; f < h - 1; f += 3) VB.cube(M.plain, x - sd * 4.55, f, z, 0.12, 1.1, 18, 0x6a8aa8);
-          VB.cube(M.plain, x - sd * 4.6, h - 3, z + 6, 0.1, 2.4, 4, [0x2a6ab8, 0x3a8a4a, 0xc84a3a][row]);
+          /* (v64) a real face: balconies floor by floor, a roof parapet, and
+             the block number painted big on the end wall the boats look at */
+          const hh = Math.round(h / 3) * 3;
+          const ab = new T.Mesh(worldUV(new T.BoxGeometry(w, hh, 20), 6), hanMats().apt);
+          ab.position.set(x, hh / 2 + 0.3, z); ab.castShadow = row === 0; ab.receiveShadow = true; ab.userData.noBlock = 1; S.add(ab);
+          bx(S, w + 0.4, 1.0, 20.4, x, hh + 0.8, z, cmat(0xd8d4cc, 0.85), { noCast: 1 }).userData.noBlock = 1;
+          bx(S, 3, 3, 4, x, hh + 2.6, z + 5, cmat(0xc8c4bc, 0.85), { noCast: 1 }).userData.noBlock = 1;
+          const endW = new T.Mesh(new T.PlaneGeometry(w - 0.4, hh - 2), cmat(0xe8e4dc, 0.85)); endW.position.set(x, hh / 2 + 0.3, z - 10.02); endW.rotation.y = Math.PI; endW.userData.noBlock = 1; S.add(endW);
+          const no = (sd < 0 ? 100 : 200) + row * 10 + ((z - Z0) / 30 | 0) + 1;
+          const nm = new T.Mesh(new T.PlaneGeometry(6, 2.4), new T.MeshStandardMaterial({ map: hiSign("hanNo" + no, no + "동", "", "#e8e4dc", ["#2a5aa8", "#3a7a4a", "#b84a3a"][row], 512, 200), roughness: 0.8 }));
+          nm.position.set(x, hh - 3.2, z - 10.04); nm.rotation.y = Math.PI; nm.userData.noBlock = 1; S.add(nm);
         }
       }
     });
@@ -16478,6 +16575,8 @@
       g.position.set(-64, 0, -196); g.traverse((o) => { o.userData.noBlock = 1; }); S.add(g); void tw;
     }
     VB.flush(S, "hanBanks");
+    /* (v64) Seoul is still burning on the north bank */
+    [[-44, -30, 70], [34, 20, 96, 1], [-14, 62, 110, 1], [74, -46, 60], [-96, 10, 54]].forEach(([x, z, h, d]) => hanSmoke(S, x, z, h, !!d));
     /* the north bank's stepped concrete revetment where the boats land */
     const conc = cmat(0xb8b4ac, 0.9);
     /* (v59) a low quay, three shallow steps up to street level: the old 2 m
@@ -16488,17 +16587,43 @@
   /* a bridge across the river at z: steel arches over the deck, or one with
      its middle span dropped into the water */
   function lmHanBridge(S, z, kind) {
-    const deck = cmat(0x9a9890, 0.85), steel = cmat(0x8a9aa8, 0.45, 0.5), pier = cmat(0xb4b0a6, 0.9), dark = cmat(0x3a3e44, 0.7);
+    const HM = hanMats();
+    const deck = HM.conc, steel = HM.arch, pier = HM.conc, dark = HM.rebar;
     const W = 2 * HAN_BANK + 30, Y = 9.0;
     const span = (x0, x1, y0, y1, broken) => {
       const len = x1 - x0, cx = (x0 + x1) / 2, rz = Math.atan2(y1 - y0, len);
-      const d = bx(S, Math.hypot(len, y1 - y0), 0.9, 11, cx, (y0 + y1) / 2, z, deck, { rz: rz }); d.userData.air = 1;
-      [-5.3, 5.3].forEach((dz) => bx(S, Math.hypot(len, y1 - y0), 1.0, 0.25, cx, (y0 + y1) / 2 + 0.9, z + dz, cmat(0xd8d4cc, 0.8), { rz: rz }).userData.air = 1);
-      void broken;
+      const ln = Math.hypot(len, y1 - y0), cy = (y0 + y1) / 2;
+      const d = bx(S, ln, 0.9, 11, cx, cy, z, deck, { rz: rz }); d.userData.air = 1;
+      /* (v64) the painted steel box girder under the deck, kerbs, a rail of
+         posts and two bars, and lamp standards along both edges */
+      bx(S, ln, 1.5, 7.4, cx, cy - 1.2, z, HM.girder, { rz: rz }).userData.air = 1;
+      [-5.3, 5.3].forEach((dz) => {
+        bx(S, ln, 0.35, 0.5, cx, cy + 0.6, z + dz, deck, { rz: rz, noCast: 1 }).userData.air = 1;
+        [1.05, 1.45].forEach((hy) => bx(S, ln, 0.07, 0.07, cx, cy + hy, z + dz, HM.rail, { rz: rz, noCast: 1 }).userData.air = 1);
+        const n = Math.max(1, Math.floor(ln / 1.6));
+        for (let i = 0; i <= n; i++) { const t = i / n - 0.5; bx(S, 0.07, 0.9, 0.07, cx + Math.cos(rz) * ln * t, cy + 0.98 + Math.sin(rz) * ln * t, z + dz, HM.rail, { noCast: 1 }).userData.air = 1; }
+        for (let i = 0; i < Math.floor(ln / 14); i++) {
+          const t = (i + 0.5) / Math.floor(ln / 14) - 0.5, lx = cx + Math.cos(rz) * ln * t, ly = cy + Math.sin(rz) * ln * t;
+          bx(S, 0.14, 5.2, 0.14, lx, ly + 3.1, z + dz * 1.02, HM.lamp, { noCast: 1 }).userData.air = 1;
+          bx(S, 0.14, 0.12, 1.4, lx, ly + 5.7, z + dz * 1.02 - Math.sign(dz) * 0.65, HM.lamp, { noCast: 1 }).userData.air = 1;
+          bx(S, 0.3, 0.14, 0.6, lx, ly + 5.62, z + dz * 1.02 - Math.sign(dz) * 1.3, cmat(0xfff0c8, 0.3, 0, { emissive: 0xffe0a0, emissiveIntensity: 0.5 }), { noCast: 1 }).userData.air = 1;
+        }
+      });
+      if (broken) {
+        /* the torn end: jagged slab chunks and bent rebar hanging out */
+        const ex = broken > 0 ? x1 : x0, ey = broken > 0 ? y1 : y0;
+        for (let i = 0; i < 9; i++) bx(S, 0.08, 1.0 + (i % 3) * 0.5, 0.08, ex + broken * (0.2 + (i % 4) * 0.15), ey - 0.4 - (i % 3) * 0.3, z - 4.5 + i * 1.1, dark, { rz: broken * (0.5 + (i % 3) * 0.3), noCast: 1 }).userData.air = 1;
+        [[-3.2, 1.4], [0.6, 1.1], [3.4, 1.6]].forEach(([dz, s]) => bx(S, s, 0.7, s * 1.3, ex + broken * 0.3, ey - 0.6, z + dz, deck, { rz: broken * 0.6, noCast: 1 }).userData.air = 1);
+      }
     };
-    [-46, -24, 24, 46].forEach((x) => { bx(S, 4, Y, 6, x, Y / 2 - 0.5, z, pier, { wall: 1 }); });
+    [-46, -24, 24, 46].forEach((x) => {
+      bx(S, 4, Y, 6, x, Y / 2 - 0.5, z, pier, { wall: 1 });
+      bx(S, 6.2, 1.1, 8.4, x, Y - 1.4, z, pier, { noCast: 1 });                         /* pier cap */
+      bx(S, 4.16, 1.3, 6.16, x, 0.5, z, HM.algae, { noCast: 1 });                        /* the green-black waterline */
+      bx(S, 5.4, 0.6, 7.4, x, -0.05, z, pier, { noCast: 1 });                            /* footing */
+    });
     if (kind === "broken") {
-      span(-W / 2, -24, Y, Y); span(-24, -12, Y, Y - 1.2); span(12, 24, Y - 1.4, Y); span(24, W / 2, Y, Y);
+      span(-W / 2, -24, Y, Y); span(-24, -12, Y, Y - 1.2, 1); span(12, 24, Y - 1.4, Y, -1); span(24, W / 2, Y, Y);
       /* the fallen middle: two slabs tipped into the river, clear of the boat lane */
       const f1 = bx(S, 12, 0.9, 11, -17, 3.2, z, deck, { rz: -0.75 }); f1.userData.air = 1;
       const f2 = bx(S, 10, 0.9, 11, 17, 2.6, z, deck, { rz: 0.8 }); f2.userData.air = 1;
