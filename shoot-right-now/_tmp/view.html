@@ -1,0 +1,16 @@
+<!doctype html><html><body style="margin:0;background:#9aa">
+<script src="../three.min.js"></script><script src="GLTFLoader.js"></script><script src="kchar.js"></script>
+<script>
+const Q=new URLSearchParams(location.search);
+const R=new THREE.WebGLRenderer({antialias:true});R.setSize(innerWidth,innerHeight);R.outputEncoding=THREE.sRGBEncoding;R.shadowMap.enabled=true;document.body.appendChild(R.domElement);
+const S=new THREE.Scene();S.background=new THREE.Color(0x8a9aa4);
+S.add(new THREE.HemisphereLight(0xdde8ff,0x5a4a3a,0.75));const sun=new THREE.DirectionalLight(0xfff0d8,1.25);sun.position.set(3,6,4);S.add(sun);
+const C=new THREE.PerspectiveCamera(30,innerWidth/innerHeight,0.1,100);
+const chars=(Q.get('c')||'m').split(','), texs=(Q.get('t')||'').split(','), anims=(Q.get('a')||'idle').split(','), yaws=(Q.get('y')||'0').split(',');
+const L=new THREE.GLTFLoader();let n=0;window.done=false;
+const G={};let todo=new Set(chars).size;
+[...new Set(chars)].forEach(ch=>L.load('chars/character-'+ch+'.glb',g=>{G[ch]=g;if(--todo===0)build();}));
+function build(){chars.forEach((ch,i)=>{const k=makeKChar(G[ch],texs[i],(Q.get('k')||'').split(',')[i]||'',anims[i%anims.length],+(Q.get('at')||0.3));
+  const s=k.root;s.position.x=(i-(chars.length-1)/2)*1.1;s.rotation.y=(+yaws[i%yaws.length]||0)*Math.PI/180;S.add(s);k.upd(0);});
+  const z=+(Q.get('d')||5);C.position.set(0,+(Q.get('h')||1.2),z);C.lookAt(0,+(Q.get('ly')||0.95),0);setTimeout(()=>{R.render(S,C);window.done=true;},1200);}
+</script></body></html>

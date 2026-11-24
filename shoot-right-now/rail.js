@@ -8848,6 +8848,42 @@
       });
       document.addEventListener("visibilitychange", () => { if (document.hidden) openPause(window.__railCtx); });
     }
+    /* (v61) "the grenade and reload buttons go dead mid-mission until the
+       phone is turned": on iOS, a toolbar/viewport shift leaves the fixed
+       buttons painted in one place and hit-tested in another until a
+       relayout. Pin the page to 0,0, force a relayout of the buttons when
+       the visual viewport moves, and as a last resort catch a tap that lands
+       inside a button's box (painted or laid-out) but reached something else. */
+    if (!window.__railBtnFix) {
+      window.__railBtnFix = 1;
+      const BTN = { railReload: () => window.RAIL.reload(), railNade: () => window.RAIL.grenade(), railPause: () => openPause(window.__railCtx) };
+      const relayout = () => {
+        if (window.scrollX || window.scrollY) window.scrollTo(0, 0);
+        Object.keys(BTN).forEach((id) => { const e = document.getElementById(id); if (!e) return; e.style.display = "none"; void e.offsetHeight; e.style.display = ""; });
+        window.__btnRelayout = (window.__btnRelayout || 0) + 1;
+      };
+      addEventListener("scroll", relayout, { passive: true });
+      if (window.visualViewport) { visualViewport.addEventListener("resize", relayout); visualViewport.addEventListener("scroll", relayout); }
+      addEventListener("resize", relayout);
+      addEventListener("pointerdown", (e) => {
+        if (!active || ended || pauseOpen || STORY.on) return;
+        const vv = window.visualViewport, ox = vv ? vv.offsetLeft : 0, oy = vv ? vv.offsetTop : 0;
+        for (const id of Object.keys(BTN)) {
+          const el = document.getElementById(id);
+          if (!el || el.contains(e.target) || !el.getClientRects().length || getComputedStyle(el).visibility === "hidden" || getComputedStyle(el).pointerEvents === "none") continue;
+          const r = el.getBoundingClientRect(), pad = 8;
+          const hit = (x, y) => x >= r.left - pad && x <= r.right + pad && y >= r.top - pad && y <= r.bottom + pad;
+          if (hit(e.clientX, e.clientY) || hit(e.clientX + ox, e.clientY + oy) || hit(e.clientX - ox, e.clientY - oy)) {
+            e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
+            window.__btnRescue = (window.__btnRescue || 0) + 1;
+            window.__btnRescueT = performance.now();
+            BTN[id]();
+            relayout();
+            return;
+          }
+        }
+      }, { capture: true });
+    }
     if (!window.__railKeys) {
       window.__railKeys = 1;
       const aimAt = (e) => { if (e) pointerFrom(e); };
@@ -8862,6 +8898,7 @@
         if (!active || ended) return;
         if (pauseOpen || STORY.on) return;
         if (onUi(e.target)) return;
+        if (performance.now() - (window.__btnRescueT || 0) < 400) return;
         if (e.type === "mousedown" && performance.now() - lastTouch < 900) return;
         if (e.pointerType === "touch") lastTouch = performance.now();
         if (e.button === 2) { window.RAIL.reload(); return; }
@@ -10013,7 +10050,7 @@
       r.g.rotation.y = Math.atan2(tx, tz);
       r.g.rotation.z = r.boat ? Math.sin(t * 1.2 + r.ph) * 0.03 : Math.sin(t * 9 + r.ph) * 0.006;
       (r.g.userData.wheels || []).forEach((w) => { w.rotation.x += dt * 14; });
-      if (r.train) { r.g.position.y = 0; r.g.rotation.z = 0; if (r.g.userData.kind === "loco" && Math.random() < 0.3) smokeAt(ctx, x, 4.6, z + 3, 0x3a3a3a); return; }
+      if (r.train) { const zMax = r.g.userData.kind === "loco" ? -71 : -83; if (r.g.position.z > zMax) r.g.position.z = zMax; r.g.position.y = 0; r.g.rotation.z = 0; if (r.g.userData.kind === "loco" && Math.random() < 0.3) smokeAt(ctx, x, 4.6, z + 3, 0x3a3a3a); return; }
       if (Math.random() < (r.boat ? 0.5 : 0.25)) smokeAt(ctx, x - tx * (r.boat ? 3 : 2), r.boat ? 0.15 : 0.35, z - tz * (r.boat ? 3 : 2), r.boat ? 0xf2f6fa : 0x9a8c74);
     });
   }
@@ -10136,6 +10173,7 @@
     while (chase.sched.length && chase.t >= chase.sched[0][0]) spawnEnemyTrain(ctx, chase.sched.shift()[1]);
     const cz = ctx.camera.position.z;
     chase.trains = chase.trains.filter((tr) => {
+      if (tr.speed > 0 && tr.cars[0].position.z > -72) tr.speed = Math.max(0, tr.speed - dt * 3);   /* brakes for the buffers */
       tr.cars.forEach((c) => { c.position.z += tr.speed * dt; (c.userData.wheels || []).forEach((w) => { w.rotation.x += dt * Math.abs(tr.speed) * 2; }); });
       const lead = tr.cars[0];
       if (lead.userData.kind === "loco" && Math.random() < 0.3) smokeAt(ctx, lead.position.x, 4.6, lead.position.z + 3 * (lead.userData.dir || 1), 0x3a3a3a);
@@ -10222,7 +10260,10 @@
   function stepChase(ctx, dt) {
     if (!chase) return;
     chase.t += dt;
-    if (chase.boat && ctx.camera.position.z > (STAGE.raft ? -76 : -69)) { endChase(ctx); return; }   /* (v59) the raft's bow stops short of the river steps */
+    if (chase.boat && ctx.camera.position.z > (STAGE.raft ? -76 : -69)) { endChase(ctx); return; }
+    /* (v61) the line ends at the buffer stops (z −64.8): get off at the
+       platform instead of riding on into the town */
+    if (chase.train && ctx.camera.position.z > -74) { endChase(ctx); return; }   /* (v59) the raft's bow stops short of the river steps */
     while (chase.i < chase.plan.length && chase.t >= chase.plan[chase.i]) {
       const k = chase.i++;
       const side = k % 2 ? 1 : -1;
