@@ -65,6 +65,7 @@
      adReviveUsed is what stops an endless string of revives; pending flags keep
      a double tap from opening two ads at once */
   let adReviveUsed = false, adRevivePending = false, adSupplyUsed = false, adSupplyPending = false, adSupplyOffered = false;
+  let adRewardedOnResult = false, tutThisRun = false, interPending = false;
   let resumePhase = "fight", endedAt = 0;
   let DIFF = { dmg: 1, aim: 1, lives: 3, boss: 1, xp: 1 }, PERK = { hp: 100, nades: 0, reload: 1, lives: 0 }, diffKey = "normal";
   /* (v26) pistol finishes bought at the supply depot */
@@ -8842,6 +8843,7 @@
     clock = CLOCK0; bullets = 20; hp = HPMAX; lives = LIVES0; continues = 0; contOpen = false;
     /* (v51) every stage starts with its ad slots unused */
     adReviveUsed = false; adRevivePending = false; adSupplyUsed = false; adSupplyPending = false; adSupplyOffered = false;
+    adRewardedOnResult = false; tutThisRun = false; interPending = false;
     resumePhase = "fight"; endedAt = 0; closeSupplyAd();
     grenades = 2 + (PERK.nades || 0); holding = false;
     if (LOAD) {
@@ -10817,6 +10819,39 @@
      reward. Plain web (GitHub Pages) gets the 1.5 s preview overlay, the Toss
      build goes through Toss.showRewarded(), and an Android/iOS wrapper can
      plug in with MGAdsNative.showRewarded(placement, cb). */
+  function isFirstOperation() {
+    if (STAGE && STAGE.label === "1-1") return true;
+    try {
+      const list = window.MGProfile && window.MGProfile.STAGES;
+      if (list && list[0] && list[0].id === stageId) return true;
+    } catch (e) {}
+    return stageId === 6;
+  }
+  function shouldShowInterstitial(cleared) {
+    if (!cleared) return false;
+    if (tutThisRun || TUT.on) return false;
+    if (adRewardedOnResult) return false;
+    if (isFirstOperation()) return false;
+    const A = window.MGAds;
+    if (!A || typeof A.showInterstitial !== "function") return false;
+    if (A.available && !A.available()) return false;
+    return true;
+  }
+  function afterResult(cleared, go) {
+    const run = () => { interPending = false; try { go(); } catch (err) {} };
+    if (interPending) return;
+    if (!shouldShowInterstitial(cleared)) {
+      window.__adInterstitialSkip = (!cleared && "not-cleared") || (tutThisRun || TUT.on ? "tutorial" : (adRewardedOnResult ? "rewarded" : (isFirstOperation() ? "first-op" : "no-bridge")));
+      run();
+      return;
+    }
+    interPending = true;
+    window.__adInterstitialSkip = "";
+    const A = window.MGAds;
+    try {
+      Promise.resolve(A.showInterstitial("next-op")).then(run, run);
+    } catch (e) { window.__adErr = String(e); run(); }
+  }
   function canOfferReviveAd() {
     return !adReviveUsed && !!(window.MGAds && window.MGAds.available());
   }
@@ -10844,7 +10879,10 @@
     const A = window.MGAds;
     if (!A || !A.available()) { window.__adSkip = placement + ":off"; return Promise.resolve(false); }
     try {
-      return Promise.resolve(A.show(placement)).then((ok) => !!ok, (e) => { window.__adErr = String(e); return false; });
+      return Promise.resolve(A.show(placement)).then((ok) => {
+        if (ok && document.getElementById("railResult")) adRewardedOnResult = true;
+        return !!ok;
+      }, (e) => { window.__adErr = String(e); return false; });
     } catch (e) { window.__adErr = String(e); return Promise.resolve(false); }
   }
   /* back on your feet where you fell: health, a fresh clip and a couple of
@@ -11056,6 +11094,7 @@
     const nId = oi >= 0 && oi < ORD.length - 1 ? ORD[oi + 1] : 0;
     const nx = cleared && nId ? [nId, "다음 작전 · " + NM[nId][0], "NEXT · " + NM[nId][1]] : null;
     const nextB = nx ? "<button class=primary data-act=next data-stage=" + nx[0] + ">" + (ko ? nx[1] : nx[2]) + "</button>" : "";
+    adRewardedOnResult = false;
     /* (v51) a failed run offers one sponsored revive, once per stage */
     const adB = (!cleared && canOfferReviveAd()) ? "<button class=ad data-act=adrev type=button>🎬 <b>" + (ko ? "광고 보고 이어하기" : "WATCH AD TO CONTINUE") + "</b></button>" : "";
     const head = cleared
@@ -11103,10 +11142,10 @@
       const act = b.getAttribute("data-act");
       if (act === "again") { try { window.MG && window.MG.playAgain(); } catch (err) {} }
       else if (act === "adrev") { try { reviveFromResult(ctx); } catch (err) { window.__adReviveErr = String(err); } }
-      else if (act === "next") { try { window.MG && window.MG.playStage(+b.getAttribute("data-stage") || 2); } catch (err) {} }
+      else if (act === "next") { afterResult(!!cleared, () => { window.MG && window.MG.playStage(+b.getAttribute("data-stage") || 2); }); }
       else if (act === "share" || act === "save") { shareResult(shareInfo, act, b); }
       else if (act === "photo") { photoMode(ctx, box); }
-      else { try { window.MG && window.MG.toTitle(); } catch (err) {} }
+      else { afterResult(!!cleared, () => { window.MG && window.MG.toTitle(); }); }
     });
     document.body.appendChild(box);
     /* (v27) your soldier on the card: cheering on a clear */
@@ -12748,7 +12787,7 @@
     TUT.on = false;
     if (practice || window.__noTut) return;
     try { if (localStorage.getItem("myeolgong_tut") === "1") return; } catch (e) {}
-    TUT.on = true; TUT.step = 0; TUT.t = 0; TUT.ev = { fire: 0, reload: 0, nade: 0 }; TUT.shown = false;
+    TUT.on = true; tutThisRun = true; TUT.step = 0; TUT.t = 0; TUT.ev = { fire: 0, reload: 0, nade: 0 }; TUT.shown = false;
   }
   function tutEv(k) { if (TUT.on) TUT.ev[k] = (TUT.ev[k] || 0) + 1; }
   function tutHide() {
@@ -19033,8 +19072,9 @@
     /* (v51) rewarded-ad hooks for headless checks: ask the bridge directly,
        force the supply card up, and read what the two slots have used */
     adShow: (p) => showRewardedAd(p || "revive"),
+    adShowInterstitial: (p) => (window.MGAds && window.MGAds.showInterstitial) ? window.MGAds.showInterstitial(p || "next-op") : Promise.resolve(false),
     adOfferSupply: () => { const ctx = window.__railCtx; if (ctx) { try { offerSupplyAd(ctx); } catch (e) { window.__supplyAdErr = String(e); } } },
-    adState: () => ({ reviveUsed: adReviveUsed, supplyUsed: adSupplyUsed, resumePhase, endedAt, alive: !ended, mode: (window.MGAds && window.MGAds.mode) || "none" }),
+    adState: () => ({ reviveUsed: adReviveUsed, supplyUsed: adSupplyUsed, rewardedOnResult: adRewardedOnResult, tutThisRun: tutThisRun, firstOp: isFirstOperation(), resumePhase, endedAt, alive: !ended, mode: (window.MGAds && window.MGAds.mode) || "none" }),
     pickupSpots: () => pickups.filter((p) => !p.taken && p.mesh).map((p) => ({ kind: p.kind, x: p.mesh.position.x, y: p.mesh.position.y, z: p.mesh.position.z })),
     giveWeapon: (w) => { if (w === "grenade") grenades += 2; else setWeapon(w); },
     ammo: () => ({ bullets: bullets, clipMax: clipMax, weapon: weapon, reloading: reloading }),

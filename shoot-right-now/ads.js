@@ -1,8 +1,9 @@
-/* 지금 바로 쏴! (Shoot Right Now) — 보상형 광고 브리지 (MGAds)
+/* 지금 바로 쏴! (Shoot Right Now) — 광고 브리지 (MGAds)
    ==================================================================
-   rail.js 는 window.MGAds.show('revive'|'supply') 하나만 부르고, 보상은
-   Promise<boolean> 이 true 로 끝날 때만 준다. 이 파일이 "어디서 실행 중인지"를
-   판단해 알맞은 광고 경로로 넘긴다.
+   rail.js 는 보상을 window.MGAds.show('revive'|'supply') 로만 부르고, 보상은
+   Promise<boolean> 이 true 로 끝날 때만 준다. 작전 사이 전면 광고는
+   showInterstitial('next-op'), 메뉴 배너는 syncBanner(visible).
+   이 파일이 "어디서 실행 중인지"를 판단해 알맞은 광고 경로로 넘긴다.
 
    ■ 경로 (pick() 순서)
    1) 토스 앱인토스 — 토스 안에서 열렸을 때
@@ -25,9 +26,13 @@
       흐름·UI를 실기기 없이 그대로 확인할 수 있다.
 
    ■ 광고 ID
-   · PUBLISHER      pub-6817381579747852   (AdMob 게시자 ID — 네이티브 래퍼가 읽어 간다)
-   · REWARDED_UNIT  보상형 광고 단위 ID. 구글플레이 빌드에서 채운다. 비면 래퍼 기본값.
-   · tossGroup      토스 보상형 광고 그룹 ID (없으면 'ait-ad-test-rewarded-id')
+   · PUBLISHER           pub-6817381579747852   (AdMob 게시자 ID — 네이티브 래퍼가 읽어 간다)
+   · REWARDED_UNIT       보상형 광고 단위 ID. 구글플레이 빌드에서 채운다. 비면 래퍼 기본값.
+   · INTERSTITIAL_UNIT   전면 광고 단위 ID. 구글플레이 빌드에서 채운다. 비면 래퍼 기본값.
+   · BANNER_UNIT         배너 광고 단위 ID. 구글플레이 빌드에서 채운다. 비면 래퍼 기본값.
+   · tossGroup           토스 보상형 광고 그룹 ID (없으면 'ait-ad-test-rewarded-id')
+   · tossInterstitialGroup  토스 전면 광고 그룹 ID (없으면 'ait-ad-test-interstitial-id')
+   · tossBannerGroup        토스 배너 광고 그룹 ID (없으면 'ait-ad-test-banner-id')
 
    ■ 테스트 훅
    · ?ads=off    광고 슬롯을 아예 쓰지 않는다 (버튼도 뜨지 않음)
@@ -35,12 +40,17 @@
    · ?ads=native / ?ads=toss  경로 강제
    · window.__adPreviewSec = 0.2   미리보기 길이(초)
    · window.MGAds.state · window.__adShows · window.__adLastResult · window.__adMode
+   · window.__adInterstitialShows · window.__adInterstitialLast · window.__adBannerOn
 */
 (function () {
   "use strict";
   var PUBLISHER = "pub-6817381579747852";
   var REWARDED_UNIT = "";
+  var INTERSTITIAL_UNIT = "";
+  var BANNER_UNIT = "";
   var TOSS_TEST_GROUP = "ait-ad-test-rewarded-id";
+  var TOSS_TEST_INTERSTITIAL = "ait-ad-test-interstitial-id";
+  var TOSS_TEST_BANNER = "ait-ad-test-banner-id";
   var MAX_WAIT = 90000;
 
   var q = null;
@@ -217,7 +227,243 @@
     });
   }
 
-  /* ---------- 공개 ---------- */
+  /* ---------- 4) 전면 광고 (작전 사이) ---------- */
+  var NATIVE_INTERSTITIAL_METHODS = ["showInterstitial", "showInterstitialAd", "interstitial"];
+  function nativeInterstitialBridge() {
+    for (var i = 0; i < NATIVE_NAMES.length; i++) {
+      var api = window[NATIVE_NAMES[i]];
+      if (!api) continue;
+      for (var j = 0; j < NATIVE_INTERSTITIAL_METHODS.length; j++) {
+        if (typeof api[NATIVE_INTERSTITIAL_METHODS[j]] === "function") {
+          return { kind: "js", api: api, fn: api[NATIVE_INTERSTITIAL_METHODS[j]] };
+        }
+      }
+    }
+    if (window.webkit && window.webkit.messageHandlers) {
+      var h = window.webkit.messageHandlers.mgAds || window.webkit.messageHandlers.admobAds || window.webkit.messageHandlers.AdMob;
+      if (h && typeof h.postMessage === "function") return { kind: "ios", api: h };
+    }
+    return null;
+  }
+  function viaTossInterstitial(placement) {
+    var T = window.Toss;
+    try {
+      if (T && typeof T.setAdGroup === "function") {
+        T.setAdGroup((window.MGAds && window.MGAds.tossInterstitialGroup) || TOSS_TEST_INTERSTITIAL);
+      }
+      if (T && typeof T.showAd === "function") {
+        return Promise.resolve(T.showAd()).then(function () { return true; }, function (e) {
+          state.lastError = "toss-interstitial:" + e;
+          return false;
+        });
+      }
+    } catch (e) { state.lastError = "toss-interstitial:" + e; }
+    return Promise.resolve(false);
+  }
+  function viaNativeInterstitial(placement) {
+    var b = nativeInterstitialBridge();
+    if (!b) return Promise.resolve(false);
+    return new Promise(function (resolve) {
+      var done = false;
+      var cb = "__mgAdInterDone" + (++seq);
+      window.__mgAdCb = cb;
+      var tm = setTimeout(function () { finish(false, "timeout"); }, MAX_WAIT);
+      function finish(ok, why) {
+        if (done) return;
+        done = true;
+        clearTimeout(tm);
+        try { delete window[cb]; } catch (e) { window[cb] = null; }
+        if (!ok && why) state.lastError = why;
+        resolve(ok === true || ok === "true" || ok === 1 || ok === "1");
+      }
+      window[cb] = function (ok) { finish(ok); };
+      try {
+        if (b.kind === "js") b.fn.call(b.api, placement, cb, INTERSTITIAL_UNIT || "", PUBLISHER);
+        else b.api.postMessage({ action: "interstitial", placement: placement, callback: cb, unit: INTERSTITIAL_UNIT, publisher: PUBLISHER });
+      } catch (e) { finish(false, "native-interstitial:" + e); }
+    });
+  }
+  function previewInterstitial(placement) {
+    /* short skippable preview on web/Pages; never blocks if something fails */
+    try {
+      return preview(placement || "interstitial").then(function () { return true; }, function () { return false; });
+    } catch (e) { return Promise.resolve(false); }
+  }
+  function showInterstitial(placement) {
+    placement = placement || "interstitial";
+    var mode = pick();
+    state.mode = mode;
+    state.lastPlacement = placement;
+    window.__adInterstitialShows = (window.__adInterstitialShows || 0) + 1;
+    window.__adInterstitialLast = placement;
+    var p;
+    try {
+      if (mode === "off") p = Promise.resolve(false);
+      else if (mode === "toss") p = viaTossInterstitial(placement);
+      else if (mode === "native") p = viaNativeInterstitial(placement);
+      else p = previewInterstitial(placement);
+    } catch (e) {
+      state.lastError = "interstitial:" + e;
+      p = Promise.resolve(false);
+    }
+    return Promise.resolve(p).then(function (ok) {
+      state.lastResult = !!ok;
+      window.__adLastResult = !!ok;
+      window.__adLastPlacement = placement;
+      window.__adMode = mode;
+      return !!ok;
+    }, function (e) {
+      state.lastError = "interstitial:" + e;
+      return false;
+    });
+  }
+
+  /* ---------- 5) 배너 (타이틀 메뉴 하단 · 일시정지 메뉴) ----------
+     지금 바로 점프와 같은 슬롯: 메뉴 패널 아래, 하단 세이프에어리어 위에
+     흰 둥근 카드. 토스면 Toss.syncBanner, 네이티브면 setBannerVisible,
+     웹/Pages 는 같은 자리의 미리보기 카드. 전투 중에는 숨긴다. */
+  var bannerCss = false;
+  var bannerWanted = false;
+  var bannerPlacement = "";
+  function bannerStyle() {
+    if (bannerCss || document.getElementById("mgBannerCss")) return;
+    bannerCss = true;
+    var st = document.createElement("style");
+    st.id = "mgBannerCss";
+    st.textContent = [
+      "#mgBanner{display:none;position:fixed;left:50%;transform:translateX(-50%);",
+      "bottom:calc(8px + env(safe-area-inset-bottom,0px));width:min(calc(100% - 24px),520px);height:80px;",
+      "z-index:64;border-radius:16px;overflow:hidden;pointer-events:auto;background:#fff;",
+      "box-shadow:0 8px 24px rgba(0,0,0,.28);font-family:Pretendard,system-ui,-apple-system,sans-serif}",
+      "#mgBanner.on{display:flex;align-items:stretch}",
+      "#mgBanner .mgBanInner{display:flex;align-items:center;width:100%;height:100%;padding:0 0 0 14px;gap:10px;text-align:left}",
+      "#mgBanner .mgBanCopy{flex:1;min-width:0}",
+      "#mgBanner .mgBanAd{display:inline-block;margin:0 0 4px;padding:1px 6px;border-radius:4px;",
+      "background:#f1f1f1;color:#888;font:700 10px/1.2 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.04em}",
+      "#mgBanner .mgBanTtl{margin:0;color:#111;font:800 15px/1.25 inherit;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}",
+      "#mgBanner .mgBanSub{margin:2px 0 0;color:#888;font:600 12px/1.3 inherit;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}",
+      "#mgBanner .mgBanPic{flex:none;width:80px;height:80px;background:linear-gradient(160deg,#d8c98a,#6d7a52 55%,#2f3a22);",
+      "box-shadow:inset 0 0 0 1px rgba(0,0,0,.06)}",
+      "html.mgHasBanner #mgTitle{padding-bottom:calc(96px + env(safe-area-inset-bottom,0px))!important}",
+      "html.mgHasBanner #railPauseMenu{padding-bottom:calc(96px + env(safe-area-inset-bottom,0px));box-sizing:border-box}"
+    ].join("");
+    document.head.appendChild(st);
+  }
+  function bannerSlot() {
+    bannerStyle();
+    var el = document.getElementById("mgBanner");
+    if (!el) {
+      el = document.createElement("div");
+      el.id = "mgBanner";
+      document.body.appendChild(el);
+    }
+    return el;
+  }
+  function fillBannerPlaceholder(el, placement) {
+    var ko = (document.documentElement.lang || "").startsWith("ko");
+    el.innerHTML = '<div class="mgBanInner"><div class="mgBanCopy">' +
+      '<span class="mgBanAd">· AD</span>' +
+      '<p class="mgBanTtl">' + (ko ? "지금 바로 쏴!" : "Shoot Right Now") + "</p>" +
+      '<p class="mgBanSub">' + (ko ? "광고 미리보기 · 앱에서는 여기에 광고가 표시됩니다" : "Ad preview · A live ad appears here in the app") + "</p>" +
+      '</div><div class="mgBanPic" aria-hidden="true"></div></div>';
+    el.setAttribute("data-placement", placement || "banner");
+  }
+  function nativeBannerApi() {
+    for (var i = 0; i < NATIVE_NAMES.length; i++) {
+      var api = window[NATIVE_NAMES[i]];
+      if (!api) continue;
+      if (typeof api.setBannerVisible === "function" || typeof api.showBanner === "function" ||
+          typeof api.hideBanner === "function" || typeof api.syncBanner === "function") return api;
+    }
+    if (window.webkit && window.webkit.messageHandlers) {
+      var h = window.webkit.messageHandlers.mgAds || window.webkit.messageHandlers.admobAds || window.webkit.messageHandlers.AdMob;
+      if (h && typeof h.postMessage === "function") return { __ios: h };
+    }
+    return null;
+  }
+  function setNativeBanner(visible, placement) {
+    var api = nativeBannerApi();
+    if (!api) return false;
+    try {
+      if (api.__ios) {
+        api.__ios.postMessage({ action: "banner", visible: !!visible, placement: placement || "banner", unit: BANNER_UNIT, publisher: PUBLISHER });
+        return true;
+      }
+      if (typeof api.setBannerVisible === "function") { api.setBannerVisible(!!visible, BANNER_UNIT || "", PUBLISHER); return true; }
+      if (typeof api.syncBanner === "function") { api.syncBanner(BANNER_UNIT || "", bannerSlot(), !!visible); return true; }
+      if (visible && typeof api.showBanner === "function") { api.showBanner(BANNER_UNIT || "", PUBLISHER); return true; }
+      if (!visible && typeof api.hideBanner === "function") { api.hideBanner(); return true; }
+    } catch (e) { state.lastError = "banner:" + e; }
+    return false;
+  }
+  function syncBanner(visible, placement) {
+    var mode = pick();
+    var show = !!visible && mode !== "off";
+    bannerWanted = show;
+    bannerPlacement = placement || bannerPlacement || "banner";
+    window.__adBannerOn = !!show;
+    window.__adBannerPlacement = show ? bannerPlacement : "";
+    try { document.documentElement.classList.toggle("mgHasBanner", show); } catch (e) {}
+    var el = bannerSlot();
+    if (!show) {
+      el.classList.remove("on");
+      el.removeAttribute("data-placement");
+      try {
+        var Toff = window.Toss;
+        if (Toff && typeof Toff.syncBanner === "function") Toff.syncBanner((window.MGAds && window.MGAds.tossBannerGroup) || TOSS_TEST_BANNER, el, false);
+      } catch (e) {}
+      setNativeBanner(false, bannerPlacement);
+      return;
+    }
+    if (mode === "toss") {
+      el.innerHTML = "";
+      try {
+        var T = window.Toss;
+        if (T && typeof T.syncBanner === "function") {
+          T.syncBanner((window.MGAds && window.MGAds.tossBannerGroup) || TOSS_TEST_BANNER, el, true);
+        }
+      } catch (e) { state.lastError = "toss-banner:" + e; }
+      el.classList.add("on");
+      return;
+    }
+    if (mode === "native") {
+      el.innerHTML = "";
+      el.classList.add("on");
+      /* 네이티브 배너가 웹뷰 하단에 겹쳐 그려지더라도, 슬롯 높이+패딩으로 버튼을 가리지 않는다 */
+      setNativeBanner(true, bannerPlacement);
+      return;
+    }
+    fillBannerPlaceholder(el, bannerPlacement);
+    el.classList.add("on");
+  }
+  function wantedBannerPlacement() {
+    if (pick() === "off") return "";
+    if (document.getElementById("railPauseMenu")) return "pause";
+    var t = document.getElementById("mgTitle");
+    if (t && t.classList.contains("show")) return "title";
+    return "";
+  }
+  function refreshBanner() {
+    try {
+      var place = wantedBannerPlacement();
+      syncBanner(!!place, place || "banner");
+    } catch (e) { state.lastError = "banner-refresh:" + e; }
+  }
+  var bannerObs = null;
+  function watchBanner() {
+    if (bannerObs) return;
+    try {
+      bannerObs = new MutationObserver(refreshBanner);
+      var title = document.getElementById("mgTitle");
+      if (title) bannerObs.observe(title, { attributes: true, attributeFilter: ["class"] });
+      bannerObs.observe(document.body, { childList: true });
+    } catch (e) {}
+    refreshBanner();
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", watchBanner);
+  else watchBanner();
+
+    /* ---------- 공개 ---------- */
   function pick() {
     if (pref === "off") return "off";
     if (pref === "test") return "test";
@@ -253,12 +499,20 @@
   window.MGAds = {
     publisher: PUBLISHER,
     rewardedUnit: REWARDED_UNIT,
+    interstitialUnit: INTERSTITIAL_UNIT,
+    bannerUnit: BANNER_UNIT,
     tossGroup: "",
+    tossInterstitialGroup: "",
+    tossBannerGroup: "",
     state: state,
     /** which route this page would take right now */
     get mode() { return pick(); },
     available: function () { return pick() !== "off"; },
     show: show,
+    showInterstitial: showInterstitial,
+    syncBanner: syncBanner,
+    showBanner: function (placement) { syncBanner(true, placement || "banner"); },
+    hideBanner: function () { syncBanner(false); },
     /** a native wrapper without a callback name can push the result in here */
     nativeResult: function (ok) {
       var cb = window.__mgAdCb;
@@ -267,4 +521,5 @@
   };
   state.mode = pick();
   window.__adMode = state.mode;
+  try { setTimeout(refreshBanner, 0); } catch (e) {}
 })();
