@@ -351,7 +351,7 @@ var Slack3D = (function () {
     if (!b) return;
     b.visible = true;
     b.root.visible = true;
-    b.mark.visible = (pos === 'warn' || pos === 'peek');
+    b.mark.visible = (pos === 'warn' || pos === 'peek' || pos === 'rush');
     b.scan = (pos === 'warn') ? 1 : 0;
     var other = this.chars[who === 'jambujang' ? 'jamsajang' : 'jambujang'];
     if (other && this.bosses && this.bosses.length > 1 && other !== b) {
@@ -384,6 +384,24 @@ var Slack3D = (function () {
     } else if (pos === 'leave') {
       tg = { x: -2.9, z: -3.2 };
       speed = 3.2;
+    } else if (pos === 'rush') {
+      // 커피 타러 간 줄 알았는데… 옆문에서 급복귀
+      b.root.position.set(3.1, 0, -1.5);
+      tg = { x: -0.34, z: -0.95 };
+      speed = 7.6;
+      b.scan = 1;
+    } else if (pos === 'coffee') {
+      tg = { x: -3.0, z: -3.4 };
+      speed = 3.0;
+      b.scan = 0;
+    } else if (pos === 'sneak') {
+      // 뒤에서 소리 없이 접근 — 경고 표시는 reveal() 전까지 숨김
+      b.root.position.set(-2.95, 0, 0.62);
+      tg = { x: 0.14, z: 1.2 };
+      var dd = Math.abs(tg.z - b.root.position.z) + Math.abs(tg.x - b.root.position.x);
+      speed = Math.max(1.6, dd / Math.max(0.6, (dur || 1.4) * 0.88));
+      b.mark.visible = false;
+      b.scan = 0;
     } else {
       b.root.visible = false;
       return;
@@ -391,6 +409,14 @@ var Slack3D = (function () {
     b.target = tg;
     b.moveSpeed = speed;
     b.mode = pos;
+  };
+
+  OfficeScene.prototype.reveal = function () {
+    var b = this.chars[this.checker];
+    if (!b) return;
+    b.mark.visible = true;
+    b.scan = 1;
+    this.shake = 0.24;
   };
 
   OfficeScene.prototype.beginCaught = function () {
@@ -623,6 +649,8 @@ var Slack3D = (function () {
     this.t += dt;
     if (this.kind === 'jump') this.updateJump(dt);
     else if (this.kind === 'chart') this.updateChart(dt);
+    else if (this.kind === 'chat') this.updateChat(dt);
+    else if (this.kind === 'video') this.updateVideo(dt);
     else this.updateShop(dt);
     this.burst.update(dt);
     this.renderer.render(this.scene, this.camera);
@@ -631,10 +659,12 @@ var Slack3D = (function () {
   MiniScene.prototype.buildStage = function (kind) {
     this.kind = kind;
     this.clear();
-    this.hemi.intensity = kind === 'shop' ? 0.3 : kind === 'chart' ? 0.22 : 0.3;
-    this.dir.intensity = kind === 'shop' ? 1.0 : kind === 'chart' ? 0.9 : 0.95;
+    this.hemi.intensity = (kind === 'shop' || kind === 'chat') ? 0.3 : kind === 'chart' ? 0.22 : kind === 'video' ? 0.26 : 0.3;
+    this.dir.intensity = (kind === 'shop' || kind === 'chat') ? 1.0 : kind === 'chart' ? 0.9 : kind === 'video' ? 0.85 : 0.95;
     if (kind === 'jump') this.buildJump();
     else if (kind === 'chart') this.buildChart();
+    else if (kind === 'chat') this.buildChat();
+    else if (kind === 'video') this.buildVideo();
     else this.buildShop();
   };
 
@@ -1054,6 +1084,366 @@ var Slack3D = (function () {
     this.cart.children[0] && (this.cart.children[0].rotation.y = Math.sin(this.t) * 0.1);
   };
 
+  /* ---------- 화요일: 사내 메신저 몰래 톡 (버블 터뜨리기) ---------- */
+  var CHAT_LINES = [
+    { t: '부장님 커피 타러 갔어 ㅋㅋ', c: 0x3f8ff0 },
+    { t: '이거 진짜 웃김', c: 0xd94f8f },
+    { t: '점심 뭐 먹지', c: 0x2fae7a },
+    { t: '오늘 야근각인가', c: 0xd98a2b },
+    { t: '회의 3시래', c: 0x7a63e0 },
+    { t: '칼퇴 가능?', c: 0x2fa6c4 },
+    { t: '핫딜 떴다 ㄱㄱ', c: 0xe0592f },
+    { t: 'ㅋㅋㅋㅋㅋㅋ', c: 0x4f8fe0 },
+    { t: '몰래 보고 있음', c: 0x9a68d8 },
+    { t: '부장님 돌아옴!!', c: 0xe03c4a }
+  ];
+
+  /* 말풍선 한 장 = 캔버스 스프라이트 (테두리 색 + 이름 + 텍스트 + 얼굴) */
+  function chatSprite(text, accent, who) {
+    var w = 512, h = 132;
+    var tex = VX.canvasTex(w, h, function (g) {
+      g.clearRect(0, 0, w, h);
+      VX.roundRect(g, 8, 10, w - 16, h - 26, 30);
+      g.fillStyle = 'rgba(18,26,44,.97)';
+      g.fill();
+      g.lineWidth = 5;
+      g.strokeStyle = '#' + ('000000' + (accent >>> 0).toString(16)).slice(-6);
+      g.stroke();
+      // 꼬리
+      g.beginPath();
+      g.moveTo(44, h - 18); g.lineTo(44, h - 2); g.lineTo(80, h - 18);
+      g.closePath();
+      g.fillStyle = 'rgba(18,26,44,.97)'; g.fill();
+      // 프로필 얼굴
+      g.beginPath(); g.arc(62, 54, 30, 0, Math.PI * 2);
+      g.fillStyle = '#' + ('000000' + (accent >>> 0).toString(16)).slice(-6);
+      g.fill();
+      g.fillStyle = '#121a2c';
+      g.beginPath(); g.arc(52, 50, 4.5, 0, Math.PI * 2); g.fill();
+      g.beginPath(); g.arc(72, 50, 4.5, 0, Math.PI * 2); g.fill();
+      g.beginPath(); g.arc(62, 62, 11, 0, Math.PI, false);
+      g.lineWidth = 4; g.strokeStyle = '#121a2c'; g.stroke();
+      // 이름 + 본문
+      g.fillStyle = '#' + ('000000' + (accent >>> 0).toString(16)).slice(-6);
+      g.font = '800 24px "Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",sans-serif';
+      g.textAlign = 'left'; g.textBaseline = 'middle';
+      g.fillText(who || '잼대리', 106, 32);
+      g.fillStyle = '#f2f6ff';
+      g.font = '800 36px "Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",sans-serif';
+      g.fillText(text, 106, 74);
+    });
+    var sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
+    sp.scale.set(1.48, 0.37, 1);
+    return sp;
+  }
+
+  MiniScene.prototype.buildChat = function () {
+    this.scene.background = new THREE.Color(0x161a2c);
+    this.scene.fog = new THREE.Fog(0x161a2c, 13, 28);
+    this.camera.fov = 44;
+    this.camera.position.set(0.05, 2.0, 6.4);
+    this.camera.lookAt(0, 1.78, -0.6);
+    this.camera.updateProjectionMatrix();
+    this.dir.position.set(2, 6, 4);
+
+    var R = this.root;
+    // 책상 + 폰 본체
+    VX.box(R, 6.4, 0.3, 3.6, 0x1d2130, 0, -0.78, -0.6, { cast: false, tex: 'wood', tr: [4, 2] });
+    VX.box(R, 3.1, 4.7, 0.24, 0x0c0f1a, 0, 2.05, -1.75, { rough: 0.6 });
+    VX.box(R, 2.84, 4.32, 0.05, 0x1b2338, 0, 2.05, -1.6, { emissive: 0x243a63, emissiveIntensity: 0.35, cast: false });
+    VX.box(R, 2.9, 0.1, 0.18, 0x39456a, 0, 4.42, -1.68, { cast: false });
+
+    // 상단 대화방 헤더
+    var hd = VX.label('단톡방 · 딴짓', '#8fd0ff', { w: 1.5 });
+    hd.position.set(0, 4.2, -1.5);
+    R.add(hd);
+    // 새 메시지 표시
+    var nb = VX.label('새 메시지 3', '#ffd24a', { w: 0.86 });
+    nb.position.set(-1.62, 3.66, -1.2);
+    R.add(nb);
+    this.newBadge = nb;
+
+    // 캐릭터(잼대리) 옆에서 폰 보는 자세
+    var me = VX.humanoid({ suit: 0x3f7893, shirt: 0xdff4ff, tie: false, hair: 0x4a3524, scale: 0.62, badge: 0x69d8ff });
+    me.position.set(-2.25, 0, -1.0);
+    me.rotation.y = 0.55;
+    R.add(me);
+    this.me = me;
+    this.meUd = me.userData;
+
+    // 말풍선 6칸 (채팅 목록처럼 고정 배치)
+    this.msgs = [];
+    this.msgIdx = 0;
+    this.slotY = [3.3, 2.75, 2.2, 1.65, 1.1, 0.55];
+    for (var i = 0; i < 6; i++) this.spawnMsg(i);
+
+    // 맨 아래 타이핑 점
+    this.typing = new THREE.Group();
+    this.typing.position.set(0.42, 0.2, 0.32);
+    R.add(this.typing);
+    for (var d = 0; d < 3; d++) VX.box(this.typing, 0.09, 0.09, 0.09, 0x8fd0ff, d * 0.16 - 0.16, 0, 0, { emissive: 0x2f6f9a, emissiveIntensity: 0.7, cast: false });
+
+    this.state = { pops: 0 };
+  };
+
+  MiniScene.prototype.spawnMsg = function (slot) {
+    var line = CHAT_LINES[this.msgIdx++ % CHAT_LINES.length];
+    var g = new THREE.Group();
+    var sp = chatSprite(line.t, line.c, Math.random() < 0.62 ? '잼대리' : '잼인턴');
+    g.add(sp);
+    var baseY = this.slotY[slot];
+    g.position.set(slot % 2 ? 0.24 : -0.2, baseY, 0.3 + (slot % 3) * 0.03);
+    g.scale.setScalar(0.86);
+    this.root.add(g);
+    var rec = { g: g, sp: sp, slot: slot, c: line.c, baseY: baseY, t: 0, alive: true, wait: 0 };
+    if (this.msgs[slot]) { this.root.remove(this.msgs[slot].g); this.msgs[slot] = rec; }
+    else this.msgs[slot] = rec;
+    return rec;
+  };
+
+  MiniScene.prototype.updateChat = function (dt) {
+    if (!this.msgs) return;
+    for (var i = 0; i < this.msgs.length; i++) {
+      var m = this.msgs[i];
+      if (!m) continue;
+      if (!m.alive) {
+        m.wait -= dt;
+        if (m.wait <= 0) this.spawnMsg(i);
+        continue;
+      }
+      m.t += dt;
+      m.g.position.y = m.baseY + Math.sin(this.t * 1.7 + i * 0.9) * 0.015;
+      m.g.scale.setScalar(Math.min(1, 0.86 + m.t * 0.9));
+    }
+    // 타이핑 점 통통
+    for (var d = 0; d < this.typing.children.length; d++) {
+      var b = this.typing.children[d];
+      b.position.y = Math.sin(this.t * 8 + d * 0.7) * 0.06;
+    }
+    if (this.newBadge) this.newBadge.visible = Math.sin(this.t * 2.2) > -0.4;
+    // 잼대리: 폰 보며 고개 끄덕
+    if (this.meUd) {
+      this.meUd.head.rotation.x = 0.16 + Math.sin(this.t * 1.6) * 0.05;
+      this.meUd.head.rotation.y = Math.sin(this.t * 0.9) * 0.12;
+      this.meUd.armR.rotation.x = -1.25 + Math.sin(this.t * 3.4) * 0.1;
+      this.meUd.armL.rotation.x = -0.9;
+    }
+  };
+
+  MiniScene.prototype.tapChat = function () {
+    if (!this.msgs) return;
+    var idx = -1;
+    for (var i = 0; i < this.msgs.length; i++) {
+      if (this.msgs[i] && this.msgs[i].alive) { idx = i; break; }
+    }
+    if (idx < 0) return;
+    var m = this.msgs[idx];
+    var p = m.g.position;
+    this.burst.spawn(p.x, p.y, p.z, m.c, 9, { size: 0.07, speed: 2.2, life: 0.55 });
+    this.burst.spawn(p.x, p.y + 0.08, p.z, 0xffffff, 4, { size: 0.05, speed: 1.7, life: 0.45 });
+    this.root.remove(m.g);
+    m.alive = false;
+    m.wait = 0.35;
+    this.state.pops++;
+  };
+
+  /* ---------- 목요일: 몰래 유튜브·숏폼 (스와이프) ---------- */
+  var SHORT_LINES = [
+    { t: '고양이 3초 요리', c: 0xe0592f, e: 1 },
+    { t: '신입 브이로그', c: 0x3f8ff0, e: 2 },
+    { t: '직장인 밈 모음', c: 0x7a63e0, e: 3 },
+    { t: '칼퇴 노하우', c: 0x2fae7a, e: 4 },
+    { t: '급식 리뷰', c: 0xd98a2b, e: 5 },
+    { t: '몰래 보는 중', c: 0xd94f8f, e: 2 },
+    { t: '월요일 공감', c: 0x2fa6c4, e: 1 },
+    { t: '퇴근길 ASMR', c: 0x9a68d8, e: 6 }
+  ];
+
+  function shortSprite(text, accent, kind) {
+    var w = 384, h = 128;
+    var tex = VX.canvasTex(w, h, function (g) {
+      g.clearRect(0, 0, w, h);
+      g.fillStyle = 'rgba(8,10,18,.9)';
+      VX.roundRect(g, 8, 8, w - 16, h - 16, 18);
+      g.fill();
+      // 미니 썸네일 그림 (종류별)
+      var cx = 52, cy = 64, col = '#' + ('000000' + (accent >>> 0).toString(16)).slice(-6);
+      g.fillStyle = col;
+      if (kind === 1) { g.beginPath(); g.arc(cx, cy, 24, 0, Math.PI * 2); g.fill(); g.beginPath(); g.arc(cx - 8, cy - 7, 3, 0, Math.PI * 2); g.fillStyle = '#0b0f18'; g.fill(); }
+      else if (kind === 2) { g.fillRect(cx - 22, cy - 24, 44, 48); g.fillStyle = '#0b0f18'; g.fillRect(cx - 10, cy - 8, 20, 4); }
+      else if (kind === 3) { g.beginPath(); g.moveTo(cx - 24, cy + 20); g.lineTo(cx - 8, cy - 22); g.lineTo(cx + 10, cy + 10); g.lineTo(cx + 24, cy - 12); g.lineTo(cx + 24, cy + 20); g.closePath(); g.fill(); }
+      else if (kind === 4) { g.fillRect(cx - 24, cy - 6, 48, 12); g.fillRect(cx - 6, cy - 24, 12, 48); }
+      else if (kind === 5) { g.beginPath(); g.arc(cx, cy + 6, 18, 0, Math.PI); g.fill(); g.fillRect(cx - 22, cy - 14, 44, 8); }
+      else { g.beginPath(); g.moveTo(cx - 12, cy - 20); g.lineTo(cx + 22, cy); g.lineTo(cx - 12, cy + 20); g.closePath(); g.fill(); }
+      g.fillStyle = '#f2f6ff';
+      g.textAlign = 'left'; g.textBaseline = 'middle';
+      g.font = '900 34px "Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",sans-serif';
+      g.fillText(text, 96, 56);
+      g.fillStyle = 'rgba(200,215,240,.75)';
+      g.font = '800 22px "Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",sans-serif';
+      g.fillText('@jam_official · 조회 ' + (12 + text.length * 7) + '만', 96, 92);
+    });
+    var sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
+    sp.scale.set(1.42, 0.47, 1);
+    return sp;
+  }
+
+  MiniScene.prototype.buildVideo = function () {
+    this.scene.background = new THREE.Color(0x1b1226);
+    this.scene.fog = new THREE.Fog(0x1b1226, 14, 30);
+    this.camera.fov = 42;
+    this.camera.position.set(0, 1.95, 6.9);
+    this.camera.lookAt(0, 1.85, -0.8);
+    this.camera.updateProjectionMatrix();
+    this.dir.position.set(2, 6, 4);
+
+    var R = this.root;
+    // 세로 폰: 뒤판 + 화면 + 앞쪽 베젤(카드가 화면 밖으로 나가면 베젤이 가린다)
+    VX.box(R, 2.4, 4.3, 0.22, 0x0b0c14, 0, 1.95, -1.66, { rough: 0.55 });
+    VX.box(R, 2.06, 3.96, 0.05, 0x120d1c, 0, 1.95, -1.60, { cast: false });
+    VX.box(R, 0.2, 4.3, 0.17, 0x0b0c14, -1.1, 1.95, -1.36, { cast: false });
+    VX.box(R, 0.2, 4.3, 0.17, 0x0b0c14, 1.1, 1.95, -1.36, { cast: false });
+    VX.box(R, 2.4, 0.22, 0.17, 0x0b0c14, 0, 4.0, -1.36, { cast: false });
+    VX.box(R, 2.4, 0.22, 0.17, 0x0b0c14, 0, -0.1, -1.36, { cast: false });
+    VX.box(R, 0.3, 0.05, 0.08, 0x39456a, 0, 4.0, -1.28, { cast: false });
+    // 오른쪽 좋아요·댓글 기둥
+    VX.box(R, 0.26, 0.26, 0.26, 0x2a1a34, 1.38, 1.45, -1.2, { cast: false });
+    VX.box(R, 0.2, 0.2, 0.2, 0xd94f8f, 1.38, 1.45, -1.12, { emissive: 0x8a1f4a, emissiveIntensity: 0.5, cast: false });
+    VX.box(R, 0.24, 0.24, 0.24, 0x22283c, 1.38, 0.92, -1.2, { cast: false });
+    VX.box(R, 0.24, 0.24, 0.24, 0x22283c, 1.38, 0.44, -1.2, { cast: false });
+    // 진행 바
+    VX.box(R, 0.9, 0.05, 0.1, 0x3a2a4a, 0, -0.36, -1.2, { cast: false });
+    this.vBar = VX.box(R, 0.02, 0.05, 0.11, 0xffd24a, -0.44, -0.36, -1.19, { emissive: 0xd9a000, emissiveIntensity: 0.7, cast: false });
+
+    // 숏폼 카드 2장(보이는 1장 + 아래 대기 1장, 베젤 뒤에서 올라온다)
+    this.cards = [];
+    this.cardIdx = 0;
+    var c0 = this.makeShort(1.95);
+    var c1 = this.makeShort(-4.6);
+    c1.g.visible = false;
+    this.cards.push(c0, c1);
+    this.swipe = null;
+    this.likeN = 0;
+    var like = VX.label('♥ 0', '#ff9bd0', { w: 0.72 });
+    like.position.set(1.38, 2.06, -1.1);
+    R.add(like);
+    this.likeLabel = like;
+
+    this.state = { swipes: 0 };
+  };
+
+  MiniScene.prototype.makeShort = function (y) {
+    var line = SHORT_LINES[this.cardIdx++ % SHORT_LINES.length];
+    var g = new THREE.Group();
+    g.position.set(0, y, -1.52);
+    // 영상 배경(색 그라데이션 3단) + 테두리
+    var base = new THREE.Color(line.c);
+    for (var b = 0; b < 3; b++) {
+      var col = base.clone().offsetHSL(b * 0.02, 0, 0.18 - b * 0.15).getHex();
+      VX.box(g, 1.9, 1.26, 0.05, col, 0, 1.26 - b * 1.26, 0, { emissive: col, emissiveIntensity: 0.12, cast: false });
+    }
+    VX.box(g, 1.94, 3.82, 0.03, 0x101018, 0, 0, -0.04, { cast: false });
+    // 종류별 복셀 소품
+    var prop = new THREE.Group();
+    prop.position.set(0, 0.35, 0.08);
+    g.add(prop);
+    var white = 0xf4f7ff, dark = 0x14161f;
+    if (line.e === 1) {           // 고양이
+      VX.box(prop, 0.62, 0.5, 0.16, white, 0, 0, 0, { cast: false });
+      VX.box(prop, 0.12, 0.18, 0.06, white, -0.2, 0.3, 0, { cast: false });
+      VX.box(prop, 0.12, 0.18, 0.06, white, 0.2, 0.3, 0, { cast: false });
+      VX.box(prop, 0.07, 0.07, 0.04, dark, -0.15, 0.06, 0.09, { cast: false });
+      VX.box(prop, 0.07, 0.07, 0.04, dark, 0.15, 0.06, 0.09, { cast: false });
+      VX.box(prop, 0.07, 0.05, 0.04, 0xe08a9a, 0, -0.03, 0.09, { cast: false });
+    } else if (line.e === 2) {    // 사람
+      VX.box(prop, 0.3, 0.3, 0.16, 0xf0c49b, 0, 0.22, 0, { cast: false });
+      VX.box(prop, 0.46, 0.44, 0.16, 0x2b3650, 0, -0.16, 0, { cast: false });
+      VX.box(prop, 0.1, 0.18, 0.04, 0xf4f7ff, 0, 0.02, 0.09, { cast: false });
+    } else if (line.e === 3) {    // 밈(지그재그)
+      for (var i = 0; i < 4; i++) VX.box(prop, 0.16, 0.16, 0.12, i % 2 ? 0xffd24a : 0xff6b8a, -0.3 + i * 0.2, i % 2 ? 0.1 : -0.1, 0, { cast: false });
+    } else if (line.e === 4) {    // 플러스(노하우)
+      VX.box(prop, 0.5, 0.14, 0.14, 0x8bf0b8, 0, 0, 0, { cast: false });
+      VX.box(prop, 0.14, 0.5, 0.14, 0x8bf0b8, 0, 0, 0, { cast: false });
+    } else if (line.e === 5) {    // 그릇(급식)
+      VX.box(prop, 0.56, 0.14, 0.18, 0xf4f7ff, 0, -0.06, 0, { cast: false });
+      VX.box(prop, 0.36, 0.16, 0.1, 0xd98a2b, 0, 0.1, 0, { cast: false });
+    } else {                       // 재생(삼각형)
+      VX.box(prop, 0.16, 0.16, 0.12, 0xf4f7ff, -0.08, 0, 0, { cast: false });
+      VX.box(prop, 0.16, 0.16, 0.12, 0xf4f7ff, 0.1, 0.08, 0, { cast: false });
+      VX.box(prop, 0.16, 0.16, 0.12, 0xf4f7ff, 0.1, -0.08, 0, { cast: false });
+    }
+    // 자막·채널
+    var cap = shortSprite(line.t, line.c, line.e);
+    cap.position.set(0, -1.28, 0.06);
+    g.add(cap);
+    this.root.add(g);
+    return { g: g, targetY: y, c: line.c, cap: line.t, out: false };
+  };
+
+  MiniScene.prototype.updateVideo = function (dt) {
+    if (!this.cards) return;
+    for (var i = 0; i < this.cards.length; i++) {
+      var c = this.cards[i];
+      if (c.out) {
+        c.g.position.y += dt * 9;
+        c.g.scale.setScalar(Math.max(0.2, c.g.scale.x - dt * 1.2));
+      } else {
+        c.g.position.y += (c.targetY - c.g.position.y) * Math.min(1, dt * 10);
+        c.g.scale.setScalar(1);
+        c.g.visible = c.g.position.y + 1.92 > -0.25;
+      }
+      if (i === 0 && !c.out) c.g.position.x = Math.sin(this.t * 0.8) * 0.03;
+    }
+    // 화면 정리
+    if (this.cards[0] && this.cards[0].out && this.cards[0].g.position.y > 6.2) {
+      var done = this.cards.shift();
+      this.root.remove(done.g);
+      var nc = this.makeShort(-4.6);
+      nc.targetY = -4.6;
+      nc.g.visible = false;
+      this.cards.push(nc);
+      this.swipe = null;
+    }
+    // 좋아요 라벨 통통
+    if (this.likeLabel) this.likeLabel.position.y = 2.06 + Math.sin(this.t * 3) * 0.02;
+    if (this.vBar) {
+      var p = 0.02 + ((this.state.swipes % 10) / 10) * 0.9;
+      this.vBar.scale.x = p / 0.02;
+      this.vBar.position.x = -0.44 + p / 2;
+    }
+  };
+
+  MiniScene.prototype.tapVideo = function () {
+    if (!this.cards || this.swipe) return;
+    var c = this.cards[0];
+    if (!c) return;
+    c.out = true;
+    this.cards[1] && (this.cards[1].targetY = 1.95);
+    this.swipe = { t: 0 };
+    this.state.swipes++;
+    // 좋아요 하트 버스트
+    this.burst.spawn(1.05, 1.3, -1.1, 0xff6fb2, 8, { size: 0.06, speed: 2.2, life: 0.6 });
+    this.burst.spawn(0, 0.1, -1.15, c.c, 6, { size: 0.06, speed: 1.8, life: 0.5 });
+    this.likeN++;
+    if (this.likeLabel) {
+      this.likeLabel.material.map.dispose();
+      var tex = VX.canvasTex(256, 72, (function (n) {
+        return function (g, w, h) {
+          g.clearRect(0, 0, w, h);
+          VX.roundRect(g, 8, 10, w - 16, h - 20, 18);
+          g.fillStyle = 'rgba(30,12,26,.86)'; g.fill();
+          g.strokeStyle = '#ff9bd0'; g.lineWidth = 4; g.stroke();
+          g.fillStyle = '#ff9bd0';
+          g.font = '800 34px system-ui,-apple-system,sans-serif';
+          g.textAlign = 'center'; g.textBaseline = 'middle';
+          g.fillText('♥ ' + n, w / 2, h / 2 + 1);
+        };
+      })(this.likeN));
+      this.likeLabel.material.map = tex;
+      this.likeLabel.material.needsUpdate = true;
+    }
+  };
+
   /* =========================================================
      컨트롤러
      ========================================================= */
@@ -1075,11 +1465,14 @@ var Slack3D = (function () {
     if (mini && mini.ok) mini.buildStage(kind);
   }
   function caught() { if (office && office.ok) office.beginCaught(); }
+  function reveal() { if (office && office.ok) office.reveal(); }
   function release() { if (office && office.ok) office.reset(); }
   function tap() {
     if (!mini || !mini.ok) return;
     if (mini.kind === 'jump') mini.tapJump();
     else if (mini.kind === 'chart') mini.tapChart();
+    else if (mini.kind === 'chat') mini.tapChat();
+    else if (mini.kind === 'video') mini.tapVideo();
     else mini.tapShop();
   }
   function setMiniActive(on) { if (mini && mini.ok) mini.setActive(on); }
@@ -1094,7 +1487,7 @@ var Slack3D = (function () {
   }
 
   return {
-    init: init, setBoss: setBoss, begin: begin, setStage: setStage, caught: caught,
+    init: init, setBoss: setBoss, begin: begin, setStage: setStage, caught: caught, reveal: reveal,
     release: release, tap: tap, setMiniActive: setMiniActive, setActive: setActive, snapshot: snapshot,
     status: status,
     office: function () { return office; }, mini: function () { return mini; }
