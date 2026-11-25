@@ -7,8 +7,8 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="format-detection" content="telephone=no">
-<meta name="description" content="18:00 칼퇴까지, 부장님 눈을 피해 딴짓 게이지 100%를 채우는 눈치 게임.">
-<title>부장님 몰래 딴짓하기 · Slacking Off</title>
+<meta name="description" content="18:00 칼퇴까지, 부장님 눈을 피해 딴짓 게이지 100%를 채우는 3D 복셀 눈치 게임.">
+<title>부장님 몰래 딴짓하기 · Slacking Off 3D</title>
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -35,34 +35,15 @@
       <div class="day-track" aria-hidden="true"><i id="dayFill"></i><b class="six"></b></div>
     </div>
 
-    <section class="office" id="office" aria-label="사무실 복도">
-      <div class="corridor">
-        <div class="ceil"></div>
-        <div class="wall"></div>
-        <div class="door"><span>부장실</span><i class="glass"></i></div>
-        <div class="floor"></div>
-        <div class="partition p-left"></div>
-        <div class="partition p-right"></div>
-        <div class="plant" aria-hidden="true">🪴</div>
-        <div class="wall-deco" aria-hidden="true"><span class="clk">🕒</span><span class="sign">야근 금지</span></div>
-
-        <div class="boss boss-a" id="bossA" data-pos="far">
-          <span class="boss-mark" id="markA">❓</span>
-          <span class="boss-emoji">👨‍💼</span>
-          <span class="boss-tag">잼부장</span>
-        </div>
-        <div class="boss boss-b" id="bossB" data-pos="gone" hidden>
-          <span class="boss-mark">❓</span>
-          <span class="boss-emoji">🕴️</span>
-          <span class="boss-tag">잼사장</span>
-        </div>
-
+    <section class="office" id="office" aria-label="3D 복셀 사무실 복도">
+      <div class="corridor" id="corridor">
+        <div class="office3d-host" id="office3d"></div>
+        <div class="office-tag"><span class="live-dot"></span><b id="officeDay">월요일</b><span>17:05 · 잼타워 3층</span></div>
         <div class="bubble" id="bubble" hidden>
           <b class="bub-who" id="bubWho">잼부장</b>
           <p class="bub-tx" id="bubText">흠…</p>
         </div>
       </div>
-
       <div class="alert" id="alert" data-mode="calm">
         <span class="alert-ic" id="alertIc">😴</span>
         <span class="alert-tx" id="alertTx">평온 · 부장님은 자리에…</span>
@@ -80,7 +61,10 @@
               <span class="win-url" id="winUrl">minigame.co.kr/block</span>
               <span class="badge slack-badge">🍿 딴짓</span>
             </div>
-            <div class="mini" id="mini"></div>
+            <div class="mini" id="mini">
+              <div class="mini3d-host" id="mini3d"></div>
+              <div class="mini-head"><span id="miniLabel">🍪 미니 블록</span><b id="miniScore">0</b></div>
+            </div>
             <div class="floaters" id="floaters" aria-hidden="true"></div>
           </div>
           <div class="view excel-view" id="excelView" hidden>
@@ -131,6 +115,9 @@
   </div>
 </div>
 
+<script src="js/three.min.js"></script>
+<script src="js/voxel.js"></script>
+<script src="js/scene3d.js"></script>
 <script src="js/sfx.js"></script>
 <script src="js/characters.js"></script>
 <script src="js/game.js"></script>

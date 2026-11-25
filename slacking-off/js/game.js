@@ -86,9 +86,9 @@
     E.score = $('score');
     E.dayFill = $('dayFill');
     E.office = $('office');
-    E.bossA = $('bossA');
-    E.bossB = $('bossB');
-    E.markA = $('markA');
+    E.corridor = $('corridor');
+    E.officeDay = $('officeDay');
+    E.miniLabel = $('miniLabel');
     E.alert = $('alert');
     E.alertIc = $('alertIc');
     E.alertTx = $('alertTx');
@@ -127,6 +127,7 @@
 
     buildExcel();
     bind();
+    if (window.Slack3D) Slack3D.init({ officeEl: $('office3d'), miniEl: $('mini3d') });
     showTitle();
     rafId = requestAnimationFrame(loop);
   }
@@ -190,16 +191,15 @@
 
   function showTitle() {
     S.mode = 'title';
+    if (window.Slack3D) { Slack3D.setActive(true); Slack3D.setMiniActive(true); }
     E.app.classList.remove('tense');
     E.stageChip.textContent = '월요일';
     resetBossVisual();
     overlay(
       '<div class="ov-inner">' +
         '<div class="hero" aria-hidden="true">' +
+          '<img class="hero-3d" id="hero3d" alt="잼부장 복셀 캐릭터">' +
           '<span class="hero-chip">🍿 딴짓 92% · 칼퇴까지 12분</span>' +
-          '<span class="hero-pop">🍿</span>' +
-          '<span class="hero-boss">👨‍💼</span>' +
-          '<span class="hero-desk">🖥️</span>' +
         '</div>' +
         '<span class="ov-tag">🕵️ 18:00 칼퇴 생존기</span>' +
         '<h1 class="ov-title">부장님 몰래<br>딴짓하기</h1>' +
@@ -219,6 +219,12 @@
       '</div>'
     );
     $('startBtn').addEventListener('click', function () { SFX.click(); startRun(); });
+    try {
+      var shot = Slack3D.snapshot('hero');
+      var im = $('hero3d');
+      if (shot && im) im.src = shot;
+      Slack3D.setActive(false);
+    } catch (err) {}
   }
   function stageRow(day, name, pips, tag) {
     var p = '';
@@ -241,6 +247,7 @@
     S.mode = 'intro';
     resetStageState();
     E.stageChip.textContent = S.cfg.day;
+    if (E.officeDay) E.officeDay.textContent = S.cfg.day;
     prepareStageVisual();
     var cfg = S.cfg;
     var ruleRows = cfg.rules.map(function (r) {
@@ -272,8 +279,11 @@
     lastTs = 0;
     E.app.classList.remove('tense');
     setAlert('calm', '평온 · 부장님은 자리에…');
+    Slack3D.begin(S.cfg.bosses);
+    Slack3D.setStage(S.cfg.slack);
+    Slack3D.setMiniActive(true);
+    Slack3D.setActive(true);
     setBossPos('far', 0.4);
-    if (S.cfg.bosses.length > 1) { E.bossB.hidden = false; E.bossB.dataset.pos = 'far'; }
     Bubble.hide();
     setTimeout(function () {
       if (S.mode !== 'playing') return;
@@ -319,8 +329,9 @@
     E.excelView.hidden = true;
     E.monitor.dataset.mode = 'slack';
     E.cam.classList.remove('on');
-    E.bossB.hidden = S.cfg.bosses.length < 2;
-    if (S.cfg.bosses.length < 2) E.bossB.dataset.pos = 'gone';
+    if (E.officeDay) E.officeDay.textContent = S.cfg.day;
+    Slack3D.setStage(kind);
+    Slack3D.setMiniActive(true);
   }
 
   /* ---------------- the loop ---------------- */
@@ -493,6 +504,7 @@
   function caught() {
     S.mode = 'caught';
     E.app.classList.remove('tense');
+    if (window.Slack3D) { Slack3D.caught(); Slack3D.setMiniActive(false); }
     SFX.caught();
     E.monitor.classList.add('shake');
     setTimeout(function () { E.monitor.classList.remove('shake'); }, 400);
@@ -511,6 +523,7 @@
     E.app.classList.remove('tense');
     SFX.overtime();
     setAlert('calm', '18:00 · 퇴근 시간');
+    if (window.Slack3D) Slack3D.setMiniActive(false);
     Bubble.say(S.checker, 'overtime', 4000);
     S.work = false; S.holding = false;
     S.stats = snapshotStats('timeout');
@@ -524,6 +537,7 @@
     SFX.clear();
     flash('rgba(120,255,190,.35)', 320);
     setAlert('safe', '딴짓 100%! 가방 챙겨!');
+    if (window.Slack3D) Slack3D.setMiniActive(false);
     Bubble.say(S.checker, 'clear', 3200);
     S.stats = snapshotStats('clear');
     S.score += 300 + Math.round(S.left * 8) + S.bestCombo * 10;
@@ -542,20 +556,11 @@
 
   /* ---------------- boss visuals ---------------- */
   function setBossPos(pos, dur) {
-    var el = E.bossA, el2 = E.bossB;
-    if (S.checker === 'jamsajang' && S.cfg.bosses.length > 1) { el = E.bossB; el2 = E.bossA; }
-    if (el) {
-      el.style.transitionDuration = (dur || 0.5) + 's';
-      el.dataset.pos = pos;
-    }
-    if (el2) {
-      if (pos === 'peek' || pos === 'warn') el2.dataset.pos = 'far';
-      el2.style.transitionDuration = '0.5s';
-    }
+    if (window.Slack3D) Slack3D.setBoss(S.checker, pos, dur);
+    E.cam.classList.remove('on');
   }
   function resetBossVisual() {
-    E.bossA.dataset.pos = 'far';
-    E.bossB.dataset.pos = 'gone';
+    if (window.Slack3D) Slack3D.release();
     E.cam.classList.remove('on');
   }
 
@@ -624,6 +629,7 @@
     E.eatView.hidden = true;
     E.actingRow.hidden = !on;
     E.monitor.dataset.mode = on ? 'work' : (S.locked > 0 ? 'eat' : 'slack');
+    if (window.Slack3D) Slack3D.setMiniActive(!on && S.locked <= 0);
     E.app.classList.toggle('working', on);
     if (on) {
       E.xlSave.textContent = '저장 중…';
@@ -636,94 +642,36 @@
     }
   }
 
-  /* ---------------- mini games ---------------- */
+  /* ---------------- mini games (3D) ---------------- */
   function buildJump() {
-    E.mini.innerHTML =
-      '<div class="mini-head"><span>🍪 미니 블록</span><b id="miniScore">0</b></div>' +
-      '<div class="jump-hill"></div>' +
-      '<div class="jump-deco" style="left:17%;top:30%;animation-delay:.2s">🪙</div>' +
-      '<div class="jump-deco" style="left:78%;top:40%;animation-delay:.8s">💎</div>' +
-      '<div class="jump-deco" style="left:33%;top:52%;animation-delay:1.3s">✨</div>' +
-      '<div class="jump-deco" style="left:66%;top:20%;animation-delay:.5s">⭐</div>' +
-      '<div class="jump-ground"></div>' +
-      '<div class="jump-block" id="jumpBlock">🍪</div>' +
-      '<div class="jump-bar">👆 연타 콤보 <b id="jumpCombo">x1</b></div>';
     E.miniScore = $('miniScore');
-    E.jumpCombo = $('jumpCombo');
+    if (E.miniLabel) E.miniLabel.textContent = '🍪 미니 블록';
+    if (E.miniScore) E.miniScore.textContent = '0';
   }
   function buildChart() {
-    var bars = '', h = 16;
-    for (var i = 0; i < 14; i++) {
-      h = Math.max(9, Math.min(72, h + (Math.random() * 24 - 7)));
-      bars += '<div class="chart-bar" style="height:' + h.toFixed(1) + '%"></div>';
-    }
-    E.mini.innerHTML =
-      '<div class="mini-head"><span>🪙 코인 차트</span><b id="miniScore">+0.0%</b></div>' +
-      '<div class="chart-body">' + bars + '</div>' +
-      '<div class="chart-rocket" id="rocket" style="left:84%;bottom:22%">🚀</div>';
     E.miniScore = $('miniScore');
-    E.rocket = $('rocket');
+    if (E.miniLabel) E.miniLabel.textContent = '🪙 코인 차트';
+    if (E.miniScore) E.miniScore.textContent = '+0.0%';
   }
-  var SHOP_ITEMS = ['🍜', '🧸', '👟', '🎧', '🍫', '🧦', '🪀', '☕', '🍗', '📚', '🧢', '🎮'];
   function buildShop() {
-    E.mini.innerHTML =
-      '<div class="mini-head"><span>🛒 핫딜 쇼핑</span><b id="miniScore">0개</b></div>' +
-      '<div class="shop-grid" id="shopGrid"></div>' +
-      '<div class="shop-cart">🛒 <span id="cartSum">0원</span></div>';
     E.miniScore = $('miniScore');
-    E.shopGrid = $('shopGrid');
-    E.cartSum = $('cartSum');
     E.cartTotal = 0;
+    if (E.miniLabel) E.miniLabel.textContent = '🛒 핫딜 쇼핑';
+    if (E.miniScore) E.miniScore.textContent = '0개';
   }
   function miniTap() {
     var kind = S.cfg.slack;
     if (kind === 'jump') {
-      var b = $('jumpBlock');
-      if (b) {
-        b.classList.remove('hop');
-        void b.offsetWidth;
-        b.classList.add('hop');
-      }
-      var coin = document.createElement('span');
-      coin.className = 'jump-coin';
-      coin.textContent = pick(['🪙', '💎', '🍬']);
-      coin.style.left = (20 + Math.random() * 60) + '%';
-      E.mini.appendChild(coin);
-      setTimeout(function () { coin.remove(); }, 720);
       if (E.miniScore) E.miniScore.textContent = S.taps;
-      if (E.jumpCombo) E.jumpCombo.textContent = 'x' + (1 + Math.floor(S.combo / 3));
     } else if (kind === 'chart') {
-      var bars = E.mini.querySelectorAll('.chart-bar');
-      if (bars.length) {
-        var hi = 1;
-        for (var i = 0; i < bars.length; i++) {
-          var h = Math.max(8, Math.min(96, parseFloat(bars[i].style.height || bars[i].dataset.h || '8')));
-          if (i < bars.length - 1) { bars[i].style.height = Math.max(8, h - 4) + '%'; }
-        }
-        var last = bars[bars.length - 1];
-        var cur = parseFloat(last.style.height || '8');
-        last.style.height = Math.min(97, cur + 9) + '%';
-        last.classList.add('up');
-        setTimeout(function () { last.classList.remove('up'); }, 260);
-        if (E.rocket) {
-          E.rocket.style.left = (78 + Math.random() * 8) + '%';
-          E.rocket.style.bottom = Math.min(88, 12 + S.taps * 1.2) + '%';
-        }
-        if (E.miniScore) E.miniScore.textContent = '+' + (S.taps * 2.7).toFixed(1) + '%';
-      }
+      if (E.miniScore) E.miniScore.textContent = '+' + (S.taps * 2.7).toFixed(1) + '%';
     } else {
-      if (E.shopGrid) {
-        var it = document.createElement('div');
-        it.className = 'shop-item';
-        it.textContent = pick(SHOP_ITEMS);
-        E.shopGrid.appendChild(it);
-        while (E.shopGrid.children.length > 24) E.shopGrid.removeChild(E.shopGrid.firstChild);
-      }
       var price = 1900 + Math.floor(Math.random() * 12) * 1000;
       E.cartTotal = (E.cartTotal || 0) + price;
-      if (E.cartSum) E.cartSum.textContent = E.cartTotal.toLocaleString('ko-KR') + '원';
       if (E.miniScore) E.miniScore.textContent = S.taps + '개';
+      if (E.miniLabel) E.miniLabel.textContent = '🛒 ' + E.cartTotal.toLocaleString('ko-KR') + '원';
     }
+    if (window.Slack3D) Slack3D.tap();
   }
 
   function floater(text, x, y) {
@@ -831,6 +779,7 @@
     E.slackView.hidden = true;
     E.eatView.hidden = false;
     E.monitor.dataset.mode = 'eat';
+    if (window.Slack3D) Slack3D.setMiniActive(false);
     E.actingRow.hidden = true;
     toast('🍗 게이지 +12! 그런데 1.5초간 위장 불가…', 1600);
     if (S.gauge >= 100) winStage();
@@ -840,6 +789,7 @@
     E.eatView.hidden = true;
     E.slackView.hidden = false;
     E.monitor.dataset.mode = 'slack';
+    if (window.Slack3D) Slack3D.setMiniActive(true);
     SFX.click();
   }
 
@@ -906,9 +856,11 @@
   /* ---------------- result screens ---------------- */
   function showCaughtScreen() {
     var st = S.stats;
+    var cutShot = '';
+    try { cutShot = Slack3D.snapshot(); Slack3D.setActive(false); } catch (err) {}
     overlay(
       '<div class="ov-inner">' +
-        '<div class="cut-emoji">👨‍💼</div>' +
+        (cutShot ? '<img class="cut-shot" src="' + cutShot + '" alt="발각 순간 3D 컷">' : '<div class="cut-emoji">👨‍💼</div>') +
         '<span class="cut-stamp">발각!</span>' +
         '<h2 class="cut-title">김인턴… <em>지금 그게 뭐야?!</em></h2>' +
         '<p class="cut-line">' + (st ? '딴짓 ' + st.gauge + '%에서 모니터가 그대로 노출됐다. 부장님 표정이 굳었다.' : '') + '</p>' +
@@ -925,6 +877,7 @@
 
   function showTimeoutScreen() {
     var st = S.stats;
+    if (window.Slack3D) Slack3D.setActive(false);
     overlay(
       '<div class="ov-inner">' +
         '<div class="cut-emoji">🌙</div>' +
@@ -960,6 +913,7 @@
 
   function showClearScreen() {
     var st = S.stats;
+    if (window.Slack3D) { Slack3D.setActive(false); Slack3D.setMiniActive(false); }
     var next = S.stage + 1;
     var last = next >= STAGES.length;
     var head = last ? '금요일 18:00 · 이번 주도 칼퇴' : S.cfg.day + ' 18:00 · 사무실 탈출';
@@ -1046,7 +1000,8 @@
     go: beginPlay,
     skipTemptIn: function () { S.temptIn = 0; },
     takeTempt: takeTemptation,
-    setLeft: function (v) { S.left = v; syncHUD(); }
+    setLeft: function (v) { S.left = v; syncHUD(); },
+    three: function () { return window.Slack3D ? Slack3D.status() : null; }
   };
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
