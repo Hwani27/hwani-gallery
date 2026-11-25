@@ -55,7 +55,7 @@
     temptIn: 0, temptShown: false, temptHide: 0,
     chatIn: 9, footAcc: 0, typeAcc: 0, tickAt: 0,
     grace: 0, stageBest: 0, stats: null,
-    lastHint: ''
+    lastHint: '', excuse: null, excuseUsed: false
   };
   var E = {};
   var lastTs = 0, rafId = 0;
@@ -67,6 +67,15 @@
     return (h < 10 ? '0' + h : h) + ':' + (m < 10 ? '0' + m : m);
   }
   function setText(el, v) { if (el && el.textContent !== v) el.textContent = v; }
+  var esc = function (s) {
+    return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  };
+  /* BGM 전환 (sfx.js 의 프로시저럴 루프) */
+  function bgmPlay(m) { try { SFX.bgm.start(m); } catch (e) {} }
+  function bgmMode(m) { try { SFX.bgm.setMode(m); } catch (e) {} }
+  function bgmWork(v) { try { SFX.bgm.setWork(!!v); } catch (e) {} }
+  function bgmStop() { try { SFX.bgm.stop(); } catch (e) {} }
   function flash(color, ms) {
     var d = document.createElement('div');
     d.style.cssText = 'position:absolute;inset:0;z-index:70;pointer-events:none;background:' + color + ';opacity:.55;transition:opacity .35s ease;';
@@ -184,13 +193,15 @@
 
   /* ---------------- title / overlays ---------------- */
   function overlay(html) {
+    E.overlay.classList.remove('ec');
     E.overlay.innerHTML = html;
     E.overlay.hidden = false;
   }
-  function hideOverlay() { E.overlay.hidden = true; E.overlay.innerHTML = ''; }
+  function hideOverlay() { E.overlay.hidden = true; E.overlay.innerHTML = ''; E.overlay.classList.remove('ec'); }
 
   function showTitle() {
     S.mode = 'title';
+    bgmStop();
     if (window.Slack3D) { Slack3D.setActive(true); Slack3D.setMiniActive(true); }
     E.app.classList.remove('tense');
     E.stageChip.textContent = '월요일';
@@ -251,6 +262,7 @@
   }
 
   function enterStage(i, baseScore) {
+    bgmStop();
     S.stage = i;
     S.cfg = STAGES[i];
     S.baseScore = baseScore;
@@ -290,6 +302,7 @@
     lastTs = 0;
     E.app.classList.remove('tense');
     setAlert('calm', '평온 · 부장님은 자리에…');
+    bgmPlay('calm');
     Slack3D.begin(S.cfg.bosses);
     Slack3D.setStage(S.cfg.slack);
     Slack3D.setMiniActive(true);
@@ -319,6 +332,8 @@
     S.temptIn = rnd(7, 10); S.temptShown = false;
     S.chatIn = 9; S.typeAcc = 0; S.tickAt = 0;
     S.grace = 0; S.stageBest = 0;
+    S.excuse = null; S.excuseUsed = false;
+    if (window.ExcuseChance) ExcuseChance.reset();
     hideTempt();
     setWorkVisual(false, true);
     E.susRow.hidden = !cfg.suspicion;
@@ -453,6 +468,7 @@
         S.phaseT = (cfg.double && Math.random() < cfg.double) ? rnd(0.7, 1.1) : rnd(cfg.gap[0], cfg.gap[1]);
         S.turnbackUsed = false;
         setBossPos('far', 0.8);
+        bgmMode('calm');
         setAlert('calm', '평온 · 부장님은 자리에…');
         E.cam.classList.remove('on');
         E.monitor.dataset.mode = S.work ? 'work' : 'slack';
@@ -476,6 +492,7 @@
     E.monitor.dataset.mode = 'watch';
     E.app.classList.add('tense');
     SFX.warn();
+    bgmMode('tense');
     setAlert('warn', surprise ? '기습 점검!! 일하는 척!!' : '쿵쿵쿵… 부장님 접근 중!');
     if (surprise) flash('rgba(255,80,90,.35)', 260);
     Bubble.say(S.checker, 'approach', 1600);
@@ -513,15 +530,20 @@
   }
 
   function caught() {
+    if (S.mode !== 'playing') return;
+    /* 스테이지당 1회: 첫 발각은 3초 변명 찬스로 */
+    if (window.ExcuseChance && !ExcuseChance.hasUsed()) { startExcuse(); return; }
     S.mode = 'caught';
+    S.excuse = { reason: 'used', choice: null, said: '' };
     E.app.classList.remove('tense');
+    bgmStop();
     if (window.Slack3D) { Slack3D.caught(); Slack3D.setMiniActive(false); }
     SFX.caught();
     E.monitor.classList.add('shake');
     setTimeout(function () { E.monitor.classList.remove('shake'); }, 400);
     flash('rgba(255,50,60,.5)', 420);
     setBossPos('peek', 0.1);
-    setAlert('watch', '발각!!');
+    setAlert('watch', '발각!! (변명 찬스는 이미 썼다)');
     Bubble.say(S.checker, 'caught', 4000);
     E.cam.classList.add('on');
     S.work = false; S.holding = false;
@@ -529,9 +551,81 @@
     setTimeout(showCaughtScreen, 780);
   }
 
+  /* ---------------- 3초 변명 찬스 ---------------- */
+  function startExcuse() {
+    S.mode = 'excuse';
+    S.work = false; S.holding = false;
+    E.workBtn.classList.remove('on');
+    setWorkVisual(false, true);
+    E.app.classList.remove('tense');
+    E.monitor.classList.add('shake');
+    setTimeout(function () { E.monitor.classList.remove('shake'); }, 400);
+    E.monitor.dataset.mode = 'watch';
+    E.cam.classList.add('on');
+    setAlert('watch', '발각!! 변명할 시간 3초!');
+    if (window.Slack3D) { Slack3D.caught(); Slack3D.setMiniActive(false); }
+    bgmMode('tense');
+    Bubble.say(S.checker, 'caught', 3200);
+    var boss = CAST[S.checker] || CAST.jambujang;
+    var line = (boss.lines.excuse ? pick(boss.lines.excuse) : boss.lines.caught);
+    ExcuseChance.open({
+      boss: S.checker,
+      kind: S.cfg.slack,
+      line: line,
+      overlay: E.overlay,
+      shot: function () { try { return Slack3D.snapshot(); } catch (e) { return ''; } },
+      onPass: onExcusePass,
+      onResume: resumeAfterExcuse,
+      onFail: onExcuseFail
+    });
+  }
+
+  function onExcusePass(res) {
+    S.score += 50;
+    S.excuse = { reason: 'pass', choice: res.choice, said: res.said };
+    setAlert('safe', '변명 성공! +50점 · 잠깐 무적');
+    bgmMode('calm');
+    SFX.earn();
+    syncHUD();
+  }
+
+  function onExcuseFail(res) {
+    S.excuse = res;
+    S.stats = snapshotStats('caught');
+    bgmStop();
+    showCaughtScreen();
+  }
+
+  function resumeAfterExcuse() {
+    if (S.mode !== 'excuse') return;
+    S.mode = 'playing';
+    S.grace = 1.5;
+    S.phase = 'pass';
+    S.phaseT = 1.0;
+    S.turnbackUsed = true;
+    S.work = false; S.holding = false; S.acting = 0;
+    setWorkVisual(false, true);
+    E.monitor.dataset.mode = 'slack';
+    E.cam.classList.remove('on');
+    E.monitor.classList.remove('shake');
+    setAlert('calm', '변명 성공 · 다시 딴짓 모드');
+    if (window.Slack3D) {
+      Slack3D.release();
+      Slack3D.setBoss(S.checker, 'far', 0.6);
+      Slack3D.setActive(true);
+      Slack3D.setMiniActive(true);
+    }
+    bgmMode('calm');
+    S.lastHint = '';
+    lastTs = 0;
+    syncHUD();
+    toast('변명 성공 +50점 · 1.5초 무적', 1500);
+  }
+
   function timeoutStage() {
     S.mode = 'timeout';
     E.app.classList.remove('tense');
+    bgmStop();
     SFX.overtime();
     setAlert('calm', '18:00 · 퇴근 시간');
     if (window.Slack3D) Slack3D.setMiniActive(false);
@@ -545,6 +639,7 @@
     if (S.mode !== 'playing') return;
     S.mode = 'clear';
     E.app.classList.remove('tense');
+    bgmStop();
     SFX.clear();
     flash('rgba(120,255,190,.35)', 320);
     setAlert('safe', '딴짓 100%! 가방 챙겨!');
@@ -626,6 +721,7 @@
     if (!S.holding) { E.workBtn.classList.remove('on'); return; }
     S.holding = false;
     E.workBtn.classList.remove('on');
+    bgmWork(false);
     // 짧은 유예 뒤 위장 해제 (탭 한 번도 살짝 먹히게)
     setTimeout(function () {
       if (!S.holding && S.acting <= 0.5 && S.work) {
@@ -635,6 +731,7 @@
     }, 60);
   }
   function setWorkVisual(on, silent) {
+    bgmWork(on);
     E.excelView.hidden = !on;
     E.slackView.hidden = on;
     E.eatView.hidden = true;
@@ -867,14 +964,28 @@
   /* ---------------- result screens ---------------- */
   function showCaughtScreen() {
     var st = S.stats;
+    bgmStop();
     var cutShot = '';
     try { cutShot = Slack3D.snapshot(); Slack3D.setActive(false); } catch (err) {}
+    var ex = S.excuse;
+    var exRow = '';
+    if (ex && ex.reason === 'wrong') {
+      exRow = '<div class="cut-excuse"><b>선택한 변명</b><q>' + esc(ex.choice) + '</q><small>' + esc(ex.said) + '</small></div>';
+    } else if (ex && ex.reason === 'timeout') {
+      exRow = '<div class="cut-excuse"><b>변명</b><q>3.0초 동안 아무 말도 못 했다</q><small>' + esc(ex.said) + '</small></div>';
+    } else if (ex && ex.reason === 'used') {
+      exRow = '<div class="cut-excuse"><b>변명 찬스</b><q>이 판엔 이미 썼다</q><small>같은 변명은 두 번 통하지 않는다</small></div>';
+    }
+    var head = (ex && ex.reason === 'timeout') ? '김인턴… 3초 다 갔네?'
+      : (ex && ex.reason === 'wrong') ? '김인턴… 그게 변명이야?!'
+        : '김인턴… 지금 그게 뭐야?!';
     overlay(
       '<div class="ov-inner">' +
         (cutShot ? '<img class="cut-shot" src="' + cutShot + '" alt="발각 순간 3D 컷">' : '<div class="cut-emoji">👨‍💼</div>') +
         '<span class="cut-stamp">발각!</span>' +
-        '<h2 class="cut-title">김인턴… <em>지금 그게 뭐야?!</em></h2>' +
+        '<h2 class="cut-title">' + head + '</h2>' +
         '<p class="cut-line">' + (st ? '딴짓 ' + st.gauge + '%에서 모니터가 그대로 노출됐다. 부장님 표정이 굳었다.' : '') + '</p>' +
+        exRow +
         statsRow(st, '발각') +
         '<div class="ov-actions">' +
           '<button class="cta" id="retryBtn" type="button">다시 하기</button>' +
@@ -1005,6 +1116,10 @@
     release: endWork,
     warn: function (d) { beginWarn(d || 0.9, false); },
     check: function () { if (S.mode === 'playing') resolveCheck(); },
+    catch: function () { caught(); },
+    excuse: function () { return window.ExcuseChance ? ExcuseChance.status() : null; },
+    pickExcuse: function (i) { return window.ExcuseChance ? ExcuseChance.pick(i) : false; },
+    audio: function () { return { on: SFX.isOn(), bgm: SFX.bgm.status() }; },
     setGauge: function (v) { S.gauge = clamp(v, 0, 100); syncHUD(); if (S.gauge >= 100) winStage(); },
     stage: function (i) { enterStage(i, 0); },
     start: function () { startRun(); },
