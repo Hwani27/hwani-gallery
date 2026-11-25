@@ -19,7 +19,9 @@ var VX = (function () {
     var metal = o.metal || 0;
     var em = o.emissive || 0;
     var ei = o.emissiveIntensity == null ? 1 : o.emissiveIntensity;
-    var key = [color, rough, metal, em, ei, o.opacity == null ? 1 : o.opacity].join('|');
+    /* o.tex / o.tr / o.tm(relief) / o.tint — CC0 실사 텍스처(textures.js) 요청 */
+    var txKey = o.tex ? ('#' + o.tex + '|' + (o.tr ? o.tr[0] + ',' + o.tr[1] : '1,1') + '|' + (o.tm || 'both') + '|' + (o.tint || 0)) : '';
+    var key = [color, rough, metal, em, ei, o.opacity == null ? 1 : o.opacity].join('|') + txKey;
     if (!matCache[key]) {
       var m = new THREE.MeshStandardMaterial({ color: color, roughness: rough, metalness: metal });
       if (m.color.convertSRGBToLinear) m.color.convertSRGBToLinear();
@@ -29,6 +31,7 @@ var VX = (function () {
         m.emissiveIntensity = ei;
       }
       if (o.opacity != null && o.opacity < 1) { m.transparent = true; m.opacity = o.opacity; }
+      if (o.tex && window.TX) TX.want(m, o.tex, o.tr, o.tm, o.tint);
       matCache[key] = m;
     }
     return matCache[key];

@@ -81,36 +81,39 @@ var Slack3D = (function () {
     var floorTex = VX.tileTex();
     floorTex.wrapS = floorTex.wrapT = THREE.RepeatWrapping;
     floorTex.repeat.set(4.2, 8);
-    var floor = new THREE.Mesh(new THREE.PlaneGeometry(7.4, 15.4), new THREE.MeshStandardMaterial({ map: floorTex, roughness: 0.96 }));
+    var floorMat = new THREE.MeshStandardMaterial({ map: floorTex, roughness: 0.96 });
+    /* CC0 타일 사진이 도착하면 바닥만 갈아 끼운다 (색은 사무실 야간 톤으로) */
+    if (window.TX) TX.want(floorMat, 'tile', [4.2, 8], 'both', 0xaebdd8);
+    var floor = new THREE.Mesh(new THREE.PlaneGeometry(7.4, 15.4), floorMat);
     floor.rotation.x = -Math.PI / 2;
     floor.position.set(0, 0, -1.4);
     floor.receiveShadow = true;
     S.add(floor);
 
     // 복도 카펫
-    VX.box(S, 1.55, 0.012, 8.6, 0x243a5c, 0.05, 0.012, -2.7, { cast: false, receive: true });
+    VX.box(S, 1.55, 0.012, 8.6, 0x243a5c, 0.05, 0.012, -2.7, { cast: false, receive: true, tex: 'carpet', tr: [1.6, 8] });
     VX.box(S, 1.62, 0.006, 0.08, 0x3c5a86, 0.05, 0.022, 1.55, { cast: false });
     VX.box(S, 1.62, 0.006, 0.08, 0x3c5a86, 0.05, 0.022, -6.9, { cast: false });
     // 벽 포스터
     VX.box(S, 0.05, 0.78, 0.62, 0xdfe7f4, -3.55, 1.72, -2.6, { cast: false });
     VX.box(S, 0.02, 0.62, 0.46, 0x1f4f7a, -3.5, 1.72, -2.6, { emissive: 0x153a5a, emissiveIntensity: 0.25, cast: false });
-    var ceil = new THREE.Mesh(new THREE.PlaneGeometry(7.4, 15.4), VX.mat(0x141b26, { rough: 1 }));
+    var ceil = new THREE.Mesh(new THREE.PlaneGeometry(7.4, 15.4), VX.mat(0x141b26, { rough: 1, tex: 'concrete', tm: 'relief', tr: [5, 9] }));
     ceil.rotation.x = Math.PI / 2;
     ceil.position.set(0, 3.05, -1.4);
     S.add(ceil);
 
     // 벽
-    VX.box(S, 7.6, 3.05, 0.24, 0x252f3f, 0, 1.52, -7.2);
-    VX.box(S, 0.24, 3.05, 15.4, 0x232d3c, -3.7, 1.52, -1.4);
-    VX.box(S, 0.24, 3.05, 15.4, 0x232d3c, 3.7, 1.52, -1.4);
+    VX.box(S, 7.6, 3.05, 0.24, 0x252f3f, 0, 1.52, -7.2, { tex: 'plaster', tr: [3.4, 1.4] });
+    VX.box(S, 0.24, 3.05, 15.4, 0x232d3c, -3.7, 1.52, -1.4, { tex: 'plaster', tr: [7, 1.4] });
+    VX.box(S, 0.24, 3.05, 15.4, 0x232d3c, 3.7, 1.52, -1.4, { tex: 'plaster', tr: [7, 1.4] });
     VX.box(S, 7.6, 0.14, 0.1, 0x475570, 0, 0.08, -7.06);
     // 벽 하단 몰딩
     VX.box(S, 0.06, 1.0, 15.2, 0x323d4f, -3.56, 0.5, -1.4, { cast: false });
     VX.box(S, 0.06, 1.0, 15.2, 0x323d4f, 3.56, 0.5, -1.4, { cast: false });
 
     // 부장실 문
-    VX.box(S, 1.62, 2.3, 0.16, 0x4d5d78, -1.35, 1.15, -7.06);
-    VX.box(S, 1.3, 2.08, 0.1, 0x36445b, -1.35, 1.04, -7.0);
+    VX.box(S, 1.62, 2.3, 0.16, 0x4d5d78, -1.35, 1.15, -7.06, { tex: 'wood', tm: 'relief', tr: [1.4, 2] });
+    VX.box(S, 1.3, 2.08, 0.1, 0x36445b, -1.35, 1.04, -7.0, { tex: 'wood', tm: 'relief', tr: [1.2, 1.8] });
     VX.box(S, 0.98, 0.7, 0.04, 0x7fb6d6, -1.35, 1.62, -6.94, { rough: 0.25, metal: 0.2 });
     VX.box(S, 0.06, 0.9, 0.03, 0x2b374a, -1.35, 0.62, -6.94);
     VX.box(S, 0.1, 0.1, 0.16, 0xd7a93f, -1.95, 1.0, -6.9, { metal: 0.7, rough: 0.3 });
@@ -162,7 +165,7 @@ var Slack3D = (function () {
     var partMat = 0x3f4c60;
     [-1, 1].forEach(function (sx) {
       var x = sx * 2.6;
-      VX.box(S, 2.1, 0.82, 0.1, partMat, x, 0.42, 1.9);
+      VX.box(S, 2.1, 0.82, 0.1, partMat, x, 0.42, 1.9, { tex: 'concrete', tr: [2, 0.8] });
       VX.box(S, 2.16, 0.06, 0.16, 0x4c5a70, x, 0.86, 1.9);
       VX.box(S, 1.8, 0.4, 0.03, 0x333f51, x, 0.46, 1.845, { cast: false });
       VX.box(S, 0.18, 0.18, 0.02, 0xffe27a, x - 0.5, 0.64, 1.84, { cast: false });
@@ -172,7 +175,7 @@ var Slack3D = (function () {
     // 중간 복도변 파티션(깊이감)
     [-1, 1].forEach(function (sx) {
       var x = sx * 2.75;
-      VX.box(S, 1.5, 0.78, 0.09, 0x3a4659, x, 0.4, -3.4);
+      VX.box(S, 1.5, 0.78, 0.09, 0x3a4659, x, 0.4, -3.4, { tex: 'concrete', tr: [1.6, 0.8] });
       VX.box(S, 1.56, 0.06, 0.14, 0x4b5870, x, 0.82, -3.4);
       VX.box(S, 1.2, 0.36, 0.02, 0x2f3a4b, x, 0.44, -3.455, { cast: false });
       VX.box(S, 0.34, 0.26, 0.2, 0x1d2430, x, 0.96, -3.45);
@@ -182,7 +185,7 @@ var Slack3D = (function () {
     // 사이드 큐비클 책상 + 모니터
     [-1, 1].forEach(function (sx) {
       var dx = sx * 2.85;
-      VX.box(S, 1.0, 0.07, 1.3, 0x7a5b3e, dx, 0.72, -0.4);
+      VX.box(S, 1.0, 0.07, 1.3, 0x7a5b3e, dx, 0.72, -0.4, { tex: 'wood', tr: [1, 1.3] });
       VX.box(S, 0.06, 0.72, 0.06, 0x4f3d29, dx - 0.42, 0.36, -0.9);
       VX.box(S, 0.06, 0.72, 0.06, 0x4f3d29, dx + 0.42, 0.36, -0.9);
       VX.box(S, 0.06, 0.72, 0.06, 0x4f3d29, dx - 0.42, 0.36, 0.1);
@@ -199,7 +202,7 @@ var Slack3D = (function () {
       VX.box(S, 0.3, 0.34, 0.26, 0x3a4a5e, dx + sx * 0.2, 0.83, -0.6);
     });
     // 복도 쪽 서류 캐비닛
-    VX.box(S, 0.6, 1.15, 0.9, 0x59677e, 3.15, 0.58, -2.2);
+    VX.box(S, 0.6, 1.15, 0.9, 0x59677e, 3.15, 0.58, -2.2, { tex: 'metal', tm: 'relief', tr: [0.6, 1.1] });
     VX.box(S, 0.62, 0.05, 0.92, 0x7b8ba6, 3.15, 0.63, -2.2, { cast: false });
     VX.box(S, 0.62, 0.05, 0.92, 0x7b8ba6, 3.15, 0.95, -2.2, { cast: false });
 
@@ -650,16 +653,16 @@ var Slack3D = (function () {
     for (var i = 0; i < 22; i++) {
       VX.box(R, 0.09, 0.09, 0.09, 0xfff4c8, -4 + Math.random() * 8, 2.6 + Math.random() * 3.2, -5 - Math.random() * 6, { emissive: 0xfff0b0, emissiveIntensity: 1.4, cast: false });
     }
-    // 공중 블록 코스
+    // 공중 블록 코스 (잔디 윗면 + 바위 옆면)
     [[-1.75, 0.9, -1.4, 0.9], [-0.15, 1.35, -2.0, 0.75], [1.35, 1.0, -1.5, 0.85]].forEach(function (b) {
-      VX.box(R, b[3], 0.3, b[3], 0x8a6540, b[0], b[1], b[2]);
-      VX.box(R, b[3], 0.09, b[3], 0x57ad62, b[0], b[1] + 0.19, b[2], { cast: false });
+      VX.box(R, b[3], 0.3, b[3], 0x8a6540, b[0], b[1], b[2], { tex: 'rock', tr: [0.9, 0.9], tint: 0xa9a59d });
+      VX.box(R, b[3], 0.09, b[3], 0x57ad62, b[0], b[1] + 0.19, b[2], { cast: false, tex: 'grass', tr: [0.8, 0.8] });
     });
-    // 바닥 플랫폼(블록 5칸)
+    // 바닥 플랫폼(흙 블록 5칸 + 잔디 윗면)
     for (var g = 0; g < 5; g++) {
       var x = -1.44 + g * 0.72;
-      VX.box(R, 0.72, 0.5, 1.9, 0x7a5636, x, 0.0, 0.1);
-      VX.box(R, 0.72, 0.1, 1.9, g % 2 ? 0x4c9e58 : 0x57ad62, x, 0.3, 0.1, { cast: false });
+      VX.box(R, 0.72, 0.5, 1.9, 0x7a5636, x, 0.0, 0.1, { tex: 'dirt', tr: [0.7, 1.8] });
+      VX.box(R, 0.72, 0.1, 1.9, g % 2 ? 0x4c9e58 : 0x57ad62, x, 0.3, 0.1, { cast: false, tex: 'grass', tr: [0.7, 1.9] });
       VX.box(R, 0.66, 0.06, 0.06, 0x8f6a44, x, 0.17, 1.04, { cast: false });
     }
     // 플랫폼 아래 그늘
@@ -794,11 +797,11 @@ var Slack3D = (function () {
 
     var R = this.root;
     // 바닥 그리드
-    VX.box(R, 12, 8, 0.2, 0x0e2434, 0, 2.4, -4.3, { cast: false });
+    VX.box(R, 12, 8, 0.2, 0x0e2434, 0, 2.4, -4.3, { cast: false, tex: 'metal', tm: 'relief', tr: [14, 9] });
     for (var gw = 0; gw < 5; gw++) {
       VX.box(R, 11, 0.02, 0.02, 0x1f6a8a, 0, 0.8 + gw * 0.6, -4.18, { emissive: 0x1f7a9a, emissiveIntensity: 0.3, cast: false });
     }
-    VX.box(R, 7.4, 0.1, 6.4, 0x102436, 0, -0.05, -0.6, { cast: false });
+    VX.box(R, 7.4, 0.1, 6.4, 0x102436, 0, -0.05, -0.6, { cast: false, tex: 'concrete', tr: [3, 2.6] });
     for (var g = 0; g < 9; g++) {
       VX.box(R, 7.2, 0.015, 0.03, 0x1a4a66, 0, 0.005, -2.6 + g * 0.55, { emissive: 0x1f5a7a, emissiveIntensity: 0.25, cast: false });
     }
@@ -938,10 +941,10 @@ var Slack3D = (function () {
 
     var R = this.root;
     // 카운터
-    VX.box(R, 5.4, 0.5, 1.9, 0x5a4230, 0, -0.25, -0.7);
-    VX.box(R, 5.5, 0.08, 2.0, 0x7a5a3e, 0, 0.02, -0.7);
+    VX.box(R, 5.4, 0.5, 1.9, 0x5a4230, 0, -0.25, -0.7, { tex: 'wood', tr: [4, 1.4] });
+    VX.box(R, 5.5, 0.08, 2.0, 0x7a5a3e, 0, 0.02, -0.7, { tex: 'wood', tr: [4, 1.5] });
     // 뒷 진열대 + 매장 벽
-    VX.box(R, 12, 8, 0.2, 0x1e1334, 0, 2.4, -3.6, { cast: false });
+    VX.box(R, 12, 8, 0.2, 0x1e1334, 0, 2.4, -3.6, { cast: false, tex: 'plaster', tr: [5, 3.2] });
     VX.box(R, 2.6, 0.1, 0.5, 0xffd8a8, -1.4, 3.15, -3.3, { emissive: 0xffc890, emissiveIntensity: 0.8, cast: false });
     VX.box(R, 2.6, 0.1, 0.5, 0xffd8a8, 1.4, 3.15, -3.3, { emissive: 0xffc890, emissiveIntensity: 0.8, cast: false });
     VX.box(R, 5.2, 2.2, 0.24, 0x3a2a4a, 0, 1.1, -3.0);
@@ -965,7 +968,7 @@ var Slack3D = (function () {
     for (var i = 0; i < layout.length; i++) {
       var gb = new THREE.Group();
       gb.position.set(layout[i][0], layout[i][1], layout[i][2]);
-      VX.box(gb, 0.58, 0.54, 0.58, boxCols[i % boxCols.length], 0, 0, 0, { rough: 0.7 });
+      VX.box(gb, 0.58, 0.54, 0.58, boxCols[i % boxCols.length], 0, 0, 0, { rough: 0.7, tex: 'wood', tm: 'relief', tr: [0.6, 0.6] });
       VX.box(gb, 0.6, 0.06, 0.1, 0xfff3d0, 0, 0.02, 0, { cast: false });
       VX.box(gb, 0.1, 0.58, 0.6, 0xfff3d0, 0, 0, 0, { cast: false });
       R.add(gb);
@@ -982,7 +985,7 @@ var Slack3D = (function () {
     hammer.rotation.z = -0.5;
     R.add(hammer);
     VX.box(hammer, 0.12, 0.92, 0.12, 0x8a6a48, 0, -0.46, 0);
-    VX.box(hammer, 0.46, 0.26, 0.26, 0xb8c2d2, 0, -0.98, 0, { metal: 0.5, rough: 0.4 });
+    VX.box(hammer, 0.46, 0.26, 0.26, 0xb8c2d2, 0, -0.98, 0, { metal: 0.5, rough: 0.4, tex: 'metal', tm: 'relief', tr: [0.5, 0.4] });
     VX.box(hammer, 0.14, 0.1, 0.3, 0x6d7688, 0.28, -0.98, 0);
     this.hammer = hammer;
     this.swing = 0; this.smashT = 0;
@@ -991,7 +994,7 @@ var Slack3D = (function () {
     var cart = new THREE.Group();
     cart.position.set(-1.95, 0.42, 0.85);
     R.add(cart);
-    VX.box(cart, 0.62, 0.36, 0.44, 0x9fb0c8, 0, 0.15, 0, { metal: 0.35, rough: 0.4 });
+    VX.box(cart, 0.62, 0.36, 0.44, 0x9fb0c8, 0, 0.15, 0, { metal: 0.35, rough: 0.4, tex: 'metal', tm: 'relief', tr: [0.6, 0.4] });
     VX.box(cart, 0.5, 0.06, 0.34, 0x6d7688, 0, 0.34, 0);
     VX.box(cart, 0.05, 0.5, 0.05, 0x6d7688, -0.3, -0.12, 0.16);
     VX.box(cart, 0.05, 0.5, 0.05, 0x6d7688, 0.3, -0.12, 0.16);

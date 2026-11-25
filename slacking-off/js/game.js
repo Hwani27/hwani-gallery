@@ -225,6 +225,17 @@
       if (shot && im) im.src = shot;
       Slack3D.setActive(false);
     } catch (err) {}
+    /* CC0 텍스처가 도착하면 타이틀 히어로도 같은 재질로 한 번 더 찍는다 */
+    if (!showTitle._txHook) {
+      showTitle._txHook = 1;
+      window.addEventListener('txready', function () {
+        if (S.mode !== 'title') return;
+        var img = $('hero3d');
+        if (!img) return;
+        try { var s2 = Slack3D.snapshot('hero'); if (s2) img.src = s2; } catch (e) {}
+        Slack3D.setActive(false);
+      });
+    }
   }
   function stageRow(day, name, pips, tag) {
     var p = '';
