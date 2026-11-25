@@ -577,61 +577,61 @@ var VIRAL = (function () {
     ctx.textAlign = 'left';
 
     /* 표 */
-    var tx = 92, tw = W - 184, ty = 300, rh = 84;
+    var tx = 92, tw = W - 184, ty = 300, rh = 76;
     ctx.strokeStyle = 'rgba(60,48,32,.55)'; ctx.lineWidth = 2;
-    var rows = [['소 속', '영업기획팀'], ['직 급', info.rank], ['성 명', info.name]];
+    var rows = [['소 속', '영업기획팀'], ['직 급', info.rank], ['성 명', info.name], ['칭 호', info.title]];
     for (var i = 0; i < rows.length; i++) {
       var ry = ty + i * rh;
       ctx.strokeRect(tx, ry, tw, rh);
       ctx.beginPath(); ctx.moveTo(tx + 190, ry); ctx.lineTo(tx + 190, ry + rh); ctx.stroke();
-      ctx.fillStyle = sub; ctx.font = '800 26px ' + FONT; ctx.textAlign = 'center';
-      ctx.fillText(rows[i][0], tx + 95, ry + 54);
-      ctx.fillStyle = ink; ctx.font = '900 32px ' + FONT; ctx.textAlign = 'left';
-      ctx.fillText(clip(ctx, rows[i][1], tw - 230), tx + 216, ry + 56);
+      ctx.fillStyle = sub; ctx.font = '800 24px ' + FONT; ctx.textAlign = 'center';
+      ctx.fillText(rows[i][0], tx + 95, ry + 50);
+      ctx.fillStyle = i === 3 ? '#8a6a1f' : ink; ctx.font = (i === 3 ? '800 28px ' : '900 30px ') + FONT; ctx.textAlign = 'left';
+      ctx.fillText(clip(ctx, rows[i][1], tw - 230), tx + 216, ry + 51);
     }
     /* 사유 (넓은 칸) */
-    var ry2 = ty + 3 * rh, rh2 = 260;
+    var ry2 = ty + rows.length * rh, rh2 = 234;
     ctx.strokeRect(tx, ry2, tw, rh2);
     ctx.beginPath(); ctx.moveTo(tx + 190, ry2); ctx.lineTo(tx + 190, ry2 + 62); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(tx, ry2 + 62); ctx.lineTo(tx + tw, ry2 + 62); ctx.stroke();
-    ctx.fillStyle = sub; ctx.font = '800 26px ' + FONT; ctx.textAlign = 'center';
+    ctx.fillStyle = sub; ctx.font = '800 24px ' + FONT; ctx.textAlign = 'center';
     ctx.fillText('사 유', tx + 95, ry2 + 42);
     ctx.textAlign = 'left';
-    ctx.fillStyle = ink; ctx.font = '800 30px ' + FONT;
+    ctx.fillStyle = ink; ctx.font = '800 27px ' + FONT;
     var reason = info.kind === 'timeout'
       ? '업무 시간 중 딴짓 게이지 ' + info.gauge + '%를 채우지 못하고 18:00를 넘겨 야근하였습니다.'
       : '업무 시간 중 딴짓 게이지 ' + info.gauge + '% 상태에서 모니터를 부장님께 그대로 노출하였습니다.';
     var lines = wrap(ctx, reason, tw - 40, 3);
-    for (var li = 0; li < lines.length; li++) ctx.fillText(lines[li], tx + 22, ry2 + 112 + li * 52);
+    for (var li = 0; li < lines.length; li++) ctx.fillText(lines[li], tx + 22, ry2 + 112 + li * 46);
 
     /* 점수 줄 */
-    var ry3 = ry2 + rh2, rh3 = 96;
+    var ry3 = ry2 + rh2, rh3 = 92;
     ctx.strokeRect(tx, ry3, tw, rh3);
     ctx.beginPath(); ctx.moveTo(tx + 190, ry3); ctx.lineTo(tx + 190, ry3 + rh3); ctx.stroke();
-    ctx.fillStyle = sub; ctx.font = '800 26px ' + FONT; ctx.textAlign = 'center';
-    ctx.fillText('점 수', tx + 95, ry3 + 60);
+    ctx.fillStyle = sub; ctx.font = '800 24px ' + FONT; ctx.textAlign = 'center';
+    ctx.fillText('점 수', tx + 95, ry3 + 58);
     ctx.textAlign = 'left';
-    ctx.fillStyle = red; ctx.font = '900 42px ' + FONT;
-    ctx.fillText(info.score.toLocaleString('ko-KR') + '점', tx + 216, ry3 + 64);
-    ctx.fillStyle = sub; ctx.font = '700 24px ' + FONT;
+    ctx.fillStyle = red; ctx.font = '900 40px ' + FONT;
+    ctx.fillText(info.score.toLocaleString('ko-KR') + '점', tx + 216, ry3 + 62);
+    ctx.fillStyle = sub; ctx.font = '700 23px ' + FONT;
     ctx.textAlign = 'right';
-    ctx.fillText(info.day + ' · ' + info.status, tx + tw - 26, ry3 + 62);
+    ctx.fillText(info.day + ' · ' + info.status, tx + tw - 26, ry3 + 60);
     ctx.textAlign = 'left';
 
     /* 서명 */
-    ctx.fillStyle = ink; ctx.font = '800 30px ' + FONT; ctx.textAlign = 'center';
-    ctx.fillText('위와 같이 사실대로 보고합니다.', W / 2, 1046);
-    ctx.fillStyle = sub; ctx.font = '700 26px ' + FONT;
-    ctx.fillText(info.date, W / 2, 1102);
+    ctx.fillStyle = ink; ctx.font = '800 28px ' + FONT; ctx.textAlign = 'center';
+    ctx.fillText('위와 같이 사실대로 보고합니다.', W / 2, 1050);
+    ctx.fillStyle = sub; ctx.font = '700 24px ' + FONT;
+    ctx.fillText(info.date, W / 2, 1104);
     ctx.textAlign = 'left';
-    ctx.fillStyle = ink; ctx.font = '900 28px ' + FONT;
+    ctx.fillStyle = ink; ctx.font = '900 27px ' + FONT;
     ctx.textAlign = 'right';
-    ctx.fillText('작성자  ' + info.name + '  (인)', W - 120, 1160);
+    ctx.fillText('작성자  ' + info.name + '  (인)', W - 120, 1164);
     ctx.textAlign = 'left';
 
     /* 도장 */
     ctx.save();
-    ctx.translate(W - 150, 1006); ctx.rotate(-0.18);
+    ctx.translate(W - 150, 1016); ctx.rotate(-0.18);
     ctx.strokeStyle = 'rgba(200,50,42,.85)'; ctx.lineWidth = 7;
     ctx.beginPath(); ctx.arc(0, 0, 70, 0, Math.PI * 2); ctx.stroke();
     ctx.beginPath(); ctx.arc(0, 0, 58, 0, Math.PI * 2); ctx.stroke();
