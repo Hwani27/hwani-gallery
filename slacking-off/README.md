@@ -19,7 +19,7 @@
 - `game.js` — 기존 게임 로직 유지, 시각 연출만 3D 씬에 위임
 
 ## CC0 실사 텍스처 (`textures/`)
-Poly Haven CC0 텍스처 9세트를 512px WebP(diffuse/normal/roughness)로 경량화해(합계 약 745KB) 넣었다.
+Poly Haven CC0 텍스처 9세트를 512px WebP(diffuse/normal/roughness)로 경량화해(합계 약 680KB) 넣었다.
 첫 프레임은 기존 단색·캔버스 재질 그대로 그리고, 파일이 도착하는 순간 `map`/`normalMap`/`roughnessMap`만 갈아 끼운다.
 
 | 위치 | 텍스처 |

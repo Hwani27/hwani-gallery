@@ -16,4 +16,4 @@
 | `rock_surface` | https://polyhaven.com/a/rock_surface | 공중 블록 바위 옆면 |
 | `metal_plate` | https://polyhaven.com/a/metal_plate | 차트 배경·서류 캐비닛·망치·카트 |
 
-합계 27개 파일 / 약 745KB. 로드가 늦거나 실패하면 각 재질은 원래 단색·캔버스 모습을 그대로 유지합니다.
+27개 WebP / 약 680KB. 로드가 늦거나 실패하면 각 재질은 원래 단색·캔버스 모습을 그대로 유지합니다.
