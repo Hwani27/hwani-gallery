@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0a0d13">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="format-detection" content="telephone=no">
+<meta name="description" content="18:00 칼퇴까지, 부장님 눈을 피해 딴짓 게이지 100%를 채우는 3D 복셀 눈치 게임.">
+<title>부장님 몰래 딴짓하기 · Slacking Off 3D</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="frame">
+  <div class="app" id="app">
+
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-badge" aria-hidden="true">🕵️</span>
+        <span class="brand-t">부장님 몰래 딴짓하기</span>
+      </div>
+      <div class="top-actions">
+        <span class="chip" id="stageChip">월요일</span>
+        <button class="sound" id="soundBtn" type="button" aria-label="소리 끄기" aria-pressed="true">🔊</button>
+      </div>
+    </header>
+
+    <div class="daybar">
+      <div class="day-meta">
+        <span class="clock" id="clock">17:05</span>
+        <span class="left" id="dayLeft">칼퇴까지 55초</span>
+        <span class="score" id="score">0점</span>
+      </div>
+      <div class="day-track" aria-hidden="true"><i id="dayFill"></i><b class="six"></b></div>
+    </div>
+
+    <section class="office" id="office" aria-label="3D 복셀 사무실 복도">
+      <div class="corridor" id="corridor">
+        <div class="office3d-host" id="office3d"></div>
+        <div class="office-tag"><span class="live-dot"></span><b id="officeDay">월요일</b><span>17:05 · 잼타워 3층</span></div>
+        <div class="bubble" id="bubble" hidden>
+          <b class="bub-who" id="bubWho">잼부장</b>
+          <p class="bub-tx" id="bubText">흠…</p>
+        </div>
+      </div>
+      <div class="alert" id="alert" data-mode="calm">
+        <span class="alert-ic" id="alertIc">😴</span>
+        <span class="alert-tx" id="alertTx">평온 · 부장님은 자리에…</span>
+        <span class="alert-track"><i id="alertFill"></i></span>
+      </div>
+    </section>
+
+    <section class="monitor-wrap">
+      <div class="monitor" id="monitor" data-mode="slack">
+        <div class="cam" id="cam" aria-hidden="true"><i></i>REC</div>
+        <div class="mon-screen">
+          <div class="view slack-view" id="slackView">
+            <div class="win-bar">
+              <i class="win-dot r"></i><i class="win-dot y"></i><i class="win-dot g"></i>
+              <span class="win-url" id="winUrl">minigame.co.kr/block</span>
+              <span class="badge slack-badge">🍿 딴짓</span>
+            </div>
+            <div class="mini" id="mini">
+              <div class="mini3d-host" id="mini3d"></div>
+              <div class="mini-head"><span id="miniLabel">🍪 미니 블록</span><b id="miniScore">0</b></div>
+            </div>
+            <div class="floaters" id="floaters" aria-hidden="true"></div>
+          </div>
+          <div class="view excel-view" id="excelView" hidden>
+            <div class="xl-top">
+              <span class="xl-file" id="xlFile">Q4_매출보고서_최종_진짜최종.xlsx</span>
+              <span class="xl-save" id="xlSave">저장됨</span>
+            </div>
+            <div class="xl-bar"><b>fx</b><span id="xlFormula">=SUM(B2:B9)</span></div>
+            <div class="xl-grid" id="xlGrid"></div>
+          </div>
+          <div class="view eat-view" id="eatView" hidden>
+            <div class="eat-box"><span>🍗</span><b>먹방 중…</b><small>딴짓 고정! 손 뗄 수 없음</small></div>
+          </div>
+        </div>
+      </div>
+      <p class="hint" id="hint">모니터를 연타하면 딴짓 게이지가 올라가요</p>
+    </section>
+
+    <section class="gauge-panel">
+      <div class="gauge-top">
+        <span class="g-label">딴짓 게이지</span>
+        <span class="combo" id="combo">콤보 0</span>
+        <span class="g-val" id="gaugeVal">0%</span>
+      </div>
+      <div class="g-track"><i id="gaugeFill"></i><span class="g-ticks"></span></div>
+      <div class="acting-row" id="actingRow" hidden>
+        <span class="a-label">업무 척도</span>
+        <span class="a-track"><i id="actingFill"></i></span>
+        <span class="a-val" id="actingVal">0%</span>
+      </div>
+      <div class="sus-row" id="susRow" hidden>
+        <span class="a-label">의심도</span>
+        <span class="s-track"><i id="susFill"></i></span>
+        <span class="a-val" id="susVal">0%</span>
+      </div>
+    </section>
+
+    <section class="controls">
+      <button class="work-btn" id="workBtn" type="button">
+        <span class="wb-ic">💼</span>
+        <span class="wb-tx"><b>일하는 척!</b><small>누르고 있는 동안 위장 · Space</small></span>
+        <span class="wb-hold" id="wbHold"></span>
+      </button>
+    </section>
+
+    <div class="toast" id="toast" hidden></div>
+    <div class="overlay" id="overlay" hidden></div>
+  </div>
+</div>
+
+<script src="js/three.min.js"></script>
+<script src="js/textures.js"></script>
+<script src="js/voxel.js"></script>
+<script src="js/scene3d.js"></script>
+<script src="js/sfx.js"></script>
+<script src="js/characters.js"></script>
+<script src="js/game.js"></script>
+</body>
+</html>
