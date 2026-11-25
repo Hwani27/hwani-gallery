@@ -10,6 +10,11 @@
   var pick = function (a) { return a[(Math.random() * a.length) | 0]; };
   var now = function () { return performance.now() / 1000; };
 
+  /* ③ 오늘의 챌린지: 날짜 시드 난수(BR)는 '상사 순찰·접근·페인트' 패턴에만 쓴다.
+     플레이어 입력은 이 난수를 소비하지 않으므로 같은 날 모든 유저가 같은 패턴을 겪는다. */
+  function BR() { return S.br ? S.br() : Math.random(); }
+  function brnd(a, b) { return a + BR() * (b - a); }
+
   /* ---------------- stages ---------------- */
   var STAGES = [
     {
@@ -73,7 +78,10 @@
     temptIn: 0, temptShown: false, temptHide: 0,
     chatIn: 9, footAcc: 0, typeAcc: 0, tickAt: 0,
     grace: 0, stageBest: 0, stats: null, rewarded: null,
-    lastHint: '', excuse: null, excuseUsed: false
+    lastHint: '', excuse: null, excuseUsed: false,
+    /* ② 도발 · ③ 오늘의 챌린지 · ① 성적표 */
+    challenge: null, br: null, vsHit: false, dailyRec: null, paused: false,
+    warnSeenAt: -9, warnNeedReact: false, events: []
   };
   var E = {};
   var lastTs = 0, rafId = 0;
@@ -149,6 +157,25 @@
     E.xlFormula = $('xlFormula');
     E.xlGrid = $('xlGrid');
     E.bubble = $('bubble');
+
+    /* ② 도발 배너 (플레이 상단) */
+    E.vsStrip = $('vsStrip');
+    E.vsText = $('vsText');
+    E.vsProg = $('vsProg');
+
+    /* 바이럴 모듈 훅 */
+    if (window.VIRAL) {
+      VIRAL.onToast = function (t, ms) { toast(t, ms); };
+      VIRAL.onUnlock = function (t) {
+        try { SFX.earn(); } catch (err) {}
+        unlockBanner(t);
+      };
+      try {
+        var mx = 0;
+        if (window.SHOP) { var uu = SHOP.status().up; for (var kk in uu) mx = Math.max(mx, uu[kk]); }
+        if (mx >= 3) VIRAL.TITLES.note('maxlv', mx);
+      } catch (err) {}
+    }
 
     E.soundBtn.textContent = SFX.isOn() ? '🔊' : '🔇';
     E.soundBtn.setAttribute('aria-pressed', SFX.isOn() ? 'true' : 'false');
@@ -240,12 +267,26 @@
     E.app.classList.remove('tense');
     E.stageChip.textContent = '월요일';
     resetBossVisual();
+    S.challenge = null; S.dailyRec = null;
+    updateVsStrip();
     var days = '';
     for (var i = 0; i < STAGES.length; i++) {
       days += stageRow(STAGES[i].day, STAGES[i].name, STAGES[i].pips, STAGES[i].tag);
     }
+    var vInfo = window.VIRAL ? VIRAL.DAILY.info() : null;
+    var virRow = window.VIRAL
+      ? '<div class="viral-row">' +
+          '<button class="vchip" id="dailyBtn" type="button"><span class="vic">📅</span><span class="vtx">' +
+            '<b>오늘의 챌린지</b><small>최고 ' + (vInfo.best || 0).toLocaleString('ko-KR') + '점</small></span></button>' +
+          '<button class="vchip" id="titlesBtn" type="button"><span class="vic">🎖️</span><span class="vtx">' +
+            '<b>칭호 도감</b><small>' + VIRAL.TITLES.count() + ' / ' + VIRAL.TITLES.list.length + ' 해금</small></span></button>' +
+          '<button class="vchip" id="dareBtn" type="button"><span class="vic">🥊</span><span class="vtx">' +
+            '<b>친구 도발</b><small>링크 만들기</small></span></button>' +
+        '</div>'
+      : '';
     overlay(
       '<div class="ov-inner title-inner">' +
+        (window.VIRAL ? VIRAL.bannerHTML() : '') +
         '<div class="hero" aria-hidden="true">' +
           '<img class="hero-3d" id="hero3d" alt="잼부장 복셀 캐릭터">' +
           '<span class="hero-chip">🍿 딴짓 92% · 칼퇴까지 12분</span>' +
@@ -259,6 +300,7 @@
           '<div class="how-i"><b>🛒</b><span>장비·승진<small>코인으로 강해지기</small></span></div>' +
         '</div>' +
         '<div class="ov-stage-list day5">' + days + '</div>' +
+        virRow +
         '<div class="cta-row">' +
           '<button class="cta ghost shop-btn" id="shopBtn" type="button">🛒 장비 상점</button>' +
           '<button class="cta" id="startBtn" type="button">출근하기</button>' +
@@ -271,7 +313,17 @@
       e.preventDefault();
       SFX.click();
       SHOP.onClose = function () { if (S.mode === 'title') showTitle(); };
-      SHOP.open(E.overlay);
+      SHOP.open(E.overlay, function (r) { if (r && r.ok && r.level >= 3 && window.VIRAL) VIRAL.TITLES.note('maxlv', 3); });
+    });
+    var dBtn = $('dailyBtn');
+    if (dBtn) dBtn.addEventListener('click', function (e) { e.preventDefault(); SFX.click(); showChallenge(); });
+    var tBtn = $('titlesBtn');
+    if (tBtn) tBtn.addEventListener('click', function (e) { e.preventDefault(); SFX.click(); if (window.VIRAL) VIRAL.openTitles(); });
+    var rBtn = $('dareBtn');
+    if (rBtn) rBtn.addEventListener('click', function (e) {
+      e.preventDefault(); SFX.click();
+      var best = window.SHOP ? SHOP.status().best : 0;
+      if (window.VIRAL) VIRAL.openDare(best || 300);
     });
     try {
       var shot = Slack3D.snapshot('hero');
@@ -299,9 +351,49 @@
   }
 
   function startRun() {
+    S.challenge = null; S.dailyRec = null; S.vsHit = false;
     S.score = 0;
     runLog = [];
     enterStage(0, 0);
+  }
+
+  /* ---------------- ③ 오늘의 챌린지 ---------------- */
+  function showChallenge() {
+    if (!window.VIRAL) return;
+    var info = VIRAL.DAILY.info();
+    var cfg = STAGES[info.stage];
+    S.mode = 'daily';
+    bgmStop();
+    resetBossVisual();
+    if (window.Slack3D) { Slack3D.setActive(true); Slack3D.setMiniActive(true); }
+    overlay(
+      '<div class="ov-inner">' +
+        '<span class="ov-tag">📅 오늘의 챌린지 · ' + info.date + '</span>' +
+        '<h2 class="ov-title sm">같은 부장님,<br>같은 순찰</h2>' +
+        '<p class="ov-sub">오늘은 모두 <b>똑같은 상사 패턴</b>으로 겨룹니다.<br>날짜가 같으면 순찰·접근·페인트 모션도 같아요.</p>' +
+        '<div class="ov-stage-list">' + stageRow(cfg.day, cfg.name, cfg.pips, cfg.tag) + '</div>' +
+        '<div class="daily-box">' +
+          '<div class="dbr">오늘의 목표 점수<b>' + info.target.toLocaleString('ko-KR') + '점</b></div>' +
+          '<div class="dbr">오늘 내 최고 기록<b>' + (info.best || 0).toLocaleString('ko-KR') + '점</b></div>' +
+          '<div class="dbr">공정 모드<b>장비·직급 효과 그대로</b></div>' +
+          '<div class="dseed">시드 #' + info.seed + ' · ' + cfg.day + ' · 하루 한 번이 아니라 몇 번이든</div>' +
+        '</div>' +
+        '<button class="cta" id="dailyGo" type="button">🏁 챌린지 시작</button>' +
+        '<button class="cta ghost" id="dailyBack" type="button">돌아가기</button>' +
+      '</div>'
+    );
+    $('dailyGo').addEventListener('click', function () { SFX.click(); startChallenge(); });
+    $('dailyBack').addEventListener('click', function () { SFX.click(); showTitle(); });
+  }
+
+  function startChallenge(date) {
+    if (!window.VIRAL) return;
+    var info = VIRAL.DAILY.info(date);
+    S.challenge = { date: info.date, stage: info.stage, target: info.target };
+    S.dailyRec = null; S.vsHit = false;
+    S.score = 0;
+    runLog = [];
+    enterStage(info.stage, 0);
   }
 
   function enterStage(i, baseScore) {
@@ -344,7 +436,9 @@
     S.grace = 0.9;
     lastTs = 0;
     E.app.classList.remove('tense');
-    setAlert('calm', '평온 · 부장님은 자리에…');
+    setAlert('calm', S.challenge ? '📅 오늘의 챌린지 · 모두 같은 순찰' : '평온 · 부장님은 자리에…');
+    if (S.challenge) E.stageChip.textContent = '📅 챌린지';
+    updateVsStrip();
     bgmPlay('calm');
     Slack3D.begin(S.cfg.bosses);
     Slack3D.setStage(S.cfg.slack);
@@ -377,6 +471,10 @@
     S.chatIn = 9; S.typeAcc = 0; S.tickAt = 0;
     S.grace = 0; S.stageBest = 0;
     S.excuse = null; S.excuseUsed = false; S.rewarded = null;
+    S.events = [];
+    /* ③ 챌린지는 날짜 시드로 상사 패턴을 고정한다(스테이지 시작마다 같은 시퀀스) */
+    S.br = (S.challenge && window.VIRAL) ? VIRAL.DAILY.rng(S.challenge.date) : null;
+    S.warnNeedReact = false; S.warnSeenAt = -9;
     if (window.ExcuseChance) ExcuseChance.reset();
     hideTempt();
     setWorkVisual(false, true);
@@ -412,7 +510,7 @@
     if (!lastTs) lastTs = ts;
     var dt = Math.min(0.05, (ts - lastTs) / 1000);
     lastTs = ts;
-    if (S.mode === 'playing') update(dt);
+    if (S.mode === 'playing' && !S.paused) update(dt);
   }
 
   function update(dt) {
@@ -482,6 +580,9 @@
 
     syncHUD();
 
+    /* ② 도발: 목표 점수 첫 돌파 순간 */
+    if (window.VIRAL && VIRAL.VS && !S.vsHit && S.score > VIRAL.VS.score) vsBeaten();
+
     if (S.gauge >= 100) winStage();
   }
 
@@ -493,8 +594,8 @@
     if (S.phase === 'idle') {
       S.phaseT -= dt;
       if (S.phaseT <= 0) {
-        if (cfg.coffee && !S.coffeeUsed && Math.random() < 0.55) beginCoffee();
-        else if (cfg.stealth && Math.random() < 0.42) beginWarn(S.warnDur, false, 'stealth');
+        if (cfg.coffee && !S.coffeeUsed && BR() < 0.55) beginCoffee();
+        else if (cfg.stealth && BR() < 0.42) beginWarn(S.warnDur, false, 'stealth');
         else beginWarn(S.warnDur);
       }
     } else if (S.phase === 'coffee') {
@@ -526,7 +627,7 @@
       S.phaseT -= dt;
       if (S.phaseT <= 0) {
         S.phase = 'idle';
-        S.phaseT = (cfg.double && Math.random() < cfg.double) ? rnd(0.7, 1.1) : rnd(cfg.gap[0], cfg.gap[1]);
+        S.phaseT = (cfg.double && BR() < cfg.double) ? brnd(0.7, 1.1) : brnd(cfg.gap[0], cfg.gap[1]);
         S.turnbackUsed = false;
         setBossPos('far', 0.8);
         bgmMode('calm');
@@ -552,6 +653,7 @@
     S.footAcc = 0;
     S.warnBlind = 0;
     S.checker = (cfg.bosses.length > 1 && S.checks % 2 === 1) ? cfg.bosses[1] : cfg.bosses[0];
+    S.events.push({ t: +S.t.toFixed(2), k: mode, d: +dur.toFixed(2), c: S.checker });
     if (mode === 'stealth') {
       /* 목요일: 발소리·시각 경고가 한 박자 늦게 뜨는 스텔스 접근 */
       S.warnBlind = dur * (cfg.stealth || 0.4);
@@ -563,6 +665,7 @@
     }
     if (mode === 'rush') setBossPos('rush', dur);
     else setBossPos(surprise ? 'peek' : 'warn', surprise ? 0.12 : dur * 0.92);
+    S.warnSeenAt = S.t; S.warnNeedReact = !S.work;
     E.cam.classList.add('on');
     E.monitor.dataset.mode = 'watch';
     E.app.classList.add('tense');
@@ -576,6 +679,7 @@
   /* 목요일 스텔스: 경고가 늦게 터진다 */
   function revealStealth() {
     S.warnBlind = 0;
+    S.warnSeenAt = S.t; S.warnNeedReact = !S.work;
     if (window.Slack3D) Slack3D.reveal();
     E.cam.classList.add('on');
     E.monitor.dataset.mode = 'watch';
@@ -592,7 +696,8 @@
     var cfg = S.cfg;
     S.phase = 'coffee';
     S.coffeeUsed = true;
-    S.phaseT = rnd(2.6, 3.8);
+    S.phaseT = brnd(2.6, 3.8);
+    S.events.push({ t: +S.t.toFixed(2), k: 'coffee', c: S.checker });
     S.warnBlind = 0;
     setBossPos('coffee', 0.9);
     E.monitor.dataset.mode = 'slack';
@@ -607,6 +712,7 @@
     S.checks++;
     S.warnBlind = 0;
     var safe = S.work && S.acting >= 55;
+    S.events.push({ t: +S.t.toFixed(2), k: safe ? 'pass' : 'caught' });
     E.app.classList.remove('tense');
 
     if (safe) {
@@ -618,7 +724,7 @@
       setBossPos('near', 0.2);
       E.monitor.dataset.mode = 'work';
       var cfg = S.cfg;
-      if (!S.turnbackUsed && cfg.turnback && Math.random() < cfg.turnback) {
+      if (!S.turnbackUsed && cfg.turnback && BR() < cfg.turnback) {
         S.turnbackUsed = true;
         S.phase = 'feint';
         S.phaseT = 0.62;
@@ -653,6 +759,7 @@
     E.cam.classList.add('on');
     S.work = false; S.holding = false;
     S.stats = snapshotStats('caught');
+    if (window.VIRAL) VIRAL.TITLES.note('caught');
     setTimeout(showCaughtScreen, 780);
   }
 
@@ -688,6 +795,7 @@
   function onExcusePass(res) {
     S.score += 50;
     S.excuse = { reason: 'pass', choice: res.choice, said: res.said };
+    if (window.VIRAL) VIRAL.TITLES.note('excuse');
     setAlert('safe', '변명 성공! +50점 · 잠깐 무적');
     bgmMode('calm');
     SFX.earn();
@@ -697,6 +805,7 @@
   function onExcuseFail(res) {
     S.excuse = res;
     S.stats = snapshotStats('caught');
+    if (window.VIRAL) VIRAL.TITLES.note('caught');
     bgmStop();
     showCaughtScreen();
   }
@@ -737,6 +846,7 @@
     Bubble.say(S.checker, 'overtime', 4000);
     S.work = false; S.holding = false;
     S.stats = snapshotStats('timeout');
+    if (window.VIRAL) VIRAL.TITLES.note('overtime');
     setTimeout(showTimeoutScreen, 700);
   }
 
@@ -751,6 +861,7 @@
     if (window.Slack3D) Slack3D.setMiniActive(false);
     Bubble.say(S.checker, 'clear', 3200);
     S.stats = snapshotStats('clear');
+    if (window.VIRAL) { VIRAL.TITLES.note('clear'); VIRAL.TITLES.note('combo', S.bestCombo); }
     S.score += 300 + Math.round(S.left * 8) + S.bestCombo * 10;
     runLog.push({ day: S.cfg.day, score: S.score - S.baseScore, gauge: Math.round(S.gauge), combo: S.bestCombo });
     setTimeout(showClearScreen, 620);
@@ -845,6 +956,7 @@
     }
     if (S.holding) return;
     S.holding = true;
+    noteReaction();
     if (!S.work) { S.work = true; setWorkVisual(true); SFX.click(); }
     E.workBtn.classList.add('on');
     E.actingRow.hidden = false;
@@ -1078,6 +1190,7 @@
       E.susRow.hidden = true;
     }
     updateHint();
+    updateVsStrip();
   }
 
   function updateHint() {
@@ -1108,6 +1221,103 @@
     toastT = setTimeout(function () { E.toast.hidden = true; }, ms || 1600);
   }
 
+  /* ---------------- ① 성적표 · ② 도발 · ③ 챌린지 · ④ 칭호 ---------------- */
+  function noteReaction() {
+    if (!S.warnNeedReact || S.phase !== 'warn') return;
+    var dt = S.t - S.warnSeenAt;
+    S.warnNeedReact = false;
+    if (dt >= 0 && dt <= 0.2 && window.VIRAL) VIRAL.TITLES.note('react', dt);
+  }
+
+  function updateVsStrip() {
+    if (!E.vsStrip) return;
+    if (!window.VIRAL || !VIRAL.VS || S.mode !== 'playing') { E.vsStrip.hidden = true; return; }
+    E.vsStrip.hidden = false;
+    var t = VIRAL.VS.score;
+    var line = '🔥 ' + VIRAL.VS.name + ' 님의 도발 · 목표 ' + t.toLocaleString('ko-KR') + '점';
+    if (E.vsText && E.vsText.textContent !== line) E.vsText.textContent = line;
+    var prog = S.score.toLocaleString('ko-KR') + ' / ' + t.toLocaleString('ko-KR');
+    if (E.vsProg && E.vsProg.textContent !== prog) E.vsProg.textContent = prog;
+    E.vsStrip.classList.toggle('hit', S.score > t);
+  }
+
+  /* ② 도발 목표 첫 돌파 */
+  function vsBeaten() {
+    if (!window.VIRAL || !VIRAL.VS) return;
+    S.vsHit = true;
+    VIRAL.TITLES.note('dare');
+    try { SFX.earn(); } catch (e) {}
+    flash('rgba(255,210,74,.3)', 300);
+    var gap = S.score - VIRAL.VS.score;
+    toast('🥊 도발 격파! ' + VIRAL.VS.name + ' 님의 목표를 넘었다 (+' + gap.toLocaleString('ko-KR') + ')', 2600);
+    var b = document.createElement('div');
+    b.className = 'vs-win';
+    b.textContent = '🔥 도발 격파 +' + gap.toLocaleString('ko-KR');
+    E.app.appendChild(b);
+    setTimeout(function () { b.classList.add('out'); }, 2300);
+    setTimeout(function () { if (b.parentNode) b.remove(); }, 2800);
+    updateVsStrip();
+  }
+
+  function vsResultRow(score) {
+    if (!window.VIRAL || !VIRAL.VS) return '';
+    var t = VIRAL.VS.score, win = score > t;
+    return '<div class="vs-result ' + (win ? 'win' : 'lose') + '">' +
+      (win ? '🥊 도발 격파! ' + esc(VIRAL.VS.name) + ' 님의 목표를 +' + (score - t).toLocaleString('ko-KR') + '점으로 넘었다'
+        : '🥊 도발 실패 · 목표까지 ' + (t - score).toLocaleString('ko-KR') + '점 남았다') +
+      '</div>';
+  }
+
+  /* ③ 오늘의 챌린지 결과 기록 */
+  function challengeResult(cleared) {
+    if (!S.challenge || !window.VIRAL) return '';
+    if (!S.dailyRec) {
+      S.dailyRec = VIRAL.DAILY.record(S.score, S.challenge.date, S.challenge.stage);
+      if (cleared) VIRAL.TITLES.note('challenge');
+    }
+    var r = S.dailyRec;
+    return '<div class="vs-result ' + (cleared ? 'win' : 'lose') + '">' +
+      '📅 오늘의 챌린지 · 오늘 최고 ' + r.best.toLocaleString('ko-KR') + '점' +
+      (r.isNew ? ' · 🎉 신기록!' : ' · 최고까지 ' + Math.max(0, r.best - S.score).toLocaleString('ko-KR') + '점') +
+      '</div>';
+  }
+
+  /* 칭호 해금 배지 — 오버레이·모달 위에서도 보이게 */
+  function unlockBanner(t) {
+    if (!t || !E.app) return;
+    var d = document.createElement('div');
+    d.className = 'title-unlock';
+    d.innerHTML = '<span>🎖️ 칭호 해금</span><b>' + t.icon + ' ' + t.name + '</b>';
+    E.app.appendChild(d);
+    setTimeout(function () { d.classList.add('out'); }, 2100);
+    setTimeout(function () { if (d.parentNode) d.remove(); }, 2600);
+  }
+
+  /* ① 성적표 데이터 */
+  function cardInfo(kind) {
+    var st = S.stats || {};
+    var t = (window.VIRAL && VIRAL.TITLES.best()) || null;
+    return {
+      kind: kind,
+      name: window.VIRAL ? VIRAL.myName() : '김인턴',
+      rank: window.SHOP ? SHOP.rank().name : '인턴',
+      title: t ? t.icon + ' ' + t.name : '아직 없음',
+      score: S.score,
+      gauge: st.gauge != null ? st.gauge : Math.round(S.gauge),
+      combo: st.combo != null ? st.combo : S.bestCombo,
+      day: S.cfg.day,
+      status: kind === 'clear' ? '칼퇴 성공' : kind === 'timeout' ? '야근' : '발각',
+      date: window.VIRAL ? VIRAL.todayLabel() : '',
+      serial: String(S.stage + 1).padStart(3, '0'),
+      vs: (window.VIRAL && VIRAL.VS) ? {
+        win: S.score > VIRAL.VS.score,
+        target: VIRAL.VS.score,
+        margin: Math.max(0, S.score - VIRAL.VS.score)
+      } : null
+    };
+  }
+  function openCard(kind) { if (window.VIRAL) VIRAL.openCard(cardInfo(kind)); }
+
   /* ---------------- result screens ---------------- */
   function showCaughtScreen() {
     var st = S.stats;
@@ -1135,13 +1345,17 @@
         '<p class="cut-line">' + (st ? '딴짓 ' + st.gauge + '%에서 모니터가 그대로 노출됐다. 부장님 표정이 굳었다.' : '') + '</p>' +
         exRow +
         statsRow(st, '발각') +
+        challengeResult(false) +
+        vsResultRow(S.score) +
         rewardRow() +
         '<div class="ov-actions">' +
+          '<button class="cta ghost report-btn" id="cardBtn" type="button">📸 성적표 공유</button>' +
           '<button class="cta" id="retryBtn" type="button">다시 하기</button>' +
           '<button class="cta ghost" id="homeBtn" type="button">처음으로</button>' +
         '</div>' +
       '</div>'
     );
+    $('cardBtn').addEventListener('click', function () { SFX.click(); openCard('caught'); });
     $('retryBtn').addEventListener('click', function () { SFX.click(); enterStage(S.stage, S.baseScore); });
     $('homeBtn').addEventListener('click', function () { SFX.click(); showTitle(); });
   }
@@ -1157,13 +1371,17 @@
         '<h2 class="cut-title">18:00 · 해도 지고, 퇴근도 지고</h2>' +
         '<p class="cut-line">일하는 척만 하다간 퇴근은 없다. 딴짓은 해야 늘어난다.</p>' +
         statsRow(st, '남은 시간') +
+        challengeResult(false) +
+        vsResultRow(S.score) +
         rewardRow() +
         '<div class="ov-actions">' +
+          '<button class="cta ghost report-btn" id="cardBtn" type="button">📸 성적표 공유</button>' +
           '<button class="cta" id="retryBtn" type="button">다시 하기</button>' +
           '<button class="cta ghost" id="homeBtn" type="button">처음으로</button>' +
         '</div>' +
       '</div>'
     );
+    $('cardBtn').addEventListener('click', function () { SFX.click(); openCard('timeout'); });
     $('retryBtn').addEventListener('click', function () { SFX.click(); enterStage(S.stage, S.baseScore); });
     $('homeBtn').addEventListener('click', function () { SFX.click(); showTitle(); });
   }
@@ -1189,12 +1407,17 @@
     award(st, true);
     if (window.SHOP) SHOP.noteBest(S.score);
     if (window.Slack3D) { Slack3D.setActive(false); Slack3D.setMiniActive(false); }
+    var isDaily = !!S.challenge;
     var next = S.stage + 1;
     var last = next >= STAGES.length;
     var head = last ? '금요일 18:00 · 이번 주도 칼퇴' : S.cfg.day + ' 18:00 · 사무실 탈출';
     var sub = last
       ? '5일 연속 칼퇴 성공. 이제 주말은 내 거다.'
       : '가방은 이미 쌌다. 계단으로 조용히… 내일 또 온다.';
+    if (isDaily) {
+      head = '오늘의 챌린지 · ' + S.cfg.day + ' 클리어';
+      sub = '같은 날 모두가 같은 순찰을 겪었다. 오늘의 기록을 남겨라.';
+    }
     overlay(
       '<div class="ov-inner">' +
         '<div class="cut-emoji">🏃‍♂️</div>' +
@@ -1206,22 +1429,35 @@
           '<div><b>' + st.combo + '</b><small>최고 콤보</small></div>' +
           '<div><b>' + st.left + '초</b><small>남은 시간</small></div>' +
         '</div>' +
+        challengeResult(true) +
+        vsResultRow(S.score) +
         rewardRow() +
         '<div class="ov-actions">' +
-          (last
-            ? '<button class="cta" id="endBtn" type="button">주말 맞이하기</button>'
-            : '<button class="cta" id="nextBtn" type="button">다음 날: ' + STAGES[next].day + ' →</button>') +
-          '<button class="cta ghost" id="retryBtn" type="button">이 날 다시 하기</button>' +
+          '<button class="cta ghost report-btn" id="cardBtn" type="button">📸 성적표 공유</button>' +
+          (isDaily
+            ? '<button class="cta" id="dailyAgain" type="button">오늘의 챌린지 다시</button>' +
+              '<button class="cta ghost" id="homeBtn" type="button">처음으로</button>'
+            : (last
+              ? '<button class="cta" id="endBtn" type="button">주말 맞이하기</button>'
+              : '<button class="cta" id="nextBtn" type="button">다음 날: ' + STAGES[next].day + ' →</button>') +
+              '<button class="cta ghost" id="retryBtn" type="button">이 날 다시 하기</button>') +
         '</div>' +
       '</div>'
     );
-    if (last) $('endBtn').addEventListener('click', function () { SFX.click(); showEnding(); });
-    else $('nextBtn').addEventListener('click', function () { SFX.click(); enterStage(next, S.score); });
-    $('retryBtn').addEventListener('click', function () { SFX.click(); enterStage(S.stage, S.baseScore); });
+    $('cardBtn').addEventListener('click', function () { SFX.click(); openCard('clear'); });
+    if (isDaily) {
+      $('dailyAgain').addEventListener('click', function () { SFX.click(); startChallenge(); });
+      $('homeBtn').addEventListener('click', function () { SFX.click(); showTitle(); });
+    } else {
+      if (last) $('endBtn').addEventListener('click', function () { SFX.click(); showEnding(); });
+      else $('nextBtn').addEventListener('click', function () { SFX.click(); enterStage(next, S.score); });
+      $('retryBtn').addEventListener('click', function () { SFX.click(); enterStage(S.stage, S.baseScore); });
+    }
   }
 
   function showEnding() {
     S.mode = 'ending';
+    if (window.VIRAL) VIRAL.TITLES.note('ending');
     var total = S.score;
     var rank = total >= 4200 ? 'S' : total >= 3200 ? 'A' : total >= 2200 ? 'B' : 'C';
     var rows = runLog.map(function (r) {
@@ -1242,10 +1478,12 @@
         '<div class="reward-row">' + SHOP.rankBadge() +
           '<span class="rw-bal">누적 코인 ₩ ' + SHOP.status().totalCoins.toLocaleString('ko-KR') + '</span></div>' +
         '<div class="ov-actions">' +
+          '<button class="cta ghost report-btn" id="cardBtn" type="button">📸 성적표 공유</button>' +
           '<button class="cta" id="againBtn" type="button">다시 도전</button>' +
         '</div>' +
       '</div>'
     );
+    $('cardBtn').addEventListener('click', function () { SFX.click(); openCard('clear'); });
     $('againBtn').addEventListener('click', function () { SFX.click(); startRun(); });
   }
   function bestComboRun() {
@@ -1308,7 +1546,28 @@
     tick: function (dt) {
       if (S.mode === 'playing') update(Math.max(0.001, Math.min(0.5, dt || 0.1)));
       return S.phase;
-    }
+    },
+    /* ① 성적표 · ② 도발 · ③ 오늘의 챌린지 · ④ 칭호 도감 */
+    viral: function () {
+      return window.VIRAL ? {
+        vs: VIRAL.VS, daily: VIRAL.DAILY.info(), titles: VIRAL.TITLES.status(),
+        modal: VIRAL.isModalOpen(), name: VIRAL.myName(), cardLen: (VIRAL.lastCard() || '').length
+      } : null;
+    },
+    dailyInfo: function (d) { return window.VIRAL ? VIRAL.DAILY.info(d) : null; },
+    daily: showChallenge,
+    startDaily: function (d) { startChallenge(d); return S.challenge; },
+    events: function () { return S.events.slice(); },
+    openTitles: function () { if (window.VIRAL) VIRAL.openTitles(); return window.VIRAL ? VIRAL.TITLES.status() : null; },
+    openDare: function (n) { if (window.VIRAL) VIRAL.openDare(n); },
+    closeModal: function () { if (window.VIRAL) VIRAL.closeModal(); },
+    card: function (kind) { openCard(kind || 'clear'); return window.VIRAL ? (VIRAL.lastCard() || '').length : 0; },
+    note: function (ev, v) { return window.VIRAL ? VIRAL.TITLES.note(ev, v) : null; },
+    setScore: function (v) { S.score = v; syncHUD(); },
+    pause: function () { S.paused = true; },
+    resume: function () { S.paused = false; },
+    vsBreak: vsBeaten,
+    pin: function (id) { return window.VIRAL ? VIRAL.TITLES.pin(id) : false; }
   };
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
