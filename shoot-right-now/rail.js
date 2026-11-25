@@ -7363,6 +7363,171 @@
     }
     window.__declutter = hidden;
   }
+
+  /* ================= (v67) DRAW-COST PASS =================
+     Two things in every frame were being paid twice for nothing on a phone:
+     the shadow pass drew a second copy of every castShadow mesh, most of them
+     street furniture whose shadow lands inside its own footprint, and every
+     little window frame, kerb stone and fence slat of a city block was a draw
+     call of its own. trimShadowProps() switches off the shadows that cannot be
+     read; bakeStatics() folds the decoration that never moves into a handful
+     of instanced draws. Cover, walls, barrels, breakable panes and signs and
+     anything the camera has to step around are left exactly as they were. */
+  const KEEP_SHADOW = /(character|covers?|barrel|flag|heli|tank|car|truck|bus|police|bike|weapon|gun|pistol|rifle|soldier|boss|pickup|refugee|civ|hostage|ally|torso|head|leg|arm)/i;
+  const BAKE_SKIP = /(character|covers?|barrel|flag|cloud|sea|water|fire|smoke|heli|tank|car|truck|bus|police|bike|pane|glass|sign|pickup|light|lamp|lantern|sky|moon|amb|helmet|weapon|gun|pistol|rifle|refugee|civ|hostage|ally|billboard)/i;
+  const BAKE_GEO = /^(Box|Plane|Circle|Cylinder|Cone|Sphere|Ring|Torus|TorusKnot|Dodecahedron|Icosahedron|Octahedron|Tetrahedron)Geometry$/;
+  let shadowTrimStats = null, bakeStats = null, bakeToken = 0, bakeSnap = null;
+  /* `?trim=0` and `?bake=0` switch either pass off: the same frame the game
+     ships with can be brought back without a new build if one of them ever
+     looks wrong on a particular device */
+  const V67Q = (function () {
+    try { return new URLSearchParams(location.search); } catch (e) { return { get: function () { return null; } }; }
+  })();
+  const NO_TRIM = V67Q.get("trim") === "0", NO_BAKE = V67Q.get("bake") === "0";
+
+  /* a rod, a panel or a small prop: its two smaller sides decide whether its
+     shadow could ever be read at arm's length */
+  function smallCaster(o) {
+    const g = o.geometry;
+    if (!g) return false;
+    if (!g.boundingBox) { try { g.computeBoundingBox(); } catch (err) { return false; } }
+    const b = g.boundingBox;
+    if (!b || !isFinite(b.min.x) || !isFinite(b.max.x)) return false;
+    const sx = Math.abs((b.max.x - b.min.x) * (o.scale.x || 1));
+    const sy = Math.abs((b.max.y - b.min.y) * (o.scale.y || 1));
+    const sz = Math.abs((b.max.z - b.min.z) * (o.scale.z || 1));
+    const d = [sx, sy, sz].sort((a, b2) => a - b2);
+    return d[1] < 0.5 || d[2] < 0.9;
+  }
+
+  function trimShadowProps() {
+    if (NO_TRIM || !dress || !dress.root) return null;
+    const root = dress.root;
+    const keep = new Set();
+    (dress.barrels || []).forEach((b) => { if (b && b.mesh) keep.add(b.mesh); });
+    breakables.forEach((b) => { if (b && b.mesh) keep.add(b.mesh); });
+    try { root.updateMatrixWorld(true); } catch (e) {}
+    let off = 0, kept = 0;
+    root.traverse((o) => {
+      if (!o.isMesh || o.isInstancedMesh || !o.castShadow) return;
+      if (o.userData && (o.userData.wall || o.userData.keepShadow)) { kept++; return; }
+      if (keep.has(o)) { kept++; return; }
+      for (let a = o; a && a !== root; a = a.parent) {
+        if (a.name && KEEP_SHADOW.test(a.name)) { kept++; return; }
+      }
+      if (smallCaster(o)) { o.castShadow = false; off++; } else kept++;
+    });
+    shadowTrimStats = { off: off, kept: kept };
+    window.__shadowTrim = shadowTrimStats;
+    return shadowTrimStats;
+  }
+
+  /* the meshes that may be baked: static, untouchable by the game, and
+     repeated at least eight times with the same geometry and material */
+  function bakePool() {
+    const root = dress && dress.root;
+    if (!root || !root.parent) return null;
+    try { root.updateMatrixWorld(true); } catch (e) { return null; }
+    const skip = new Set();
+    (railBlockers || []).forEach((b) => { if (b && b.o) skip.add(b.o); });
+    (dress.barrels || []).forEach((b) => { if (b && b.mesh) skip.add(b.mesh); });
+    breakables.forEach((b) => { if (b && b.mesh) skip.add(b.mesh); });
+    const groups = new Map();
+    root.traverse((o) => {
+      if (!o.isMesh || o.isInstancedMesh || !o.visible) return;
+      if (Array.isArray(o.material) || !o.material || !o.geometry) return;
+      if (o.children && o.children.length) return;
+      if (skip.has(o)) return;
+      const ud = o.userData || {};
+      if (ud.wall || ud.anim || ud.keep) return;
+      for (let a = o; a && a !== root; a = a.parent) {
+        if (a.name && BAKE_SKIP.test(a.name)) return;
+        const u = a.userData || {};
+        if (u.anim || u.keep) return;
+      }
+      const g = o.geometry;
+      /* two meshes can only share one instanced draw if they really are the
+         same shape: a constructor's parameters decide that completely, and
+         anything else (an extruded shape, a hand-built buffer) counts as the
+         same shape only when it is the very same geometry object */
+      let geoKey;
+      if (BAKE_GEO.test(g.type) && g.parameters) geoKey = "P:" + g.type + JSON.stringify(g.parameters);
+      else geoKey = "U:" + g.uuid;
+      const sig = geoKey + "|" + o.material.uuid + "|" + (o.castShadow ? 1 : 0) + "|" + (o.receiveShadow ? 1 : 0);
+      let e = groups.get(sig);
+      if (!e) { e = []; groups.set(sig, e); }
+      e.push(o);
+    });
+    return groups;
+  }
+
+  /* 320 ms after the stage is up: by then a prop that waves, turns or is
+     knocked over has moved, and is left alone */
+  function scheduleBake() {
+    if (NO_BAKE) return;
+    bakeToken++;
+    const token = bakeToken;
+    let snap = null;
+    try {
+      const groups = bakePool();
+      snap = new Map();
+      if (groups) groups.forEach((list) => { if (list.length >= 8) list.forEach((o) => snap.set(o, o.matrixWorld.elements.slice())); });
+    } catch (err) { window.__bakeErr = String(err && err.stack || err); return; }
+    bakeSnap = snap;
+    setTimeout(() => { if (token === bakeToken) bakeStatic(); }, 320);
+  }
+
+  function bakeStatic() {
+    bakeToken++;
+    const snap = bakeSnap;
+    bakeSnap = null;
+    if (!snap || !snap.size) { bakeStats = { groups: 0, inst: 0, saved: 0 }; window.__bake = bakeStats; return; }
+    const root = dress && dress.root;
+    if (!root || !root.parent) return;
+    const groups = bakePool();
+    if (!groups) return;
+    const inv = new T.Matrix4().copy(root.matrixWorld).invert();
+    const m4 = new T.Matrix4();
+    let gN = 0, instN = 0;
+    groups.forEach((all) => {
+      if (all.length < 8) return;
+      const list = all.filter((o) => {
+        const was = snap.get(o);
+        if (!was) return false;
+        const now = o.matrixWorld.elements;
+        if (!o.parent || !o.visible) return false;
+        for (let i = 0; i < 16; i++) if (Math.abs(now[i] - was[i]) > 1e-5) return false;
+        return true;
+      });
+      if (list.length < 8) return;
+      const g0 = list[0].geometry, m0 = list[0].material;
+      const im = new T.InstancedMesh(g0, m0, list.length);
+      /* a material another instanced batch in this stage already draws with a
+         per-instance colour has been compiled for that attribute: give the new
+         draw one too, or the shared program looks for an attribute this object
+         does not have */
+      if (m0) {
+        const cols = new Float32Array(list.length * 3);
+        for (let i = 0; i < cols.length; i++) cols[i] = 1;
+        im.instanceColor = new T.InstancedBufferAttribute(cols, 3);
+      }
+      for (let i = 0; i < list.length; i++) {
+        m4.multiplyMatrices(inv, list[i].matrixWorld);
+        im.setMatrixAt(i, m4);
+      }
+      im.instanceMatrix.needsUpdate = true;
+      im.castShadow = list[0].castShadow;
+      im.receiveShadow = list[0].receiveShadow;
+      im.frustumCulled = false;
+      im.name = "bake-" + g0.type;
+      im.userData.noBlock = 1;
+      list.forEach((o) => { o.parent && o.parent.remove(o); });
+      root.add(im);
+      gN++; instN += list.length;
+    });
+    bakeStats = { groups: gN, inst: instN, saved: Math.max(0, instN - gN) };
+    window.__bake = bakeStats;
+  }
   function buildRailBlockers(ctx) {
     railBlockers = [];
     if (!curve) return;
@@ -9345,6 +9510,9 @@
     } catch (e) {}
     try { rebuildWallBoxes(); } catch (err) { window.__wallErr = String(err && err.stack || err); }
     try { declutter(); } catch (err) { window.__declutterErr = String(err && err.stack || err); }
+    /* (v67) the shadow pass only draws what can be read, before the first
+       frame of the stage */
+    try { trimShadowProps(); } catch (err) { window.__shadowTrimErr = String(err && err.stack || err); }
     /* (v52) the stages with civilians in them get evacuation boards: the game
        tells the player which way the street is emptying */
     try { if (STAGE.refugees) evacSigns(ctx); } catch (err) { window.__evacErr = String(err && err.stack || err); }
@@ -9355,6 +9523,9 @@
       planSteer(waves.map((w) => w.u).concat([bossU, 0]));
       window.__steerMs = [+(tb1 - tb0).toFixed(0), +(performance.now() - tb1).toFixed(0)];
     } catch (err) { window.__blockErr = String(err && err.stack || err); }
+    /* (v67) fold the static street decoration into instanced draws once the
+       camera has seen a couple of frames of it (see bakeStatic) */
+    try { scheduleBake(); } catch (err) { window.__bakeErr = String(err && err.stack || err); }
     steerOff = 0;
     /* (v47) the blast light is created with the stage, not the first time a
        drum goes off: adding a light changes the light count, which recompiles

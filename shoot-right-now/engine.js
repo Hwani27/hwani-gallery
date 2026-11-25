@@ -87,6 +87,26 @@
   /* profile.js re-makes the title menu after every mission */
   window.MGMenuBind = bindMenu;
 
+  /* ---- (v67) what the device can afford ----------------------------------
+     A phone at devicePixelRatio 3 draws a 1170x2532 buffer, then runs the
+     post pass, the AO and the bloom over it: four times the pixels of a laptop
+     for a screen the size of a hand, and that is where the frame drop comes
+     from. A touch or narrow screen is capped lower, and if the frame budget is
+     missed again and again the cap itself is eased down (never below 1:1). */
+  const MOBILE = (function () {
+    try {
+      const touch = (navigator.maxTouchPoints || 0) > 1;
+      const narrow = (window.innerWidth || 9999) <= 900;
+      return touch || narrow;
+    } catch (e) { return false; }
+  })();
+  const PR_CAP = MOBILE ? 1.4 : 1.75;
+  let prScale = 1;
+  function pixelRatio() {
+    const base = Math.min(window.devicePixelRatio || 1, PR_CAP);
+    return Math.max(1, Math.round(base * prScale * 100) / 100);
+  }
+
   /* ---- renderer / scene / camera ---- */
   let renderer = null;
   try {
@@ -95,7 +115,7 @@
     fail();
     return;
   }
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
+  renderer.setPixelRatio(pixelRatio());
   if (T.sRGBEncoding) renderer.outputEncoding = T.sRGBEncoding;
   /* filmic tone mapping: the sky keeps its colour instead of clipping to white
      and the shadows under the barriers, cars and men go deep without the
@@ -114,9 +134,12 @@
      1024 still reads. The level follows the graphics switch (post.js) and the
      device: a phone that had to drop the post pass gets PCF instead of
      PCFSoft and the tightest box. `?shadow=high|mid|low` forces one. */
+  /* (v67) `mid` is now 1024 with the cheap PCF filter: PCFSoft takes four
+     taps per shadowed fragment, which a phone pays for on every lit pixel of
+     the street. Only a desktop `high` keeps the soft filter. */
   const SHADOWS = {
     high: { map: 2048, soft: true, span: [46, 52, -40], far: 190, bias: -0.0004, normalBias: 0.03 },
-    mid: { map: 1024, soft: true, span: [30, 36, -28], far: 150, bias: -0.0005, normalBias: 0.04 },
+    mid: { map: 1024, soft: false, span: [30, 36, -28], far: 150, bias: -0.0005, normalBias: 0.04 },
     low: { map: 1024, soft: false, span: [22, 28, -22], far: 120, bias: -0.0007, normalBias: 0.05 }
   };
   let shadowLevel = null;
@@ -126,11 +149,11 @@
     if (forced && SHADOWS[forced]) return forced;
     if (window.MGPost && window.MGPost.quality === "low") return "low";
     const cores = navigator.hardwareConcurrency || 4;
-    const touch = (navigator.maxTouchPoints || 0) > 1;
-    const small = Math.min(window.innerWidth || 9999, window.innerHeight || 9999) < 900;
-    const dpr = window.devicePixelRatio || 1;
-    if (cores >= 8 && !(touch && small && dpr >= 3)) return "high";
-    if (cores <= 4 && (touch || small)) return "low";
+    /* (v67) a phone never takes the desktop tier: 2048 PCFSoft is the single
+       most expensive thing in the frame there. 1024 + PCF reads the same at
+       arm's length and costs a quarter of the bandwidth. */
+    if (MOBILE) return cores <= 4 ? "low" : "mid";
+    if (cores >= 8) return "high";
     return "mid";
   }
   function applyShadow(level) {
@@ -242,6 +265,10 @@
   window.__shadowInfo = window.__shadowInfo || null;
   window.__setShadow = applyShadow;
   window.__pickShadow = pickShadow;
+  window.__perfInfo = function () {
+    return { mobile: MOBILE, cap: PR_CAP, scale: prScale, pr: renderer.getPixelRatio(),
+             auto: window.__prAuto || "", shadow: window.__shadowInfo };
+  };
 
   /* ---- frame loop ---- */
   function tick() {
@@ -262,13 +289,36 @@
       if (state.mode === "play") window.MGPost.sample(nowT - (tick._t || nowT));
       window.MGPost.render(renderer, scene, camera);
     } else renderer.render(scene, camera);
+    /* (v67) adaptive resolution: a phone that keeps missing the budget gives
+       up screen resolution before it gives up the game. 1.4 -> 1.2 -> 1.0 of
+       the CSS pixel grid, and back up when the frame is comfortable again. */
+    if (MOBILE && state.mode === "play") {
+      const dt = nowT - (tick._pt || nowT);
+      tick._pt = nowT;
+      if (dt > 0 && dt < 250) {
+        arAcc += dt; arN++;
+        if (arN >= 60) {
+          const avg = arAcc / arN;
+          arAcc = 0; arN = 0;
+          let to = prScale;
+          if (avg > 25 && prScale > 0.6) to = Math.max(0.6, prScale - 0.2);
+          else if (avg < 13 && prScale < 1) to = Math.min(1, prScale + 0.1);
+          if (to !== prScale) {
+            prScale = to;
+            resize();
+            window.__prAuto = pixelRatio().toFixed(2) + "@" + avg.toFixed(1);
+          }
+        }
+      }
+    }
     tick._t = nowT;
   }
+  let arAcc = 0, arN = 0;
 
   function resize() {
     const w = Math.max(1, window.innerWidth || 1);
     const h = Math.max(1, window.innerHeight || 1);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
+    renderer.setPixelRatio(pixelRatio());
     renderer.setSize(w, h, false);
     if (window.MGPost) window.MGPost.resize(renderer);
     camera.aspect = w / h;
