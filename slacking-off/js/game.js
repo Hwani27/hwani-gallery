@@ -197,6 +197,7 @@
 
     window.addEventListener('keydown', function (e) {
       if (e.code === 'Space') {
+        if (window.SHOP && SHOP.isOpen()) return;
         e.preventDefault();
         if (e.repeat) return;
         if (S.mode === 'playing') startWork();
