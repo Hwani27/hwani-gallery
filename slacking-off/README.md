@@ -11,12 +11,22 @@
 - `[일하는 척!]`을 꾹(PC는 Space) → `Q4_매출보고서_최종_진짜최종.xlsx`로 위장, 업무 척도 게이지 상승
 - 부장님 감시(경고) 중 위장+척도 55%↑ = 통과 / 딴짓 중 = 발각 / 18:00까지 100% 미달 = 야근
 
+## 🚨 3초 변명 찬스
+- 스테이지당 1회, **첫 발각**은 바로 게임오버가 아니라 3.0초 변명 타임으로 넘어간다.
+- 방금 찍힌 상사 3D 호통 컷 + 대사 + 카운트다운 바 + 변명 3개(정답 1 + 오답 2, 매번 섞임).
+- 딴짓 모드(점프/차트/쇼핑) × 상사(잼부장/잼사장)별 밈 변명 18세트.
+- **정답**: 상사가 솔깃한 반응 컷(1.2초) → +50점, 1.5초 무적, 딴짓 게이지 그대로 복귀.
+- **오답·시간 초과**: 시말서 확정 호통 컷 → 발각 결과 화면(선택한 변명·시간 초과 표시).
+- 두 번째 발각부터는 변명 없이 바로 발각 게임오버.
+
 ## 3D 구성 (`js/`)
 - `three.min.js` — 로컬 Three.js r128 (외부 CDN 없음)
 - `textures.js` — Poly Haven CC0 실사 텍스처(512px WebP) 비동기 로더·적용기
 - `voxel.js` — 복셀 박스·사람(머리/눈/안경/정장·넥타이/팔다리 피벗)·이름표·파편 빌더
 - `scene3d.js` — `OfficeScene`(사무실·잼부장/잼사장/잼대리 걷기·감시·발각 줌인) + `MiniScene`(3D 미니게임) + `Slack3D` 루프
+- `excuse.js` — 3초 변명 찬스: 모드·상사별 변명 풀, 3개 셔플, 3.0초 타이머, 성공/실패 컷
 - `game.js` — 기존 게임 로직 유지, 시각 연출만 3D 씬에 위임
+- `sfx.js` — Web Audio 효과음 + 프로시저럴 BGM(평온 105BPM ↔ 긴장 148BPM, 위장 시 로패스 덕킹, 탭 숨김 시 일시정지)
 
 ## CC0 실사 텍스처 (`textures/`)
 Poly Haven CC0 텍스처 9세트를 512px WebP(diffuse/normal/roughness)로 경량화해(합계 약 680KB) 넣었다.
@@ -41,4 +51,4 @@ Poly Haven CC0 텍스처 9세트를 512px WebP(diffuse/normal/roughness)로 경�
 - 390×844 한 화면(`scrollHeight == 844`) 유지
 
 ## 테스트 훅
-`window.__SLACK` — state/tap/hold/release/warn/check/setGauge/stage/start/go/skipTemptIn/takeTempt/setLeft/three
+`window.__SLACK` — state/tap/hold/release/warn/check/setGauge/stage/start/go/skipTemptIn/takeTempt/setLeft/three/catch/excuse/pickExcuse/audio

@@ -1,6 +1,7 @@
-/* ===== 부장님 몰래 딴짓하기 — Web Audio 효과음 (프로시저럴) =====
+/* ===== 부장님 몰래 딴짓하기 — Web Audio 효과음 + 프로시저럴 BGM =====
    샘플 파일 없이 오실레이터·노이즈만으로 만든다. 첫 사용자 제스처에서 unlock().
-   타자 소리 / 딴짓 콤보음 / 발소리 경고 / 발각 / 칼퇴 클리어 / 야근. 음소거는 localStorage 에 남는다. */
+   타자 소리 / 딴짓 콤보음 / 발소리 경고 / 발각 / 칼퇴 클리어 / 야근. 음소거는 localStorage 에 남는다.
+   BGM: 평온(105BPM 오피스 칩튠) ↔ 긴장(148BPM 저음 맥박·하이햇) 실시간 전환, 위장 중엔 로패스로 볼륨다운. */
 var SFX = (function () {
   'use strict';
   var KEY = 'slk_sound_on';
@@ -24,6 +25,7 @@ var SFX = (function () {
   function unlock() {
     var c = ac(); if (!c) return;
     if (c.state === 'suspended') { try { c.resume(); } catch (e) {} }
+    BGM.resume();
   }
   function ok() { return on && typeof ctx !== 'undefined'; }
 
@@ -57,11 +59,230 @@ var SFX = (function () {
     s.start(t);
   }
 
+  /* =========================================================
+     프로시저럴 BGM — 16분음표 스텝 시퀀서
+     calm: 105BPM / tense: 148BPM. 4마디(64스텝) 루프.
+     ========================================================= */
+  var BGM = (function () {
+    var BPM = { calm: 105, tense: 148 };
+    var mode = 'off';            // off | calm | tense
+    var work = false;            // 위장 중 볼륨 다운 + 로패스
+    var step = 0, nextT = 0, timer = null;
+    var running = false, wanted = false;
+    var bus = null, lp = null, hatBuf = null, notes = 0;
+
+    var CALM = {
+      chords: [[57, 60, 64, 67], [53, 57, 60, 65], [48, 52, 55, 59], [55, 59, 62, 67]],
+      roots: [45, 41, 48, 43],
+      pluck: [69, 72, 76, 79, 76, 72, 74, 67]
+    };
+    var TENSE = {
+      stabs: [[57, 58, 63], [56, 57, 62], [55, 56, 61], [57, 58, 64]],
+      bassOff: [0, 0, 7, 0, 0, 10, 7, 5]
+    };
+
+    function midi(m) { return 440 * Math.pow(2, (m - 69) / 12); }
+
+    function ensure() {
+      var c = ac(); if (!c || !master) return false;
+      if (!bus) {
+        bus = c.createGain(); bus.gain.value = 0.0001;
+        lp = c.createBiquadFilter(); lp.type = 'lowpass';
+        lp.frequency.value = 9000; lp.Q.value = 0.4;
+        bus.connect(lp); lp.connect(master);
+      }
+      return true;
+    }
+
+    function fade(g, f, tc) {
+      if (!bus) return;
+      var t = ctx.currentTime;
+      bus.gain.cancelScheduledValues(t);
+      bus.gain.setTargetAtTime(Math.max(0.0001, g), t, tc || 0.15);
+      lp.frequency.cancelScheduledValues(t);
+      lp.frequency.setTargetAtTime(f, t, (tc || 0.15) * 1.4);
+    }
+
+    function osc(f, at, dur, type, gain, slide) {
+      var c = ctx;
+      notes++;
+      var o = c.createOscillator(), g = c.createGain();
+      o.type = type || 'sine';
+      o.frequency.setValueAtTime(Math.max(20, f), at);
+      if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(18, slide), at + dur);
+      g.gain.setValueAtTime(0.0001, at);
+      g.gain.exponentialRampToValueAtTime(Math.max(0.0004, gain), at + Math.min(0.05, dur * 0.35));
+      g.gain.exponentialRampToValueAtTime(0.0001, at + dur);
+      o.connect(g); g.connect(bus);
+      o.start(at); o.stop(at + dur + 0.04);
+      o.onended = function () { try { o.disconnect(); g.disconnect(); } catch (e) {} };
+    }
+
+    function pad(f, at, dur, gain) {
+      osc(f, at, dur, 'triangle', gain, f * 1.0015);
+      osc(f * 0.997, at, dur, 'sine', gain * 0.72);
+    }
+
+    function hat(at, gain, dur, hp) {
+      var c = ctx;
+      notes++;
+      if (!hatBuf) {
+        var len = Math.floor(c.sampleRate * 0.4);
+        hatBuf = c.createBuffer(1, len, c.sampleRate);
+        var d = hatBuf.getChannelData(0);
+        for (var i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3);
+      }
+      var s = c.createBufferSource(); s.buffer = hatBuf;
+      var f = c.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = hp || 6000;
+      var g = c.createGain(); g.gain.value = gain;
+      s.connect(f); f.connect(g); g.connect(bus);
+      s.start(at, 0, dur); s.stop(at + dur + 0.02);
+      s.onended = function () { try { s.disconnect(); f.disconnect(); g.disconnect(); } catch (e) {} };
+    }
+
+    /* 평온: 나른한 7th 패드 + 콧노래 멜로디 + 가벼운 리듬 */
+    function calmStep(bar, k, at, sd) {
+      var ch = CALM.chords[bar], root = CALM.roots[bar];
+      if (k === 0) {
+        for (var i = 0; i < ch.length; i++) pad(midi(ch[i]), at, sd * 15.2, 0.014);
+        osc(midi(root - 12), at, sd * 3.0, 'sine', 0.045);
+      }
+      if (k === 0 || k === 6 || k === 9) osc(midi(root), at, Math.min(0.3, sd * 2.2), 'triangle', 0.05, midi(root) * 0.99);
+      if (k === 8) osc(midi(root - 12), at, 0.18, 'sine', 0.045);
+      if (k === 0 || k === 10) osc(118, at, 0.13, 'sine', 0.05, 46);
+      if (k % 2 === 1) hat(at, 0.007, 0.035, 7000);
+      if (k === 4 || k === 12) hat(at, 0.012, 0.06, 3200);
+      var pi = [0, 3, 6, 9, 12, 14].indexOf(k);
+      if (pi >= 0) {
+        var n = CALM.pluck[(bar * 3 + pi) % CALM.pluck.length];
+        osc(midi(n), at, 0.16, 'triangle', 0.024, midi(n));
+        osc(midi(n), at + sd * 1.5, 0.09, 'sine', 0.01);
+      }
+    }
+
+    /* 긴장: 저음 맥박 + 8분 하이햇 + 단2도 스탭 + 상승 틱 */
+    function tenseStep(bar, k, at, sd) {
+      var st = TENSE.stabs[bar];
+      if (k % 4 === 0) {
+        osc(64, at, 0.17, 'sine', 0.095, 38);
+        osc(58, at + 0.085, 0.12, 'sine', 0.055, 34);
+      }
+      if (k % 2 === 0) hat(at, 0.009, 0.03, 8200);
+      if (k % 4 === 2) hat(at, 0.013, 0.05, 5200);
+      if (k % 2 === 0) {
+        var bf = midi(33 + TENSE.bassOff[(k / 2) | 0]);
+        osc(bf, at, 0.085, 'sawtooth', 0.028, bf);
+      }
+      if (k === 2 || k === 10) {
+        for (var i = 0; i < st.length; i++) osc(midi(st[i]), at, 0.11, 'sawtooth', 0.014, midi(st[i]) * 0.994);
+      }
+      if (k === 0) osc(midi(84), at, 0.05, 'square', 0.01);
+      if (k === 13) osc(midi(72), at, sd * 3, 'sawtooth', 0.011, midi(84));
+    }
+
+    function schedule(s, at, sd) {
+      var bar = (s / 16) | 0, k = s % 16;
+      if (mode === 'tense') tenseStep(bar, k, at, sd);
+      else calmStep(bar, k, at, sd);
+    }
+
+    function tick() {
+      var c = ctx;
+      if (!c || !running || !on) return;
+      var now = c.currentTime;
+      if (nextT < now) nextT = now + 0.02;
+      var sd = 60 / (BPM[mode] || 105) / 4;
+      var guard = 0;
+      while (nextT < now + 0.25 && guard++ < 40) {
+        schedule(step, nextT, sd);
+        step = (step + 1) % 64;
+        nextT += sd;
+      }
+    }
+
+    function start(m) {
+      wanted = true;
+      if (!on) { if (m) mode = m; return; }
+      var c = ac();
+      if (!c || !ensure()) return;
+      if (c.state === 'suspended') { try { c.resume(); } catch (e) {} }
+      if (!m) m = (mode === 'off' ? 'calm' : mode);
+      var changed = (mode !== m);
+      mode = m;
+      if (!running) { running = true; step = 0; nextT = c.currentTime + 0.08; }
+      else if (changed) nextT = Math.max(nextT, c.currentTime + 0.05);
+      fade(work ? 0.24 : 0.5, work ? 680 : 9000, 0.25);
+      if (!timer) timer = setInterval(tick, 60);
+    }
+
+    function setMode(m) {
+      if (!m) return;
+      if (m === mode && running) return;
+      mode = m;
+      if (!running) { if (wanted) start(m); return; }
+      if (ctx) nextT = Math.max(nextT, ctx.currentTime + 0.05);
+    }
+
+    function setWork(v) {
+      v = !!v;
+      if (work === v) return;
+      work = v;
+      if (running) fade(v ? 0.24 : 0.5, v ? 680 : 9000, 0.16);
+    }
+
+    function stop() {
+      wanted = false; running = false; work = false;
+      if (timer) { clearInterval(timer); timer = null; }
+      if (bus) fade(0.0001, 9000, 0.1);
+      mode = 'off'; step = 0;
+    }
+
+    function pause() {
+      running = false;
+      if (timer) { clearInterval(timer); timer = null; }
+      if (bus) fade(0.0001, 9000, 0.06);
+    }
+
+    function resume() {
+      if (!wanted || !on) return;
+      start(mode === 'off' ? 'calm' : mode);
+    }
+
+    function status() {
+      return {
+        mode: mode, running: running, work: work, wanted: wanted,
+        bpm: BPM[mode] || 0, muted: !on, ctx: ctx ? ctx.state : 'none',
+        gain: bus ? +bus.gain.value.toFixed(3) : 0,
+        lp: lp ? Math.round(lp.frequency.value) : 0,
+        notes: notes
+      };
+    }
+
+    return {
+      start: start, setMode: setMode, setWork: setWork, stop: stop,
+      pause: pause, resume: resume, status: status
+    };
+  })();
+
+  if (typeof document !== 'undefined' && document.addEventListener) {
+    document.addEventListener('visibilitychange', function () {
+      if (document.hidden) BGM.pause();
+      else if (on) BGM.resume();
+    });
+  }
+
   return {
     isOn: function () { return on; },
-    setOn: function (v) { on = !!v; try { localStorage.setItem(KEY, on ? '1' : '0'); } catch (e) {} if (on) { unlock(); this.click(); } return on; },
+    setOn: function (v) {
+      on = !!v;
+      try { localStorage.setItem(KEY, on ? '1' : '0'); } catch (e) {}
+      if (!on) BGM.pause();
+      else { unlock(); BGM.resume(); this.click(); }
+      return on;
+    },
     toggle: function () { return this.setOn(!on); },
     unlock: unlock,
+    bgm: BGM,
 
     // 딴짓 콤보: 콤보가 올라갈수록 음이 올라간다
     tap: function (combo) {
@@ -112,6 +333,36 @@ var SFX = (function () {
     },
     click: function () { tone(520, 0.045, 'triangle', 0.06); },
     tick: function () { tone(1200, 0.03, 'square', 0.03); },
-    earn: function () { tone(760, 0.08, 'triangle', 0.05); tone(1140, 0.1, 'triangle', 0.045, 1140, 0.06); }
+    earn: function () { tone(760, 0.08, 'triangle', 0.05); tone(1140, 0.1, 'triangle', 0.045, 1140, 0.06); },
+
+    /* ---- 3초 변명 찬스 ---- */
+    // 발동: 낮은 충격 + 경보 사이렌
+    excuseOpen: function () {
+      tone(90, 0.22, 'sine', 0.16, 44);
+      noise(0.16, 0.1, 160);
+      tone(760, 0.12, 'square', 0.055, 640, 0.04);
+      tone(920, 0.12, 'square', 0.05, 780, 0.19);
+      tone(1080, 0.13, 'square', 0.05, 900, 0.34);
+    },
+    // 카운트 틱: n 이 줄수록 음이 올라간다 (6 → 1)
+    excuseTick: function (n) {
+      var k = Math.max(1, Math.min(6, n || 6));
+      tone(560 + (6 - k) * 130, 0.04, 'square', 0.045);
+      noise(0.02, 0.02, 3000);
+    },
+    // 성공: 안도하는 내려가는 숨소리 + 부드러운 코드
+    excuseSigh: function () {
+      noise(0.34, 0.05, 500, 2200);
+      tone(560, 0.4, 'sine', 0.075, 300);
+      tone(840, 0.24, 'triangle', 0.035, 520, 0.02);
+      [523, 659, 784].forEach(function (f, i) { tone(f, 0.26, 'sine', 0.035, f, 0.06 + i * 0.05); });
+    },
+    // 실패: 땡! 하는 버저
+    excuseBuzz: function () {
+      tone(170, 0.52, 'sawtooth', 0.11, 72);
+      tone(118, 0.46, 'square', 0.06, 52, 0.05);
+      noise(0.34, 0.1, 180);
+      tone(1400, 0.07, 'square', 0.035, 900, 0.5);
+    }
   };
 })();
