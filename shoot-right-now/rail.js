@@ -937,7 +937,6 @@
   }
 
   /* swap the photos onto every lit material whose canvas texture we know */
-  const PH_NORMAL_OK = /^(facA|facB|facC|aptFacade|hanApt|hanConc|hnPanel|hnSlab|hnCorr|hwBrick|hwGranite|hwDan|stone|stoneD|pave|street|cityBakseok|pyPave|summitPave2)$/;
   function phApply(root) {
     if (!root) return 0;
     let n = 0;
