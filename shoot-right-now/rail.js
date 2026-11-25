@@ -807,6 +807,224 @@
     return n;
   }
 
+  /* ---------------- (v66) CC0 photo textures — Poly Haven --------------
+     The canvases above give every surface its colour and its blocky grain,
+     and they are painted synchronously, so the first frame never waits on
+     the network. On top of them these seven photographs (all CC0, folded
+     down to 512 px WebP) are loaded in the background and dropped in as the
+     diffuse / normal / roughness maps the moment they arrive: real asphalt
+     aggregate under the road, weathered plaster and concrete on the
+     facades, riveted steel plate on the tank and the gunship, wet shore
+     sand at Incheon, grass and rock over the hills.
+     Nothing that carries meaning is replaced. A facade keeps the windows,
+     signage and neon painted on its canvas — only its normal and roughness
+     maps change — and the .glb models keep their palette, gaining normal and
+     roughness only. If a file is missing, or still in flight, the canvas
+     texture simply stays: the game never waits for these bytes. */
+  const PH_SETS = {
+    asphalt: { dir: "asphalt_02", d: 1, n: 1, r: 1, ns: 0.38 },
+    sand: { dir: "coast_sand_rocks_02", d: 1, n: 1, r: 1, ns: 0.5 },
+    grass: { dir: "aerial_grass_rock", d: 1, n: 1, r: 1, ns: 0.6 },
+    rock: { dir: "rocky_terrain_02", d: 1, n: 1, r: 1, ns: 0.7 },
+    wall: { dir: "painted_plaster_wall", d: 0, n: 1, r: 1, ns: 0.34 },
+    concrete: { dir: "concrete_floor_worn_001", d: 1, n: 1, r: 1, ns: 0.4 },
+    metal: { dir: "metal_plate", d: 0, n: 1, r: 1, ns: 0.42 }
+  };
+  const PH = { ready: {}, cache: {}, cacheN: 0, mean: {}, loadStarted: 0, roots: [], metalWait: [], metalDone: 0 };
+  window.__ph = PH;
+
+  /* which set a canvas texture belongs to, and whether its colour may be
+     replaced. Only pure-grain ground surfaces lose their canvas; anything
+     with lettering, windows, signs or faces painted on it keeps the canvas
+     and gains relief alone. */
+  function phFor(key) {
+    if (!key || key.indexOf("@") >= 0) return null;
+    if (/^(asphalt|slushRoad)/.test(key)) return { set: "asphalt", map: 1 };
+    if (/^(beachSand|soil2|trailDirt|hnGravel)$/.test(key)) return { set: "sand", map: 1 };
+    if (/^(voxGrass|voxLeaf|hwField|paddy)$/.test(key)) return { set: "grass", map: 1 };
+    if (/^(voxRock|rock|cliff|terrain)/.test(key)) return { set: "rock", map: 1 };
+    if (/^(conc|concLight|concBlock|roofDeck)$/.test(key)) return { set: "concrete", map: 1 };
+    if (/^(facA|facB|facC|aptFacade|hanApt|hanConc|hnPanel|hnSlab|hnCorr|hwBrick|hwGranite|hwDan|stone|stoneD|pave|street|cityBakseok|pyPave|summitPave2)$/.test(key)) return { set: "wall", map: 0 };
+    return null;
+  }
+
+  function phSRGB(t) {
+    if (T.SRGBColorSpace !== undefined) t.colorSpace = T.SRGBColorSpace;
+    else if (T.sRGBEncoding !== undefined) t.encoding = T.sRGBEncoding;
+    return t;
+  }
+  function phData(t) {
+    if (T.NoColorSpace !== undefined) t.colorSpace = T.NoColorSpace;
+    else if (T.LinearEncoding !== undefined) t.encoding = T.LinearEncoding;
+    return t;
+  }
+
+  /* mean colour of a canvas (or a loaded image) at 16x16, 0..1 */
+  function imgMean(src) {
+    try {
+      const s = document.createElement("canvas");
+      s.width = s.height = 16;
+      const g = s.getContext("2d");
+      g.drawImage(src, 0, 0, 16, 16);
+      const d = g.getImageData(0, 0, 16, 16).data;
+      let r = 0, gg = 0, b = 0;
+      for (let i = 0; i < d.length; i += 4) { r += d[i]; gg += d[i + 1]; b += d[i + 2]; }
+      const n = d.length / 4;
+      return [r / n / 255, gg / n / 255, b / n / 255];
+    } catch (e) { return null; }
+  }
+
+  function phLoad() {
+    if (PH.loadStarted) return;
+    PH.loadStarted = 1;
+    const TL = T.TextureLoader;
+    if (!TL) { window.__phErr = "no TextureLoader"; return; }
+    const loader = new TL();
+    const kinds = { d: ["_d.webp", 1], n: ["_n.webp", 0], r: ["_r.webp", 0] };
+    Object.keys(PH_SETS).forEach((set) => {
+      const S = PH_SETS[set];
+      const put = {};
+      Object.keys(kinds).forEach((kind) => {
+        if (!S[kind]) return;
+        loader.load("textures/" + S.dir + kinds[kind][0], (t) => {
+          t.wrapS = t.wrapT = T.RepeatWrapping;
+          t.minFilter = T.LinearMipMapLinearFilter;
+          t.magFilter = T.LinearFilter;
+          t.generateMipmaps = true;
+          t.anisotropy = Math.max(1, Math.min(8, MAXANISO));
+          t.needsUpdate = true;
+          if (kinds[kind][1]) phSRGB(t); else phData(t);
+          put[kind] = t;
+          if (kind === "d" && t.image) S.dMean = imgMean(t.image);
+          if (put.n && (put.d || !S.d)) {
+            PH.ready[set] = put;
+            try { phApplyAll(); } catch (e) { window.__phApplyErr = String(e); }
+          }
+          window.__phLoaded = Object.keys(PH.ready).length;
+        }, undefined, () => { window.__phMiss = (window.__phMiss || "") + set + ":" + kind + ";"; });
+      });
+    });
+  }
+
+  /* one texture object per (set, map, repeat) — repeats are quantised to a
+     quarter tile so a hundred shopfronts share one upload instead of
+     each taking its own copy of the same 512px image */
+  function phTex(set, kind, rx, ry) {
+    const S = PH.ready[set];
+    if (!S || !S[kind]) return null;
+    const qx = Math.max(0.25, Math.round((rx || 1) * 4) / 4);
+    const qy = Math.max(0.25, Math.round((ry || 1) * 4) / 4);
+    const ck = set + "|" + kind + "|" + qx + "|" + qy;
+    if (PH.cache[ck]) return PH.cache[ck];
+    let best = null, bd = 1e9;
+    if (PH.cacheN > 60) {
+      Object.keys(PH.cache).forEach((k) => {
+        if (k.indexOf(set + "|" + kind + "|") !== 0) return;
+        const p = k.split("|");
+        const d = Math.abs(+p[2] - qx) + Math.abs(+p[3] - qy);
+        if (d < bd) { bd = d; best = PH.cache[k]; }
+      });
+      if (best) return best;
+    }
+    const t = S[kind].clone();
+    t.needsUpdate = true;
+    t.wrapS = t.wrapT = T.RepeatWrapping;
+    t.repeat.set(qx, qy);
+    t.anisotropy = Math.max(1, Math.min(8, MAXANISO));
+    PH.cache[ck] = t;
+    PH.cacheN++;
+    return t;
+  }
+
+  /* swap the photos onto every lit material whose canvas texture we know */
+  const PH_NORMAL_OK = /^(facA|facB|facC|aptFacade|hanApt|hanConc|hnPanel|hnSlab|hnCorr|hwBrick|hwGranite|hwDan|stone|stoneD|pave|street|cityBakseok|pyPave|summitPave2)$/;
+  function phApply(root) {
+    if (!root) return 0;
+    let n = 0;
+    root.traverse((o) => {
+      if (!o.isMesh || !o.material) return;
+      (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => {
+        if (!m || !m.isMeshStandardMaterial || m.__ph) return;
+        const map = m.map;
+        const key = map && (map.__key || (map.image && map.image.__key));
+        const cfg = phFor(key);
+        if (!cfg || !PH.ready[cfg.set]) return;
+        const S = PH_SETS[cfg.set];
+        const rx = (map.repeat && map.repeat.x) || 1, ry = (map.repeat && map.repeat.y) || 1;
+        const dt = cfg.map ? phTex(cfg.set, "d", rx, ry) : null;
+        const nt = phTex(cfg.set, "n", rx, ry);
+        const rt = phTex(cfg.set, "r", rx, ry);
+        if (!nt && !dt) return;
+        if (dt) {
+          /* keep the canvas's own light: the photo is tinted to the mean
+             colour of the painting it replaces, so a dusk stage stays dusk */
+          const cm = PH.mean[key] || (PH.mean[key] = imgMean(TXCV[key] || map.image));
+          const pm = PH_SETS[cfg.set].dMean;
+          if (cm && pm && pm[0] > 0.02 && pm[1] > 0.02 && pm[2] > 0.02) {
+            const cl = (v) => Math.max(0.3, Math.min(2.4, v));
+            m.color.setRGB(cl(cm[0] / pm[0]), cl(cm[1] / pm[1]), cl(cm[2] / pm[2]));
+          }
+          m.map = dt;
+        }
+        if (nt) {
+          m.normalMap = nt;
+          m.normalScale = new T.Vector2(S.ns, S.ns);
+        }
+        if (rt) {
+          m.roughnessMap = rt;
+          m.roughness = Math.min(1, Math.max(0.55, m.roughness || 0.9));
+        }
+        m.needsUpdate = true;
+        m.__ph = cfg.set;
+        n++;
+      });
+    });
+    return n;
+  }
+
+  /* marquee surfaces: the .glb tank and gunship keep their palette and gain
+     riveted plate relief */
+  function phMetal(root) {
+    if (!root) return 0;
+    if (!PH.ready.metal) { PH.metalWait.push(root); return 0; }
+    const nt = phTex("metal", "n", 2, 2), rt = phTex("metal", "r", 2, 2);
+    let n = 0;
+    root.traverse((o) => {
+      if (!o.isMesh || !o.material) return;
+      (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => {
+        if (!m || m.__phM) return;
+        m.__phM = 1;
+        if (nt) { m.normalMap = nt; m.normalScale = new T.Vector2(0.42, 0.42); }
+        if (rt) { m.roughnessMap = rt; m.metalness = Math.max(m.metalness || 0, 0.16); }
+        m.needsUpdate = true;
+        n++;
+      });
+    });
+    return n;
+  }
+
+  function phApplyAll() {
+    let n = 0;
+    PH.roots.forEach((r) => { try { n += phApply(r); } catch (e) { window.__phApplyErr = String(e && e.stack || e); } });
+    if (PH.ready.metal && PH.metalWait.length) {
+      const w = PH.metalWait.splice(0, PH.metalWait.length);
+      w.forEach((r) => { try { phMetal(r); } catch (e) {} });
+    }
+    window.__phStats = { applied: n, total: (PH.total = (PH.total || 0) + n), loaded: Object.keys(PH.ready).length, cache: PH.cacheN, miss: window.__phMiss || "" };
+    try { if (window.__railCtx) window.__tex = window.__railCtx.renderer.info.memory.textures; } catch (e) {}
+    return n;
+  }
+
+  /* called once per staged battlefield, after the relief pass */
+  function applyPhoto(root) {
+    if (!root) return 0;
+    /* ?notex on the URL keeps the canvas textures only (before/after checks) */
+    if (/[?&]notex\b/.test(String(location.search || ""))) return 0;
+    if (PH.roots.indexOf(root) < 0) PH.roots.push(root);
+    if (!PH.loadStarted) phLoad();
+    return phApply(root);
+  }
+
   function ctex(key, w, h, draw, opt) {
     if (MT[key]) return MT[key];
     const t0 = (typeof performance !== "undefined" ? performance.now() : 0);
@@ -7544,6 +7762,7 @@
       boxes.forEach((m) => { if (m && m !== pivot) m.visible = false; });
       if (codeTurret) codeTurret.visible = false;   // its turret, gun and barrel
       enemyRim(holder);
+      try { phMetal(holder); } catch (e) { window.__phMetalErr = String(e); }
       glbPlay(root, gltf, g, /Forward/i);
     }, () => { /* the box tank simply stays */ });
   }
@@ -7593,6 +7812,7 @@
       if (gunner) { gunner.position.set(0.5, -0.5, 0.1); gunner.rotation.y = Math.PI * 0.5; }
       if (gunGroup) gunGroup.position.set(0.72, 0.06, 0.18);
       enemyRim(holder);
+      try { phMetal(holder); } catch (e) { window.__phMetalErr = String(e); }
     }, () => { /* the box helicopter simply stays */ });
   }
   /* the pistol: repainted to blued steel and polymer, turned to point down
@@ -8159,6 +8379,8 @@
       : STAGE && STAGE.dress === "seoulFall" ? warify(ctx, dressStage1(ctx)) : dressStage1(ctx);
     try { flushDetail(null); } catch (e) { window.__detErr = String(e); }
     try { applyRelief(ctx.scene); } catch (e) { window.__reliefErr = String(e && e.stack || e); }
+    /* (v66) the CC0 photographs come in over the canvas textures */
+    try { applyPhoto(ctx.scene); } catch (e) { window.__photoErr = String(e && e.stack || e); }
     return out;
   }
 
