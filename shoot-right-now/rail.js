@@ -16568,20 +16568,55 @@
   }
   /* (v24) water: a tiling wave normal map scrolled in two directions, a
      glossy surface that picks up the sky, and foam that breathes on the
-     shoreline */
-  let WAVE_N = null;
+     shoreline.
+     (v69) The single map read as a tiled grid from the air — the Wonsan drop
+     and the Yalu crossing made that plain — so the surface now carries a
+     second wave layer at a much longer scale, a low-frequency tone map that
+     breaks the flat colour into swells, and a sparkle map that pits the
+     roughness so the sun scatters into glitter. All of it is one material
+     and one draw call per water plane. */
+  let WAVE_N = null, WAVE_N2 = null, WATER_TONE = null, WATER_SPARK = null;
   const WATER = [];
-  function waveNormal() {
-    if (WAVE_N) return WAVE_N;
+  const WU = { time: { value: 0 }, nB: { value: null }, tone: { value: null }, spark: { value: null } };
+  function waveTex(second) {
     const N = 256, cv = document.createElement("canvas");
     cv.width = cv.height = N;
     const g = cv.getContext("2d"), im = g.createImageData(N, N), o = im.data;
+    /* (v69) plane waves on integer directions (so the tile still wraps) on
+       random headings, over two slow warp waves: the old 2-3 direction sum read
+       as a diamond lattice from the air, this reads as water */
+    const r = rng(second ? 7311 : 4311);
+    const W = [];
+    if (second) {
+      /* the long swell: a low-frequency field built from many headings, so a
+         50-80 m tile carries broad irregular swells and no egg-carton grid */
+      for (let i = 0; i < 16; i++) {
+        const m = Math.round((r() * 2 - 1) * 5), n = Math.round((r() * 2 - 1) * 5);
+        const mag = Math.hypot(m, n);
+        if (mag < 2) continue;
+        W.push([m, n, (0.5 + r() * 0.9) / Math.pow(mag, 0.9), r() * 6.283]);
+      }
+    } else {
+      /* the chop: many short harmonics on random headings, so the tile is
+         noise rather than a weave and the repeat does not read as a lattice */
+      for (let i = 0; i < 40; i++) {
+        const m = Math.round((r() * 2 - 1) * 26), n = Math.round((r() * 2 - 1) * 26);
+        const mag = Math.hypot(m, n);
+        if (mag < 4) continue;
+        W.push([m, n, (0.45 + r() * 0.85) / Math.pow(mag, 0.75), r() * 6.283]);
+      }
+    }
     const H = (x, y) => {
       const a = (x / N) * Math.PI * 2, b = (y / N) * Math.PI * 2;
-      return Math.sin(a * 3 + Math.sin(b * 2) * 0.8) * 0.5 + Math.sin(b * 5 + a * 2) * 0.3 + Math.sin(a * 9 - b * 7) * 0.12 + Math.sin(a * 14 + b * 11) * 0.06;
+      const wx = Math.sin(b * 2 + 0.7) * 0.26 + Math.sin(a * 3 + 1.9) * 0.16;
+      const wy = Math.sin(a * 2 - 0.4) * 0.26 + Math.sin(b * 3 + 2.6) * 0.16;
+      let s = 0;
+      for (let i = 0; i < W.length; i++) { const w = W[i]; s += w[2] * Math.sin(w[0] * (a + wx) + w[1] * (b + wy) + w[3]); }
+      return s;
     };
+    const k = second ? 14 : 10;
     for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
-      const dx = (H(x + 1, y) - H(x - 1, y)) * 6, dy = (H(x, y + 1) - H(x, y - 1)) * 6;
+      const dx = (H(x + 1, y) - H(x - 1, y)) * k, dy = (H(x, y + 1) - H(x, y - 1)) * k;
       const l = Math.hypot(dx, dy, 1), i = (y * N + x) * 4;
       o[i] = (-dx / l * 0.5 + 0.5) * 255; o[i + 1] = (dy / l * 0.5 + 0.5) * 255; o[i + 2] = (1 / l * 0.5 + 0.5) * 255; o[i + 3] = 255;
     }
@@ -16589,37 +16624,161 @@
     const t = new T.CanvasTexture(cv);
     t.wrapS = t.wrapT = T.RepeatWrapping;
     t.needsUpdate = true;
-    return (WAVE_N = t);
+    return t;
   }
-  function waterMat(col, rep, speed) {
+  function waveNormal() {
+    if (!WAVE_N) WAVE_N = waveTex(false);
+    return WAVE_N;
+  }
+  function waveNormal2() {
+    if (!WAVE_N2) WAVE_N2 = waveTex(true);
+    return WAVE_N2;
+  }
+  /* soft seamless blotches: the swells and the colour drift of open water */
+  function waterToneTex() {
+    if (WATER_TONE) return WATER_TONE;
+    const N = 128, cv = document.createElement("canvas");
+    cv.width = cv.height = N;
+    const g = cv.getContext("2d"), r = rng(2917);
+    g.fillStyle = "#c6c6c6"; g.fillRect(0, 0, N, N);
+    const blob = (x, y, rad, a, light) => {
+      const c0 = light ? "255,255,255" : "0,0,0";
+      for (let ox = -1; ox <= 1; ox++) for (let oy = -1; oy <= 1; oy++) {
+        const px = x + ox * N, py = y + oy * N;
+        if (px + rad < 0 || py + rad < 0 || px - rad > N || py - rad > N) continue;
+        const rg = g.createRadialGradient(px, py, rad * 0.12, px, py, rad);
+        rg.addColorStop(0, "rgba(" + c0 + "," + a + ")"); rg.addColorStop(1, "rgba(" + c0 + ",0)");
+        g.fillStyle = rg; g.fillRect(px - rad, py - rad, rad * 2, rad * 2);
+      }
+    };
+    for (let i = 0; i < 52; i++) blob(r() * N, r() * N, 12 + r() * 30, 0.14 + r() * 0.2, r() < 0.5);
+    const t = new T.CanvasTexture(cv);
+    t.wrapS = t.wrapT = T.RepeatWrapping;
+    t.needsUpdate = true;
+    return (WATER_TONE = t);
+  }
+  /* sparse specks that pit the roughness: the sun's glitter path */
+  function waterSparkTex() {
+    if (WATER_SPARK) return WATER_SPARK;
+    const N = 128, cv = document.createElement("canvas");
+    cv.width = cv.height = N;
+    const g = cv.getContext("2d"), r = rng(8817);
+    g.fillStyle = "#000"; g.fillRect(0, 0, N, N);
+    for (let i = 0; i < 260; i++) {
+      const x = r() * N, y = r() * N, s = 0.7 + r() * 1.7, a = 0.45 + r() * 0.55;
+      for (let ox = -1; ox <= 1; ox++) for (let oy = -1; oy <= 1; oy++) {
+        g.fillStyle = "rgba(255,255,255," + a.toFixed(2) + ")";
+        g.beginPath(); g.arc(x + ox * N, y + oy * N, s, 0, 6.284); g.fill();
+      }
+    }
+    const t = new T.CanvasTexture(cv);
+    t.wrapS = t.wrapT = T.RepeatWrapping;
+    t.needsUpdate = true;
+    return (WATER_SPARK = t);
+  }
+  /* opt: rep2 (second-layer scale, fraction of rep), str2 (its strength),
+     flow (its drift per second), tone (swell contrast), toneScale (swell size
+     in world metres⁻¹), glit (glitter amount), rough/metal/env overrides */
+  function waterMat(col, rep, speed, opt) {
+    const o = opt || {};
+    const R0 = rep || 20;
     const nm = waveNormal().clone();
     nm.needsUpdate = true;
-    nm.repeat.set(rep || 20, rep || 20);
-    const m = new T.MeshStandardMaterial({ color: new T.Color(col).convertSRGBToLinear(), roughness: 0.16, metalness: 0.05, envMapIntensity: 0.75, normalMap: nm, normalScale: new T.Vector2(0.55, 0.55) });
+    nm.wrapS = nm.wrapT = T.RepeatWrapping;
+    /* (v69) anisotropic filtering on the wave maps: at 1 the grazing view down
+       a long sea blurred one axis only and the chop read as a comb */
+    nm.anisotropy = Math.max(1, Math.min(8, MAXANISO));
+    nm.repeat.set(R0, R0);
+    const m = new T.MeshStandardMaterial({
+      color: new T.Color(col).convertSRGBToLinear(),
+      roughness: o.rough == null ? 0.16 : o.rough,
+      metalness: o.metal == null ? 0.05 : o.metal,
+      envMapIntensity: o.env == null ? 0.75 : o.env,
+      normalMap: nm, normalScale: new T.Vector2(o.nstr == null ? 0.55 : o.nstr, o.nstr == null ? 0.55 : o.nstr)
+    });
+    const u = {
+      rep2: { value: R0 * (o.rep2 == null ? 0.3 : o.rep2) },
+      str2: { value: o.str2 == null ? 1.1 : o.str2 },
+      off2: { value: new T.Vector2(o.flow ? o.flow[0] : 0.010, o.flow ? o.flow[1] : -0.007) },
+      toneK: { value: o.tone == null ? 1.3 : o.tone },
+      toneS: { value: o.toneScale == null ? 1 / 44 : o.toneScale },
+      glit: { value: o.glit == null ? 1 : o.glit }
+    };
+    m.userData.wu = u;
+    if (!WU.nB.value) {
+      WU.nB.value = waveNormal2(); WU.tone.value = waterToneTex(); WU.spark.value = waterSparkTex();
+      [WU.nB.value, WU.tone.value, WU.spark.value].forEach((t) => { t.anisotropy = Math.max(1, Math.min(8, MAXANISO)); });
+    }
+    m.onBeforeCompile = (sh) => {
+      sh.uniforms.tWaterB = WU.nB;
+      sh.uniforms.tWaterTone = WU.tone;
+      sh.uniforms.tWaterSpark = WU.spark;
+      sh.uniforms.uWTime = WU.time;
+      sh.uniforms.uWRep2 = u.rep2;
+      sh.uniforms.uWStr2 = u.str2;
+      sh.uniforms.uWOff2 = u.off2;
+      sh.uniforms.uWToneK = u.toneK;
+      sh.uniforms.uWToneS = u.toneS;
+      sh.uniforms.uWGlit = u.glit;
+      sh.vertexShader = "varying vec3 vWaterPos;\n" + sh.vertexShader.replace(
+        "#include <worldpos_vertex>",
+        "#include <worldpos_vertex>\n\tvWaterPos = ( modelMatrix * vec4( transformed, 1.0 ) ).xyz;");
+      sh.fragmentShader = "varying vec3 vWaterPos;\n" +
+        "uniform sampler2D tWaterB;\nuniform sampler2D tWaterTone;\nuniform sampler2D tWaterSpark;\nuniform float uWTime;\n" +
+        "uniform float uWRep2;\nuniform float uWStr2;\nuniform vec2 uWOff2;\nuniform float uWToneK;\nuniform float uWToneS;\nuniform float uWGlit;\n" +
+        sh.fragmentShader
+          .replace("#include <normal_fragment_maps>", [
+            "#ifdef TANGENTSPACE_NORMALMAP",
+            /* the fine chop fades out with distance: past ~100 m it only
+               aliases into a lattice, and the swell layer carries the surface */
+            "float wFade = 1.0 - smoothstep( 16.0, 68.0, length( vViewPosition ) );",
+            "vec3 wA = texture2D( normalMap, vUv ).xyz * 2.0 - 1.0;",
+            "wA.xy *= normalScale * mix( 0.12, 1.0, wFade );",
+            "vec3 wB = texture2D( tWaterB, vUv * uWRep2 + uWOff2 * uWTime ).xyz * 2.0 - 1.0;",
+            "wB.xy *= normalScale * uWStr2 * mix( 0.7, 1.0, wFade );",
+            "vec3 wN = normalize( vec3( wA.xy + wB.xy, max( wA.z, 0.25 ) ) );",
+            "normal = perturbNormal2Arb( -vViewPosition, normal, wN, faceDirection );",
+            "#else",
+            "#include <normal_fragment_maps>",
+            "#endif"
+          ].join("\n"))
+          .replace("#include <color_fragment>", "#include <color_fragment>\n" +
+            "diffuseColor.rgb *= texture2D( tWaterTone, vWaterPos.xz * uWToneS ).rgb * uWToneK;")
+          .replace("#include <roughnessmap_fragment>", "#include <roughnessmap_fragment>\n" +
+            "float wSpark = texture2D( tWaterSpark, vUv * uWRep2 * 2.0 + vec2( uWTime * 0.004, uWTime * 0.0025 ) ).r;\n" +
+            "float wNearS = 1.0 - smoothstep( 6.0, 30.0, length( vViewPosition ) );\n" +
+            "roughnessFactor = clamp( roughnessFactor * mix( 1.0, 0.25, smoothstep( 0.5, 0.95, wSpark ) * uWGlit * mix( 0.08, 1.0, wNearS ) ), 0.02, 1.0 );\n" +
+            /* a ripple field this fine cannot hold a sun glint at 40 m: the
+               highlight settles into a dotted lattice, so the far water is
+               roughened and only the swell keeps a sheen */
+            "roughnessFactor = max( roughnessFactor, smoothstep( 18.0, 75.0, length( vViewPosition ) ) * 0.45 );");
+    };
+    m.customProgramCacheKey = () => "waterV2";
     WATER.push({ m: m, sp: speed || 0.012 });
     return m;
   }
-  function foamStrip(S, x, z, w, d, ry) {
+  function foamStrip(S, x, z, w, d, ry, op, y) {
     const t = ctex("foamTex", 256, 64, (g, W, H) => {
       const r = rng(5);
       g.clearRect(0, 0, W, H);
-      for (let i = 0; i < 500; i++) { g.fillStyle = "rgba(255,255,255," + (0.3 + r() * 0.6) + ")"; const y = Math.pow(r(), 1.8) * H; g.fillRect((r() * W) | 0, y, 3 + r() * 10, 2 + r() * 3); }
+      for (let i = 0; i < 500; i++) { g.fillStyle = "rgba(255,255,255," + (0.3 + r() * 0.6) + ")"; const yy = Math.pow(r(), 1.8) * H; g.fillRect((r() * W) | 0, yy, 3 + r() * 10, 2 + r() * 3); }
     }, { smooth: true });
     const tm = t.clone(); tm.needsUpdate = true; tm.wrapS = T.RepeatWrapping; tm.repeat.set(Math.max(1, w / 8), 1);
-    const m = new T.MeshBasicMaterial({ map: tm, transparent: true, opacity: 0.8, depthWrite: false });
+    const m = new T.MeshBasicMaterial({ map: tm, transparent: true, opacity: op == null ? 0.8 : op, depthWrite: false });
     const p = new T.Mesh(new T.PlaneGeometry(w, d), m);
     p.rotation.x = -Math.PI / 2; p.rotation.z = ry || 0;
-    p.position.set(x, 0.06, z);
+    p.position.set(x, y == null ? 0.06 : y, z);
     p.userData.noBlock = 1;
     S.add(p);
-    WATER.push({ foam: m, ph: Math.random() * 6 });
+    WATER.push({ foam: m, ph: Math.random() * 6, base: op == null ? 0.8 : op });
     return p;
   }
   function stepWater(dt) {
     const t = performance.now() / 1000;
+    WU.time.value += dt;
     WATER.forEach((w) => {
       if (w.m) { w.m.normalMap.offset.x += dt * w.sp; w.m.normalMap.offset.y += dt * w.sp * 0.6; }
-      if (w.foam) { w.foam.opacity = 0.45 + 0.4 * Math.sin(t * 0.9 + w.ph); w.foam.map.offset.x += dt * 0.01; }
+      if (w.foam) { const b = w.base == null ? 0.8 : w.base; w.foam.opacity = b * (0.62 + 0.38 * Math.sin(t * 0.9 + w.ph)); w.foam.map.offset.x += dt * 0.01; }
     });
   }
 
@@ -17293,9 +17452,14 @@
     const skirt = new T.Mesh(new T.PlaneGeometry(1400, 1400), new T.MeshStandardMaterial({ map: st, roughness: 1 }));
     skirt.rotation.x = -Math.PI / 2; skirt.position.set(0, 0.2, -200); skirt.userData.noBlock = 1; S.add(skirt);
     apRoad(S, Z0, Z1, { shoulder: "concrete" });
-    /* 압록강: water from x −125 to −25, the far bank and its town beyond */
-    const wtr = new T.Mesh(new T.PlaneGeometry(101, 170), waterMat(0x23343e, 40, 0.005));
+    /* 압록강: water from x −125 to −25, the far bank and its town beyond.
+       (v69) the current runs with the river (down +z), long swells under the
+       chop, and the dusk sky picked up in the surface */
+    const wtr = new T.Mesh(new T.PlaneGeometry(101, 170), waterMat(0x2a4050, 16, 0.005, { rep2: 0.22, str2: 1.0, toneScale: 1 / 30, flow: [0.0015, 0.013], env: 0.95 }));
     wtr.rotation.x = -Math.PI / 2; wtr.position.set(-75, 0.215, -176); wtr.userData.noBlock = 1; S.add(wtr);
+    /* the waterline along our revetment and along the far quay */
+    foamStrip(S, -25.4, -166, 172, 2.6, Math.PI / 2, 0.6, 0.225);
+    foamStrip(S, -124.4, -166, 172, 2.0, Math.PI / 2, 0.4, 0.225);
     /* the promenade, its parapet and the stone revetment down to the water */
     const walk = new T.Mesh(new T.PlaneGeometry(11, 176), hanMats().conc);
     walk.rotation.x = -Math.PI / 2; walk.position.set(-19.4, 0.244, -166); walk.receiveShadow = true; walk.userData.noBlock = 1; S.add(walk);
@@ -17326,9 +17490,10 @@
       const o = new T.Mesh(new T.PlaneGeometry(1.1, 1.5), cmat(0xffe6a8, 0.4, 0, { emissive: 0xffd070, emissiveIntensity: 0.9 }));
       o.position.set(x, y, z); o.rotation.y = Math.PI / 2; o.userData.noBlock = 1; S.add(o);
     }
-    /* a barge on the water, riding high */
+    /* a barge on the water, riding high, and the churn it drags behind */
     bx(S, 6, 1.2, 18, -78, 0.7, -212, cmat(0x3a4a52, 0.8), {});
     bx(S, 4.4, 1.0, 7, -78, 1.7, -216, cmat(0x8a5a34, 0.85), {});
+    hanWake(S, 9, 20, -78, 0.235, -199);
     VB.flush(S, "snBank");
   }
   /* (v64) the Han in more detail: shared materials for the bridges, the
@@ -18096,15 +18261,28 @@
       });
       const wtx = wt.clone(); wtx.needsUpdate = true; wtx.wrapS = wtx.wrapT = T.RepeatWrapping; wtx.repeat.set(60, 60);
       void wtx;
-      const sea = new T.Mesh(new T.PlaneGeometry(600, 600), waterMat(0x2a5a80, 90, 0.008));
+      /* (v69) open water: long swells over the short chop, and a slower drift,
+         so the sea still reads as sea from the parachute drop. The drop looks
+         straight down on it from 46 m, where a 7 m tile only reads as grain,
+         so that stage takes the coarser cut of the same material */
+      const bigSea = !!C.sea && !C.river;
+      const sea = new T.Mesh(new T.PlaneGeometry(600, 600), bigSea
+        ? waterMat(0x2a5a80, 26, 0.008, { rep2: 0.3, str2: 1.45, toneScale: 1 / 74, flow: [0.006, -0.009], nstr: 0.55, rough: 0.19, glit: 0.9 })
+        : waterMat(0x2a5a80, 44, 0.008, { rep2: 0.18, str2: 1.25, toneScale: 1 / 62, flow: [0.007, -0.011], nstr: 0.5, rough: 0.2, glit: 0.8 }));
       sea.rotation.x = -Math.PI / 2;
       sea.position.set(C.seaSide ? 300 + 12 : 0, 0.02, C.sea ? -230 - 70 + 300 - 300 : 0);
       if (C.sea) { sea.geometry.dispose(); sea.geometry = new T.PlaneGeometry(600, 300); sea.position.set(0, 0.02, -70 - 150); }
       sea.userData.noBlock = 1;
       S.add(sea);
       dress0.sea = sea;
-      if (C.sea) foamStrip(S, 0, -70.5, 260, 3, 0);
-      if (C.seaSide) foamStrip(S, 17.4, 0, 3, 200, 0);
+      if (C.sea) {
+        /* the surf: the line on the sand, a breaker further out and the faint
+           white of the third one beyond */
+        foamStrip(S, 0, -70.5, 260, 3, 0);
+        foamStrip(S, 0, -76.5, 252, 2.6, 0, 0.55);
+        foamStrip(S, 0, -84, 240, 2.2, 0, 0.32, 0.055);
+      }
+      if (C.seaSide) { foamStrip(S, 17.4, 0, 3, 200, 0); foamStrip(S, 23.5, 0, 3, 200, 0, 0.5); }
       if (C.sea && !C.river) coastProps(S);
       if (C.river) { try { hanRiver(S); } catch (e) { window.__lmErr = String(e && e.stack || e); } }
     }
