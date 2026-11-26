@@ -292,7 +292,7 @@
     /* (v67) adaptive resolution: a phone that keeps missing the budget gives
        up screen resolution before it gives up the game. 1.4 -> 1.2 -> 1.0 of
        the CSS pixel grid, and back up when the frame is comfortable again. */
-    if (MOBILE && state.mode === "play") {
+    if (state.mode === "play") {
       const dt = nowT - (tick._pt || nowT);
       tick._pt = nowT;
       if (dt > 0 && dt < 250) {
@@ -301,8 +301,8 @@
           const avg = arAcc / arN;
           arAcc = 0; arN = 0;
           let to = prScale;
-          if (avg > 25 && prScale > 0.6) to = Math.max(0.6, prScale - 0.2);
-          else if (avg < 13 && prScale < 1) to = Math.min(1, prScale + 0.1);
+          if (avg > (MOBILE ? 25 : 18) && prScale > (MOBILE ? 0.6 : 0.75)) to = Math.max(MOBILE ? 0.6 : 0.75, prScale - 0.2);
+          else if (avg < (MOBILE ? 13 : 11) && prScale < 1) to = Math.min(1, prScale + 0.1);
           if (to !== prScale) {
             prScale = to;
             resize();

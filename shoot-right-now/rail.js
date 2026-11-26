@@ -11221,6 +11221,9 @@
   }
   function shouldShowInterstitial(cleared) {
     if (!cleared) return false;
+    const AI = (window.__adInter = window.__adInter || { n: 0, ops: 0, blocked: false });
+    AI.ops++; AI.blocked = false;
+    if (AI.n >= 3 || (AI.n > 0 && AI.ops < 2)) { AI.blocked = true; return false; }
     if (tutThisRun || TUT.on) return false;
     if (adRewardedOnResult) return false;
     if (isFirstOperation()) return false;
@@ -11233,12 +11236,13 @@
     const run = () => { interPending = false; try { go(); } catch (err) {} };
     if (interPending) return;
     if (!shouldShowInterstitial(cleared)) {
-      window.__adInterstitialSkip = (!cleared && "not-cleared") || (tutThisRun || TUT.on ? "tutorial" : (adRewardedOnResult ? "rewarded" : (isFirstOperation() ? "first-op" : "no-bridge")));
+      window.__adInterstitialSkip = (!cleared && "not-cleared") || (tutThisRun || TUT.on ? "tutorial" : (adRewardedOnResult ? "rewarded" : (isFirstOperation() ? "first-op" : (window.__adInter && window.__adInter.blocked ? "cooldown" : "no-bridge"))));
       run();
       return;
     }
     interPending = true;
     window.__adInterstitialSkip = "";
+    if (window.__adInter) { window.__adInter.n++; window.__adInter.ops = 0; }
     const A = window.MGAds;
     try {
       Promise.resolve(A.showInterstitial("next-op")).then(run, run);
