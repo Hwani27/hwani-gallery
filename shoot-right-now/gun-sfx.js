@@ -453,6 +453,22 @@
     ping(c, t + 0.008, 1200, 0.05, 0.05, bus);
   }
 
+  /* (v69) the sniper: one heavy crack with a long tail down the street, a
+     lower boom than the rifle and a rolling echo behind it */
+  function snipe() {
+    if (muted()) return;
+    const c = ac();
+    const t = c.currentTime;
+    const v = 0.96 + Math.random() * 0.08;
+    band(c, t, 0.04, "highpass", 6200 * v, 0.9, 0.9, 0.0005, 0.02, bus, 3200);
+    band(c, t, 0.12, "bandpass", 2400 * v, 0.9, 0.7, 0.001, 0.07, bus);
+    band(c, t + 0.004, 0.22, "bandpass", 760 * v, 0.55, 0.5, 0.002, 0.14, bus, 500);
+    thump(c, t, 190 * v, 40, 0.24, 0.92, bus, "sine");
+    thump(c, t, 74 * v, 30, 0.34, 0.42, bus, "triangle");
+    band(c, t + 0.05, 0.85, "lowpass", 900, 0.4, 0.16, 0.02, 0.7, bus, 320);
+    ping(c, t + 0.06, 6400 * v, 0.04, 0.03, bus);
+  }
+
   /* a headshot: a bright, short metallic tink two octaves above the hit
      thud, so a skull hit is heard before it is read on the screen */
   function crit() {
@@ -819,6 +835,7 @@
     bgm,
     shot,
     rifle,
+    snipe,
     dry: dryFire,
     glass,
     shotgun,

@@ -4018,7 +4018,7 @@
       part(g, 0.3, 0.1, 0.02, 0, 0, 0.22, SOL.red);
       part(g, 0.12, 0.05, 0.1, 0, 0.235, 0, SOL.belt);
       part(g, 0.6, 0.04, 0.44, 0, -0.22, 0, SOL.stoneDark);
-    } else if (kind === "smg" || kind === "shotgun" || kind === "grenade") {
+    } else if (kind === "smg" || kind === "shotgun" || kind === "sniper" || kind === "grenade") {
       /* a weapon crate: olive case with a yellow stencil band and the gun (or
          two grenades) strapped on top */
       part(g, 0.66, 0.34, 0.42, 0, 0, 0, SOL.oliveDark);
@@ -4029,10 +4029,11 @@
         part(g, 0.06, 0.06, 0.06, -0.12, 0.44, 0, SOL.steel);
         part(g, 0.06, 0.06, 0.06, 0.12, 0.44, 0, SOL.steel);
       } else {
-        const L = kind === "shotgun" ? 0.78 : 0.56;
+        const L = kind === "shotgun" ? 0.78 : kind === "sniper" ? 0.88 : 0.56;
         part(g, L, 0.08, 0.08, 0, 0.24, 0, SOL.gunmetal || SOL.steel);
         part(g, 0.08, 0.16, 0.06, kind === "shotgun" ? 0.22 : 0.1, 0.14, 0, kind === "shotgun" ? SOL.wood : SOL.gunmetal || SOL.steel);
         if (kind === "smg") part(g, 0.06, 0.2, 0.05, -0.04, 0.12, 0, SOL.gunmetal || SOL.steel);
+        if (kind === "sniper") { part(g, 0.2, 0.06, 0.06, 0, 0.31, 0, SOL.steel); part(g, 0.05, 0.05, 0.05, 0.14, 0.31, 0, SOL.lampWarm || SOL.gold); }
       }
     } else if (kind === "ammo") {
       part(g, 0.56, 0.38, 0.36, 0, 0, 0, SOL.oliveDark);
@@ -4384,11 +4385,45 @@
   }
   function breakIt(ctx, b, at) {
     if (!b || b.broken) return;
+    /* (v69) the wooden stack takes three rounds: the first two only splinter
+       it, the third brings it down and the men behind lose their cover */
+    if (b.hp != null && b.hp > 0) {
+      b.hp--;
+      if (b.hp > 0) {
+        const sp0 = screenOf(at, ctx.camera);
+        impactBurst(ctx.scene, at, "wood");
+        hitMark("block", sp0.x, sp0.y, false, (isKO() ? "목재 " : "WOOD ") + b.hp);
+        if (b.mesh) b.mesh.rotation.z = (Math.random() - 0.5) * 0.05;
+        try { gun("clank"); } catch (e) {}
+        window.__crateHits = (window.__crateHits || 0) + 1;
+        return;
+      }
+    }
     b.broken = true;
     brokenN++; brokenPts += b.pts;
     addPts(ctx, b.pts);
     const sp = screenOf(at, ctx.camera);
-    hitMark("pickup", sp.x, sp.y, false, (b.kind === "glass" ? "GLASS +" : "SIGN +") + b.pts);
+    hitMark("pickup", sp.x, sp.y, false, (b.kind === "glass" ? "GLASS +" : b.kind === "crate" ? "COVER +" : "SIGN +") + b.pts);
+    if (b.kind === "crate") {
+      if (b.mesh) b.mesh.visible = false;
+      voxBreak(ctx.scene, at.x, Math.max(0.45, at.y), at.z, [0x8a6a3e, 0xb08a52, 0x5c4426, 0x3d3a32], 24, 1.05);
+      impactBurst(ctx.scene, at, "wood");
+      (b.of || []).forEach((p) => {
+        if (!p || !p.e || p.e.alive === false) return;
+        if (p.crate === b) p.crate = null;
+        p.coverTop = p.coverTopSaved != null ? p.coverTopSaved : Math.max(p.y + 0.35, p.coverTop || 0);
+        p.coverCX = p.x; p.coverCZ = p.z;
+        p.expose = 1;
+        p.state = p.state === "dead" ? p.state : "peek";
+        p.stateT = Math.max(p.stateT || 0, 1.6);
+        p.hitFlash = 0.06;
+        window.__crateExposed = (window.__crateExposed || 0) + 1;
+      });
+      say("엄폐물 파괴! 적이 드러났다", "Cover destroyed — they're in the open", 2000);
+      try { gun("clank"); } catch (e) {}
+      window.__broken = { n: brokenN, pts: brokenPts };
+      return;
+    }
     if (b.kind === "glass") {
       b.mesh.visible = false;
       voxBreak(ctx.scene, at.x, at.y - 0.6, at.z, [0xd8eef8, 0xa9cfe2, 0xffffff, 0x7fa9c0], 18, 0.7);
@@ -8484,7 +8519,23 @@
     P(sgG, 0.1, 0.24, 0.12, 0, -0.18, 0.06, wood);            /* grip */
     P(sgG, 0.1, 0.14, 0.34, 0, -0.08, 0.3, wood);             /* stock */
     P(sgG, 0.03, 0.04, 0.03, 0, 0.12, -1.13, mk(0xd0d0d0, { metalness: 0.9, roughness: 0.3 })); /* bead */
-    const weaponRig = { base, smg: smgG, shotgun: sgG, pump, codeGun, smgBoxes: smgG.children.slice(), flashZ: { f: f.position.z, h: halo.position.z, s: star.position.z, l: flashLight.position.z } };
+    /* (v69) the sniper: long barrel, big scope, bipod and a wooden stock,
+       in the same box-gun language as the other two */
+    const snG = wg("wSniper");
+    P(snG, 0.11, 0.12, 0.6, 0, 0.03, -0.2, blk);              /* receiver */
+    P(snG, 0.05, 0.05, 1.05, 0, 0.06, -1.0, blk2);            /* long barrel */
+    P(snG, 0.075, 0.075, 0.14, 0, 0.06, -1.6, blk);           /* muzzle brake */
+    P(snG, 0.06, 0.3, 0.09, 0, -0.24, -0.16, blk);            /* magazine */
+    P(snG, 0.1, 0.22, 0.12, 0, -0.17, 0.05, blk);             /* grip */
+    P(snG, 0.1, 0.15, 0.36, 0, -0.07, 0.34, wood);            /* stock */
+    P(snG, 0.08, 0.08, 0.36, 0, 0.19, -0.28, blk2);           /* scope tube */
+    P(snG, 0.1, 0.1, 0.07, 0, 0.19, -0.47, mk(0x0a1014, { emissive: 0x66ccff, emissiveIntensity: 0.5, roughness: 0.2 }));
+    P(snG, 0.09, 0.09, 0.07, 0, 0.19, -0.09, blk);            /* eyepiece */
+    P(snG, 0.03, 0.14, 0.03, 0, 0.12, -0.34, blk);            /* scope rings */
+    P(snG, 0.03, 0.14, 0.03, 0, 0.12, -0.2, blk);
+    [-0.035, 0.035].forEach((bx) => P(snG, 0.022, 0.18, 0.022, bx, -0.12, -0.95, blk2)); /* bipod */
+    P(snG, 0.03, 0.05, 0.16, 0, -0.05, -1.05, blk);
+    const weaponRig = { base, smg: smgG, shotgun: sgG, sniper: snG, pump, codeGun, smgBoxes: smgG.children.slice(), flashZ: { f: f.position.z, h: halo.position.z, s: star.position.z, l: flashLight.position.z } };
     /* (v28) the CC0 viewmodels live in their own hosts: empty until the .glb
        arrives, so the box models show in the meantime */
     const pistolHost = new T.Group();
@@ -9205,6 +9256,13 @@
         lane.push({ x: p.x, y: 1.3, z: p.z, kind });
       });
     });
+    /* (v69) every stage carries a marksman's crate somewhere on the lane, so
+       the sniper is reachable without depending on the combo reward */
+    if (!lane.some((s) => s.kind === "sniper") && waves.length) {
+      const w = waves[Math.min(1, waves.length - 1)];
+      const q = waveXY(w, 2.6, 6.4);
+      lane.push({ x: q.x, y: 1.3, z: q.z, kind: "sniper" });
+    }
     lane.forEach((spot) => {
       let mesh = null;
       try { mesh = makePickup(spot.kind); } catch (err) { window.__pickupErr = String(err && err.message || err); }
@@ -9357,8 +9415,9 @@
      weapon runs dry back to the pistol; there is no reloading it. */
   const WEAPONS = {
     pistol: { rate: 130, snd: "shot", kick: 1, label: "BULLET" },
-    smg: { rate: 82, snd: "smg", kick: 0.55, label: "SMG", ammo: 45 },
-    shotgun: { rate: 460, snd: "shotgun", kick: 1.6, label: "SHOTGUN", ammo: 8, pellets: 7, spread: 0.075 }
+    smg: { rate: 82, snd: "smg", kick: 0.55, label: "AR", ammo: 45 },
+    shotgun: { rate: 460, snd: "shotgun", kick: 1.6, label: "SHOTGUN", ammo: 8, pellets: 7, spread: 0.075 },
+    sniper: { rate: 760, snd: "snipe", kick: 2.4, label: "SNIPER", ammo: 5 }
   };
   let weapon = "pistol", wAmmo = 0, grenades = 2, holding = false;
   let weaponRig = null;
@@ -9377,13 +9436,15 @@
       weaponRig.smg.visible = weapon === "smg" && !weaponRig.rifleLoaded;
       if (weaponRig.rifleHost) weaponRig.rifleHost.visible = weapon === "smg" && !!weaponRig.rifleLoaded;
       weaponRig.shotgun.visible = weapon === "shotgun";
-      const dz = weapon === "smg" ? -0.44 : weapon === "shotgun" ? -0.8 : 0;
+      if (weaponRig.sniper) weaponRig.sniper.visible = weapon === "sniper";
+      const dz = weapon === "smg" ? -0.44 : weapon === "shotgun" ? -0.8 : weapon === "sniper" ? -1.58 : 0;
       if (flash) flash.position.z = weaponRig.flashZ.f + dz;
       if (flashHalo) flashHalo.position.z = weaponRig.flashZ.h + dz;
       if (flashStar) flashStar.position.z = weaponRig.flashZ.s + dz;
       if (flashLight) flashLight.position.z = weaponRig.flashZ.l + dz;
     }
     window.__weapon = { w: weapon, ammo: wAmmo, nades: grenades };
+    try { setScope(weapon === "sniper"); } catch (e) {}
     const rbt = document.getElementById("railReload");
     if (rbt) rbt.classList.toggle("noRl", weapon !== "pistol");
   }
@@ -9410,6 +9471,7 @@
     nades.forEach((n) => n.mesh.parent && n.mesh.parent.remove(n.mesh));
     nades.length = 0;
     setWeapon("pistol");
+    try { upgradeReset(); } catch (e) { window.__upResetErr = String(e); }
     if (LOAD && LOAD.start) setWeapon(LOAD.start, LOAD.start === "smg" ? 90 : 16);
     combo = 0; bestCombo = 0; shotsFired = 0; shotsHit = 0; hostageHits = 0;
     MS.kills = 0; MS.heads = 0; MS.bikes = 0; MS.nades = 0;
@@ -9465,6 +9527,7 @@
     document.documentElement.classList.add("rail-on");
     if (ctx.scene && ctx.camera && !ctx.camera.parent) ctx.scene.add(ctx.camera);
     const rig = makePistol(ctx.camera);
+    try { upgradeInitDom(); } catch (e) { window.__upDomErr = String(e); }
     try { applyArmUni(); } catch (e) {}
     pistol = rig.g;
     pistolAim = rig.aim;
@@ -9678,6 +9741,9 @@
     } catch (e) {}
     try { rebuildWallBoxes(); } catch (err) { window.__wallErr = String(err && err.stack || err); }
     try { declutter(); } catch (err) { window.__declutterErr = String(err && err.stack || err); }
+    /* (v69) drums on every battle line, and motes that belong to the mood */
+    try { addBattleProps(ctx); } catch (err) { window.__drumErr = String(err && err.stack || err); }
+    try { addMoodMotes(ctx); } catch (err) { window.__moteErr = String(err && err.stack || err); }
     /* (v67) the shadow pass only draws what can be read, before the first
        frame of the stage */
     try { trimShadowProps(); } catch (err) { window.__shadowTrimErr = String(err && err.stack || err); }
@@ -9727,12 +9793,18 @@
       storyEnd(true);
       try { storyStart(false); } catch (err) { window.__storyErr = String(err && err.stack || err); }
     } else {
-      const p0 = pathAt(0);
-      cam.position.set(p0.x, CAM_Y, p0.z);
-      const a0 = pathAt(7 / pathLen);
-      cam.lookAt(a0.x, 1.45, a0.z);
-      lookSmooth.set(a0.x, 1.45, a0.z);
-      phase = "move";
+      /* (v69) a stage with no hand-placed fly-through still opens on a
+         two second pan across its battlefield before the camera settles */
+      buildIntroCam(ctx);
+      const a = STAGE.introCam[0];
+      cam.position.set(a[0], a[1], a[2]);
+      cam.lookAt(a[3], a[4], a[5]);
+      lookSmooth.set(a[3], a[4], a[5]);
+      phase = "intro";
+      if (radioEl) radioEl.classList.remove("show");
+      radioHideAt = 0;
+      storyEnd(true);
+      try { storyStart(false); } catch (err) { window.__storyErr = String(err && err.stack || err); }
     }
     active = true;
     staged = true;
@@ -9779,6 +9851,9 @@
     try { window.GunSFX && window.GunSFX.stopLoops && window.GunSFX.stopLoops(); } catch (e) {}
     closeSupplyAd();
     active = false;
+    /* (v69) the scope, the fever tint and the boss nameplate are HUD, not
+       scenery: none of them may sit over the menu */
+    try { setScope(false); const bt = document.getElementById("railBossTag"); if (bt) bt.classList.remove("on"); } catch (e) {}
     showHud(false);
     if (pistol) pistol.visible = false;
     const box = document.getElementById("railResult");
@@ -9958,6 +10033,9 @@
   function stageWave(w) {
     if (!w || w.staged) return;
     w.staged = w.def.members.map((m, i) => makePost(w, m, i));
+    /* (v69) a stack of wooden crates in front of two of this zone's men:
+       three rounds and it bursts, and whoever was behind it is exposed */
+    try { if (window.__railCtx) addWaveCrates(window.__railCtx, w); } catch (err) { window.__crateErr = String(err && err.stack || err); }
     /* (v52) the armour is part of the wave, so it is standing there before
        the fight starts and the wave cannot end until it is wrecked */
     if (STAGE.armorWave && STAGE.armorWave === w.def.id && !w.armorPost) {
@@ -10161,19 +10239,14 @@
       p.pods.forEach((m) => { m.visible = true; m.scale.setScalar(0.6 + (1 - p.charge / 1.8) * 1.2 * pulse); });
       if (p.charge <= 0) {
         p.pods.forEach((m) => (m.visible = false));
-        const cam = ctx.camera.position;
+        /* (v69) four missiles off the pods, slow enough to be intercepted */
         for (let i = 0; i < 4; i++) {
           setTimeout(() => {
-            if (ended) return;
-            const from = new T.Vector3(p.x + (i % 2 ? 1.4 : -1.4), p.y - 0.4, p.z);
-            const to = new T.Vector3(cam.x + (Math.random() - 0.5) * 3, 0.6 + Math.random(), cam.z + 3 + Math.random() * 2);
-            tracerTo(ctx, from, to, 0xffb04a, 0.12);
-            boomAt(ctx, to.x, to.y, to.z);
-            gun("boom");
-          }, i * 110);
+            if (ended || !p.e || p.e.alive === false || !p.mesh) return;
+            try { spawnBossMissile(ctx, p, i % 2 ? 1 : -1); } catch (e) { window.__bossShotErr = String(e); }
+          }, i * 150);
         }
         shake = 1.5;
-        hurtPlayer(ctx, 24);
         p.rocketT = 8 + Math.random() * 2;
       }
       return;
@@ -10224,6 +10297,8 @@
     } catch (e) {}
     if (STAGE.bossRadio) radio(STAGE.bossRadio, 4800);
     else if (STAGE.bossKind === "apc") radio("중장갑 차량 확인! 호위 병력 분리, 측면을 노려라!", 4800);
+    /* (v69) the entrance: a short push in on the boss with its name under it */
+    try { bossFocusStart(post); } catch (e) { window.__bossFocusErr = String(e); }
     window.__railPhase = "boss";
   }
 
@@ -11543,6 +11618,7 @@
         t0 += now - pausedAt;
         frame._t = now;
         active = true;
+        try { setScope(weapon === "sniper"); } catch (e) {}
         const nextAct = window.__railPhase;
         try { window.GunSFX && window.GunSFX.bgm(true, nextAct === "boss"); } catch (e) {}
       }
@@ -11738,6 +11814,8 @@
     active = false;
     try { window.GunSFX && window.GunSFX.bgm(false); } catch (e) {}
     phase = "result";
+    /* (v69) nothing from the fight keeps running over the result card */
+    try { clearBossShots(); feverT = 0; document.body.classList.remove("railFever"); updFeverDom(); setScope(false); const bt = document.getElementById("railBossTag"); if (bt) bt.classList.remove("on"); bossCamT = 0; bossCamK = 0; } catch (e) {}
     /* the result card owns the screen: no gun, HUD or radio peeking out from behind it */
     if (pistol) pistol.visible = false;
     showHud(false);
@@ -12025,10 +12103,15 @@
   function impactBurst(scene, at, kind) {
     const conc = kind === "concrete";
     const skull = kind === "head";
+    const metal = kind === "metal";
+    const wood = kind === "wood";
     const chips = conc ? [0xe6e2d6, 0xc4c0b4, 0xf2efe6, 0xa9a597]
       : skull ? [0xffe27a, 0xfff3c4, 0xc0392b, 0xffb347]
+      : metal ? [0xfff3c0, 0xffd070, 0xffffff, 0xffa94a]
+      : wood ? [0x8a6a3e, 0xb08a52, 0x6a4f2c, 0xd8c39a]
       : [0x8e2b24, 0xb03a2c, 0x631a14];
-    for (let i = 0; i < (conc ? 8 : skull ? 11 : 5); i++) {
+    const nChips = conc ? 8 : skull ? 11 : metal ? 10 : wood ? 7 : 5;
+    for (let i = 0; i < nChips; i++) {
       const sz = 0.045 + Math.random() * 0.055;
       const m = new T.Mesh(new T.BoxGeometry(sz, sz, sz), new T.MeshBasicMaterial({ color: chips[i % chips.length] }));
       m.position.copy(at);
@@ -12037,9 +12120,9 @@
       scene.add(m);
       sparks.push(m);
     }
-    for (let i = 0; i < (conc ? 3 : 1); i++) {
+    for (let i = 0; i < (conc || wood ? 3 : 1); i++) {
       const p = new T.Mesh(new T.SphereGeometry(0.09 + Math.random() * 0.08, 6, 5),
-        new T.MeshBasicMaterial({ color: conc ? 0xd9d5c9 : 0x6e1a13, transparent: true, opacity: 0.55, depthWrite: false }));
+        new T.MeshBasicMaterial({ color: conc ? 0xd9d5c9 : wood ? 0xb9a07c : metal ? 0xa8a8a2 : 0x6e1a13, transparent: true, opacity: 0.55, depthWrite: false }));
       p.position.copy(at);
       p.userData.v = new T.Vector3((Math.random() - 0.5) * 0.5, 0.45 + Math.random() * 0.4, (Math.random() - 0.5) * 0.5 + 0.5);
       p.userData.life = 0.42 + Math.random() * 0.3;
@@ -12048,7 +12131,7 @@
       smokes.push(p);
     }
     const fl = new T.Mesh(new T.SphereGeometry(conc ? 0.1 : skull ? 0.12 : 0.07, 6, 5),
-      new T.MeshBasicMaterial({ color: conc ? 0xfff8e6 : skull ? 0xffe08a : 0xffb6a8, transparent: true, opacity: 0.95, depthWrite: false }));
+      new T.MeshBasicMaterial({ color: conc ? 0xfff8e6 : skull ? 0xffe08a : metal ? 0xfff2c4 : wood ? 0xffd9a0 : 0xffb6a8, transparent: true, opacity: 0.95, depthWrite: false }));
     fl.position.copy(at);
     scene.add(fl);
     tracers.push({ mesh: fl, life: skull ? 0.12 : 0.07, grow: 1 });
@@ -12169,6 +12252,10 @@
     else flashScreen(0.34);
     bestCombo = Math.max(bestCombo, combo);
     window.__comboAt = performance.now() / 1000;
+    /* (v69) the streak itself pays: every 8th kill hands over a gun, and
+       twelve or twenty in a row lights the fever */
+    if (combo > 0 && combo % 8 === 0) { try { comboReward(ctx); } catch (e) { window.__comboRewardErr = String(e); } }
+    else if (combo === 12) { try { feverOn(ctx); } catch (e) {} }
     p.e.alive = false;
     p.state = "dead";
     p.dying = 1.05;
@@ -12344,16 +12431,19 @@
     civAlarm = 1.2;
     const now = performance.now();
     const W = WEAPONS[weapon];
-    if (now - lastShot < W.rate) return;
+    /* (v69) fever shortens the cycle and costs no ammo */
+    const rate = W.rate * (feverT > 0 ? 0.62 : 1);
+    if (now - lastShot < rate) return;
     if (weapon === "pistol") {
       if (bullets <= 0) { gun("dry"); lastShot = now; return; }
-      bullets--;
+      if (feverT <= 0) bullets--;
     } else {
-      wAmmo--;
+      if (feverT <= 0) wAmmo--;
     }
     lastShot = now;
     shotsFired++;
     recoil = W.kick;
+    if (weapon === "sniper") { scopeKick = 1; shake = Math.max(shake, 0.55); }
     if (flash) { flash.visible = true; flash.scale.setScalar(1); }
     if (flashHalo) { flashHalo.visible = true; flashHalo.scale.setScalar(1); }
     if (flashStar) {
@@ -12383,7 +12473,7 @@
     } else {
       shootRay(ctx, false);
     }
-    if (weapon !== "pistol" && wAmmo <= 0) setWeapon("pistol");
+    if (weapon !== "pistol" && feverT <= 0 && wAmmo <= 0) setWeapon("pistol");
     window.__weapon = { w: weapon, ammo: wAmmo, nades: grenades };
   }
 
@@ -12426,6 +12516,22 @@
         if (!civHit || t < civHit.t) civHit = { t: t, r: r };
       }
     }
+    /* (v69) a shell or a missile in the air is a target too: the round only
+       has to pass close to it, so a moving projectile is still hittable */
+    let shotHit = null;
+    if (bossShots.length) {
+      const ro = ray.ray.origin, rd = ray.ray.direction;
+      for (let i = 0; i < bossShots.length; i++) {
+        const s = bossShots[i];
+        if (!s || s.dead || !s.mesh) continue;
+        const cp = s.mesh.position;
+        const t = cp.clone().sub(ro).dot(rd);
+        if (t < 1.2 || t > (ray.far || 34)) continue;
+        const perp = cp.clone().sub(ro.clone().addScaledVector(rd, t)).length();
+        if (perp > 1.6) continue;
+        if (!shotHit || t < shotHit.t) shotHit = { t: t, s: s };
+      }
+    }
     /* (v46) the streak is drawn before the outcome is decided, so a body hit,
        a wall stop and a clean miss all show the same line down the street */
     try {
@@ -12450,6 +12556,12 @@
         const wp = new T.Vector3(); m.getWorldPosition(wp);
         m.parent.remove(m);
       }
+      return;
+    }
+    if (shotHit && (!found || !found.length || found[0].distance > shotHit.t)) {
+      window.__lastShot = { sort: "bossShot", kind: shotHit.s.kind };
+      shotsHit++;
+      killBossShot(ctx, shotHit.s);
       return;
     }
     const ownerOf = (obj) => {
@@ -12516,10 +12628,11 @@
       window.__lastShot = { sort: "miss", blocked: !!blocked };
       if (blocked && !(quiet && Math.random() < 0.6)) {
         const sp = screenOf(blocked.point, ctx.camera);
+        const surf = impactFor(blocked.object);
         hitMark("block", sp.x, sp.y);
-        impactBurst(ctx.scene, blocked.point, "concrete");
+        impactBurst(ctx.scene, blocked.point, surf);
         bulletHole(ctx.scene, blocked);
-        gun("dry");
+        gun(surf === "metal" ? "clank" : "dry");
       }
       return;
     }
@@ -12550,13 +12663,13 @@
       gun("hit");
       return;
     }
-    if (hit.sort === "smg" || hit.sort === "shotgun" || hit.sort === "grenade") {
+    if (hit.sort === "smg" || hit.sort === "shotgun" || hit.sort === "sniper" || hit.sort === "grenade") {
       const item = hit.extra;
       item.taken = true;
       if (item.mesh) item.mesh.visible = false;
       if (hit.sort === "grenade") { grenades = Math.min(5, grenades + 2); addPts(ctx, 100); }
       else { setWeapon(hit.sort); addPts(ctx, 150); }
-      const lab = hit.sort === "grenade" ? "GRENADE +2" : hit.sort === "smg" ? "SMG!" : "SHOTGUN!";
+      const lab = hit.sort === "grenade" ? "GRENADE +2" : hit.sort === "smg" ? "AR!" : hit.sort === "sniper" ? "SNIPER!" : "SHOTGUN!";
       hitMark("pickup", window.__lastHitPx.x, window.__lastHitPx.y, false, lab);
       gun("reload");
       window.__weapon = { w: weapon, ammo: wAmmo, nades: grenades };
@@ -12604,15 +12717,19 @@
       hitStop = Math.max(hitStop, 0.05);
       gun("crit");
       addPts(ctx, 75);
+      try { headHit(ctx); } catch (e) { window.__headErr = String(e); }
     } else {
       hitMark("foe", window.__lastHitPx.x, window.__lastHitPx.y);
       impactBurst(ctx.scene, hit.at, "flesh");
     }
     p.hitFlash = 0.09;
     p.knock = 0.16;
-    /* head shot pays twice, and three times on the boss */
-    const dmg = head ? (p.role === "boss" ? 3 : 2) : 1;
-    window.__lastDmg = { role: p.role, head: head, dmg: dmg };    p.e.hp = (p.e.hp || 1) - dmg;
+    /* head shot pays twice, three times on the boss — and twice again with
+       the fever burning */
+    let dmg = head ? (p.role === "boss" ? 3 : 2) : 1;
+    if (feverT > 0) dmg *= 2;
+    window.__lastDmg = { role: p.role, head: head, dmg: dmg, fever: feverT > 0 };    p.e.hp = (p.e.hp || 1) - dmg;
+    if (weapon === "sniper") { try { sniperPierce(ctx, hit); } catch (e) { window.__pierceErr = String(e); } }
     if (p.commander && p.e.hp > 0) bossPhaseCheck(ctx, p);
     if (p.e.hp > 0) {
       // suppressed: he drops back behind cover instead of standing there
@@ -13557,6 +13674,20 @@
     if (STORY.on && phase !== "intro") { frame._t = nowMs; return; }   /* replayed mid-mission: hold the fight */
     frame._t = nowMs;
     glbStep(dt);
+    /* (v69) fever timer, flying boss shells, the boss-entrance zoom and its
+       nameplate all ride on the same frame clock */
+    try {
+      stepFever(ctx, dt);
+      stepBossShots(ctx, dt);
+      if (scopeKick > 0) scopeKick = Math.max(0, scopeKick - dt * 4);
+      if (bossCamT > -1.5) bossCamT -= dt;
+      if (bossCamT > 0 && bossCamPost && bossCamPost.mesh) {
+        const kk = Math.min(1, Math.min((bossCamLen - bossCamT) / 0.5, bossCamT / 0.7));
+        bossCamK = kk * 0.9;
+      } else bossCamK = Math.max(0, bossCamK - dt * 2.4);
+      window.__bossFocus = { on: bossCamT > 0, k: +bossCamK.toFixed(2) };
+      bossTagStep(ctx);
+    } catch (e) { window.__upErr = String(e && e.stack || e); }
     if (!TUT.checked && !STORY.on) { TUT.checked = true; tutStart(); }
     if (TUT.on) tutStep(ctx, dt);
     const t = (nowMs - t0) / 1000;
@@ -13669,6 +13800,14 @@
       lookSmooth.y += (lookGoal.y - lookSmooth.y) * k;
       lookSmooth.z += (lookGoal.z - lookSmooth.z) * k;
     }
+    /* (v69) the boss entrance pulls the eye onto it for a beat */
+    if (bossCamK > 0.01 && bossCamPost) {
+      const bp = bossFocusPos(bossCamPost);
+      const bk = Math.min(1, bossCamK * 0.3);
+      lookSmooth.x += (bp.x - lookSmooth.x) * bk;
+      lookSmooth.y += (bp.y - lookSmooth.y) * bk;
+      lookSmooth.z += (bp.z - lookSmooth.z) * bk;
+    }
     let sx = 0, sy = 0, sz = 0, roll = 0;
     if (shake > 0) {
       /* (v46) a short hand-held jolt: offset on all three axes plus a hair of
@@ -13692,7 +13831,7 @@
     cam.lookAt(lookSmooth.x, lookSmooth.y + sway, lookSmooth.z);
     if (roll) cam.rotateZ(roll);
     cam.near = 0.06;
-    cam.fov = viewFov();
+    cam.fov = aimFov();
     cam.updateProjectionMatrix();
     cam.updateMatrixWorld(true);
     if (ctx.player) ctx.player.visible = false;
@@ -13810,7 +13949,7 @@
     recoil = Math.max(0, recoil - 0.08);
     if (reloadK > 0) reloadK = Math.max(0, reloadK - dt / (0.44 * (PERK.reload || 1)));
     if (pistol && pistolBase) {
-      { const want = phase !== "intro" && phase !== "result"; if (pistol.visible !== want) pistol.visible = want; }
+      { const want = phase !== "intro" && phase !== "result" && weapon !== "sniper"; if (pistol.visible !== want) pistol.visible = want; }
       const asp = innerWidth / Math.max(1, innerHeight);
       const tHalf = Math.tan((cam.fov * Math.PI) / 360) * Math.abs(pistolBase.z);
       const halfW = tHalf * asp;
@@ -13830,6 +13969,15 @@
       pistol.position.x = baseX + swayX;
       pistol.position.z = pistolBase.z + kick * 0.045 + dip * 0.03;
       pistol.position.y = baseY - kick * 0.018 - dip * 0.1 + swayY;
+      /* (v69) the slide/bolt really cycles with each round: the pistol's slide
+         runs back inside the hand, the rifle's bolt follows it, the shotgun's
+         fore-end gets pumped */
+      {
+        const sl = Math.min(1, Math.max(0, kick));
+        if (window.__pistolGlb && weapon === "pistol") window.__pistolGlb.position.z = 0.095 + sl * 0.05;
+        if (window.__rifleGlb && weapon === "smg") window.__rifleGlb.position.z = -0.1 - sl * 0.07;
+        if (weaponRig && weaponRig.pump && weapon === "shotgun") weaponRig.pump.position.z = -0.62 + Math.sin(sl * Math.PI) * 0.1;
+      }
 
       /* ---- point the barrel at what the shot is on ----
          The aim ray is the one `fire()` uses. If an exposed enemy sits on it,
@@ -13904,7 +14052,7 @@
     window.__posts = posts;
     window.__aimN = aimN;
     if (flash) { flash.visible = since < 70; flash.scale.setScalar(1 + (1 - Math.min(1, since / 70)) * 1.4); }
-    if (flashLight) flashLight.intensity = since < 95 ? (1 - since / 95) * 4.6 : 0;
+    if (flashLight) flashLight.intensity = since < 95 ? (1 - since / 95) * 7.4 * (0.82 + Math.random() * 0.36) : 0;
     if (flashHalo) {
       flashHalo.visible = since < 90;
       const k = Math.min(1, since / 90);
@@ -13998,6 +14146,7 @@
     window.__railPhase = phase;
     window.__railDbg = {
       phase, waveI, u: +pathU.toFixed(3), cam: [+cam.position.x.toFixed(2), +cam.position.z.toFixed(2)],
+      storyOn: !!STORY.on, tutOn: !!TUT.on,
       posts: posts.length, alive: posts.filter((p) => p.e.alive !== false).length,
       exposed: posts.filter((p) => p.live !== false && p.e.alive !== false && p.expose > 0.42).length,
       states: posts.filter((p) => p.live !== false).map((p) => p.state).join(","),
@@ -14117,6 +14266,8 @@
     const S = window.MGStory, ep = S && S.eps && S.eps[stageId];
     STORY.skipRadio = false;
     if (!ep || practice) return false;
+    /* a headless run sets this so the fight can be driven without a reader */
+    if (window.__noStory) return false;
     /* (v53) every time a mission is started from the menu; only an
        immediate restart / retry of the same mission skips it */
     if (!force && STORY.lastStage === stageId) return false;
@@ -16171,7 +16322,7 @@
     const zs = [-50, -34, -18, -2, 14, 30, 44];
     const lats = [-6.6, -4.4, -2.4, 2.4, 4.4, 6.6];
     const covers = ["sandbag", "crate", "barrier", "crates", "sandbag", "bunker", "crate"];
-    const picksK = ["ammo", "supply", "grenade", "smg", "shotgun", "ammo", "life"];
+    const picksK = ["ammo", "supply", "grenade", "smg", "shotgun", "sniper", "ammo", "life"];
     return zs.map((z, i) => {
       const x = +cityX(z).toFixed(2);
       const n = 3 + (i > 2 ? 1 : 0) + (i > 4 ? 1 : 0);
@@ -19798,11 +19949,9 @@
         p.jam = 0;
         p.cannonT = 7 + Math.random() * 2;
         p.recoil = 1;
-        boomAt(ctx, ctx.camera.position.x + (Math.random() - 0.5) * 3, 0.8, ctx.camera.position.z + 4 + Math.random() * 2);
-        flashScreen(0.8);
-        shake = 1.8;
-        gun("boom");
-        hurtPlayer(ctx, 34);
+        /* (v69) the shell is a real projectile now: it flies in and can be
+           shot out of the air before it lands */
+        try { spawnBossShell(ctx, p, mz); } catch (e) { window.__bossShotErr = String(e); }
         window.__cannonHits = (window.__cannonHits || 0) + 1;
       }
       return;
@@ -19903,6 +20052,19 @@
     const h = Math.max(0.6, box.max.y - box.min.y);
     let crit = at.y > box.min.y + h * 0.72;
     let dmg = p.air === "apc" ? (crit ? 3 : 1) : 1;
+    /* (v69) the gunship's rotor head is its weak point: 2 a round, gold mark */
+    if (p.air === "heli" && p.isBoss) {
+      const rot = p.mesh && p.mesh.userData && p.mesh.userData.rotor;
+      if (rot) {
+        rot.getWorldPosition(_mz);
+        if (_mz.distanceTo(at) < 2.5) {
+          dmg = 2; crit = true;
+          const spw = screenOf(at, ctx.camera);
+          hitMark("head", spw.x, spw.y, true, isKO() ? "로터 약점 ×2" : "ROTOR ×2");
+          window.__weakHits = (window.__weakHits || 0) + 1;
+        }
+      }
+    }
     if (p.air === "apc") {
       /* armour: 0.5 a round anywhere, 5 on the glowing vent, and while the
          main gun is charging, a round near the muzzle jams it */
@@ -19934,6 +20096,7 @@
       else if (!(p.charge > 0)) hitMark("block", sp.x, sp.y, false, "ARMOR");
     }
     if (force != null) dmg = force;
+    if (feverT > 0) dmg *= 2;
     p.e.hp = (p.e.hp || 1) - dmg;
     p.hitFlash = 0.09;
     burst(ctx.scene, at.x, at.y, at.z, dmg >= 3 || p.e.hp <= 1);
@@ -20013,6 +20176,536 @@
     });
   }
 
+  /* ============================================================
+     (v69) COMBAT UPGRADES
+       1) supply weapons (AR · shotgun · sniper) and FEVER TIME
+       2) exploding drums everywhere, breakable wooden cover, boss
+          weak points and shells that can be shot out of the air
+       3) slide/bolt cycle, muzzle light, surface hits, ambient motes
+       4) stage-entry pan and the boss entrance zoom + nameplate
+     Everything here is pooled or shared-geometry so the phone keeps
+     its frame rate.
+     ============================================================ */
+  const isKO = () => (document.documentElement.lang || "").startsWith("ko");
+  function say(k, e, ms) { try { radio(isKO() ? k : e, ms || 2600); } catch (err) {} }
+
+  /* ---------------- (1) FEVER TIME ----------------
+     3 head shots inside 4 s, or a 12 kill combo, and the fight goes
+     gold for 6.5 s: no ammo is spent and every round hits twice as hard.
+     A head shot during fever tops the timer back up. */
+  let feverT = 0, feverN = 0, headStreak = 0, headStreakAt = 0, feverSparkT = 0;
+  let scopeKick = 0;
+  function feverOn(ctx) {
+    if (feverT > 0) { feverT = Math.min(9.5, feverT + 2.2); updFeverDom(); return; }
+    feverT = 6.5; feverN++;
+    document.body.classList.add("railFever");
+    say("피버 타임! 탄창 무한 · 화력 2배", "FEVER TIME! infinite ammo · double damage", 2600);
+    try { gun("crit"); } catch (e) {}
+    try { flashScreen(0.2, "radial-gradient(120% 90% at 50% 100%,rgba(255,196,90,.55),rgba(255,150,40,0) 70%)"); } catch (e) {}
+    try {
+      const c = ctx && ctx.camera ? ctx.camera.position : null;
+      if (c) for (let i = 0; i < 16 && fxRoom(sparks, FX_CAP.sparks); i++) {
+        const m = new T.Mesh(new T.BoxGeometry(0.05, 0.05, 0.05), new T.MeshBasicMaterial({ color: i % 2 ? 0xffd36a : 0xfff3c0 }));
+        m.position.set(c.x + (Math.random() - 0.5) * 7, 0.4 + Math.random() * 2.6, c.z - 2 - Math.random() * 5);
+        m.userData.v = new T.Vector3((Math.random() - 0.5) * 1.2, 1.6 + Math.random() * 1.8, (Math.random() - 0.5) * 1.2);
+        m.userData.life = 0.9 + Math.random() * 0.5;
+        m.userData.burn = 1;
+        ctx.scene.add(m);
+        sparks.push(m);
+      }
+    } catch (e) { window.__feverFxErr = String(e); }
+    updFeverDom();
+    window.__fever = { on: true, n: feverN, t: +feverT.toFixed(1) };
+  }
+  function stepFever(ctx, dt) {
+    if (feverT <= 0) return;
+    feverT -= dt;
+    feverSparkT -= dt;
+    if (feverSparkT <= 0 && ctx) {
+      feverSparkT = 0.22;
+      try {
+        if (fxRoom(sparks, FX_CAP.sparks)) {
+          const c = ctx.camera.position;
+          const m = new T.Mesh(new T.BoxGeometry(0.045, 0.045, 0.045), new T.MeshBasicMaterial({ color: 0xffd36a }));
+          m.position.set(c.x + (Math.random() - 0.5) * 6, 0.3 + Math.random() * 0.6, c.z - 1.5 - Math.random() * 4);
+          m.userData.v = new T.Vector3((Math.random() - 0.5) * 0.6, 1.1 + Math.random() * 1.2, 0);
+          m.userData.life = 0.8;
+          m.userData.burn = 1;
+          ctx.scene.add(m);
+          sparks.push(m);
+        }
+      } catch (e) {}
+    }
+    if (feverT <= 0) {
+      feverT = 0;
+      document.body.classList.remove("railFever");
+      updFeverDom();
+      window.__fever = { on: false, n: feverN, t: 0 };
+    } else updFeverDom();
+    window.__fever = window.__fever || {};
+    window.__fever.on = feverT > 0;
+    window.__fever.t = +feverT.toFixed(2);
+  }
+  /* one gold bar under the crosshair while the fever lasts */
+  function updFeverDom() {
+    const el = document.getElementById("railFever");
+    if (!el) return;
+    const on = feverT > 0;
+    el.classList.toggle("on", on);
+    const bar = el.querySelector("i");
+    if (bar) bar.style.width = Math.max(0, Math.min(100, (feverT / 6.5) * 100)).toFixed(1) + "%";
+  }
+  function headHit(ctx) {
+    const now = performance.now();
+    headStreak = (now - headStreakAt < 4000) ? headStreak + 1 : 1;
+    headStreakAt = now;
+    window.__headStreak = headStreak;
+    if (headStreak >= 3) { headStreak = 0; try { feverOn(ctx); } catch (e) { window.__feverErr = String(e); } }
+  }
+  /* (1b) combo rewards: the streak itself hands out the good guns, so a
+     clean run keeps a special weapon in hand even when no crate drops */
+  let comboRewards = 0;
+  function comboReward(ctx) {
+    comboRewards++;
+    const roll = comboRewards % 3;
+    if (combo > 0 && combo >= 20) { try { feverOn(ctx); } catch (e) {} return; }
+    if (roll === 2) { grenades = Math.min(5, grenades + 2); say("콤보 보상 · 수류탄 +2", "Combo reward · +2 grenades", 1800); hitMark("pickup", innerWidth / 2, innerHeight * 0.42, false, isKO() ? "수류탄 +2" : "GRENADE +2"); window.__weapon = { w: weapon, ammo: wAmmo, nades: grenades }; return; }
+    const pick = roll === 0 ? "smg" : "sniper";
+    setWeapon(pick);
+    say("콤보 보상 · " + (pick === "smg" ? "돌격소총" : "저격총") + " 지급!", "Combo reward · " + (pick === "smg" ? "ASSAULT RIFLE" : "SNIPER") + "!", 1800);
+    hitMark("pickup", innerWidth / 2, innerHeight * 0.42, false, pick === "smg" ? "AR!" : "SNIPER!");
+    window.__comboRewards = comboRewards;
+  }
+
+  /* ---------------- (1c) the sniper's through-and-through ----------------
+     The round keeps going: up to two more men standing on the same line
+     take 2 each (4 in fever) without a second trigger pull. */
+  function sniperPierce(ctx, first) {
+    if (weapon !== "sniper" || !ctx) return;
+    const cam = ctx.camera;
+    if (!cam) return;
+    const ray = new T.Raycaster();
+    ray.setFromCamera(new T.Vector2(aimN.x, aimN.y), cam);
+    const o = ray.ray.origin, d = ray.ray.direction;
+    let d0 = 2;
+    if (first && first.at) d0 = first.at.distanceTo(o);
+    const list = [];
+    posts.forEach((p) => {
+      if (p === first || p.live === false || p.e.alive === false || p.role === "hostage" || !p.mesh) return;
+      if (p.air) return;
+      const v = new T.Vector3();
+      p.mesh.getWorldPosition(v);
+      v.y += (p.headTop || 1.6) * 0.55;
+      const t = v.clone().sub(o).dot(d);
+      if (t < d0 + 0.7 || t > 60) return;
+      const perp = v.clone().sub(o.clone().addScaledVector(d, t)).length();
+      if (perp > 0.9) return;
+      list.push({ p: p, t: t });
+    });
+    list.sort((a, b) => a.t - b.t);
+    let n = 0;
+    for (let i = 0; i < list.length && n < 2; i++) {
+      const p = list[i].p;
+      n++;
+      const at = o.clone().addScaledVector(d, list[i].t);
+      try { impactBurst(ctx.scene, at, "flesh"); } catch (e) {}
+      p.hitFlash = 0.09; p.knock = 0.18;
+      p.e.hp = (p.e.hp || 1) - (feverT > 0 ? 4 : 2);
+      window.__pierced = (window.__pierced || 0) + 1;
+      if (p.e.hp <= 0) { try { killPost(ctx, p, 200); } catch (e) {} }
+      else if (p.state !== "dead") p.state = "duck";
+    }
+  }
+
+  /* ---------------- (2a) drums at every battle line ---------------- */
+  function nearDrum(x, z, r) {
+    if (!dress || !dress.barrels) return false;
+    for (let i = 0; i < dress.barrels.length; i++) {
+      const b = dress.barrels[i];
+      if (!b || b.dead) continue;
+      if (Math.hypot(b.x - x, b.z - z) < r) return true;
+    }
+    return false;
+  }
+  function addBattleProps(ctx) {
+    if (!dress || !dress.root || !waves || !waves.length) return;
+    let n = 0;
+    window.__battleDrums = 0;
+    window.__crates = 0;
+    waves.forEach((w, i) => {
+      if (!w || !w.hold) return;
+      const sides = i % 2 ? [1, -1] : [-1, 1];
+      let placed = 0;
+      for (let k = 0; k < sides.length && placed < 2; k++) {
+        for (let j = 0; j < 3 && placed < 2; j++) {
+          const sgn = sides[k], dep = [7.6, 9.8, 6.6][j];
+          const q = waveXY(w, sgn * (3.0 + j * 0.7), dep);
+          if (nearDrum(q.x, q.z, 4.5)) continue;
+          if (insideWall(q.x, q.z, 0.55)) continue;
+          try {
+            const b = makeBarrel(q.x, q.z, 0.3);
+            dress.root.add(b);
+            dress.barrels.push({ mesh: b, x: q.x, z: q.z, y: 0.3, dead: false });
+            placed++; n++;
+          } catch (e) { window.__drumErr = String(e); }
+        }
+      }
+    });
+    window.__battleDrums = n;
+    window.__drums = dress.barrels.length;
+  }
+
+  /* ---------------- (2b) breakable wooden cover ----------------
+     A stack of crates in front of a pair of men per wave: three rounds
+     into it and it bursts into splinters — the man behind it loses his
+     cover and has to stand up. */
+  function crateCover(x, z, yaw) {
+    makeSol();
+    const g = new T.Group();
+    const a = makeCrate(-0.42, 0, 0.92, 0);
+    const b = makeCrate(0.44, 0, 0.88, 0);
+    const c = makeCrate(0.02, 0.02, 0.8, 0.9);
+    g.add(a); g.add(b); g.add(c);
+    g.name = "crateCover";
+    /* never folded into the baked static street: this stack can be destroyed */
+    g.userData.keep = 1;
+    g.userData.keepShadow = 1;
+    g.position.set(x, 0.3, z);
+    g.rotation.y = yaw || 0;
+    return g;
+  }
+  function nearestRailPoint(x, z) {
+    if (!curve) return null;
+    let best = null, bd = 1e9;
+    for (let i = 0; i <= 40; i++) {
+      const pt = curve.getPointAt(i / 40);
+      const d = (pt.x - x) * (pt.x - x) + (pt.z - z) * (pt.z - z);
+      if (d < bd) { bd = d; best = pt; }
+    }
+    return best;
+  }
+  function addWaveCrates(ctx, w) {
+    if (!ctx || !ctx.scene || !w || !w.staged) return;
+    window.__crateCalls = (window.__crateCalls || 0) + 1;
+    const all = w.staged.filter((p) => p && p.mesh && !p.air && !p.runner && p.role !== "hostage" && p.role !== "boss" && p.coverTop !== undefined);
+    /* men peeking over a low prop are the ones a crate can really hide */
+    let cand = all.filter((p) => (p.coverTop - p.y) < 1.2);
+    if (!cand.length) cand = all;
+    window.__crateCand = (window.__crateCand || 0) + cand.length;
+    let placed = 0;
+    for (let i = 0; i < cand.length && placed < 2; i++) {
+      const p = cand[i];
+      if (!p || p.crate) continue;
+      const rail = nearestRailPoint(p.x, p.z);
+      let dx = 0, dz = 1;
+      if (rail) {
+        const vx = rail.x - p.x, vz = rail.z - p.z, l = Math.hypot(vx, vz) || 1;
+        dx = vx / l; dz = vz / l;
+      } else continue;
+      let cx = p.x + dx * 1.25, cz = p.z + dz * 1.25;
+      if (insideWall(cx, cz, 0.35)) { cx = p.x + dx * 1.75; cz = p.z + dz * 1.75; }
+      if (insideWall(cx, cz, 0.3)) { window.__crateSkipWall = (window.__crateSkipWall || 0) + 1; continue; }
+      if (nearDrum(cx, cz, 1.8)) { window.__crateSkipDrum = (window.__crateSkipDrum || 0) + 1; continue; }
+      /* a floating supply crate in front of it would eat the first rounds */
+      if (pickups.some((it) => it && it.mesh && Math.hypot(it.mesh.position.x - cx, it.mesh.position.z - cz) < 1.6)) { window.__crateSkipPick = (window.__crateSkipPick || 0) + 1; continue; }
+      /* the stack has to be visible from the rail, or nobody would ever shoot it */
+      try {
+        if (blockedFromCamera(new T.Vector3(cx, 1.0, cz), new T.Vector3(rail.x, 1.68, rail.z))) { window.__crateSkipLos = (window.__crateSkipLos || 0) + 1; continue; }
+      } catch (e) {}
+      let g = null;
+      try { g = crateCover(cx, cz, Math.atan2(dx, dz)); } catch (e) { continue; }
+      ctx.scene.add(g);
+      g.updateMatrixWorld(true);
+      let top = 1.6;
+      try { const bb = new T.Box3().setFromObject(g); top = bb.max.y; } catch (e) {}
+      const b = { mesh: g, kind: "crate", pts: 150, hp: 3, broken: false, x: cx, z: cz, of: [p] };
+      breakables.push(b);
+      p.crate = b;
+      p.coverTopSaved = p.coverTopSaved != null ? p.coverTopSaved : p.coverTop;
+      p.coverTop = Math.max(p.coverTop || 0, top);
+      p.coverCX = cx; p.coverCZ = cz;
+      placed++;
+      window.__crates = (window.__crates || 0) + 1;
+    }
+  }
+
+  /* ---------------- (2c) shells and missiles you can shoot down ----------
+     The tank's main gun and the gunship's rocket pods now put something in
+     the air. A round that reaches it bursts it where it flies (300 points);
+     one that gets through lands on the player. */
+  const bossShots = [];
+  window.__bossShots = bossShots;
+  let BS_GEO = null, BS_TAIL = null, BS_GLOW = null;
+  function spawnBossShot(ctx, kind, from, dmg) {
+    if (!ctx || ended) return null;
+    if (!BS_GEO) {
+      BS_GEO = new T.CylinderGeometry(0.075, 0.11, 0.62, 7);
+      BS_TAIL = new T.CylinderGeometry(0.02, 0.13, 0.5, 6);
+      BS_GLOW = new T.SphereGeometry(0.16, 7, 6);
+    }
+    const g = new T.Group();
+    const bodyMat = new T.MeshBasicMaterial({ color: kind === "shell" ? 0xffd9a0 : 0xcfd6dc });
+    const body = new T.Mesh(BS_GEO, bodyMat);
+    body.rotation.x = Math.PI / 2;
+    g.add(body);
+    const tail = new T.Mesh(BS_TAIL, new T.MeshBasicMaterial({ color: 0xff9a3c, transparent: true, opacity: 0.9, blending: T.AdditiveBlending, depthWrite: false }));
+    tail.rotation.x = Math.PI / 2;
+    tail.position.z = 0.45;
+    g.add(tail);
+    const glow = new T.Mesh(BS_GLOW, new T.MeshBasicMaterial({ color: 0xffe6a8, transparent: true, opacity: 0.9, blending: T.AdditiveBlending, depthWrite: false }));
+    glow.position.z = -0.3;
+    glow.scale.setScalar(kind === "shell" ? 1.6 : 1.2);
+    g.add(glow);
+    const cam = ctx.camera.position;
+    const to = new T.Vector3(cam.x + (Math.random() - 0.5) * 2.6, 0.9 + Math.random() * 0.7, cam.z + 2.4 + Math.random() * 2.4);
+    const start = from ? from.clone() : new T.Vector3(cam.x, 1.6, cam.z - 20);
+    g.position.copy(start);
+    g.lookAt(to);
+    ctx.scene.add(g);
+    const s = {
+      mesh: g, kind: kind, from: start, to: to, t: 0,
+      dur: kind === "shell" ? 1.35 : 2.0,
+      arc: kind === "shell" ? 2.2 : 1.0,
+      dmg: dmg != null ? dmg : (kind === "shell" ? 30 : 12),
+      trailT: 0, dead: false
+    };
+    bossShots.push(s);
+    window.__bossShotN = (window.__bossShotN || 0) + 1;
+    return s;
+  }
+  function spawnBossShell(ctx, p, muzzle) {
+    const from = new T.Vector3();
+    if (muzzle && muzzle.getWorldPosition) muzzle.getWorldPosition(from);
+    else from.set(p.x, p.y + 1.3, p.z);
+    const s = spawnBossShot(ctx, "shell", from, 30);
+    if (s) { flashScreen(0.35); shake = 1.6; gun("boom"); try { burst(ctx.scene, from.x, from.y, from.z, true); } catch (e) {} }
+    return s;
+  }
+  function spawnBossMissile(ctx, p, side) {
+    const from = new T.Vector3(p.x + (side || 1) * 1.2, p.y - 0.3, p.z);
+    if (p.pods && p.pods.length) {
+      const pod = p.pods[side > 0 ? 1 : 0] || p.pods[0];
+      if (pod && pod.getWorldPosition) pod.getWorldPosition(from);
+    }
+    const s = spawnBossShot(ctx, "missile", from, 9);
+    if (s) { try { gun("shotgun"); } catch (e) {} }
+    return s;
+  }
+  function killBossShot(ctx, s) {
+    if (!s || s.dead) return;
+    s.dead = true;
+    const pos = s.mesh ? s.mesh.position.clone() : new T.Vector3();
+    if (s.mesh && s.mesh.parent) s.mesh.parent.remove(s.mesh);
+    const i = bossShots.indexOf(s);
+    if (i >= 0) bossShots.splice(i, 1);
+    try { boomAt(ctx, pos.x, pos.y, pos.z); } catch (e) {}
+    try { burst(ctx.scene, pos.x, pos.y, pos.z, true); } catch (e) {}
+    addPts(ctx, 300);
+    window.__intercepts = (window.__intercepts || 0) + 1;
+    const sp = screenOf(pos, ctx.camera);
+    try { hitMark("head", sp.x, sp.y, true, isKO() ? "요격!" : "INTERCEPT!"); } catch (e) {}
+    try { gun("crit"); } catch (e) {}
+    say("공중 요격! 포탄 격추", "Intercepted — target destroyed", 1400);
+  }
+  function stepBossShots(ctx, dt) {
+    if (!bossShots.length) return;
+    for (let i = bossShots.length - 1; i >= 0; i--) {
+      const s = bossShots[i];
+      if (!s || s.dead) { bossShots.splice(i, 1); continue; }
+      s.t += dt;
+      const k = Math.min(1, s.t / s.dur);
+      const px = s.from.x + (s.to.x - s.from.x) * k;
+      const pz = s.from.z + (s.to.z - s.from.z) * k;
+      const py = s.from.y + (s.to.y - s.from.y) * k + Math.sin(k * Math.PI) * s.arc;
+      s.mesh.position.set(px, py, pz);
+      s.trailT -= dt;
+      if (s.trailT <= 0) {
+        s.trailT = 0.05;
+        try { smokeAt(ctx, px, py, pz, s.kind === "shell" ? 0x9a9384 : 0x6a655c); } catch (e) {}
+      }
+      if (k >= 1) {
+        s.dead = true;
+        if (s.mesh.parent) s.mesh.parent.remove(s.mesh);
+        bossShots.splice(i, 1);
+        try { boomAt(ctx, s.to.x, 0.8, s.to.z); } catch (e) {}
+        try { flashScreen(0.7); } catch (e) {}
+        shake = 1.7;
+        try { gun("boom"); } catch (e) {}
+        hurtPlayer(ctx, s.dmg);
+        window.__bossShotHits = (window.__bossShotHits || 0) + 1;
+      }
+    }
+  }
+  function clearBossShots() {
+    bossShots.slice().forEach((s) => { if (s.mesh && s.mesh.parent) s.mesh.parent.remove(s.mesh); });
+    bossShots.length = 0;
+  }
+
+  /* ---------------- (4a) stage-entry pan (a short one, where a stage has
+     no hand-placed camera path) ---------------- */
+  function buildIntroCam(ctx) {
+    const p0 = pathAt(0);
+    const ahead = pathAt(Math.min(0.08, 9 / Math.max(1, pathLen)));
+    STAGE.introCam = [
+      [p0.x - 7.5, 8.5, p0.z - 5.5, ahead.x, 3.2, ahead.z],
+      [p0.x, CAM_Y, p0.z, ahead.x, 1.45, ahead.z]
+    ];
+    STAGE.introDur = 2.0;
+    if (!STAGE.introLines || !STAGE.introLines.length) STAGE.introLines = [];
+  }
+
+  /* ---------------- (4b) boss entrance: zoom-in + nameplate ---------------- */
+  let bossCamT = 0, bossCamPost = null, bossCamLen = 2.0, bossCamK = 0, bossTagEl = null;
+  function bossName(p) {
+    const BN = {
+      man: ["적 지휘관", "ENEMY COMMANDER"],
+      apc: [STAGE.bossTank ? "적 주력 전차" : "적 장갑차", STAGE.bossTank ? "MAIN BATTLE TANK" : "ARMOURED CAR"],
+      heli: ["적 공격헬기", "ATTACK GUNSHIP"],
+      commander: ["총사령관", "SUPREME LEADER"]
+    };
+    const bn = BN[STAGE.bossKind] || BN.man;
+    return isKO() ? bn[0] : bn[1];
+  }
+  function bossFocusStart(p) {
+    bossCamT = 2.0; bossCamLen = 2.0; bossCamPost = p || null; bossCamK = 0;
+    const el = document.getElementById("railBossTag");
+    if (el && p) {
+      bossTagEl = el;
+      el.querySelector("b").textContent = bossName(p);
+      el.querySelector("small").textContent = (STAGE.label || "") + (isKO() ? " · 보스 등장" : " · BOSS");
+      el.classList.add("on");
+    }
+    window.__bossFocus = { on: true, t: bossCamT };
+  }
+  function bossFocusPos(p) {
+    const v = new T.Vector3(p.x, p.y + (p.air === "heli" ? 3.0 : p.air === "apc" ? 1.6 : 1.5), p.z);
+    return v;
+  }
+  function bossTagStep(ctx) {
+    const el = bossTagEl || document.getElementById("railBossTag");
+    if (!el) return;
+    const p = bossCamPost;
+    let show = bossCamT > -1.2 && p && p.mesh && p.e && p.e.alive !== false && !ended && phase !== "result";
+    if (show) {
+      const v = bossFocusPos(p);
+      v.project(ctx.camera);
+      if (v.z > 1 || Math.abs(v.x) > 1.15 || Math.abs(v.y) > 1.2) show = false;
+      else {
+        const sx = (v.x * 0.5 + 0.5) * innerWidth;
+        const sy = (-v.y * 0.5 + 0.5) * innerHeight;
+        el.style.transform = "translate(-50%,-50%) translate(" + sx.toFixed(0) + "px," + (sy - 54).toFixed(0) + "px)";
+        el.style.opacity = String(Math.max(0, Math.min(1, (bossCamT + 1.2) / 1.2)));
+      }
+    }
+    el.classList.toggle("on", !!show);
+  }
+
+  /* ---------------- (3a) what a round stopped on ---------------- */
+  function impactFor(obj) {
+    if (!obj) return "concrete";
+    let node = obj, m = null, name = "";
+    for (let i = 0; i < 4 && node; i++) {
+      if (node.name) name += " " + node.name;
+      const mm = node.material;
+      if (!m && mm && !Array.isArray(mm)) m = mm;
+      node = node.parent;
+    }
+    if (/(metal|steel|car|truck|bus|wreck|barrel|drum|rail|pole|guard|container|sign)/i.test(name)) return "metal";
+    if (m && m.metalness != null && m.metalness > 0.55) return "metal";
+    if (/(wood|crate|plank|fence|tree|trunk)/i.test(name)) return "wood";
+    return "concrete";
+  }
+
+  /* ---------------- (3b) ambient motes by stage mood ----------------
+     fire stages get drifting embers, a clear day gets dust in the sun;
+     rain and snow are already weather systems and stay the only particles
+     there. */
+  function addMoodMotes(ctx) {
+    if (!ctx || weather) return;
+    const m = window.__mood || "day";
+    if (m === "war" || m === "night" || m === "dusk" || m === "rain") {
+      if (!weather) startWeather(ctx, "embers");
+      window.__motes = "embers";
+    } else if (m === "day" || m === "morning") {
+      if (!weather) startWeather(ctx, "dust");
+    }
+    window.__motes = weather ? weather.kind : null;
+  }
+
+  /* ---------------- (3c) the scope overlay / fever bar / boss tag ------- */
+  function upgradeCss() {
+    if (document.getElementById("railCss2")) return;
+    const st = document.createElement("style");
+    st.id = "railCss2";
+    st.textContent = `
+      #railScope{position:fixed;inset:0;z-index:39;pointer-events:none;display:none}
+      #railScope.on{display:block}
+      #railScope .vig{position:absolute;inset:0;background:radial-gradient(circle at 50% 50%,rgba(0,0,0,0) 30%,rgba(0,0,0,.42) 55%,rgba(0,0,0,.9) 78%)}
+      #railScope .ring{position:absolute;left:50%;top:50%;width:min(74vh,74vw);height:min(74vh,74vw);transform:translate(-50%,-50%);border:2px solid rgba(10,14,8,.9);border-radius:50%;box-shadow:0 0 0 3px rgba(96,112,78,.55),0 0 0 5px rgba(8,10,6,.6),inset 0 0 70px rgba(0,0,0,.55)}
+      #railScope .h{position:absolute;left:50%;top:50%;width:min(74vh,74vw);height:2px;transform:translate(-50%,-50%);background:linear-gradient(90deg,rgba(210,225,190,0) 6%,rgba(210,225,190,.28) 16%,rgba(28,36,22,.95) 46%,#e8f0d8 49.5%,#e8f0d8 50.5%,rgba(28,36,22,.95) 54%,rgba(210,225,190,.28) 84%,rgba(210,225,190,0) 94%)}
+      #railScope .v{position:absolute;left:50%;top:50%;height:min(74vh,74vw);width:2px;transform:translate(-50%,-50%);background:linear-gradient(180deg,rgba(210,225,190,0) 6%,rgba(210,225,190,.28) 16%,rgba(28,36,22,.95) 46%,#e8f0d8 49.5%,#e8f0d8 50.5%,rgba(28,36,22,.95) 54%,rgba(210,225,190,.28) 84%,rgba(210,225,190,0) 94%)}
+      #railScope .dot{position:absolute;left:50%;top:50%;width:6px;height:6px;border-radius:50%;transform:translate(-50%,-50%);background:#e0402a;box-shadow:0 0 8px rgba(255,90,60,1),0 0 0 1px rgba(0,0,0,.8)}
+      #railScope .mil{position:absolute;left:50%;top:calc(50% + 28px);transform:translateX(-50%);color:rgba(226,238,206,.85);text-shadow:0 1px 2px rgba(0,0,0,.9);font:700 10px/1 ui-monospace,monospace;letter-spacing:.14em}
+      #railScope .tag{position:absolute;left:50%;bottom:26%;transform:translateX(-50%);color:#eaf2da;text-shadow:0 1px 3px rgba(0,0,0,.9);font:800 11px/1 ui-monospace,monospace;letter-spacing:.28em;opacity:.9}
+      #railFever{position:fixed;left:50%;bottom:max(96px,calc(env(safe-area-inset-bottom) + 96px));transform:translateX(-50%);z-index:45;display:none;width:min(230px,52vw);pointer-events:none;text-align:center;font-family:Pretendard,system-ui,sans-serif}
+      #railFever.on{display:block}
+      #railFever b{display:block;font:900 13px/1 ui-monospace,monospace;letter-spacing:.32em;color:#ffd979;text-shadow:0 0 12px rgba(255,180,60,.9),0 2px 0 rgba(0,0,0,.6)}
+      #railFever em{display:block;height:5px;margin-top:5px;border-radius:3px;background:rgba(0,0,0,.55);overflow:hidden;border:1px solid rgba(255,210,110,.5)}
+      #railFever i{display:block;height:100%;width:100%;background:linear-gradient(90deg,#ffb347,#ffe9a8);transition:width .12s linear}
+      body.railFever #mgCanvas{filter:saturate(1.22) contrast(1.06) brightness(1.04)}
+      body.railFever #railX{filter:drop-shadow(0 0 6px rgba(255,200,90,.95))}
+      #railBossTag{position:fixed;left:0;top:0;z-index:46;display:none;pointer-events:none;opacity:0;transition:opacity .3s;text-align:center;font-family:Pretendard,system-ui,sans-serif;white-space:nowrap}
+      #railBossTag.on{display:block}
+      #railBossTag small{display:block;font:800 9px/1 ui-monospace,monospace;letter-spacing:.34em;color:#ff6a52}
+      #railBossTag b{display:inline-block;margin-top:4px;padding:4px 12px;font:900 17px/1.1 inherit;color:#fff;letter-spacing:.02em;background:linear-gradient(90deg,rgba(120,10,10,0),rgba(130,12,12,.82) 18%,rgba(130,12,12,.82) 82%,rgba(120,10,10,0));text-shadow:0 2px 0 rgba(0,0,0,.6)}
+      .railHit span{white-space:nowrap}
+    `;
+    document.head.appendChild(st);
+  }
+  function upgradeInitDom() {
+    upgradeCss();
+    if (!document.getElementById("railScope")) {
+      const s = document.createElement("div");
+      s.id = "railScope";
+      s.innerHTML = '<div class="vig"></div><div class="ring"></div><div class="h"></div><div class="v"></div><div class="dot"></div><div class="mil">×1.8</div><div class="tag">SNIPER</div>';
+      document.body.appendChild(s);
+    }
+    if (!document.getElementById("railFever")) {
+      const f = document.createElement("div");
+      f.id = "railFever";
+      f.innerHTML = '<b>FEVER TIME</b><em><i></i></em>';
+      document.body.appendChild(f);
+    }
+    if (!document.getElementById("railBossTag")) {
+      const t = document.createElement("div");
+      t.id = "railBossTag";
+      t.innerHTML = '<small>WARNING</small><b></b>';
+      document.body.appendChild(t);
+    }
+  }
+  function setScope(on) {
+    const s = document.getElementById("railScope");
+    if (s) s.classList.toggle("on", !!on && phase !== "result");
+    const xh = document.getElementById("railX");
+    if (xh) xh.style.opacity = on ? "0" : "";
+  }
+  function aimFov() {
+    let f = viewFov();
+    if (weapon === "sniper" && phase !== "intro" && phase !== "result") f *= 0.6 + scopeKick * 0.3;
+    if (bossCamK > 0.02) f *= 1 - 0.2 * bossCamK;
+    return f;
+  }
+  function upgradeReset() {
+    feverT = 0; headStreak = 0; headStreakAt = 0; scopeKick = 0; bossCamT = 0; bossCamPost = null; bossCamK = 0; comboRewards = 0;
+    document.body.classList.remove("railFever");
+    setScope(false);
+    const el = document.getElementById("railBossTag");
+    if (el) el.classList.remove("on");
+    clearBossShots();
+    updFeverDom();
+    window.__fever = { on: false, n: 0, t: 0 };
+  }
+
   window.RAIL = {
     get active() { return active; },
     get staged() { return staged; },
@@ -20080,6 +20773,105 @@
       });
       return n;
     },
+    /* (v69) hooks for the headless checks of the four upgrades */
+    fever: () => { const ctx = window.__railCtx; if (ctx) { try { feverOn(ctx); } catch (e) { window.__feverErr = String(e); } } return window.__fever; },
+    feverState: () => ({ t: +feverT.toFixed(2), n: feverN, streak: headStreak, on: feverT > 0 }),
+    spawnShot: (kind, dist) => {
+      const ctx = window.__railCtx;
+      if (!ctx) return null;
+      const d = dist || 22;
+      const from = new T.Vector3(ctx.camera.position.x, 1.9, ctx.camera.position.z - d);
+      const s = spawnBossShot(ctx, kind || "shell", from, undefined);
+      return s ? { kind: s.kind, dur: s.dur } : null;
+    },
+    crateInfo: () => breakables.filter((b) => b.kind === "crate").map((b) => {
+      const ctx = window.__railCtx;
+      let near = null;
+      try {
+        const cam = ctx.camera.position.clone();
+        const dir = new T.Vector3(b.x, 1.0, b.z).sub(cam);
+        const rc = new T.Raycaster(cam, dir.clone().normalize(), 0.1, dir.length() - 0.2);
+        const hits = rc.intersectObjects(occluders(), true);
+        near = hits.length ? "blocked" : "clear";
+      } catch (e) { near = String(e); }
+      const v = new T.Vector3(b.x, 1.0, b.z).project(ctx.camera);
+      return { x: +((v.x * 0.5 + 0.5) * innerWidth).toFixed(0), y: +((-v.y * 0.5 + 0.5) * innerHeight).toFixed(0), los: near, hp: b.hp, broken: b.broken };
+    }),
+    shotSpots: () => bossShots.map((s) => {
+      const v = s.mesh.position.clone().project(window.__railCtx.camera);
+      return { kind: s.kind, x: +((v.x * 0.5 + 0.5) * innerWidth).toFixed(0), y: +((-v.y * 0.5 + 0.5) * innerHeight).toFixed(0), k: +(s.t / s.dur).toFixed(2) };
+    }),
+    crateSpots: () => breakables.filter((b) => b.kind === "crate" && !b.broken && b.mesh && b.mesh.visible).map((b) => {
+      const v = new T.Vector3(b.x, 0.95, b.z).project(window.__railCtx.camera);
+      return { x: +((v.x * 0.5 + 0.5) * innerWidth).toFixed(0), y: +((-v.y * 0.5 + 0.5) * innerHeight).toFixed(0), hp: b.hp };
+    }),
+    drumSpots: () => (dress && dress.barrels ? dress.barrels.filter((b) => !b.dead).map((b) => {
+      const v = new T.Vector3(b.x, 0.85, b.z).project(window.__railCtx.camera);
+      return { x: +((v.x * 0.5 + 0.5) * innerWidth).toFixed(0), y: +((-v.y * 0.5 + 0.5) * innerHeight).toFixed(0) };
+    }) : []),
+    upgradeState: () => ({
+      crates: breakables.filter((b) => b.kind === "crate").length,
+      cratesBroken: breakables.filter((b) => b.kind === "crate" && b.broken).length,
+      drums: dress && dress.barrels ? dress.barrels.length : 0,
+      drumsDead: dress && dress.barrels ? dress.barrels.filter((b) => b.dead).length : 0,
+      fever: { t: +feverT.toFixed(2), n: feverN },
+      shots: bossShots.length, intercepts: window.__intercepts || 0,
+      pierced: window.__pierced || 0, weak: window.__weakHits || 0,
+      scope: weapon === "sniper", fov: +(window.__railCtx ? window.__railCtx.camera.fov : 0).toFixed(1)
+    }),
+    bossFocus: () => ({ on: bossCamT > 0, k: +bossCamK.toFixed(2), tag: (document.getElementById("railBossTag") || {}).className }),
+    /* aim exactly at the nearest shell / crate and pull the trigger: the
+       headless check of the two mechanics without mouse timing */
+    shootShot: () => {
+      const ctx = window.__railCtx;
+      if (!ctx) return null;
+      let best = null, bd = 9;
+      bossShots.forEach((s) => {
+        const v = s.mesh.position.clone().project(ctx.camera);
+        if (v.z > 1 || Math.abs(v.x) > 0.92 || Math.abs(v.y) > 0.92) return;
+        const d = Math.hypot(v.x, v.y);
+        if (d < bd) { bd = d; best = { s: s, v: v }; }
+      });
+      if (!best) return null;
+      aimN.x = best.v.x; aimN.y = best.v.y;
+      const kind = best.s.kind;
+      try { fire(ctx); } catch (e) { return String(e); }
+      return { x: +((best.v.x * 0.5 + 0.5) * innerWidth).toFixed(0), y: +((-best.v.y * 0.5 + 0.5) * innerHeight).toFixed(0), kind: kind };
+    },
+    shootDrum: () => {
+      const ctx = window.__railCtx;
+      if (!ctx) return null;
+      let best = null, bd = 9;
+      (dress && dress.barrels ? dress.barrels : []).forEach((b) => {
+        if (b.dead || !b.mesh) return;
+        const v = new T.Vector3(b.x, 0.85, b.z).project(ctx.camera);
+        if (v.z > 1 || Math.abs(v.x) > 0.9 || Math.abs(v.y) > 0.9) return;
+        const d = Math.hypot(v.x, v.y);
+        if (d < bd) { bd = d; best = b; }
+      });
+      if (!best) return null;
+      const v = new T.Vector3(best.x, 0.75, best.z).project(ctx.camera);
+      aimN.x = v.x; aimN.y = v.y;
+      try { fire(ctx); } catch (e) { return String(e); }
+      return { x: +((v.x * 0.5 + 0.5) * innerWidth).toFixed(0), y: +((-v.y * 0.5 + 0.5) * innerHeight).toFixed(0) };
+    },
+    shootCrate: () => {
+      const ctx = window.__railCtx;
+      if (!ctx) return null;
+      let best = null, bd = 9;
+      breakables.forEach((b) => {
+        if (b.kind !== "crate" || b.broken || !b.mesh || !b.mesh.visible) return;
+        const v = new T.Vector3(b.x, 0.95, b.z).project(ctx.camera);
+        if (v.z > 1 || Math.abs(v.x) > 0.92 || Math.abs(v.y) > 0.92) return;
+        const d = Math.hypot(v.x, v.y);
+        if (d < bd) { bd = d; best = { b: b, v: v }; }
+      });
+      if (!best) return null;
+      aimN.x = best.v.x; aimN.y = best.v.y;
+      const st = { x: +((best.v.x * 0.5 + 0.5) * innerWidth).toFixed(0), y: +((-best.v.y * 0.5 + 0.5) * innerHeight).toFixed(0), hp: best.b.hp };
+      try { fire(ctx); } catch (e) { return String(e); }
+      return st;
+    },
     pause,
     frame,
     /* (v52) test hook: jump straight to the boss arena, so a headless run can
@@ -20128,7 +20920,7 @@
          nothing at all with one in hand, which read as a dead button */
       if (weapon !== "pistol") {
         const ko = (document.documentElement.lang || "").startsWith("ko");
-        radio(ko ? ({ smg: "기관단총", shotgun: "샷건" }[weapon] || "특수 화기") + "은 재장전이 없습니다 · 탄을 다 쓰면 권총으로 돌아와요" : "Special weapons don't reload — empty it and you're back on the pistol", 2200);
+        radio(ko ? ({ smg: "돌격소총", shotgun: "샷건", sniper: "저격총" }[weapon] || "특수 화기") + "은 재장전이 없습니다 · 탄을 다 쓰면 권총으로 돌아와요" : "Special weapons don't reload — empty it and you're back on the pistol", 2200);
         window.__reloadHint = (window.__reloadHint || 0) + 1;
         return;
       }
