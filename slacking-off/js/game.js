@@ -23,6 +23,8 @@
       temptation: false, suspicion: false, bosses: ['jambujang'],
       slack: 'jump', file: 'Q4_매출보고서_최종_진짜최종.xlsx', url: 'minigame.co.kr/block',
       desc: '부장님이 복도에서 다가온다. 다가오는 동안 재빨리 「일하는 척!」.',
+      story: [{ who: 'jambujang', line: '월요일 17:05. 첫 출근 첫날부터 복도에서 발소리가 들린다…' },
+              { who: 'jamintern', line: '선배님, 저 오늘 6시에 진짜 갈 수 있는 거예요?' }],
       rules: ['부장님이 오면 <b>[일하는 척!]을 꾹</b> — 놓으면 바로 딴짓으로 돌아간다.',
         '딴짓 중에 걸리면 <b>즉시 발각</b>. 18:00까지 게이지 <b>100%</b>를 못 채우면 야근.']
     },
@@ -32,6 +34,8 @@
       temptation: false, suspicion: false, bosses: ['jambujang'],
       slack: 'chat', file: '화요일_주간보고_모음_최종.xlsx', url: 'talk.jam.co.kr/딴짓방',
       desc: '단톡방 알림이 쏟아진다. 부장님은 커피 타러 갔다… 생각보다 빨리 돌아온다.',
+      story: [{ who: 'jamdaeri', line: '단톡방 터졌어 ㅋㅋ 부장님 커피 타러 감! 지금이야' },
+              { who: 'jambujang', line: '…잠깐 탕비실 다녀오지.' }],
       rules: ['<b>💬 메신저 버블</b>을 터뜨리면 게이지가 오른다. 버블은 계속 올라온다.',
         '부장님이 <b>커피 타러 간 틈</b>이 기회. 그런데 <b>급복귀</b>하면 경고가 아주 짧다.']
     },
@@ -40,9 +44,11 @@
       secs: 46, warn: 1.3, gap: [5.4, 8.0], turnback: 0.45, double: 0,
       temptation: true, suspicion: false, bosses: ['jambujang'],
       slack: 'chart', file: '수요일_주간보고_진짜마지막_v7_최종.xlsx', url: 'coinchart.io/BTC',
-      desc: '잼대리가 옆에서 치킨을 들이민다. 그리고 부장님이 지나간 척하다 돌아본다.',
-      rules: ['<b>🍗 치킨 유혹</b>을 누르면 게이지 <b>+12</b>, 대신 <b>1.5초간 위장 불가</b>.',
-        '부장님이 <b>지나간 척 돌아보는 페인트 모션</b> — 경고가 한 번 더 올 수 있다.']
+      desc: '잼대리가 옆에서 차트를 켜 준다. 그리고 부장님이 지나간 척하다 돌아본다.',
+      story: [{ who: 'jamdaeri', line: '코인 지금 급등 중인데? 한 번만 단타 쳐 봐 👀' },
+              { who: 'jambujang', line: '흠… 누가 주식을 하나…' }],
+      rules: ['① 탭 = <b>매수(진입)</b> → 가격이 <b>익절 존</b>까지 급등했을 때 ② 다시 탭 = <b>고점 매도(익절)</b>.',
+        '익절 존 매도는 게이지·콤보 <b>대폭 상승</b>. 저점 매도·손절도 소폭은 오른다. 위장 중엔 차트가 <b>정지</b>.']
     },
     {
       id: 'thu', day: '목요일', name: '잼사장 뒤에서 접근', tag: '어려움', pips: 3,
@@ -50,7 +56,9 @@
       temptation: false, suspicion: false, bosses: ['jambujang', 'jamsajang'],
       slack: 'video', file: '목요일_임원보고_초안_진짜.xlsx', url: 'youtube.com/shorts',
       desc: '숏폼이 자동 재생된다. 그런데 발소리도 없이 등 뒤로 누가 다가온다.',
-      rules: ['<b>📱 숏폼 카드</b>를 넘기면 게이지가 오른다. 계속 넘겨야 한다.',
+      story: [{ who: 'jamdaeri', line: '이거 3초만 보려다… 다음 영상이 안 멈춰 ㅋㅋ' },
+              { who: 'jamsajang', line: '뒤에서 한참 봤네. …뭐 하고 있나.' }],
+      rules: ['화면을 <b>위로 스와이프</b>(데스크톱은 <b>↑ / W</b>)해서 숏폼을 계속 넘긴다.',
         '<b>뒤에서 소리 없이 접근</b> — 발소리·경고가 <b>한 박자 늦게</b> 뜬다. 늦으면 발각.']
     },
     {
@@ -59,8 +67,21 @@
       temptation: true, suspicion: true, bosses: ['jambujang', 'jamsajang'],
       slack: 'shop', file: '금요일_임원보고_이게진짜최종.xlsx', url: 'hotdeal.shop/타임딜',
       desc: '부장님과 사장님이 번갈아 온다. 경고가 짧고, 일만 하면 의심도가 찬다.',
+      story: [{ who: 'jambujang', line: '금요일 17:05. 이번 주도 여기서 끝내야지.' },
+              { who: 'jamsajang', line: '사장도 오늘은 늦게 들어간다네. 큰 그림을 봐야지.' }],
       rules: ['경고가 <b>1초</b> 남짓. 화면을 보고 <b>먼저</b> 눌러야 한다.',
         '일하는 척만 오래 하면 <b>의심도</b>가 차서 <b>기습 점검</b>이 날아온다.']
+    },
+    {
+      id: 'sat', day: '토요일', name: '주말근무 (특근)', tag: '특근', pips: 3,
+      secs: 56, warn: 0.95, gap: [4.2, 6.6], turnback: 0.55, double: 0.62, coop: true,
+      temptation: false, suspicion: true, coinMul: 2, bosses: ['jambujang', 'jamsajang'],
+      slack: 'sat', file: '토요일_특근보고_이게진짜최종.xlsx', url: 'weekend.shop/타임딜',
+      desc: '토요일에 출근했는데 부장님도 사장님도 나오셨다! 두 사람이 번갈아, 때로는 같이 들이닥친다.',
+      story: [{ who: 'jambujang', line: '토요일 특근인데 부장님이랑 사장님까지 출근하셨다...' },
+              { who: 'jamsajang', line: '"주말에도 회사는 돌아가야지." …감시가 두 겹이다.' }],
+      rules: ['잼부장·잼사장이 <b>교차·합동</b>으로 감시한다. 경고가 짧고 <b>의심도</b>까지 찬다.',
+        '딴짓은 <b>10초마다 교체</b>(주말 올스타전). 클리어하면 <b>루팡 코인 2배</b>!']
     }
   ];
 
@@ -81,7 +102,9 @@
     lastHint: '', excuse: null, excuseUsed: false,
     /* ② 도발 · ③ 오늘의 챌린지 · ① 성적표 */
     challenge: null, br: null, vsHit: false, dailyRec: null, paused: false,
-    warnSeenAt: -9, warnNeedReact: false, events: []
+    warnSeenAt: -9, warnNeedReact: false, events: [],
+    /* 컷신·주말 올스타전·메뉴 */
+    cutSeen: {}, cutSkip: null, cutTimer: 0, curMini: 'jump', satGameIn: 10, quitOpen: false
   };
   var E = {};
   var lastTs = 0, rafId = 0;
@@ -157,6 +180,11 @@
     E.xlFormula = $('xlFormula');
     E.xlGrid = $('xlGrid');
     E.bubble = $('bubble');
+    E.menuBtn = $('menuBtn');
+    E.coinHud = $('coinHud');
+    E.chPrice = $('chPrice');
+    E.chRet = $('chRet');
+    E.chTip = $('chTip');
 
     /* ② 도발 배너 (플레이 상단) */
     E.vsStrip = $('vsStrip');
@@ -202,11 +230,44 @@
       toast(on ? '소리 켬' : '소리 끔', 1100);
     });
 
+    /* 🏠 플레이 중이든 결과 화면이든 언제든 메뉴로 */
+    if (E.menuBtn) E.menuBtn.addEventListener('click', function (e) {
+      e.preventDefault(); e.stopPropagation();
+      SFX.click();
+      requestMenu();
+    });
+
+    var sw = { on: false, x0: 0, y0: 0, t0: 0, hintAt: -9 };
     E.monitor.addEventListener('pointerdown', function (e) {
       if (e.target.closest && e.target.closest('.tempt')) return;
       e.preventDefault();
+      if (S.mode === 'playing' && isSwipeStage()) {
+        sw.on = true; sw.x0 = e.clientX; sw.y0 = e.clientY; sw.t0 = Date.now();
+        try { E.monitor.setPointerCapture(e.pointerId); } catch (err) {}
+        return;
+      }
       var rect = E.monitor.getBoundingClientRect();
       slackTap(e.clientX - rect.left, e.clientY - rect.top, e.clientX, e.clientY);
+    });
+    /* 목요일 숏폼: 위로 끌어 넘기기 (연속 스와이프 허용) */
+    E.monitor.addEventListener('pointermove', function (e) {
+      if (!sw.on || S.mode !== 'playing' || !isSwipeStage()) return;
+      if (sw.y0 - e.clientY >= 44) {
+        sw.y0 = e.clientY; sw.x0 = e.clientX;
+        slackSwipe();
+      }
+    });
+    ['pointerup', 'pointercancel'].forEach(function (ev) {
+      E.monitor.addEventListener(ev, function (e) {
+        if (!sw.on) return;
+        sw.on = false;
+        if (S.mode !== 'playing' || !isSwipeStage()) return;
+        var dy = Math.abs(sw.y0 - (e.clientY || sw.y0));
+        if (dy < 18 && now() - sw.hintAt > 2.4) {
+          sw.hintAt = now();
+          toast('☝️ 화면을 위로 스와이프! (데스크톱 ↑ / W)', 1600);
+        }
+      });
     });
 
     E.workBtn.addEventListener('pointerdown', function (e) {
@@ -223,12 +284,21 @@
     window.addEventListener('pointercancel', function () { endWork(); });
 
     window.addEventListener('keydown', function (e) {
+      if (window.SHOP && SHOP.isOpen()) return;
+      if (window.VIRAL && VIRAL.isModalOpen()) return;
       if (e.code === 'Space') {
-        if (window.SHOP && SHOP.isOpen()) return;
         e.preventDefault();
         if (e.repeat) return;
         if (S.mode === 'playing') startWork();
         else if (S.mode === 'title' || S.mode === 'intro') advance();
+        else if (S.mode === 'cut' && S.cutSkip) S.cutSkip();
+      } else if (e.code === 'ArrowUp' || e.code === 'KeyW') {
+        if (S.mode !== 'playing' || !isSwipeStage()) return;
+        e.preventDefault();
+        if (e.repeat) return;
+        slackSwipe();
+      } else if (e.code === 'Escape') {
+        if (S.mode === 'playing' || S.mode === 'intro' || S.mode === 'cut') requestMenu();
       }
     });
     window.addEventListener('keyup', function (e) {
@@ -246,6 +316,72 @@
   }
   function hideOverlay() { E.overlay.hidden = true; E.overlay.innerHTML = ''; E.overlay.classList.remove('ec'); }
 
+  /* ---------------- 🏠 메뉴(타이틀) 복귀 ---------------- */
+  function requestMenu() {
+    if (S.mode === 'title') return;
+    if (S.mode === 'playing' && !S.quitOpen) { showQuitConfirm(); return; }
+    hardExit();
+  }
+
+  function showQuitConfirm() {
+    S.paused = true;
+    S.quitOpen = true;
+    try { bgmMode('calm'); } catch (e) {}
+    overlay(
+      '<div class="ov-inner">' +
+        '<span class="ov-tag">잠깐 멈춤</span>' +
+        '<h2 class="ov-title sm">메뉴로 나갈까요?</h2>' +
+        '<p class="ov-sub">이번 판 기록은 저장되지 않아요.<br>타이머·BGM·3D 연출은 바로 정지됩니다.</p>' +
+        '<div class="ov-actions">' +
+          '<button class="cta" id="stayBtn" type="button">계속하기</button>' +
+          '<button class="cta ghost" id="quitBtn" type="button">🏠 메뉴로 나가기</button>' +
+        '</div>' +
+      '</div>'
+    );
+    $('stayBtn').addEventListener('click', function () {
+      SFX.click();
+      S.quitOpen = false;
+      S.paused = false;
+      hideOverlay();
+      lastTs = 0;
+      syncHUD();
+    });
+    $('quitBtn').addEventListener('click', function () { SFX.click(); S.quitOpen = false; hardExit(); });
+  }
+
+  /* 타이머·BGM·미니게임 3D·모달을 모두 정리하고 타이틀へ */
+  function hardExit() {
+    clearCutTimer();
+    S.quitOpen = false;
+    S.paused = false;
+    S.holding = false;
+    S.work = false;
+    S.locked = 0;
+    S.combo = 0;
+    S.phase = 'idle';
+    try { endWork(); } catch (e) {}
+    bgmStop();
+    try { if (window.ExcuseChance && ExcuseChance.isOpen()) ExcuseChance.reset(); } catch (e) {}
+    try { hideTempt(true); } catch (e) {}
+    try { if (window.VIRAL && VIRAL.isModalOpen()) VIRAL.closeModal(); } catch (e) {}
+    try { if (window.SHOP && SHOP.isOpen()) SHOP.close(); } catch (e) {}
+    E.overlay.classList.remove('cine-ov', 'ec');
+    E.monitor.classList.remove('shake');
+    E.monitor.dataset.mode = 'slack';
+    E.cam.classList.remove('on');
+    E.app.classList.remove('tense');
+    if (E.toast) E.toast.hidden = true;
+    if (window.Slack3D) {
+      try {
+        Slack3D.setFrozen(false);
+        Slack3D.setMiniActive(false);
+        Slack3D.cineOff();
+        Slack3D.release();
+      } catch (e) {}
+    }
+    showTitle();
+  }
+
   function rankBarHTML() {
     var r = SHOP.rank(), nx = SHOP.nextRank();
     var s = '<span class="rank-badge"><b>' + r.emoji + '</b>' + r.name + '</span>' +
@@ -262,16 +398,19 @@
 
   function showTitle() {
     S.mode = 'title';
+    S.paused = false;
     bgmStop();
-    if (window.Slack3D) { Slack3D.setActive(true); Slack3D.setMiniActive(true); }
+    if (window.Slack3D) { Slack3D.setActive(true); Slack3D.setMiniActive(true); Slack3D.cineOff(); Slack3D.setFrozen(false); }
     E.app.classList.remove('tense');
     E.stageChip.textContent = '월요일';
+    if (E.menuBtn) E.menuBtn.hidden = true;
+    if (E.coinHud) E.coinHud.hidden = true;
     resetBossVisual();
     S.challenge = null; S.dailyRec = null;
     updateVsStrip();
     var days = '';
     for (var i = 0; i < STAGES.length; i++) {
-      days += stageRow(STAGES[i].day, STAGES[i].name, STAGES[i].pips, STAGES[i].tag);
+      days += stageRow(STAGES[i].day, STAGES[i].name, STAGES[i].pips, STAGES[i].tag, i);
     }
     var vInfo = window.VIRAL ? VIRAL.DAILY.info() : null;
     var virRow = window.VIRAL
@@ -293,13 +432,13 @@
         '</div>' +
         '<div class="rankbar" id="rankBar">' + rankBarHTML() + '</div>' +
         '<h1 class="ov-title">부장님 몰래<br>딴짓하기</h1>' +
-        '<p class="ov-sub">부장님 눈을 피해 <b>딴짓 게이지 100%</b>를 채우고,<br>6시 정각에 사라져라. 월~금 5일 생존기.</p>' +
+        '<p class="ov-sub">부장님 눈을 피해 <b>딴짓 게이지 100%</b>를 채우고,<br>6시 정각에 사라져라. 주말 특근까지 6일 생존기.</p>' +
         '<div class="how">' +
           '<div class="how-i"><b>👆</b><span>모니터 연타<small>딴짓 게이지 UP</small></span></div>' +
           '<div class="how-i"><b>💼</b><span>일하는 척 꾹<small>부장님 눈 피하기</small></span></div>' +
           '<div class="how-i"><b>🛒</b><span>장비·승진<small>코인으로 강해지기</small></span></div>' +
         '</div>' +
-        '<div class="ov-stage-list day5">' + days + '</div>' +
+        '<div class="ov-stage-list day5 day6">' + days + '</div>' +
         virRow +
         '<div class="cta-row">' +
           '<button class="cta ghost shop-btn" id="shopBtn" type="button">🛒 장비 상점</button>' +
@@ -309,6 +448,19 @@
       '</div>'
     );
     $('startBtn').addEventListener('click', function () { SFX.click(); startRun(); });
+    var rowBtns = E.overlay.querySelectorAll('[data-stage]');
+    for (var ri = 0; ri < rowBtns.length; ri++) {
+      (function (btn) {
+        btn.addEventListener('click', function (e) {
+          e.preventDefault();
+          SFX.click();
+          var si = parseInt(btn.getAttribute('data-stage'), 10) || 0;
+          S.challenge = null; S.dailyRec = null; S.vsHit = false; S.score = 0;
+          runLog = [];
+          enterStage(si, 0);
+        });
+      })(rowBtns[ri]);
+    }
     $('shopBtn').addEventListener('click', function (e) {
       e.preventDefault();
       SFX.click();
@@ -330,6 +482,7 @@
       var im = $('hero3d');
       if (shot && im) im.src = shot;
       Slack3D.setActive(false);
+      Slack3D.setMiniActive(false);
     } catch (err) {}
     /* CC0 텍스처가 도착하면 타이틀 히어로도 같은 재질로 한 번 더 찍는다 */
     if (!showTitle._txHook) {
@@ -343,11 +496,15 @@
       });
     }
   }
-  function stageRow(day, name, pips, tag) {
+  function stageRow(day, name, pips, tag, idx) {
     var p = '';
     for (var i = 0; i < 3; i++) p += '<i class="' + (i < pips ? 'on' : '') + '"></i>';
-    return '<div class="ov-stage"><span class="d">' + day + '</span><span class="n">' + name + '</span>' +
-      '<span class="p">' + tag + ' ' + p + '</span></div>';
+    var inner = '<span class="d">' + day + '</span><span class="n">' + name + '</span>' +
+      '<span class="p">' + tag + ' ' + p + '</span>';
+    if (idx == null) return '<div class="ov-stage">' + inner + '</div>';
+    var sat = idx === STAGES.length - 1;
+    return '<button type="button" class="ov-stage has-go' + (sat ? ' sat' : '') + '" data-stage="' + idx + '">' +
+      inner + '</button>';
   }
 
   function startRun() {
@@ -407,10 +564,22 @@
     E.stageChip.textContent = S.cfg.day;
     if (E.officeDay) E.officeDay.textContent = S.cfg.day;
     prepareStageVisual();
+    syncHUD();
+    /* 스토리 인트로 컷(스테이지당 1회) → 규칙 카드 → 출근! */
+    if (!S.cutSeen[i]) showIntroCut(showStageRules);
+    else showStageRules();
+  }
+
+  function showStageRules() {
     var cfg = S.cfg;
+    S.mode = 'intro';
     var ruleRows = cfg.rules.map(function (r) {
       return '<div class="ov-stage"><span class="n" style="white-space:normal;line-height:1.45">' + r + '</span></div>';
     }).join('');
+    var tip = cfg.slack === 'chart' ? '탭 = 매수 → 익절 존에서 다시 탭 = 매도 · 「일하는 척!」 꾹 = 위장'
+      : cfg.slack === 'video' ? '↑로 스와이프 = 숏폼 넘기기 · 「일하는 척!」 꾹 = 위장'
+        : cfg.slack === 'sat' ? '탭 = 딴짓(10초마다 교체) · 「일하는 척!」 꾹 = 위장'
+          : '모니터 연타 = 게이지 UP · 「일하는 척!」 꾹 = 위장';
     overlay(
       '<div class="ov-inner">' +
         '<span class="ov-tag">' + cfg.day + ' · 17:05</span>' +
@@ -419,29 +588,105 @@
         '<div class="goal-row">' +
           '<span class="goal-chip">🎯 딴짓 100%</span>' +
           '<span class="goal-chip">⏱ ' + cfg.secs + '초</span>' +
-          '<span class="goal-chip">' + (cfg.suspicion ? '👁 의심도 주의' : cfg.temptation ? '🍗 유혹 주의' : '👀 순찰 주의') + '</span>' +
+          '<span class="goal-chip">' + (cfg.coinMul ? '💰 클리어 코인 ×' + cfg.coinMul : cfg.suspicion ? '👁 의심도 주의' : cfg.temptation ? '🍗 유혹 주의' : '👀 순찰 주의') + '</span>' +
         '</div>' +
         '<div class="ov-stage-list">' + ruleRows + '</div>' +
         '<button class="cta" id="goBtn" type="button">출근! </button>' +
-        '<p class="ov-tiny">모니터 연타 = 게이지 UP · 「일하는 척!」 꾹 = 위장</p>' +
+        '<button class="cta ghost" id="backMenuBtn" type="button">🏠 메뉴로 돌아가기</button>' +
+        '<p class="ov-tiny">' + tip + '</p>' +
       '</div>'
     );
     $('goBtn').addEventListener('click', function () { SFX.click(); beginPlay(); });
+    $('backMenuBtn').addEventListener('click', function () { SFX.click(); hardExit(); });
     syncHUD();
   }
 
+  /* ---------------- 스토리 인트로 컷 (건너뛰기 가능) ---------------- */
+  function clearCutTimer() {
+    if (S.cutTimer) {
+      if (S.cutTimer.length) {
+        for (var i = 0; i < S.cutTimer.length; i++) clearTimeout(S.cutTimer[i]);
+      } else clearTimeout(S.cutTimer);
+      S.cutTimer = 0;
+    }
+    S.cutSkip = null;
+  }
+
+  function showIntroCut(done) {
+    var cfg = S.cfg;
+    var lines = (cfg.story && cfg.story.length) ? cfg.story : [{ who: cfg.bosses[0], line: cfg.desc }];
+    S.mode = 'cut';
+    S.cutSeen[S.stage] = true;
+    bgmStop();
+    var shot = '';
+    try {
+      Slack3D.begin(cfg.bosses);
+      Slack3D.setStage(cfg.slack === 'sat' ? S.curMini : cfg.slack);
+      Slack3D.setActive(true);
+      Slack3D.setMiniActive(true);
+      shot = Slack3D.cineShot('intro');
+      Slack3D.cine('intro', 1.9);
+    } catch (err) {}
+    try { SFX.story(); } catch (err) {}
+    var first = lines[0];
+    var who = CAST[first.who] || CAST.jambujang;
+    overlay(
+      '<div class="cine" id="cineWrap">' +
+        (shot ? '<img class="cine-img" src="' + shot + '" alt="스토리 인트로 3D 컷">' : '<div class="cine-ph">🎬</div>') +
+        '<div class="cine-vig"></div>' +
+        '<span class="cine-day">' + cfg.day + ' · 17:05</span>' +
+        '<div class="cine-cap" id="cineCap"><b id="cineWho" style="color:' + who.color + '">' + who.name + '</b>' +
+          '<p id="cineLine">' + esc(first.line) + '</p></div>' +
+        '<button class="cine-skip" id="cineSkip" type="button">건너뛰기 ›</button>' +
+      '</div>'
+    );
+    E.overlay.classList.add('cine-ov');
+    var finished = false;
+    function finish() {
+      if (finished) return;
+      finished = true;
+      clearCutTimer();
+      E.overlay.classList.remove('cine-ov');
+      done();
+    }
+    S.cutSkip = finish;
+    var capEl = $('cineLine'), whoEl = $('cineWho');
+    var timers = [];
+    if (lines.length > 1) {
+      timers.push(setTimeout(function () {
+        if (finished) return;
+        var nx = lines[1], nw = CAST[nx.who] || CAST.jambujang;
+        if (whoEl) { whoEl.textContent = nw.name; whoEl.style.color = nw.color; }
+        if (capEl) capEl.textContent = nx.line;
+        var cap = $('cineCap');
+        if (cap) { cap.style.animation = 'none'; void cap.offsetWidth; cap.style.animation = ''; }
+      }, 950));
+    }
+    timers.push(setTimeout(finish, 2080));
+    S.cutTimer = timers;
+    var skip = $('cineSkip');
+    if (skip) skip.addEventListener('click', function (e) { e.preventDefault(); e.stopPropagation(); finish(); });
+    var wrap = $('cineWrap');
+    if (wrap) wrap.addEventListener('click', function () { finish(); });
+  }
+
   function beginPlay() {
+    clearCutTimer();
     hideOverlay();
+    E.overlay.classList.remove('cine-ov');
     S.mode = 'playing';
+    S.paused = false;
     S.grace = 0.9;
     lastTs = 0;
+    if (E.menuBtn) E.menuBtn.hidden = false;
     E.app.classList.remove('tense');
     setAlert('calm', S.challenge ? '📅 오늘의 챌린지 · 모두 같은 순찰' : '평온 · 부장님은 자리에…');
     if (S.challenge) E.stageChip.textContent = '📅 챌린지';
     updateVsStrip();
     bgmPlay('calm');
     Slack3D.begin(S.cfg.bosses);
-    Slack3D.setStage(S.cfg.slack);
+    Slack3D.setStage(S.cfg.slack === 'sat' ? S.curMini : S.cfg.slack);
+    Slack3D.setFrozen(false);
     Slack3D.setMiniActive(true);
     Slack3D.setActive(true);
     setBossPos('far', 0.4);
@@ -472,6 +717,10 @@
     S.grace = 0; S.stageBest = 0;
     S.excuse = null; S.excuseUsed = false; S.rewarded = null;
     S.events = [];
+    S.curMini = cfg.slack === 'sat' ? SAT_GAMES[0] : cfg.slack;
+    S.satGameIn = 9.5;
+    if (window.Slack3D) { Slack3D.setFrozen(false); }
+    if (E.menuBtn) E.menuBtn.hidden = false;
     /* ③ 챌린지는 날짜 시드로 상사 패턴을 고정한다(스테이지 시작마다 같은 시퀀스) */
     S.br = (S.challenge && window.VIRAL) ? VIRAL.DAILY.rng(S.challenge.date) : null;
     S.warnNeedReact = false; S.warnSeenAt = -9;
@@ -487,21 +736,38 @@
     if (E.susFill) E.susFill.style.width = '0%';
   }
 
+  var SAT_GAMES = ['jump', 'shop', 'chat'];
+  var MINI_LABEL = { jump: '🍪 미니 블록', chart: '🪙 코인 단타', chat: '💬 사내 메신저', video: '📱 몰래 숏폼', shop: '🛒 핫딜 쇼핑' };
+
   function prepareStageVisual() {
-    var kind = S.cfg.slack;
+    var kind = S.cfg.slack === 'sat' ? S.curMini : S.cfg.slack;
     if (kind === 'jump') buildJump();
     else if (kind === 'chart') buildChart();
     else if (kind === 'chat') buildChat();
     else if (kind === 'video') buildVideo();
     else buildShop();
+    if (E.miniLabel) E.miniLabel.textContent = MINI_LABEL[kind] || kind;
     E.slackView.hidden = false;
     E.eatView.hidden = true;
     E.excelView.hidden = true;
     E.monitor.dataset.mode = 'slack';
     E.cam.classList.remove('on');
+    if (E.coinHud) E.coinHud.hidden = kind !== 'chart';
     if (E.officeDay) E.officeDay.textContent = S.cfg.day;
     Slack3D.setStage(kind);
     Slack3D.setMiniActive(true);
+  }
+
+  /* 토요일: 10초마다 딴짓 교체(주말 올스타전) */
+  function cycleSatGame() {
+    var i = SAT_GAMES.indexOf(S.curMini);
+    S.curMini = SAT_GAMES[(i + 1) % SAT_GAMES.length];
+    if (E.miniLabel) E.miniLabel.textContent = MINI_LABEL[S.curMini];
+    Slack3D.setStage(S.curMini);
+    Slack3D.setMiniActive(true);
+    if (E.coinHud) E.coinHud.hidden = true;
+    try { SFX.earn(); } catch (e) {}
+    toast('🎲 주말 올스타전 · ' + MINI_LABEL[S.curMini], 1500);
   }
 
   /* ---------------- the loop ---------------- */
@@ -531,8 +797,17 @@
       if (S.locked <= 0) endLock();
     }
 
-    // 콤보 감쇠
-    if (S.combo > 0 && S.t - S.comboAt > 1.35) S.combo = 0;
+    // 콤보 감쇠 (코인 단타는 매도 간격이 길어 여유를 둔다)
+    if (S.combo > 0 && S.t - S.comboAt > (S.cfg.slack === 'chart' ? 4.6 : 1.35)) S.combo = 0;
+
+    // 토요일 주말 올스타전: 시간이 지나면 딴짓이 바뀐다
+    if (S.cfg.slack === 'sat') {
+      S.satGameIn -= dt;
+      if (S.satGameIn <= 0) {
+        S.satGameIn = 9.5;
+        if (S.phase === 'idle') cycleSatGame();
+      }
+    }
 
     // 위장 중엔 게이지가 조금씩 식는다
     if (S.work) S.gauge = Math.max(0, S.gauge - 1.1 * (window.SHOP ? SHOP.decayMul() : 1) * dt);
@@ -674,6 +949,14 @@
     setAlert('warn', surprise ? '기습 점검!! 일하는 척!!' : '쿵쿵쿵… 부장님 접근 중!');
     if (surprise) flash('rgba(255,80,90,.35)', 260);
     Bubble.say(S.checker, 'approach', 1600);
+    /* 토요일: 잼부장·잼사장 합동 감시 — 두 사람이 동시에 문 앞에 */
+    if (cfg.coop && window.Slack3D && BR() < 0.5) {
+      var other = cfg.bosses[0] === S.checker ? cfg.bosses[1] : cfg.bosses[0];
+      if (other) {
+        try { Slack3D.secondMark(other, true); } catch (e) {}
+        toast('😱 부장님과 사장님이 함께 온다!', 1400);
+      }
+    }
   }
 
   /* 목요일 스텔스: 경고가 늦게 터진다 */
@@ -748,7 +1031,7 @@
     S.excuse = { reason: 'used', choice: null, said: '' };
     E.app.classList.remove('tense');
     bgmStop();
-    if (window.Slack3D) { Slack3D.caught(); Slack3D.setMiniActive(false); }
+    if (window.Slack3D) { Slack3D.setFrozen(false); Slack3D.caught(); Slack3D.setMiniActive(false); }
     SFX.caught();
     E.monitor.classList.add('shake');
     setTimeout(function () { E.monitor.classList.remove('shake'); }, 400);
@@ -842,7 +1125,7 @@
     bgmStop();
     SFX.overtime();
     setAlert('calm', '18:00 · 퇴근 시간');
-    if (window.Slack3D) Slack3D.setMiniActive(false);
+    if (window.Slack3D) { Slack3D.setMiniActive(false); Slack3D.setFrozen(false); }
     Bubble.say(S.checker, 'overtime', 4000);
     S.work = false; S.holding = false;
     S.stats = snapshotStats('timeout');
@@ -858,12 +1141,17 @@
     SFX.clear();
     flash('rgba(120,255,190,.35)', 320);
     setAlert('safe', '딴짓 100%! 가방 챙겨!');
-    if (window.Slack3D) Slack3D.setMiniActive(false);
+    if (window.Slack3D) { Slack3D.setMiniActive(false); Slack3D.setFrozen(false); }
     Bubble.say(S.checker, 'clear', 3200);
     S.stats = snapshotStats('clear');
-    if (window.VIRAL) { VIRAL.TITLES.note('clear'); VIRAL.TITLES.note('combo', S.bestCombo); }
+    if (window.VIRAL) {
+      VIRAL.TITLES.note('clear');
+      VIRAL.TITLES.note('combo', S.bestCombo);
+      if (S.cfg.id === 'sat') VIRAL.TITLES.note('weekend');
+    }
+    if (S.cfg.id === 'sat') toast('💰 주말 특근 클리어 · 루팡 코인 2배!', 2400);
     S.score += 300 + Math.round(S.left * 8) + S.bestCombo * 10;
-    runLog.push({ day: S.cfg.day, score: S.score - S.baseScore, gauge: Math.round(S.gauge), combo: S.bestCombo });
+    runLog.push({ id: S.cfg.id, day: S.cfg.day, score: S.score - S.baseScore, gauge: Math.round(S.gauge), combo: S.bestCombo });
     setTimeout(showClearScreen, 620);
   }
 
@@ -880,7 +1168,11 @@
   function award(st, cleared) {
     if (!window.SHOP) return null;
     if (S.rewarded) return S.rewarded;
-    S.rewarded = SHOP.earn(SHOP.coinsFor(st, cleared), cleared);
+    var base = SHOP.coinsFor(st, cleared);
+    var mul = (S.cfg && S.cfg.coinMul) || 1;
+    S.rewarded = SHOP.earn(base * mul, cleared);
+    S.rewarded.base = base;
+    S.rewarded.mul = mul;
     return S.rewarded;
   }
   function updateCoinHud() {
@@ -894,6 +1186,7 @@
       : '';
     return '<div class="reward-row">' + SHOP.rankBadge() +
       '<span class="rw-coins">₩ +' + r.coins.toLocaleString('ko-KR') + '</span>' +
+      (r.mul > 1 ? '<span class="rw-mul">주말 특근 ×' + r.mul + '</span>' : '') +
       '<span class="rw-bal">보유 ₩ ' + r.balance.toLocaleString('ko-KR') + '</span></div>' + pr;
   }
 
@@ -931,9 +1224,15 @@
   }
 
   /* ---------------- slack / work ---------------- */
-  function slackTap(x, y, pageX, pageY) {
-    if (S.mode !== 'playing') return;
-    if (S.work || S.locked > 0) return;
+  function floatText(t, rx, ry) {
+    if (!E.monitor) return;
+    floater(t, E.monitor.clientWidth * rx, E.monitor.clientHeight * ry);
+  }
+  function coinWon(p) {
+    return '₩ ' + Math.round(62480000 * p).toLocaleString('ko-KR');
+  }
+
+  function basicTap() {
     S.combo++;
     S.comboAt = S.t;
     S.bestCombo = Math.max(S.bestCombo, S.combo);
@@ -943,7 +1242,97 @@
     S.taps++;
     SFX.tap(S.combo);
     miniTap();
-    if (x != null) floater('+' + gain.toFixed(1), x, y);
+    floatText('+' + gain.toFixed(1), 0.5, 0.42);
+    syncHUD();
+    if (S.gauge >= 100) winStage();
+  }
+
+  function slackTap(x, y, pageX, pageY) {
+    if (S.mode !== 'playing') return;
+    if (S.work || S.locked > 0) return;
+    if (S.curMini === 'chart') { coinTapAction(); return; }
+    basicTap();
+  }
+
+  /* ---------------- 수요일: 코인 단타 (탭 1번 = 매수, 고점 탭 = 매도) ---------------- */
+  function coinTapAction() {
+    var r = null;
+    try { r = Slack3D.coinTap(); } catch (e) {}
+    if (!r || r.act === 'none') { basicTap(); return; }
+    if (r.act === 'buy') {
+      S.taps++;
+      try { SFX.coinBuy(); } catch (e) {}
+      floatText('매수 ' + coinWon(r.entry), 0.5, 0.34);
+      toast('🟢 매수 진입 · 급등하면 다시 탭 = 고점 매도', 1400);
+      syncHUD();
+      return;
+    }
+    var ret = r.ret || 0;
+    var q = r.quality;
+    var gain, add;
+    if (q === 'tp') { gain = 7.4 + Math.min(4, Math.max(0, ret * 100)) * 0.9; add = 140; }
+    else if (q === 'up') { gain = 3.4; add = 70; }
+    else if (q === 'flat') { gain = 1.5; add = 20; }
+    else if (q === 'fast') { gain = 0.6; add = 8; }
+    else { gain = 1.0; add = 10; }
+    gain *= (window.SHOP ? SHOP.gainMul() : 1);
+    if (q === 'tp' || q === 'up') {
+      S.combo++;
+      S.comboAt = S.t;
+      S.bestCombo = Math.max(S.bestCombo, S.combo);
+    } else if (q === 'loss' || q === 'fast') S.combo = 0;
+    else S.comboAt = S.t;
+    S.gauge = Math.min(100, S.gauge + gain);
+    S.score += add + Math.min(S.combo, 15) * 4;
+    S.taps++;
+    var pct = (ret >= 0 ? '+' : '') + (ret * 100).toFixed(2) + '%';
+    if (q === 'tp') {
+      try { SFX.coinWin(); } catch (e) {}
+      flash('rgba(255,90,110,.28)', 240);
+      floatText('익절 ' + pct + ' 🎯', 0.5, 0.34);
+      toast('🎯 고점 매도! ' + pct + ' · 콤보 ' + S.combo + ' · 게이지 +' + gain.toFixed(1), 1600);
+    } else if (q === 'up') {
+      try { SFX.earn(); } catch (e) {}
+      floatText('매도 ' + pct, 0.5, 0.34);
+    } else if (q === 'flat') {
+      try { SFX.click(); } catch (e) {}
+      floatText('매도 ' + pct, 0.5, 0.34);
+    } else if (q === 'fast') {
+      try { SFX.tick(); } catch (e) {}
+      toast('너무 성급한 매도! 조끔 더 버텨 봐', 1300);
+    } else {
+      try { SFX.coinLoss(); } catch (e) {}
+      floatText('손절 ' + pct, 0.5, 0.34);
+      toast('📉 손절 ' + pct + ' — 다음 급등을 노려', 1500);
+    }
+    syncHUD();
+    if (S.gauge >= 100) winStage();
+  }
+
+  /* ---------------- 목요일: 숏폼 위로 스와이프 ---------------- */
+  function isSwipeStage() {
+    return S.mode === 'playing' && S.curMini === 'video';
+  }
+  function cfgSat() {
+    return !!(S.cfg && S.cfg.slack === 'sat');
+  }
+
+  function slackSwipe() {
+    if (S.mode !== 'playing') return;
+    if (S.work || S.locked > 0) return;
+    if (S.curMini !== 'video') { basicTap(); return; }
+    S.combo++;
+    S.comboAt = S.t;
+    S.bestCombo = Math.max(S.bestCombo, S.combo);
+    var gain = (2.15 + Math.min(S.combo, 15) * 0.1) * (window.SHOP ? SHOP.gainMul() : 1);
+    S.gauge = Math.min(100, S.gauge + gain);
+    S.score += 14 + Math.min(S.combo, 15) * 3;
+    S.taps++;
+    try { SFX.swipe(); } catch (e) {}
+    try { Slack3D.swipe(); } catch (e) {}
+    if (E.miniScore) E.miniScore.textContent = S.taps + '편';
+    floatText('+' + gain.toFixed(1), 0.5, 0.3);
+    if (S.combo >= 8) toast('⚡ 콤보 ' + S.combo + ' · 손가락이 미끌린다', 900);
     syncHUD();
     if (S.gauge >= 100) winStage();
   }
@@ -976,6 +1365,7 @@
   }
   function setWorkVisual(on, silent) {
     bgmWork(on);
+    if (window.Slack3D) { try { Slack3D.setFrozen(!!on); } catch (e) {} }
     E.excelView.hidden = !on;
     E.slackView.hidden = on;
     E.eatView.hidden = true;
@@ -1022,7 +1412,7 @@
     if (E.miniScore) E.miniScore.textContent = '0편';
   }
   function miniTap() {
-    var kind = S.cfg.slack;
+    var kind = S.curMini;
     if (kind === 'jump') {
       if (E.miniScore) E.miniScore.textContent = S.taps;
     } else if (kind === 'chart') {
@@ -1191,6 +1581,37 @@
     }
     updateHint();
     updateVsStrip();
+    syncCoinHud();
+  }
+
+  /* 수요일 코인 단타 HUD (가격·수익률·포지션) */
+  function syncCoinHud() {
+    var on = S.mode === 'playing' && S.curMini === 'chart';
+    if (E.coinHud) {
+      E.coinHud.hidden = !on;
+      if (on && E.monitor) {
+        var wide = (E.monitor.clientWidth / Math.max(1, E.monitor.clientHeight)) > 1.55;
+        E.coinHud.classList.toggle('wide', wide);
+      }
+    }
+    if (!on) return;
+    var st = null;
+    try { st = Slack3D.coinState(); } catch (e) {}
+    if (!st) return;
+    if (E.chPrice) E.chPrice.textContent = coinWon(st.price);
+    var pct = st.pos ? (st.price / st.entry - 1) * 100 : 0;
+    var hide = !!S.work;
+    if (E.chRet) {
+      E.chRet.textContent = hide ? '⏸ 위장'
+        : st.pos ? (pct >= 0 ? '+' : '') + pct.toFixed(2) + '%' : '관망';
+      E.chRet.className = 'ch-ret' + (st.pos && !hide ? (pct >= 1.2 ? ' tp' : pct >= 0 ? ' win' : ' lose') : '');
+    }
+    if (E.chTip) {
+      E.chTip.textContent = hide ? '⏸ 위장 중 · 차트/포지션 정지'
+        : st.pos ? (pct >= 1.2 ? '🎯 익절 존! 지금 다시 탭 = 매도' : '고점(익절 존)에서 다시 탭 = 매도')
+          : '탭 = 매수(진입) · 빨간 불기둥을 보고 타이밍';
+    }
+    if (E.miniScore) E.miniScore.textContent = st.pos ? '보유' : '관망';
   }
 
   function updateHint() {
@@ -1201,6 +1622,9 @@
       else if (S.acting < 55) { h = '척도가 부족해! 조금만 더 버텨…'; cls = 'hot'; }
       else { h = '좋아, 그대로 버텨… 타자 소리만 들리게'; cls = 'good'; }
     } else if (S.work) { h = '타자 소리로 위장 중 · 손 떼면 바로 딴짓 복귀'; cls = 'good'; }
+    else if (S.curMini === 'chart') { h = '탭 = 매수 · 익절 존(빨간 구역)에서 다시 탭 = 매도'; cls = 'hot'; }
+    else if (S.curMini === 'video') { h = '↙ 화면을 위로 스와이프 = 다음 숏폼 (↑ / W)'; cls = 'hot'; }
+    else if (cfgSat()) { h = '주말 올스타전 · 탭으로 딴짓 (10초마다 교체)'; }
     else if (S.left <= 10) { h = '칼퇴까지 ' + Math.ceil(S.left) + '초! 게이지를 채워!'; cls = 'hot'; }
     else { h = '모니터를 연타하면 딴짓 게이지가 올라가요'; }
     if (h !== S.lastHint) {
@@ -1297,6 +1721,10 @@
   function cardInfo(kind) {
     var st = S.stats || {};
     var t = (window.VIRAL && VIRAL.TITLES.best()) || null;
+    var weekend = !!(S.cfg && S.cfg.id === 'sat');
+    var status = kind === 'clear' ? (weekend ? '주말근무 칼퇴' : '칼퇴 성공')
+      : kind === 'timeout' ? (weekend ? '주말근무 야근' : '야근')
+        : (weekend ? '주말근무 발각' : '발각');
     return {
       kind: kind,
       name: window.VIRAL ? VIRAL.myName() : '김인턴',
@@ -1306,7 +1734,7 @@
       gauge: st.gauge != null ? st.gauge : Math.round(S.gauge),
       combo: st.combo != null ? st.combo : S.bestCombo,
       day: S.cfg.day,
-      status: kind === 'clear' ? '칼퇴 성공' : kind === 'timeout' ? '야근' : '발각',
+      status: status,
       date: window.VIRAL ? VIRAL.todayLabel() : '',
       serial: String(S.stage + 1).padStart(3, '0'),
       vs: (window.VIRAL && VIRAL.VS) ? {
@@ -1320,6 +1748,7 @@
 
   /* ---------------- result screens ---------------- */
   function showCaughtScreen() {
+    S.mode = 'caught';
     var st = S.stats;
     bgmStop();
     award(st, false);
@@ -1351,24 +1780,25 @@
         '<div class="ov-actions">' +
           '<button class="cta ghost report-btn" id="cardBtn" type="button">📸 성적표 공유</button>' +
           '<button class="cta" id="retryBtn" type="button">다시 하기</button>' +
-          '<button class="cta ghost" id="homeBtn" type="button">처음으로</button>' +
+          '<button class="cta ghost" id="homeBtn" type="button">🏠 메뉴로 돌아가기</button>' +
         '</div>' +
       '</div>'
     );
     $('cardBtn').addEventListener('click', function () { SFX.click(); openCard('caught'); });
     $('retryBtn').addEventListener('click', function () { SFX.click(); enterStage(S.stage, S.baseScore); });
-    $('homeBtn').addEventListener('click', function () { SFX.click(); showTitle(); });
+    $('homeBtn').addEventListener('click', function () { SFX.click(); hardExit(); });
   }
 
   function showTimeoutScreen() {
     var st = S.stats;
     award(st, false);
     if (window.Slack3D) Slack3D.setActive(false);
+    var weekend = !!(S.cfg && S.cfg.id === 'sat');
     overlay(
       '<div class="ov-inner">' +
         '<div class="cut-emoji">🌙</div>' +
         '<span class="cut-stamp yellow">야근 당첨</span>' +
-        '<h2 class="cut-title">18:00 · 해도 지고, 퇴근도 지고</h2>' +
+        '<h2 class="cut-title">' + (weekend ? '토요일 특근 · 해도 지고, 퇴근도 지고' : '18:00 · 해도 지고, 퇴근도 지고') + '</h2>' +
         '<p class="cut-line">일하는 척만 하다간 퇴근은 없다. 딴짓은 해야 늘어난다.</p>' +
         statsRow(st, '남은 시간') +
         challengeResult(false) +
@@ -1377,13 +1807,13 @@
         '<div class="ov-actions">' +
           '<button class="cta ghost report-btn" id="cardBtn" type="button">📸 성적표 공유</button>' +
           '<button class="cta" id="retryBtn" type="button">다시 하기</button>' +
-          '<button class="cta ghost" id="homeBtn" type="button">처음으로</button>' +
+          '<button class="cta ghost" id="homeBtn" type="button">🏠 메뉴로 돌아가기</button>' +
         '</div>' +
       '</div>'
     );
     $('cardBtn').addEventListener('click', function () { SFX.click(); openCard('timeout'); });
     $('retryBtn').addEventListener('click', function () { SFX.click(); enterStage(S.stage, S.baseScore); });
-    $('homeBtn').addEventListener('click', function () { SFX.click(); showTitle(); });
+    $('homeBtn').addEventListener('click', function () { SFX.click(); hardExit(); });
   }
 
   function statsRow(st, mode) {
@@ -1410,18 +1840,37 @@
     var isDaily = !!S.challenge;
     var next = S.stage + 1;
     var last = next >= STAGES.length;
-    var head = last ? '금요일 18:00 · 이번 주도 칼퇴' : S.cfg.day + ' 18:00 · 사무실 탈출';
-    var sub = last
-      ? '5일 연속 칼퇴 성공. 이제 주말은 내 거다.'
+    var weekend = !!(S.cfg && S.cfg.id === 'sat');
+    var head = weekend ? '토요일 18:00 · 주말근무 클리어'
+      : last ? '18:00 · 사무실 탈출' : S.cfg.day + ' 18:00 · 사무실 탈출';
+    var sub = weekend ? '토요일 특근까지 버텼다. 내일은 진짜 주말이다.'
       : '가방은 이미 쌌다. 계단으로 조용히… 내일 또 온다.';
     if (isDaily) {
       head = '오늘의 챌린지 · ' + S.cfg.day + ' 클리어';
       sub = '같은 날 모두가 같은 순찰을 겪었다. 오늘의 기록을 남겨라.';
     }
+    var acts = '<button class="cta ghost report-btn" id="cardBtn" type="button">📸 성적표 공유</button>';
+    if (isDaily) {
+      acts += '<button class="cta" id="dailyAgain" type="button">오늘의 챌린지 다시</button>' +
+        '<button class="cta ghost" id="homeBtn" type="button">🏠 메뉴로 돌아가기</button>';
+    } else if (weekend) {
+      acts += '<button class="cta" id="endBtn" type="button">🏆 주말 엔딩 보기</button>' +
+        '<button class="cta ghost" id="retryBtn" type="button">이 날 다시 하기</button>' +
+        '<button class="cta ghost" id="homeBtn" type="button">🏠 메뉴로 돌아가기</button>';
+    } else if (last) {
+      acts += '<button class="cta" id="endBtn" type="button">🌇 주간 엔딩 보기</button>' +
+        '<button class="cta ghost" id="retryBtn" type="button">이 날 다시 하기</button>' +
+        '<button class="cta ghost" id="homeBtn" type="button">🏠 메뉴로 돌아가기</button>';
+    } else {
+      acts += '<button class="cta" id="nextBtn" type="button">다음 날: ' + STAGES[next].day + (STAGES[next].id === 'sat' ? ' 주말근무' : '') + ' →</button>' +
+        (S.cfg.id === 'fri' ? '<button class="cta ghost" id="endBtn" type="button">🌇 주간 엔딩 보기</button>' : '') +
+        '<button class="cta ghost" id="retryBtn" type="button">이 날 다시 하기</button>' +
+        '<button class="cta ghost" id="homeBtn" type="button">🏠 메뉴로 돌아가기</button>';
+    }
     overlay(
       '<div class="ov-inner">' +
-        '<div class="cut-emoji">🏃‍♂️</div>' +
-        '<span class="cut-stamp green">칼퇴 성공</span>' +
+        '<div class="cut-emoji">' + (weekend ? '🌞' : '🏃‍♂️') + '</div>' +
+        '<span class="cut-stamp green">' + (weekend ? '주말 탈출' : '칼퇴 성공') + '</span>' +
         '<h2 class="cut-title">' + head + '</h2>' +
         '<p class="cut-line">' + sub + '</p>' +
         '<div class="cut-stats">' +
@@ -1429,61 +1878,153 @@
           '<div><b>' + st.combo + '</b><small>최고 콤보</small></div>' +
           '<div><b>' + st.left + '초</b><small>남은 시간</small></div>' +
         '</div>' +
+        (weekend ? '<div class="sat-bonus">💰 주말 특근 보너스 · 루팡 코인 <b>2배</b></div>' : '') +
         challengeResult(true) +
         vsResultRow(S.score) +
         rewardRow() +
-        '<div class="ov-actions">' +
-          '<button class="cta ghost report-btn" id="cardBtn" type="button">📸 성적표 공유</button>' +
-          (isDaily
-            ? '<button class="cta" id="dailyAgain" type="button">오늘의 챌린지 다시</button>' +
-              '<button class="cta ghost" id="homeBtn" type="button">처음으로</button>'
-            : (last
-              ? '<button class="cta" id="endBtn" type="button">주말 맞이하기</button>'
-              : '<button class="cta" id="nextBtn" type="button">다음 날: ' + STAGES[next].day + ' →</button>') +
-              '<button class="cta ghost" id="retryBtn" type="button">이 날 다시 하기</button>') +
-        '</div>' +
+        '<div class="ov-actions">' + acts + '</div>' +
       '</div>'
     );
     $('cardBtn').addEventListener('click', function () { SFX.click(); openCard('clear'); });
     if (isDaily) {
       $('dailyAgain').addEventListener('click', function () { SFX.click(); startChallenge(); });
-      $('homeBtn').addEventListener('click', function () { SFX.click(); showTitle(); });
+      $('homeBtn').addEventListener('click', function () { SFX.click(); hardExit(); });
     } else {
-      if (last) $('endBtn').addEventListener('click', function () { SFX.click(); showEnding(); });
-      else $('nextBtn').addEventListener('click', function () { SFX.click(); enterStage(next, S.score); });
-      $('retryBtn').addEventListener('click', function () { SFX.click(); enterStage(S.stage, S.baseScore); });
+      if (weekend || last) $('endBtn').addEventListener('click', function () { SFX.click(); showEnding(weekend ? 'weekend' : 'week'); });
+      if (!weekend && !last) {
+        $('nextBtn').addEventListener('click', function () { SFX.click(); enterStage(next, S.score); });
+        var fx = $('endBtn');
+        if (fx) fx.addEventListener('click', function () { SFX.click(); showEnding('week'); });
+      }
+      $('retryBtn').addEventListener('click', function () { SFX.click(); beforeRetry(); enterStage(S.stage, S.baseScore); });
+      $('homeBtn').addEventListener('click', function () { SFX.click(); hardExit(); });
     }
   }
 
-  function showEnding() {
-    S.mode = 'ending';
-    if (window.VIRAL) VIRAL.TITLES.note('ending');
-    var total = S.score;
-    var rank = total >= 4200 ? 'S' : total >= 3200 ? 'A' : total >= 2200 ? 'B' : 'C';
-    var rows = runLog.map(function (r) {
+  function beforeRetry() {
+    if (window.Slack3D) { Slack3D.setFrozen(false); }
+    S.rewarded = null;
+  }
+
+  /* ---------------- 진짜 엔딩 컷신 (3D 카메라 줌아웃·회전 + 잼인턴 퇴근) ---------------- */
+  function showEnding(kind) {
+    kind = kind || ((S.cfg && S.cfg.id === 'sat') ? 'weekend' : 'week');
+    S.mode = 'cut';
+    bgmStop();
+    if (window.VIRAL) VIRAL.TITLES.note(kind === 'weekend' ? 'weekend' : 'ending');
+    var shots = [];
+    try {
+      Slack3D.begin(['jambujang', 'jamsajang']);
+      Slack3D.setActive(true);
+      Slack3D.setMiniActive(false);
+      shots.push({
+        img: Slack3D.cineShot('boss'), who: '잼부장', color: '#ffd24a',
+        line: kind === 'weekend' ? '“…토요일까지 버텼다고?”' : '“…진짜 6시에 가는 사람이 있네.”'
+      });
+      shots.push({
+        img: Slack3D.cineShot('end'), who: '잼인턴', color: '#ffb3c8',
+        line: kind === 'weekend' ? '주말 특근까지 살아남았어요! 이제 진짜 퇴근!'
+          : '선배님, 진짜 6시에 퇴근했어요?!'
+      });
+      Slack3D.cine('end', 2.6);
+    } catch (e) {}
+    try { SFX.ending(); } catch (e) {}
+    if (!shots.length) { showEndingScreen(kind); return; }
+    var s0 = shots[0];
+    overlay(
+      '<div class="cine" id="cineWrap">' +
+        (s0.img ? '<img class="cine-img" id="cineImg" src="' + s0.img + '" alt="엔딩 3D 컷">' : '<div class="cine-ph">🌇</div>') +
+        '<div class="cine-vig"></div>' +
+        '<span class="cine-day">엔딩 · ' + (kind === 'weekend' ? '주말근무까지 완주' : '주간 완주') + '</span>' +
+        '<div class="cine-cap" id="cineCap"><b id="cineWho" style="color:' + s0.color + '">' + s0.who + '</b>' +
+          '<p id="cineLine">' + esc(s0.line) + '</p></div>' +
+        '<button class="cine-skip" id="cineSkip" type="button">건너뛰기 ›</button>' +
+      '</div>'
+    );
+    E.overlay.classList.add('cine-ov');
+    var finished = false;
+    function finish() {
+      if (finished) return;
+      finished = true;
+      clearCutTimer();
+      E.overlay.classList.remove('cine-ov');
+      showEndingScreen(kind);
+    }
+    S.cutSkip = finish;
+    var timers = [];
+    timers.push(setTimeout(function () {
+      if (finished) return;
+      var s1 = shots[1] || shots[0];
+      var img = $('cineImg');
+      if (img && s1.img) img.src = s1.img;
+      var w = $('cineWho'), l = $('cineLine');
+      if (w) { w.textContent = s1.who; w.style.color = s1.color; }
+      if (l) l.textContent = s1.line;
+      var cap = $('cineCap');
+      if (cap) { cap.style.animation = 'none'; void cap.offsetWidth; cap.style.animation = ''; }
+    }, 1250));
+    timers.push(setTimeout(finish, 2550));
+    S.cutTimer = timers;
+    var skip = $('cineSkip');
+    if (skip) skip.addEventListener('click', function (e) { e.preventDefault(); e.stopPropagation(); finish(); });
+    var wrap = $('cineWrap');
+    if (wrap) wrap.addEventListener('click', function () { finish(); });
+  }
+
+  function endingRows() {
+    /* 같은 요일을 다시 해도 한 줄로만 남긴다 */
+    var seen = {}, list = [];
+    for (var i = 0; i < runLog.length; i++) {
+      var r = runLog[i], k = r.id || r.day;
+      if (seen[k] != null) { list[seen[k]] = r; continue; }
+      seen[k] = list.length;
+      list.push(r);
+    }
+    return list;
+  }
+  function endingRowHTML() {
+    return endingRows().map(function (r) {
       return '<div class="ov-stage"><span class="d">' + r.day + '</span><span class="n">딴짓 ' + r.gauge + '% · 콤보 ' + r.combo + '</span><span class="p">' + r.score + '점</span></div>';
     }).join('');
+  }
+
+  function showEndingScreen(kind) {
+    S.mode = 'ending';
+    var weekend = kind === 'weekend';
+    var rowsData = endingRows();
+    var days = rowsData.length || (weekend ? 6 : 5);
+    var total = S.score;
+    var avg = total / Math.max(1, days);
+    var rank = avg >= 840 ? 'S' : avg >= 640 ? 'A' : avg >= 440 ? 'B' : 'C';
+    var coins = window.SHOP ? SHOP.status().totalCoins : 0;
     overlay(
-      '<div class="ov-inner">' +
-        '<div class="cut-emoji">🌇</div>' +
-        '<span class="cut-stamp yellow">5일 연속 칼퇴</span>' +
-        '<h2 class="cut-title">주말이 왔다.<br>이번 주도 살아남았다.</h2>' +
-        '<p class="cut-line">잼부장: “…칼퇴? 나 때는 말이야…”<br>잼인턴: “선배님 진짜 칼퇴했어요?!”</p>' +
-        '<div class="ov-stage-list">' + rows + '</div>' +
+      '<div class="ov-inner ending">' +
+        '<div class="cut-emoji">' + (weekend ? '🌞🏆' : '🌇') + '</div>' +
+        '<span class="cut-stamp yellow">' + (weekend ? '6일 특근 생존' : '5일 연속 칼퇴') + '</span>' +
+        '<h2 class="cut-title">' + (weekend ? '토요일 특근까지 끝냈다.<br>이제 진짜 주말이다.' : '주말이 왔다.<br>이번 주도 살아남았다.') + '</h2>' +
+        '<p class="cut-line">' + (weekend
+          ? '잼부장: “주말에도 회사는 돌아가야지…”<br>잼인턴: “선배님, 주말엔 진짜 쉬어요!”'
+          : '잼부장: “…칼퇴? 나 때는 말이야…”<br>잼인턴: “선배님 진짜 칼퇴했어요?!”') + '</p>' +
+        '<div class="ov-stage-list">' + endingRowHTML() + '</div>' +
         '<div class="cut-stats">' +
           '<div><b>' + rank + '</b><small>등급</small></div>' +
           '<div><b>' + total.toLocaleString('ko-KR') + '</b><small>총점</small></div>' +
           '<div><b>' + bestComboRun() + '</b><small>최고 콤보</small></div>' +
         '</div>' +
-        '<div class="reward-row">' + SHOP.rankBadge() +
-          '<span class="rw-bal">누적 코인 ₩ ' + SHOP.status().totalCoins.toLocaleString('ko-KR') + '</span></div>' +
+        '<div class="ending-sum">' +
+          '<div><b>' + (window.SHOP ? SHOP.rank().emoji + ' ' + SHOP.rank().name : '인턴') + '</b><small>최종 직급</small></div>' +
+          '<div><b>₩ ' + coins.toLocaleString('ko-KR') + '</b><small>총 루팡 코인</small></div>' +
+          '<div><b>' + days + '일</b><small>생존 기록</small></div>' +
+        '</div>' +
         '<div class="ov-actions">' +
           '<button class="cta ghost report-btn" id="cardBtn" type="button">📸 성적표 공유</button>' +
+          '<button class="cta ghost" id="homeBtn" type="button">🏠 메뉴로 돌아가기</button>' +
           '<button class="cta" id="againBtn" type="button">다시 도전</button>' +
         '</div>' +
       '</div>'
     );
     $('cardBtn').addEventListener('click', function () { SFX.click(); openCard('clear'); });
+    $('homeBtn').addEventListener('click', function () { SFX.click(); hardExit(); });
     $('againBtn').addEventListener('click', function () { SFX.click(); startRun(); });
   }
   function bestComboRun() {
@@ -1499,7 +2040,8 @@
         mode: S.mode, stage: S.stage, day: S.cfg.day, gauge: S.gauge, left: S.left,
         combo: S.combo, work: S.work, holding: S.holding, acting: S.acting,
         phase: S.phase, score: S.score, suspicion: S.suspicion, locked: S.locked,
-        checks: S.checks, passes: S.passes, taps: S.taps
+        checks: S.checks, passes: S.passes, taps: S.taps,
+        curMini: S.curMini, paused: S.paused, quit: !!S.quitOpen, sat: S.satGameIn, t: +S.t.toFixed(2)
       };
     },
     tap: function () {
@@ -1515,7 +2057,38 @@
     pickExcuse: function (i) { return window.ExcuseChance ? ExcuseChance.pick(i) : false; },
     audio: function () { return { on: SFX.isOn(), bgm: SFX.bgm.status() }; },
     setGauge: function (v) { S.gauge = clamp(v, 0, 100); syncHUD(); if (S.gauge >= 100) winStage(); },
+    grace: function (v) { S.grace = Math.max(0, Number(v) || 0); return S.grace; },
+    win: function () { if (S.mode === 'playing') winStage(); },
     stage: function (i) { enterStage(i, 0); },
+    stageById: function (id) {
+      for (var i = 0; i < STAGES.length; i++) if (STAGES[i].id === id) return i;
+      return -1;
+    },
+    stages: function () { return STAGES.map(function (s) { return { id: s.id, day: s.day, name: s.name, secs: s.secs }; }); },
+    /* 컷신·메뉴·스와이프·코인 */
+    cut: function () { return { mode: S.mode, seen: Object.keys(S.cutSeen), open: !!S.cutSkip }; },
+    skipCut: function () { if (S.cutSkip) S.cutSkip(); },
+    resetCuts: function () { S.cutSeen = {}; return true; },
+    menu: function () { requestMenu(); },
+    menuForce: function () { hardExit(); },
+    quitOpen: function () { return !!S.quitOpen; },
+    swipe: slackSwipe,
+    coinTap: coinTapAction,
+    coin: function () { return Slack3D.coinState(); },
+    coinDebug: function (o) { return Slack3D.coinDebug(o); },
+    coinHud: function () {
+      return {
+        hidden: E.coinHud ? E.coinHud.hidden : null,
+        price: E.chPrice ? E.chPrice.textContent : '',
+        ret: E.chRet ? E.chRet.textContent : '',
+        tip: E.chTip ? E.chTip.textContent : ''
+      };
+    },
+    mini: function () { return { cur: S.curMini, label: E.miniLabel ? E.miniLabel.textContent : '' }; },
+    satNext: cycleSatGame,
+    endings: function (kind) { showEnding(kind); },
+    endingScreen: function (kind) { showEndingScreen(kind || 'week'); },
+    cine: function (kind) { return (window.Slack3D) ? Slack3D.cineShot(kind) : ''; },
     start: function () { startRun(); },
     go: beginPlay,
     skipTemptIn: function () { S.temptIn = 0; },
