@@ -25,8 +25,8 @@
       desc: '부장님이 복도에서 다가온다. 다가오는 동안 재빨리 「일하는 척!」.',
       story: [{ who: 'jambujang', line: '월요일 17:05. 첫 출근 첫날부터 복도에서 발소리가 들린다…' },
               { who: 'jamintern', line: '선배님, 저 오늘 6시에 진짜 갈 수 있는 거예요?' }],
-      rules: ['부장님이 오면 <b>[일하는 척!]을 꾹</b> — 놓으면 바로 딴짓으로 돌아간다.',
-        '딴짓 중에 걸리면 <b>즉시 발각</b>. 18:00까지 게이지 <b>100%</b>를 못 채우면 야근.']
+      rules: ['서류 더미·커피 잔이 다가온다. <b>타이밍 점프</b>로 넘어라!',
+        '넘을 때 <b>공중 코인</b>을 먹으면 게이지 대폭 상승. 부딪히면 콤보 리셋·감점.']
     },
     {
       id: 'tue', day: '화요일', name: '잼부장 커피 급복귀', tag: '보통', pips: 2,
@@ -36,19 +36,19 @@
       desc: '단톡방 알림이 쏟아진다. 부장님은 커피 타러 갔다… 생각보다 빨리 돌아온다.',
       story: [{ who: 'jamdaeri', line: '단톡방 터졌어 ㅋㅋ 부장님 커피 타러 감! 지금이야' },
               { who: 'jambujang', line: '…잠깐 탕비실 다녀오지.' }],
-      rules: ['<b>💬 메신저 버블</b>을 터뜨리면 게이지가 오른다. 버블은 계속 올라온다.',
-        '부장님이 <b>커피 타러 간 틈</b>이 기회. 그런데 <b>급복귀</b>하면 경고가 아주 짧다.']
+      rules: ['💬 <b>친구 톡·꿀잼 짤</b>(초록·파랑)만 눌러 답장 → 콤보·게이지 상승.',
+        '📌 <b>부장님 업무 지시·야근 요청</b>(빨강)을 누르면 의심도 급증! 읽고 골라라.']
     },
     {
       id: 'wed', day: '수요일', name: '잼대리 유혹 공작', tag: '보통', pips: 2,
-      secs: 46, warn: 1.3, gap: [5.4, 8.0], turnback: 0.45, double: 0,
+      secs: 50, warn: 1.3, gap: [5.4, 8.0], turnback: 0.45, double: 0,
       temptation: true, suspicion: false, bosses: ['jambujang'],
       slack: 'chart', file: '수요일_주간보고_진짜마지막_v7_최종.xlsx', url: 'coinchart.io/BTC',
       desc: '잼대리가 옆에서 차트를 켜 준다. 그리고 부장님이 지나간 척하다 돌아본다.',
       story: [{ who: 'jamdaeri', line: '코인 지금 급등 중인데? 한 번만 단타 쳐 봐 👀' },
               { who: 'jambujang', line: '흠… 누가 주식을 하나…' }],
-      rules: ['① 탭 = <b>매수(진입)</b> → 가격이 <b>익절 존</b>까지 급등했을 때 ② 다시 탭 = <b>고점 매도(익절)</b>.',
-        '익절 존 매도는 게이지·콤보 <b>대폭 상승</b>. 저점 매도·손절도 소폭은 오른다. 위장 중엔 차트가 <b>정지</b>.']
+      rules: ['차트 아래 <b>[📈 매수]</b> → 가격이 오르면 <b>[📉 매도]</b> 버튼.',
+        '빨간 <b>익절 존</b>에서 매도하면 게이지·콤보 대폭 상승. 위장 중엔 차트가 <b>정지</b>.']
     },
     {
       id: 'thu', day: '목요일', name: '잼사장 뒤에서 접근', tag: '어려움', pips: 3,
@@ -58,8 +58,8 @@
       desc: '숏폼이 자동 재생된다. 그런데 발소리도 없이 등 뒤로 누가 다가온다.',
       story: [{ who: 'jamdaeri', line: '이거 3초만 보려다… 다음 영상이 안 멈춰 ㅋㅋ' },
               { who: 'jamsajang', line: '뒤에서 한참 봤네. …뭐 하고 있나.' }],
-      rules: ['화면을 <b>위로 스와이프</b>(데스크톱은 <b>↑ / W</b>)해서 숏폼을 계속 넘긴다.',
-        '<b>뒤에서 소리 없이 접근</b> — 발소리·경고가 <b>한 박자 늦게</b> 뜬다. 늦으면 발각.']
+      rules: ['카드마다 방향 미션이 다르다: <b>⬆ 다음 · ➡ 좋아요 · ⬅ 광고 스킵</b>.',
+        '안내 방향으로 밀면 콤보·게이지 상승. 틀리면 콤보 리셋. (↑/←/→ · W/A/D)']
     },
     {
       id: 'fri', day: '금요일', name: '부장님 + 사장님 더블 체크', tag: '어려움', pips: 3,
@@ -69,8 +69,8 @@
       desc: '부장님과 사장님이 번갈아 온다. 경고가 짧고, 일만 하면 의심도가 찬다.',
       story: [{ who: 'jambujang', line: '금요일 17:05. 이번 주도 여기서 끝내야지.' },
               { who: 'jamsajang', line: '사장도 오늘은 늦게 들어간다네. 큰 그림을 봐야지.' }],
-      rules: ['경고가 <b>1초</b> 남짓. 화면을 보고 <b>먼저</b> 눌러야 한다.',
-        '일하는 척만 오래 하면 <b>의심도</b>가 차서 <b>기습 점검</b>이 날아온다.']
+      rules: ['왕복하는 <b>타이밍 바</b>가 황금 존에 들어올 때 탭!',
+        '정중앙 <b>크리티컬</b>이면 게이지가 팍. 빗나가면 콤보 리셋.']
     },
     {
       id: 'sat', day: '토요일', name: '주말근무 (특근)', tag: '특근', pips: 3,
@@ -104,7 +104,11 @@
     challenge: null, br: null, vsHit: false, dailyRec: null, paused: false,
     warnSeenAt: -9, warnNeedReact: false, events: [],
     /* 컷신·주말 올스타전·메뉴 */
-    cutSeen: {}, cutSkip: null, cutTimer: 0, curMini: 'jump', satGameIn: 10, quitOpen: false
+    cutSeen: {}, cutSkip: null, cutTimer: 0, curMini: 'jump', satGameIn: 10, quitOpen: false,
+    /* 아케이드 입력·과열·실시간 컷신 */
+    tapLog: [], noiseAt: -9, noiseT: 0, noiseOff: 0, airHintAt: -9, emptyHintAt: -9, actAt: -9,
+    smashPh: 0, smashCool: 0, perfectN: 0, goodN: 0, missN: 0, answers: 0, swipes: 0, chartHintAt: -9,
+    cineWho: '', cineAnchorT: 0
   };
   var E = {};
   var lastTs = 0, rafId = 0;
@@ -185,6 +189,24 @@
     E.chPrice = $('chPrice');
     E.chRet = $('chRet');
     E.chTip = $('chTip');
+    E.mini3d = $('mini3d');
+    /* 아케이드 UI */
+    E.tradeRow = $('tradeRow');
+    E.buyBtn = $('buyBtn');
+    E.sellBtn = $('sellBtn');
+    E.mission = $('mission');
+    E.mIc = $('mIc');
+    E.mTitle = $('mTitle');
+    E.mSub = $('mSub');
+    E.timing = $('timing');
+    E.tMark = $('tMark');
+    E.tLbl = $('tLbl');
+    E.cine3d = $('cine3d');
+    E.cineHost = $('cine3dHost');
+    E.cineBub = $('cineBub');
+    E.cineBubWho = $('cineBubWho');
+    E.cineBubText = $('cineBubText');
+    E.cineDay = $('cineDay');
 
     /* ② 도발 배너 (플레이 상단) */
     E.vsStrip = $('vsStrip');
@@ -237,36 +259,57 @@
       requestMenu();
     });
 
-    var sw = { on: false, x0: 0, y0: 0, t0: 0, hintAt: -9 };
+    /* 수요일 매수/매도 2버튼 */
+    if (E.buyBtn) E.buyBtn.addEventListener('click', function (e) {
+      e.preventDefault(); e.stopPropagation();
+      if (S.mode !== 'playing' || S.curMini !== 'chart' || S.work) return;
+      coinTapAction('buy');
+    });
+    if (E.sellBtn) E.sellBtn.addEventListener('click', function (e) {
+      e.preventDefault(); e.stopPropagation();
+      if (S.mode !== 'playing' || S.curMini !== 'chart' || S.work) return;
+      coinTapAction('sell');
+    });
+
+    var sw = { on: false, x0: 0, y0: 0, x1: 0, y1: 0, t0: 0, hintAt: -9 };
     E.monitor.addEventListener('pointerdown', function (e) {
-      if (e.target.closest && e.target.closest('.tempt')) return;
-      e.preventDefault();
+      if (e.target.closest && (e.target.closest('.tempt') || e.target.closest('.trade'))) return;
       if (S.mode === 'playing' && isSwipeStage()) {
-        sw.on = true; sw.x0 = e.clientX; sw.y0 = e.clientY; sw.t0 = Date.now();
+        e.preventDefault();
+        sw.on = true; sw.x0 = e.clientX; sw.y0 = e.clientY;
+        sw.x1 = e.clientX; sw.y1 = e.clientY; sw.t0 = now();
         try { E.monitor.setPointerCapture(e.pointerId); } catch (err) {}
         return;
       }
+      e.preventDefault();
       var rect = E.monitor.getBoundingClientRect();
       slackTap(e.clientX - rect.left, e.clientY - rect.top, e.clientX, e.clientY);
     });
-    /* 목요일 숏폼: 위로 끌어 넘기기 (연속 스와이프 허용) */
+    /* 목요일 숏폼: 방향 스와이프 (↑ 다음 / → 좋아요 / ← 광고 스킵) */
     E.monitor.addEventListener('pointermove', function (e) {
-      if (!sw.on || S.mode !== 'playing' || !isSwipeStage()) return;
-      if (sw.y0 - e.clientY >= 44) {
-        sw.y0 = e.clientY; sw.x0 = e.clientX;
-        slackSwipe();
-      }
+      if (!sw.on) return;
+      sw.x1 = e.clientX; sw.y1 = e.clientY;
     });
     ['pointerup', 'pointercancel'].forEach(function (ev) {
       E.monitor.addEventListener(ev, function (e) {
         if (!sw.on) return;
         sw.on = false;
         if (S.mode !== 'playing' || !isSwipeStage()) return;
-        var dy = Math.abs(sw.y0 - (e.clientY || sw.y0));
-        if (dy < 18 && now() - sw.hintAt > 2.4) {
-          sw.hintAt = now();
-          toast('☝️ 화면을 위로 스와이프! (데스크톱 ↑ / W)', 1600);
+        var dx = (e.clientX != null ? e.clientX : sw.x1) - sw.x0;
+        var dy = (e.clientY != null ? e.clientY : sw.y1) - sw.y0;
+        var ax = Math.abs(dx), ay = Math.abs(dy);
+        if (Math.max(ax, ay) < 26) {
+          if (now() - sw.hintAt > 2.4) {
+            sw.hintAt = now();
+            var m = null;
+            try { m = Slack3D.mission(); } catch (err) {}
+            toast(m && m.dir === 'right' ? '➡ 카드를 오른쪽으로 밀어 좋아요!'
+              : m && m.dir === 'left' ? '⬅ 왼쪽으로 밀어 광고 스킵!'
+                : '⬆ 위로 밀어 다음 영상!', 1500);
+          }
+          return;
         }
+        slackSwipe(ax >= ay ? (dx > 0 ? 'right' : 'left') : 'up');
       });
     });
 
@@ -296,7 +339,17 @@
         if (S.mode !== 'playing' || !isSwipeStage()) return;
         e.preventDefault();
         if (e.repeat) return;
-        slackSwipe();
+        slackSwipe('up');
+      } else if (e.code === 'ArrowRight' || e.code === 'KeyD') {
+        if (S.mode !== 'playing' || !isSwipeStage()) return;
+        e.preventDefault();
+        if (e.repeat) return;
+        slackSwipe('right');
+      } else if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
+        if (S.mode !== 'playing' || !isSwipeStage()) return;
+        e.preventDefault();
+        if (e.repeat) return;
+        slackSwipe('left');
       } else if (e.code === 'Escape') {
         if (S.mode === 'playing' || S.mode === 'intro' || S.mode === 'cut') requestMenu();
       }
@@ -352,6 +405,11 @@
   /* 타이머·BGM·미니게임 3D·모달을 모두 정리하고 타이틀へ */
   function hardExit() {
     clearCutTimer();
+    try { cineClose(); } catch (e) {}
+    if (E.mission) E.mission.hidden = true;
+    if (E.tradeRow) E.tradeRow.hidden = true;
+    if (E.timing) E.timing.hidden = true;
+    if (E.monitor) E.monitor.classList.remove('noisy');
     S.quitOpen = false;
     S.paused = false;
     S.holding = false;
@@ -405,6 +463,9 @@
     E.stageChip.textContent = '월요일';
     if (E.menuBtn) E.menuBtn.hidden = true;
     if (E.coinHud) E.coinHud.hidden = true;
+    if (E.mission) E.mission.hidden = true;
+    if (E.tradeRow) E.tradeRow.hidden = true;
+    if (E.timing) E.timing.hidden = true;
     resetBossVisual();
     S.challenge = null; S.dailyRec = null;
     updateVsStrip();
@@ -434,7 +495,7 @@
         '<h1 class="ov-title">부장님 몰래<br>딴짓하기</h1>' +
         '<p class="ov-sub">부장님 눈을 피해 <b>딴짓 게이지 100%</b>를 채우고,<br>6시 정각에 사라져라. 주말 특근까지 6일 생존기.</p>' +
         '<div class="how">' +
-          '<div class="how-i"><b>👆</b><span>모니터 연타<small>딴짓 게이지 UP</small></span></div>' +
+          '<div class="how-i"><b>🎮</b><span>요일별 아케이드<small>타이밍·판단으로</small></span></div>' +
           '<div class="how-i"><b>💼</b><span>일하는 척 꾹<small>부장님 눈 피하기</small></span></div>' +
           '<div class="how-i"><b>🛒</b><span>장비·승진<small>코인으로 강해지기</small></span></div>' +
         '</div>' +
@@ -444,7 +505,7 @@
           '<button class="cta ghost shop-btn" id="shopBtn" type="button">🛒 장비 상점</button>' +
           '<button class="cta" id="startBtn" type="button">출근하기</button>' +
         '</div>' +
-        '<p class="ov-tiny">모니터 연타 = 딴짓 · 「일하는 척!」 꾹 = 위장 (Space)</p>' +
+        '<p class="ov-tiny">요일별 미니게임 = 딴짓 · 「일하는 척!」 꾹 = 위장 (Space)</p>' +
       '</div>'
     );
     $('startBtn').addEventListener('click', function () { SFX.click(); startRun(); });
@@ -576,10 +637,12 @@
     var ruleRows = cfg.rules.map(function (r) {
       return '<div class="ov-stage"><span class="n" style="white-space:normal;line-height:1.45">' + r + '</span></div>';
     }).join('');
-    var tip = cfg.slack === 'chart' ? '탭 = 매수 → 익절 존에서 다시 탭 = 매도 · 「일하는 척!」 꾹 = 위장'
-      : cfg.slack === 'video' ? '↑로 스와이프 = 숏폼 넘기기 · 「일하는 척!」 꾹 = 위장'
+    var tip = cfg.slack === 'chart' ? '아래 [📈 매수] / [📉 매도] 버튼 · 「일하는 척!」 꾹 = 위장'
+      : cfg.slack === 'video' ? '⬆/➡/⬅ 방향 스와이프 (W/A/D) · 「일하는 척!」 꾹 = 위장'
         : cfg.slack === 'sat' ? '탭 = 딴짓(10초마다 교체) · 「일하는 척!」 꾹 = 위장'
-          : '모니터 연타 = 게이지 UP · 「일하는 척!」 꾹 = 위장';
+          : cfg.slack === 'jump' ? '화면 탭 = 타이밍 점프 · 「일하는 척!」 꾹 = 위장'
+            : cfg.slack === 'chat' ? '메시지 카드 탭 = 답장 · 「일하는 척!」 꾹 = 위장'
+              : '황금 존 타이밍 탭 = 상자 깨기 · 「일하는 척!」 꾹 = 위장';
     overlay(
       '<div class="ov-inner">' +
         '<span class="ov-tag">' + cfg.day + ' · 17:05</span>' +
@@ -601,7 +664,7 @@
     syncHUD();
   }
 
-  /* ---------------- 스토리 인트로 컷 (건너뛰기 가능) ---------------- */
+  /* ---------------- 실시간 3D 시네마틱 컷신 ---------------- */
   function clearCutTimer() {
     if (S.cutTimer) {
       if (S.cutTimer.length) {
@@ -612,62 +675,114 @@
     S.cutSkip = null;
   }
 
+  function cineSpeak(who, line) {
+    var c = CAST[who] || CAST.jambujang;
+    S.cineWho = who;
+    if (!E.cineBub) return;
+    E.cineBubWho.textContent = c.name;
+    E.cineBubWho.style.color = c.color;
+    E.cineBubText.textContent = line;
+    E.cineBub.hidden = false;
+    E.cineBub.style.opacity = '1';
+    E.cineBub.style.animation = 'none';
+    void E.cineBub.offsetWidth;
+    E.cineBub.style.animation = '';
+  }
+
+  /* 대사 말풍선을 3D 캐릭터 머리 위에 계속 붙여 둔다 */
+  /* 컷신이 실제로 끝까지 재생됐는지(프레임 기준) 확인 — 느린 기기에서도 안전 */
+  function cineTick(finish) {
+    if (S.cineTickT) clearInterval(S.cineTickT);
+    S.cineTickT = setInterval(function () {
+      var p = 1;
+      try { p = Slack3D.cineProgress(); } catch (e) {}
+      if (p >= 0.995 && !S.cineHoldOn) finish();
+    }, 90);
+  }
+
+  function cineAnchorLoop() {
+    if (S.cineAnchorT) clearInterval(S.cineAnchorT);
+    S.cineAnchorT = setInterval(function () {
+      if (!E.cineBub || E.cineBub.hidden) return;
+      var a = null;
+      try { a = Slack3D.anchor(S.cineWho); } catch (e) {}
+      if (!a || !a.on) { E.cineBub.style.opacity = '0'; return; }
+      E.cineBub.style.opacity = '1';
+      var bx = Math.max(0.3, Math.min(0.7, a.x));
+      var by = Math.max(0.3, Math.min(0.78, a.y));
+      E.cineBub.style.left = (bx * 100).toFixed(2) + '%';
+      E.cineBub.style.top = (by * 100).toFixed(2) + '%';
+    }, 70);
+  }
+
+  function cineClose() {
+    if (S.cineAnchorT) { clearInterval(S.cineAnchorT); S.cineAnchorT = 0; }
+    if (S.cineTickT) { clearInterval(S.cineTickT); S.cineTickT = 0; }
+    if (E.cineBub) { E.cineBub.hidden = true; E.cineBub.style.opacity = '1'; }
+    if (E.cine3d) { E.cine3d.classList.remove('on'); E.cine3d.hidden = true; }
+    try { if (window.Slack3D) Slack3D.cineUnmount(); } catch (e) {}
+    try { if (window.Slack3D) Slack3D.cineOff(); } catch (e) {}
+  }
+
+  /* 사무실 3D 캔버스를 전체 화면 레이어로 옮겨 실시간 컷신 시작 */
+  function cineStart(kind, cfg, dur) {
+    hideOverlay();
+    if (E.toast) E.toast.hidden = true;
+    /* 먼저 레이어를 펼쳐 캔버스가 실제 크기를 갖게 한 뒤 옮긴다 */
+    E.cine3d.hidden = false;
+    E.cine3d.classList.remove('on');
+    void E.cine3d.offsetWidth;
+    var mounted = false;
+    try {
+      if (kind === 'intro') Slack3D.setStage(cfg.slack === 'sat' ? S.curMini : cfg.slack);
+      mounted = Slack3D.cineMount(E.cineHost);
+      Slack3D.cine(kind, dur);
+    } catch (e) { mounted = false; }
+    if (!mounted) { E.cine3d.hidden = true; return false; }
+    E.cine3d.classList.add('on');
+    try { Slack3D.cineResize(); } catch (e) {}
+    setTimeout(function () { try { Slack3D.cineResize(); } catch (e) {} }, 60);
+    setTimeout(function () { try { Slack3D.cineResize(); } catch (e) {} }, 320);
+    if (E.cineDay) {
+      E.cineDay.textContent = kind === 'end'
+        ? '엔딩 · ' + ((S.cfg && S.cfg.id === 'sat') ? '주말근무까지 완주' : '주간 완주')
+        : cfg.day + ' · 17:05 · 잼타워 3층';
+    }
+    return true;
+  }
+
   function showIntroCut(done) {
     var cfg = S.cfg;
     var lines = (cfg.story && cfg.story.length) ? cfg.story : [{ who: cfg.bosses[0], line: cfg.desc }];
     S.mode = 'cut';
     S.cutSeen[S.stage] = true;
     bgmStop();
-    var shot = '';
     try {
       Slack3D.begin(cfg.bosses);
-      Slack3D.setStage(cfg.slack === 'sat' ? S.curMini : cfg.slack);
       Slack3D.setActive(true);
       Slack3D.setMiniActive(true);
-      shot = Slack3D.cineShot('intro');
-      Slack3D.cine('intro', 1.9);
-    } catch (err) {}
-    try { SFX.story(); } catch (err) {}
-    var first = lines[0];
-    var who = CAST[first.who] || CAST.jambujang;
-    overlay(
-      '<div class="cine" id="cineWrap">' +
-        (shot ? '<img class="cine-img" src="' + shot + '" alt="스토리 인트로 3D 컷">' : '<div class="cine-ph">🎬</div>') +
-        '<div class="cine-vig"></div>' +
-        '<span class="cine-day">' + cfg.day + ' · 17:05</span>' +
-        '<div class="cine-cap" id="cineCap"><b id="cineWho" style="color:' + who.color + '">' + who.name + '</b>' +
-          '<p id="cineLine">' + esc(first.line) + '</p></div>' +
-        '<button class="cine-skip" id="cineSkip" type="button">건너뛰기 ›</button>' +
-      '</div>'
-    );
-    E.overlay.classList.add('cine-ov');
+    } catch (e) {}
+    if (!cineStart('intro', cfg, 4.4)) { done(); return; }
     var finished = false;
     function finish() {
       if (finished) return;
       finished = true;
       clearCutTimer();
-      E.overlay.classList.remove('cine-ov');
+      cineClose();
       done();
     }
     S.cutSkip = finish;
-    var capEl = $('cineLine'), whoEl = $('cineWho');
-    var timers = [];
-    if (lines.length > 1) {
-      timers.push(setTimeout(function () {
-        if (finished) return;
-        var nx = lines[1], nw = CAST[nx.who] || CAST.jambujang;
-        if (whoEl) { whoEl.textContent = nw.name; whoEl.style.color = nw.color; }
-        if (capEl) capEl.textContent = nx.line;
-        var cap = $('cineCap');
-        if (cap) { cap.style.animation = 'none'; void cap.offsetWidth; cap.style.animation = ''; }
-      }, 950));
-    }
-    timers.push(setTimeout(finish, 2080));
-    S.cutTimer = timers;
-    var skip = $('cineSkip');
-    if (skip) skip.addEventListener('click', function (e) { e.preventDefault(); e.stopPropagation(); finish(); });
-    var wrap = $('cineWrap');
-    if (wrap) wrap.addEventListener('click', function () { finish(); });
+    var t = [];
+    t.push(setTimeout(function () { if (!finished && !S.cineHoldOn) cineSpeak(lines[0].who, lines[0].line); }, 430));
+    if (lines[1]) t.push(setTimeout(function () { if (!finished && !S.cineHoldOn) cineSpeak(lines[1].who, lines[1].line); }, 2380));
+    t.push(setTimeout(function () { if (!finished && !S.cineHoldOn) finish(); }, 4560));
+    S.cutTimer = t;
+    cineAnchorLoop();
+    cineTick(finish);
+    var skip = $('cineSkip3d');
+    if (skip) skip.onclick = function (e) { e.preventDefault(); e.stopPropagation(); finish(); };
+    E.cine3d.onclick = function () { finish(); };
+    try { SFX.story(); } catch (e) {}
   }
 
   function beginPlay() {
@@ -719,6 +834,12 @@
     S.events = [];
     S.curMini = cfg.slack === 'sat' ? SAT_GAMES[0] : cfg.slack;
     S.satGameIn = 9.5;
+    S.tapLog = []; S.noiseT = 0; S.noiseAt = -9;
+    S.perfectN = 0; S.goodN = 0; S.missN = 0; S.answers = 0; S.swipes = 0;
+    S.smashPh = Math.random() * 0.6; S.smashCool = 0;
+    S.actAt = -9; S.airHintAt = -9; S.emptyHintAt = -9; S.chartHintAt = -9; S.noiseAt = -9;
+    E.monitor.classList.remove('noisy');
+    if (window.Slack3D) { try { Slack3D.setIntensity(0.18 + S.stage * 0.14); } catch (e) {} }
     if (window.Slack3D) { Slack3D.setFrozen(false); }
     if (E.menuBtn) E.menuBtn.hidden = false;
     /* ③ 챌린지는 날짜 시드로 상사 패턴을 고정한다(스테이지 시작마다 같은 시퀀스) */
@@ -737,7 +858,7 @@
   }
 
   var SAT_GAMES = ['jump', 'shop', 'chat'];
-  var MINI_LABEL = { jump: '🍪 미니 블록', chart: '🪙 코인 단타', chat: '💬 사내 메신저', video: '📱 몰래 숏폼', shop: '🛒 핫딜 쇼핑' };
+  var MINI_LABEL = { jump: '🏃 서류 점프', chart: '🪙 코인 단타', chat: '💬 골라치는 메신저', video: '📱 3방향 숏폼', shop: '🎁 황금 존 스매시' };
 
   function prepareStageVisual() {
     var kind = S.cfg.slack === 'sat' ? S.curMini : S.cfg.slack;
@@ -756,6 +877,10 @@
     if (E.officeDay) E.officeDay.textContent = S.cfg.day;
     Slack3D.setStage(kind);
     Slack3D.setMiniActive(true);
+    if (E.mission) E.mission.hidden = true;
+    if (E.tradeRow) E.tradeRow.hidden = true;
+    if (E.timing) E.timing.hidden = true;
+    updateMiniScore();
   }
 
   /* 토요일: 10초마다 딴짓 교체(주말 올스타전) */
@@ -766,6 +891,7 @@
     Slack3D.setStage(S.curMini);
     Slack3D.setMiniActive(true);
     if (E.coinHud) E.coinHud.hidden = true;
+    updateMiniScore();
     try { SFX.earn(); } catch (e) {}
     toast('🎲 주말 올스타전 · ' + MINI_LABEL[S.curMini], 1500);
   }
@@ -818,21 +944,34 @@
       if (S.typeAcc <= 0) { S.typeAcc = 0.085; SFX.type(); typeStep(); }
     }
 
-    // 의심도 (금요일)
-    if (cfg.suspicion) {
-      if (S.work) S.suspicion += 8.5 * dt;
-      else S.suspicion -= 15 * dt;
-      S.suspicion = clamp(S.suspicion, 0, 100);
-      if (S.suspicion >= 100) {
-        S.suspicion = 34;
-        SFX.tick();
-        toast('👀 의심도 폭발! 기습 점검!', 1500);
-        if (S.phase === 'idle' || S.phase === 'pass') beginWarn(cfg.warn * 0.62, true);
-      }
+    // 과열(소음) 페널티 감쇠
+    if (S.noiseT > 0) S.noiseT = Math.max(0, S.noiseT - dt);
+
+    // 의심도 (금요일·토요일은 위장만 오래 해도 차오름 · 모든 요일 공통으로 소음에 반응)
+    if (S.work && cfg.suspicion) S.suspicion += 8.5 * dt;
+    else S.suspicion -= (S.work ? 0 : 13) * dt;
+    S.suspicion = clamp(S.suspicion, 0, 100);
+    if (S.suspicion >= 100) checkSuspicion();
+
+    // 금요일: 황금 존 타이밍 바 왕복
+    if (S.curMini === 'shop' && !S.work) {
+      var spd = 0.26 + (S.gauge / 100) * 0.24 + (S.cfg.id === 'sat' ? 0.05 : 0);
+      S.smashPh += dt * spd * Math.PI * 2;
     }
+    if (S.smashCool > 0) S.smashCool = Math.max(0, S.smashCool - dt);
 
     // 보스 상태 머신
     updateBoss(dt);
+
+    /* 미니게임(3D)에서 올라온 판정 이벤트 반영 */
+    if (window.Slack3D && Slack3D.pollEvents) {
+      var evs = [];
+      try { evs = Slack3D.pollEvents(); } catch (e) {}
+      for (var ei = 0; ei < evs.length; ei++) {
+        if (S.mode !== 'playing') break;
+        applyMiniEvent(evs[ei]);
+      }
+    }
 
     // 유혹
     if (cfg.temptation) updateTemptation(dt);
@@ -1232,57 +1371,253 @@
     return '₩ ' + Math.round(62480000 * p).toLocaleString('ko-KR');
   }
 
+  /* ---------------- 게이지 · 과열(키보드 소음) ---------------- */
+  function addGauge(v) {
+    if (!v) return;
+    var g = v;
+    /* 소음 페널티: 연타 후 1.2초간 딴짓 효율 급감 */
+    if (g > 0 && S.noiseT > 0) g *= 0.3;
+    S.gauge = clamp(S.gauge + g, 0, 100);
+    if (S.gauge >= 100) winStage();
+  }
+
+  function checkSuspicion() {
+    if (S.mode !== 'playing' || S.suspicion < 100) return;
+    S.suspicion = 34;
+    try { SFX.tick(); } catch (e) {}
+    toast('👀 의심도 폭발! 기습 점검!', 1500);
+    if (S.phase === 'idle' || S.phase === 'pass') beginWarn(Math.max(0.55, S.cfg.warn * 0.62), true);
+  }
+
+  /* 초당 6회 초과 무지성 연타 → "키보드 소음이 커졌다!" 의심도↑ · 게이지 효율 급감 */
+  function noteInput() {
+    var t = now();
+    S.tapLog.push(t);
+    while (S.tapLog.length && t - S.tapLog[0] > 1) S.tapLog.shift();
+    if (S.tapLog.length > 6 && t - S.noiseAt > 1.1) {
+      S.noiseAt = t;
+      S.noiseT = 1.2;
+      S.suspicion = Math.min(100, S.suspicion + 8);
+      E.monitor.classList.add('noisy');
+      clearTimeout(S.noiseOff);
+      S.noiseOff = setTimeout(function () { E.monitor.classList.remove('noisy'); }, 900);
+      toast('⌨️ 키보드 소음이 커졌다! 의심도 +8 · 게이지 효율 급감', 1900);
+      setAlert('hush', '…타자 소리가 너무 크다');
+      try { SFX.tick(); SFX.tick(); } catch (e) {}
+      checkSuspicion();
+    }
+  }
+
+  /* ---------------- 요일별 미니게임 → 게임 반영 ---------------- */
+  function gainMul() {
+    return (window.SHOP ? SHOP.gainMul() : 1) * ((S.cfg && S.cfg.id === 'sat') ? 0.92 : 1);
+  }
+
+  function applyMiniEvent(e) {
+    if (S.mode !== 'playing' || !e) return;
+    var mul = gainMul(), g;
+    if (e.k === 'jumpClear' || e.k === 'jumpPerfect') {
+      var perfect = e.k === 'jumpPerfect';
+      S.combo++; S.comboAt = S.t; S.bestCombo = Math.max(S.bestCombo, S.combo); S.taps++;
+      g = (perfect ? 6.6 : 5.1) * mul;
+      addGauge(g);
+      if (S.mode !== 'playing') return;
+      S.score += perfect ? 150 : 100;
+      try { perfect ? SFX.coinWin() : SFX.earn(); } catch (err) {}
+      floatText((perfect ? '🪙 코인 +' : '+') + g.toFixed(1), 0.5, perfect ? 0.26 : 0.33);
+      if (perfect) toast('🪙 공중 코인! +' + g.toFixed(1) + ' · 콤보 ' + S.combo, 1100);
+      updateMiniScore();
+    } else if (e.k === 'jumpHit') {
+      S.combo = 0;
+      addGauge(-2.6);
+      S.suspicion = Math.min(100, S.suspicion + 6);
+      try { SFX.coinLoss(); } catch (err) {}
+      flash('rgba(255,90,100,.2)', 200);
+      floatText('부딪힘 -2.6', 0.5, 0.42);
+      toast('💥 장애물에 걸렸다! 콤보 리셋 · 게이지 -2.6', 1500);
+      updateMiniScore();
+      checkSuspicion();
+    } else if (e.k === 'chatGood') {
+      S.combo++; S.comboAt = S.t; S.bestCombo = Math.max(S.bestCombo, S.combo); S.taps++; S.answers++;
+      g = (3.8 + Math.min(S.combo, 10) * 0.06) * mul;
+      addGauge(g);
+      if (S.mode !== 'playing') return;
+      S.score += 90;
+      try { SFX.earn(); } catch (err) {}
+      floatText('답장 +' + g.toFixed(1), 0.5, 0.4);
+      updateMiniScore();
+    } else if (e.k === 'chatBad') {
+      S.combo = 0;
+      addGauge(-1.6);
+      S.suspicion = Math.min(100, S.suspicion + 18);
+      try { SFX.caught(); } catch (err) {}
+      flash('rgba(255,60,70,.3)', 260);
+      E.monitor.classList.add('shake');
+      setTimeout(function () { E.monitor.classList.remove('shake'); }, 320);
+      toast('📌 부장님 업무 지시에 답장?! 의심도 +18', 1700);
+      updateMiniScore();
+      checkSuspicion();
+    } else if (e.k === 'chatMiss') {
+      addGauge(0.5);
+    } else if (e.k === 'chatDodge') {
+      addGauge(1.0);
+      S.score += 10;
+    }
+  }
+
+  function updateMiniScore() {
+    if (!E.miniScore) return;
+    var kind = S.curMini, t;
+    if (kind === 'jump') t = S.taps + '개';
+    else if (kind === 'chat') t = S.answers + '답장';
+    else if (kind === 'shop') t = S.perfectN + ' PERFECT';
+    else if (kind === 'video') t = S.taps + '편';
+    else if (kind === 'chart') t = '';
+    else t = S.taps + '개';
+    if (t) setText(E.miniScore, t);
+  }
+
+  /* ---------------- 슬랙 입력 (요일별 손맛) ---------------- */
   function basicTap() {
     S.combo++;
     S.comboAt = S.t;
     S.bestCombo = Math.max(S.bestCombo, S.combo);
-    var gain = (0.7 + Math.min(S.combo, 15) * 0.055) * (window.SHOP ? SHOP.gainMul() : 1);
-    S.gauge = Math.min(100, S.gauge + gain);
+    var gain = (0.9 + Math.min(S.combo, 15) * 0.06) * (window.SHOP ? SHOP.gainMul() : 1);
+    addGauge(gain);
+    if (S.mode !== 'playing') return;
     S.score += 8 + Math.min(S.combo, 15) * 2;
     S.taps++;
     SFX.tap(S.combo);
     miniTap();
     floatText('+' + gain.toFixed(1), 0.5, 0.42);
+    updateMiniScore();
     syncHUD();
-    if (S.gauge >= 100) winStage();
   }
 
   function slackTap(x, y, pageX, pageY) {
-    if (S.mode !== 'playing') return;
-    if (S.work || S.locked > 0) return;
-    if (S.curMini === 'chart') { coinTapAction(); return; }
+    if (S.mode !== 'playing' || S.work || S.locked > 0) return;
+    var kind = S.curMini;
+    if (kind === 'chart') { chartHint(); return; }
+    if (kind === 'jump') { jumpTapAction(); return; }
+    if (kind === 'chat') { chatTapAction(pageX, pageY); return; }
+    if (kind === 'shop') { smashTapAction(); return; }
+    if (kind === 'video') return;
+    noteInput();
     basicTap();
   }
 
-  /* ---------------- 수요일: 코인 단타 (탭 1번 = 매수, 고점 탭 = 매도) ---------------- */
-  function coinTapAction() {
+  /* 월요일: 달리다가 타이밍 점프 — 착지 전 연타 불가 */
+  function jumpTapAction() {
+    noteInput();
+    var r = null;
+    try { r = Slack3D.tapJump(); } catch (e) {}
+    if (r && r.act === 'air' && S.t - S.airHintAt > 2.4) {
+      S.airHintAt = S.t;
+      toast('공중에선 두 번 못 뛴다! 착지 후 장애물 타이밍에 점프', 1300);
+    }
+  }
+
+  /* 화요일: 메시지 카드를 골라 답장 (초록·파랑만) */
+  function chatTapAction(cx, cy) {
+    noteInput();
+    if (S.t - S.actAt < 0.35) return;
+    var nx = 0.5, ny = 0.5;
+    try {
+      var box = E.mini3d ? E.mini3d.getBoundingClientRect() : E.monitor.getBoundingClientRect();
+      if (box.width > 0 && box.height > 0) {
+        nx = clamp((cx - box.left) / box.width, 0, 1);
+        ny = clamp((cy - box.top) / box.height, 0, 1);
+      }
+    } catch (e) {}
+    var res = null;
+    try { res = Slack3D.tapChat(nx, ny); } catch (e) {}
+    if (res && res.act !== 'none') { S.actAt = S.t; return; }
+    if (S.t - S.emptyHintAt > 2.4) {
+      S.emptyHintAt = S.t;
+      toast('카드를 딱 눌러 답장! 초록·파랑만, 빨강(지시)은 무시', 1400);
+    }
+  }
+
+  /* 금요일: 황금 존 타이밍 스매시 */
+  function smashTapAction() {
+    noteInput();
+    if (S.smashCool > 0) return;
+    var d = Math.abs(Math.sin(S.smashPh));
+    var q = d < 0.12 ? 'perfect' : d < 0.46 ? 'good' : 'miss';
+    S.smashCool = q === 'perfect' ? 0.55 : 0.75;
+    try { Slack3D.smash(q); } catch (e) {}
+    var mul = gainMul(), g;
+    if (q === 'perfect') {
+      S.combo++; S.comboAt = S.t; S.bestCombo = Math.max(S.bestCombo, S.combo);
+      S.perfectN++; S.taps++;
+      g = 5.6 * mul; addGauge(g);
+      if (S.mode !== 'playing') return;
+      S.score += 170;
+      try { SFX.coinWin(); } catch (e) {}
+      flash('rgba(255,210,74,.3)', 220);
+      floatText('PERFECT +' + g.toFixed(1), 0.5, 0.34);
+      toast('💥 황금 존 크리티컬! +' + g.toFixed(1) + ' · 콤보 ' + S.combo, 1300);
+    } else if (q === 'good') {
+      S.combo++; S.comboAt = S.t; S.bestCombo = Math.max(S.bestCombo, S.combo);
+      S.goodN++; S.taps++;
+      g = 2.8 * mul; addGauge(g);
+      if (S.mode !== 'playing') return;
+      S.score += 80;
+      try { SFX.earn(); } catch (e) {}
+      floatText('+' + g.toFixed(1), 0.5, 0.36);
+    } else {
+      S.combo = 0; S.missN++;
+      addGauge(0.2);
+      if (S.mode !== 'playing') return;
+      try { SFX.tick(); } catch (e) {}
+      toast('빗나갔다! 가운데 황금 존에 맞춰 탭', 1100);
+    }
+    updateMiniScore();
+  }
+
+  /* 수요일: 매수/매도 버튼 */
+  function chartHint() {
+    if (S.t - (S.chartHintAt || -9) < 2.4) return;
+    S.chartHintAt = S.t;
+    toast('아래 [📈 매수] · [📉 매도] 버튼으로 거래!', 1500);
+  }
+
+  function coinTapAction(force) {
+    var st = null;
+    try { st = Slack3D.coinState(); } catch (e) {}
+    if (!st) return;
+    if (force === 'buy' && st.pos) return;
+    if (force === 'sell' && !st.pos) return;
+    noteInput();
     var r = null;
     try { r = Slack3D.coinTap(); } catch (e) {}
     if (!r || r.act === 'none') { basicTap(); return; }
+    var mul = window.SHOP ? SHOP.gainMul() : 1;
     if (r.act === 'buy') {
       S.taps++;
       try { SFX.coinBuy(); } catch (e) {}
       floatText('매수 ' + coinWon(r.entry), 0.5, 0.34);
-      toast('🟢 매수 진입 · 급등하면 다시 탭 = 고점 매도', 1400);
+      toast('🟢 매수 진입 · 익절 존(빨간 구간)에서 [📉 매도]', 1500);
       syncHUD();
       return;
     }
     var ret = r.ret || 0;
     var q = r.quality;
     var gain, add;
-    if (q === 'tp') { gain = 7.4 + Math.min(4, Math.max(0, ret * 100)) * 0.9; add = 140; }
-    else if (q === 'up') { gain = 3.4; add = 70; }
-    else if (q === 'flat') { gain = 1.5; add = 20; }
-    else if (q === 'fast') { gain = 0.6; add = 8; }
-    else { gain = 1.0; add = 10; }
-    gain *= (window.SHOP ? SHOP.gainMul() : 1);
+    if (q === 'tp') { gain = 9.2 + Math.min(4, Math.max(0, ret * 100)) * 0.9; add = 140; }
+    else if (q === 'up') { gain = 4.2; add = 70; }
+    else if (q === 'flat') { gain = 2.0; add = 20; }
+    else if (q === 'fast') { gain = 1.6; add = 12; }
+    else { gain = 1.2; add = 10; }
+    gain *= mul;
     if (q === 'tp' || q === 'up') {
       S.combo++;
       S.comboAt = S.t;
       S.bestCombo = Math.max(S.bestCombo, S.combo);
     } else if (q === 'loss' || q === 'fast') S.combo = 0;
     else S.comboAt = S.t;
-    S.gauge = Math.min(100, S.gauge + gain);
+    addGauge(gain);
+    if (S.mode !== 'playing') return;
     S.score += add + Math.min(S.combo, 15) * 4;
     S.taps++;
     var pct = (ret >= 0 ? '+' : '') + (ret * 100).toFixed(2) + '%';
@@ -1290,7 +1625,7 @@
       try { SFX.coinWin(); } catch (e) {}
       flash('rgba(255,90,110,.28)', 240);
       floatText('익절 ' + pct + ' 🎯', 0.5, 0.34);
-      toast('🎯 고점 매도! ' + pct + ' · 콤보 ' + S.combo + ' · 게이지 +' + gain.toFixed(1), 1600);
+      toast('🎯 익절 존 매도! ' + pct + ' · 콤보 ' + S.combo + ' · 게이지 +' + gain.toFixed(1), 1600);
     } else if (q === 'up') {
       try { SFX.earn(); } catch (e) {}
       floatText('매도 ' + pct, 0.5, 0.34);
@@ -1306,10 +1641,9 @@
       toast('📉 손절 ' + pct + ' — 다음 급등을 노려', 1500);
     }
     syncHUD();
-    if (S.gauge >= 100) winStage();
   }
 
-  /* ---------------- 목요일: 숏폼 위로 스와이프 ---------------- */
+  /* 목요일: 3방향 숏폼 스와이프 */
   function isSwipeStage() {
     return S.mode === 'playing' && S.curMini === 'video';
   }
@@ -1317,24 +1651,61 @@
     return !!(S.cfg && S.cfg.slack === 'sat');
   }
 
-  function slackSwipe() {
+  function slackSwipe(dir) {
+    if (S.mode !== 'playing' || S.work || S.locked > 0) return;
+    if (S.curMini !== 'video') { noteInput(); basicTap(); return; }
+    if (S.t - S.actAt < 0.55) return;
+    dir = dir || 'up';
+    noteInput();
+    var r = null;
+    try { r = Slack3D.swipeDir(dir); } catch (e) {}
+    if (!r || r.busy) return;
+    S.actAt = S.t;
+    var mul = gainMul(), g;
+    if (!r.ok) {
+      S.combo = 0;
+      toast(r.want === 'up' ? '⬆ 이 카드는 위로!' : r.want === 'right' ? '➡ 이 카드는 오른쪽(좋아요)!' : '⬅ 이 카드는 왼쪽(광고 스킵)!', 1200);
+      updateMissionBanner(true);
+      return;
+    }
+    S.combo++; S.comboAt = S.t; S.bestCombo = Math.max(S.bestCombo, S.combo);
+    S.taps++; S.swipes++;
+    if (r.mission === 'up') { g = 2.9 * mul; S.score += 70; floatText('▲ 다음 +' + g.toFixed(1), 0.5, 0.3); }
+    else if (r.mission === 'right') { g = 3.5 * mul; S.score += 130; floatText('❤️ 좋아요 +' + g.toFixed(1), 0.5, 0.3); }
+    else { g = 4.0 * mul; S.score += 150; floatText('⏭ 광고 스킵 +' + g.toFixed(1), 0.5, 0.3); }
+    addGauge(g);
     if (S.mode !== 'playing') return;
-    if (S.work || S.locked > 0) return;
-    if (S.curMini !== 'video') { basicTap(); return; }
-    S.combo++;
-    S.comboAt = S.t;
-    S.bestCombo = Math.max(S.bestCombo, S.combo);
-    var gain = (2.15 + Math.min(S.combo, 15) * 0.1) * (window.SHOP ? SHOP.gainMul() : 1);
-    S.gauge = Math.min(100, S.gauge + gain);
-    S.score += 14 + Math.min(S.combo, 15) * 3;
-    S.taps++;
     try { SFX.swipe(); } catch (e) {}
-    try { Slack3D.swipe(); } catch (e) {}
-    if (E.miniScore) E.miniScore.textContent = S.taps + '편';
-    floatText('+' + gain.toFixed(1), 0.5, 0.3);
-    if (S.combo >= 8) toast('⚡ 콤보 ' + S.combo + ' · 손가락이 미끌린다', 900);
-    syncHUD();
-    if (S.gauge >= 100) winStage();
+    if (S.combo >= 6) toast('⚡ 콤보 ' + S.combo + ' · 손이 미끄러진다', 900);
+    updateMiniScore();
+  }
+
+  var MISSION_TEXT = {
+    up: { ic: '⬆', title: '위로 스와이프', sub: '다음 숏폼' },
+    right: { ic: '➡', title: '오른쪽 스와이프', sub: '❤️ 좋아요' },
+    left: { ic: '⬅', title: '왼쪽 스와이프', sub: '⏭ 광고 스킵' }
+  };
+
+  function updateMissionBanner(force) {
+    if (!E.mission) return;
+    var on = S.mode === 'playing' && S.curMini === 'video';
+    if (E.mission.hidden === on) E.mission.hidden = !on;
+    if (!on) return;
+    var m = null;
+    try { m = Slack3D.mission(); } catch (e) {}
+    if (!m) return;
+    if (!force && E.mission.dataset.dir === m.dir) return;
+    var txt = MISSION_TEXT[m.dir] || MISSION_TEXT.up;
+    E.mission.dataset.dir = m.dir;
+    E.mission.classList.remove('in');
+    void E.mission.offsetWidth;
+    if (E.mIc) E.mIc.textContent = txt.ic;
+    if (E.mTitle) E.mTitle.textContent = txt.title;
+    if (E.mSub) E.mSub.textContent = txt.sub + (m.ad ? ' · 광고' : '');
+  }
+
+  function miniTap() {
+    updateMiniScore();
   }
 
   function startWork() {
@@ -1387,7 +1758,7 @@
   /* ---------------- mini games (3D) ---------------- */
   function buildJump() {
     E.miniScore = $('miniScore');
-    if (E.miniLabel) E.miniLabel.textContent = '🍪 미니 블록';
+    if (E.miniLabel) E.miniLabel.textContent = '🏃 서류 점프';
     if (E.miniScore) E.miniScore.textContent = '0';
   }
   function buildChart() {
@@ -1398,38 +1769,19 @@
   function buildShop() {
     E.miniScore = $('miniScore');
     E.cartTotal = 0;
-    if (E.miniLabel) E.miniLabel.textContent = '🛒 핫딜 쇼핑';
+    if (E.miniLabel) E.miniLabel.textContent = '🎁 황금 존 스매시';
     if (E.miniScore) E.miniScore.textContent = '0개';
   }
   function buildChat() {
     E.miniScore = $('miniScore');
-    if (E.miniLabel) E.miniLabel.textContent = '💬 사내 메신저';
+    if (E.miniLabel) E.miniLabel.textContent = '💬 골라치는 메신저';
     if (E.miniScore) E.miniScore.textContent = '0개';
   }
   function buildVideo() {
     E.miniScore = $('miniScore');
-    if (E.miniLabel) E.miniLabel.textContent = '📱 몰래 숏폼';
+    if (E.miniLabel) E.miniLabel.textContent = '📱 3방향 숏폼';
     if (E.miniScore) E.miniScore.textContent = '0편';
   }
-  function miniTap() {
-    var kind = S.curMini;
-    if (kind === 'jump') {
-      if (E.miniScore) E.miniScore.textContent = S.taps;
-    } else if (kind === 'chart') {
-      if (E.miniScore) E.miniScore.textContent = '+' + (S.taps * 2.7).toFixed(1) + '%';
-    } else if (kind === 'chat') {
-      if (E.miniScore) E.miniScore.textContent = S.taps + '개';
-    } else if (kind === 'video') {
-      if (E.miniScore) E.miniScore.textContent = S.taps + '편';
-    } else {
-      var price = 1900 + Math.floor(Math.random() * 12) * 1000;
-      E.cartTotal = (E.cartTotal || 0) + price;
-      if (E.miniScore) E.miniScore.textContent = S.taps + '개';
-      if (E.miniLabel) E.miniLabel.textContent = '🛒 ' + E.cartTotal.toLocaleString('ko-KR') + '원';
-    }
-    if (window.Slack3D) Slack3D.tap();
-  }
-
   function floater(text, x, y) {
     if (!E.floaters) return;
     var d = document.createElement('span');
@@ -1572,7 +1924,7 @@
       E.actingRow.hidden = true;
       E.wbHold.style.width = '0%';
     }
-    if (cfg.suspicion) {
+    if (cfg.suspicion || S.suspicion > 0.5 || S.noiseT > 0) {
       E.susRow.hidden = false;
       E.susFill.style.width = S.suspicion.toFixed(0) + '%';
       setText(E.susVal, Math.round(S.suspicion) + '%');
@@ -1582,6 +1934,47 @@
     updateHint();
     updateVsStrip();
     syncCoinHud();
+    syncMiniUI();
+  }
+
+  /* 요일별 아케이드 UI(매수/매도 버튼 · 미션 배너 · 타이밍 바) */
+  function syncMiniUI() {
+    var playing = S.mode === 'playing';
+    var kind = playing ? S.curMini : '';
+    var chart = kind === 'chart';
+    var video = kind === 'video';
+    var shop = kind === 'shop';
+    if (E.tradeRow) E.tradeRow.hidden = !chart;
+    if (E.timing) E.timing.hidden = !shop;
+    if (chart) {
+      var st = null;
+      try { st = Slack3D.coinState(); } catch (e) {}
+      var pos = !!(st && st.pos);
+      var busy = !!S.work;
+      if (E.buyBtn) {
+        E.buyBtn.disabled = pos || busy;
+        E.buyBtn.classList.toggle('on', !pos && !busy);
+      }
+      if (E.sellBtn) {
+        E.sellBtn.disabled = !pos || busy;
+        E.sellBtn.classList.toggle('on', pos && !busy);
+      }
+    }
+    if (video) updateMissionBanner(false);
+    else if (E.mission) E.mission.hidden = true;
+    if (shop) updateTiming();
+  }
+
+  function updateTiming() {
+    if (!E.tMark) return;
+    var v = Math.sin(S.smashPh);
+    var d = Math.abs(v);
+    E.tMark.style.left = ((v + 1) / 2 * 100).toFixed(2) + '%';
+    E.tMark.dataset.q = d < 0.12 ? 'perfect' : d < 0.46 ? 'good' : 'out';
+    if (E.tLbl) {
+      var lbl = d < 0.12 ? '🎯 PERFECT 존!' : d < 0.46 ? '성공 존 · 한 번 더' : '타이밍을 노려라';
+      if (E.tLbl.textContent !== lbl) E.tLbl.textContent = lbl;
+    }
   }
 
   /* 수요일 코인 단타 HUD (가격·수익률·포지션) */
@@ -1608,8 +2001,8 @@
     }
     if (E.chTip) {
       E.chTip.textContent = hide ? '⏸ 위장 중 · 차트/포지션 정지'
-        : st.pos ? (pct >= 1.2 ? '🎯 익절 존! 지금 다시 탭 = 매도' : '고점(익절 존)에서 다시 탭 = 매도')
-          : '탭 = 매수(진입) · 빨간 불기둥을 보고 타이밍';
+        : st.pos ? (pct >= 1.0 ? '🎯 익절 존! 지금 [📉 매도]' : '수익 중 · 익절 존에서 [📉 매도]')
+          : '아래 [📈 매수]로 진입 · 빨간 불기둥을 노려';
     }
     if (E.miniScore) E.miniScore.textContent = st.pos ? '보유' : '관망';
   }
@@ -1622,8 +2015,11 @@
       else if (S.acting < 55) { h = '척도가 부족해! 조금만 더 버텨…'; cls = 'hot'; }
       else { h = '좋아, 그대로 버텨… 타자 소리만 들리게'; cls = 'good'; }
     } else if (S.work) { h = '타자 소리로 위장 중 · 손 떼면 바로 딴짓 복귀'; cls = 'good'; }
-    else if (S.curMini === 'chart') { h = '탭 = 매수 · 익절 존(빨간 구역)에서 다시 탭 = 매도'; cls = 'hot'; }
-    else if (S.curMini === 'video') { h = '↙ 화면을 위로 스와이프 = 다음 숏폼 (↑ / W)'; cls = 'hot'; }
+    else if (S.curMini === 'chart') { h = '아래 [📈 매수] → 익절 존에서 [📉 매도]'; cls = 'hot'; }
+    else if (S.curMini === 'video') { h = '카드 안내대로 ⬆ / ➡ / ⬅ 스와이프 (W/A/D)'; cls = 'hot'; }
+    else if (S.curMini === 'jump') { h = '서류·커피가 오면 타이밍 점프! 공중 코인을 노려'; cls = 'hot'; }
+    else if (S.curMini === 'chat') { h = '초록·파랑 카드만 눌러 답장! 빨강(지시)은 무시'; cls = 'hot'; }
+    else if (S.curMini === 'shop') { h = '황금 존에 타이밍 바가 오면 탭! 정중앙 = 크리티컬'; cls = 'hot'; }
     else if (cfgSat()) { h = '주말 올스타전 · 탭으로 딴짓 (10초마다 교체)'; }
     else if (S.left <= 10) { h = '칼퇴까지 ' + Math.ceil(S.left) + '초! 게이지를 채워!'; cls = 'hot'; }
     else { h = '모니터를 연타하면 딴짓 게이지가 올라가요'; }
@@ -1709,6 +2105,7 @@
   /* 칭호 해금 배지 — 오버레이·모달 위에서도 보이게 */
   function unlockBanner(t) {
     if (!t || !E.app) return;
+    if (S.mode === 'cut') return;
     var d = document.createElement('div');
     d.className = 'title-unlock';
     d.innerHTML = '<span>🎖️ 칭호 해금</span><b>' + t.icon + ' ' + t.name + '</b>';
@@ -1906,69 +2303,42 @@
     S.rewarded = null;
   }
 
-  /* ---------------- 진짜 엔딩 컷신 (3D 카메라 줌아웃·회전 + 잼인턴 퇴근) ---------------- */
+  /* ---------------- 진짜 엔딩 컷신 (실시간 3D 회전·줌아웃 + 잼인턴 퇴근) ---------------- */
   function showEnding(kind) {
     kind = kind || ((S.cfg && S.cfg.id === 'sat') ? 'weekend' : 'week');
     S.mode = 'cut';
     bgmStop();
     if (window.VIRAL) VIRAL.TITLES.note(kind === 'weekend' ? 'weekend' : 'ending');
-    var shots = [];
     try {
       Slack3D.begin(['jambujang', 'jamsajang']);
       Slack3D.setActive(true);
       Slack3D.setMiniActive(false);
-      shots.push({
-        img: Slack3D.cineShot('boss'), who: '잼부장', color: '#ffd24a',
-        line: kind === 'weekend' ? '“…토요일까지 버텼다고?”' : '“…진짜 6시에 가는 사람이 있네.”'
-      });
-      shots.push({
-        img: Slack3D.cineShot('end'), who: '잼인턴', color: '#ffb3c8',
-        line: kind === 'weekend' ? '주말 특근까지 살아남았어요! 이제 진짜 퇴근!'
-          : '선배님, 진짜 6시에 퇴근했어요?!'
-      });
-      Slack3D.cine('end', 2.6);
     } catch (e) {}
-    try { SFX.ending(); } catch (e) {}
-    if (!shots.length) { showEndingScreen(kind); return; }
-    var s0 = shots[0];
-    overlay(
-      '<div class="cine" id="cineWrap">' +
-        (s0.img ? '<img class="cine-img" id="cineImg" src="' + s0.img + '" alt="엔딩 3D 컷">' : '<div class="cine-ph">🌇</div>') +
-        '<div class="cine-vig"></div>' +
-        '<span class="cine-day">엔딩 · ' + (kind === 'weekend' ? '주말근무까지 완주' : '주간 완주') + '</span>' +
-        '<div class="cine-cap" id="cineCap"><b id="cineWho" style="color:' + s0.color + '">' + s0.who + '</b>' +
-          '<p id="cineLine">' + esc(s0.line) + '</p></div>' +
-        '<button class="cine-skip" id="cineSkip" type="button">건너뛰기 ›</button>' +
-      '</div>'
-    );
-    E.overlay.classList.add('cine-ov');
+    if (!cineStart('end', S.cfg, 5.2)) { showEndingScreen(kind); return; }
+    var lines = [
+      { who: 'jambujang', line: kind === 'weekend' ? '“…토요일까지 버텼다고?”' : '“…진짜 6시에 가는 사람이 있네.”' },
+      { who: 'jamintern', line: kind === 'weekend' ? '주말 특근까지 살아남았어요! 이제 진짜 퇴근!' : '선배님, 저 진짜 6시에 퇴근해요!' }
+    ];
     var finished = false;
     function finish() {
       if (finished) return;
       finished = true;
       clearCutTimer();
-      E.overlay.classList.remove('cine-ov');
+      cineClose();
       showEndingScreen(kind);
     }
     S.cutSkip = finish;
-    var timers = [];
-    timers.push(setTimeout(function () {
-      if (finished) return;
-      var s1 = shots[1] || shots[0];
-      var img = $('cineImg');
-      if (img && s1.img) img.src = s1.img;
-      var w = $('cineWho'), l = $('cineLine');
-      if (w) { w.textContent = s1.who; w.style.color = s1.color; }
-      if (l) l.textContent = s1.line;
-      var cap = $('cineCap');
-      if (cap) { cap.style.animation = 'none'; void cap.offsetWidth; cap.style.animation = ''; }
-    }, 1250));
-    timers.push(setTimeout(finish, 2550));
-    S.cutTimer = timers;
-    var skip = $('cineSkip');
-    if (skip) skip.addEventListener('click', function (e) { e.preventDefault(); e.stopPropagation(); finish(); });
-    var wrap = $('cineWrap');
-    if (wrap) wrap.addEventListener('click', function () { finish(); });
+    var t = [];
+    t.push(setTimeout(function () { if (!finished && !S.cineHoldOn) cineSpeak(lines[0].who, lines[0].line); }, 420));
+    t.push(setTimeout(function () { if (!finished && !S.cineHoldOn) cineSpeak(lines[1].who, lines[1].line); }, 2620));
+    t.push(setTimeout(function () { if (!finished && !S.cineHoldOn) finish(); }, 5380));
+    S.cutTimer = t;
+    cineAnchorLoop();
+    cineTick(finish);
+    var skip = $('cineSkip3d');
+    if (skip) skip.onclick = function (e) { e.preventDefault(); e.stopPropagation(); finish(); };
+    E.cine3d.onclick = function () { finish(); };
+    try { SFX.ending(); } catch (e) {}
   }
 
   function endingRows() {
@@ -2041,7 +2411,8 @@
         combo: S.combo, work: S.work, holding: S.holding, acting: S.acting,
         phase: S.phase, score: S.score, suspicion: S.suspicion, locked: S.locked,
         checks: S.checks, passes: S.passes, taps: S.taps,
-        curMini: S.curMini, paused: S.paused, quit: !!S.quitOpen, sat: S.satGameIn, t: +S.t.toFixed(2)
+        curMini: S.curMini, paused: S.paused, quit: !!S.quitOpen, sat: S.satGameIn, t: +S.t.toFixed(2),
+        swipes: S.swipes, answers: S.answers, perfect: S.perfectN
       };
     },
     tap: function () {
@@ -2072,8 +2443,61 @@
     menu: function () { requestMenu(); },
     menuForce: function () { hardExit(); },
     quitOpen: function () { return !!S.quitOpen; },
-    swipe: slackSwipe,
+    swipe: function (d) { slackSwipe(d || 'up'); },
     coinTap: coinTapAction,
+    /* 요일별 아케이드 검증용 */
+    jump: function () { return window.Slack3D ? Slack3D.jumpState() : null; },
+    chat: function () { return window.Slack3D ? Slack3D.chatState() : null; },
+    chatTapAt: function (nx, ny) { return window.Slack3D ? Slack3D.tapChat(nx, ny) : null; },
+    video: function () { return window.Slack3D ? Slack3D.videoState() : null; },
+    mission: function () { return window.Slack3D ? Slack3D.mission() : null; },
+    swipeDir: function (d) { return window.Slack3D ? Slack3D.swipeDir(d || 'up') : null; },
+    timing: function () {
+      return {
+        ph: +S.smashPh.toFixed(3), sin: +Math.sin(S.smashPh).toFixed(3),
+        cool: +S.smashCool.toFixed(2), hidden: E.timing ? E.timing.hidden : null,
+        mark: E.tMark ? E.tMark.style.left : '', q: E.tMark ? E.tMark.dataset.q : ''
+      };
+    },
+    setTiming: function (v) {
+      var x = Math.max(-0.999, Math.min(0.999, Number(v) || 0));
+      S.smashPh = Math.asin(x);
+      return Math.sin(S.smashPh);
+    },
+    trade: function () {
+      var st = null;
+      try { st = Slack3D.coinState(); } catch (e) {}
+      return {
+        row: E.tradeRow ? !E.tradeRow.hidden : null,
+        buyOn: E.buyBtn ? !E.buyBtn.disabled : null,
+        sellOn: E.sellBtn ? !E.sellBtn.disabled : null,
+        coin: st
+      };
+    },
+    tradeBuy: function () { coinTapAction('buy'); },
+    tradeSell: function () { coinTapAction('sell'); },
+    noise: function () {
+      return { sus: +S.suspicion.toFixed(1), noiseT: +S.noiseT.toFixed(2), hits: S.tapLog.length, noisy: E.monitor.classList.contains('noisy') };
+    },
+    cineFreeze: function (k) { return window.Slack3D ? Slack3D.cineFreeze(k) : false; },
+    cineHoldCut: function (on) { S.cineHoldOn = !!on; return S.cineHoldOn; },
+    cineState: function () {
+      var layer = $('cine3d');
+      var bar = 0;
+      try { var b0 = layer ? layer.querySelector('.cine-bar') : null; if (b0) bar = b0.getBoundingClientRect().height; } catch (e) {}
+      var off = window.Slack3D ? Slack3D.office() : null;
+      return {
+        open: layer ? !layer.hidden : false,
+        on: layer ? layer.classList.contains('on') : false,
+        bar: Math.round(bar),
+        mode: S.mode, cutOpen: !!S.cutSkip, who: S.cineWho,
+        bub: E.cineBub ? { hidden: E.cineBub.hidden, left: E.cineBub.style.left, top: E.cineBub.style.top, text: E.cineBubText ? E.cineBubText.textContent : '' } : null,
+        cam: (off && off.camera) ? { x: +off.camera.position.x.toFixed(2), y: +off.camera.position.y.toFixed(2), z: +off.camera.position.z.toFixed(2), fov: +off.camera.fov.toFixed(1) } : null,
+        canvasIn: (off && off.host) ? off.host.id : '',
+        active: off ? off.active : null,
+        frames: off ? (off.frames || 0) : 0
+      };
+    },
     coin: function () { return Slack3D.coinState(); },
     coinDebug: function (o) { return Slack3D.coinDebug(o); },
     coinHud: function () {
