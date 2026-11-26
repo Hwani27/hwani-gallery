@@ -1255,7 +1255,7 @@
   }
 
   /* ---------------- debug / test hook ---------------- */
-  window.__SLACK = {
+  if (/[?&]debug=1(&|$)/.test(location.search)) window.__SLACK = {
     state: function () {
       return {
         mode: S.mode, stage: S.stage, day: S.cfg.day, gauge: S.gauge, left: S.left,

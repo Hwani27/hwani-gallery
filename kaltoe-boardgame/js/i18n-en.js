@@ -401,7 +401,7 @@ dict: {
 "완료": "Done", "다음 →": "Next →",
 "아직 기록이 없어요. 아케이드(스테이지) 모드를 클리어하면 여기에 올라가요!": "No records yet. Clear Arcade (Stage) mode to get on the board!",
 "플레이어": "Player", "(나)": "(me)", "불러오는 중…": "Loading…", "순위표를 잠시 불러올 수 없어요.": "Can't load the leaderboard right now.",
-"순위표는 claude.ai에 로그인한 상태에서 게시된 링크로 열었을 때 보여요. 지금은 이 기기에만 기록이 저장돼요.": "The leaderboard appears when opened from the published link while signed in. For now, records are saved on this device only.",
+"순위표에 연결하지 못했어요. 잠시 후 다시 시도해 주세요.": "Couldn't connect to the leaderboard. Please try again later.",
 "☁️ 진행 상황이 내 계정에 저장돼요 (기기 간 동기화)": "☁️ Progress is saved to your account (syncs across devices)",
 "👀 보기 전용 권한 — 기록은 이 기기에만 저장돼요": "👀 View-only access — records are saved on this device only",
 "저장소 연결 중…": "Connecting storage…", "💾 진행 상황은 이 기기에만 저장돼요": "💾 Progress is saved on this device only",

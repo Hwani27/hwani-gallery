@@ -236,7 +236,7 @@ const Leaderboard=(()=>{
     const list=document.getElementById('lbList');list.innerHTML='<p class="lbempty">불러오는 중…</p>';
     if(unsub)return;
     unsub=await Store.watchBoard(r=>{rows=r;render();},()=>{list.innerHTML='<p class="lbempty">순위표를 잠시 불러올 수 없어요.</p>';});
-    if(!unsub)list.innerHTML='<p class="lbempty">순위표는 claude.ai에 로그인한 상태에서 게시된 링크로 열었을 때 보여요. 지금은 이 기기에만 기록이 저장돼요.</p>';
+    if(!unsub)list.innerHTML='<p class="lbempty">순위표에 연결하지 못했어요. 잠시 후 다시 시도해 주세요.</p>';
   }
   function close(){ document.getElementById('lbModal').classList.remove('show'); if(unsub){unsub();unsub=null;} }
   function showStatus(st){
