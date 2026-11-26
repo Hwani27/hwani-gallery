@@ -442,20 +442,17 @@
   }
 
   /* (v53) a new soldier opens the missions in order: a mission is open when
-     the one before it has been cleared (or it is the first). Anyone who has
-     already cleared further keeps everything up to their next mission. Test
-     runs (navigator.webdriver) and ?unlock=1 open all. */
+     the one before it in the ladder has been cleared (or it is the first).
+     (v68) the ladder is strictly sequential — 1-5 Gyeongju opens 1-6 Gangneung,
+     which opens 1-7 Ulsan & Pohang, then 1-8 Busan — so the shortcuts that used
+     to jump straight to 11 / 17 are gone. A save that already holds a record
+     for a mission keeps it open through D.best, so older progress survives.
+     Test runs (navigator.webdriver) and ?unlock=1 open all. */
   function unlocked(id) {
     if (navigator.webdriver || /[?&]unlock=1/.test(location.search)) return true;
     const i = STAGES.findIndex((x) => x.id === id);
     if (i <= 0) return true;
     const pv = D.best[STAGES[i - 1].id];
-    if (id === 11 && D.best[10] && D.best[10].stars > 0) return true; /* 울산·포항(17)을 앞에 끼운 뒤에도 기존 진행 유지 */
-    if (id === 16 && D.best[1] && D.best[1].stars > 0) return true; /* 의정부(18)를 끼운 뒤에도 기존 진행 유지 */
-    if (id === 4 && D.best[13] && D.best[13].stars > 0) return true; /* 남포(20)를 끼운 뒤에도 기존 진행 유지 */
-    if (id === 17 && D.best[10] && D.best[10].stars > 0) return true; /* 강릉(21)을 끼운 뒤에도 기존 진행 유지 */
-    if (id === 2 && D.best[16] && D.best[16].stars > 0) return true; /* 철원(22)을 끼운 뒤에도 기존 진행 유지 */
-    if (id === 5 && D.best[19] && D.best[19].stars > 0) return true; /* 신의주(23)를 끼운 뒤에도 기존 진행 유지 */
     return !!(pv && pv.stars > 0) || !!(D.best[id] && D.best[id].stars > 0);
   }
   function toast(t, ms) {

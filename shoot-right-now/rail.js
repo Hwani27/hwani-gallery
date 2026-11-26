@@ -7292,12 +7292,12 @@
         "주민 대피 중, 오사 주의!", "적 증원, 철교 남단 방면!", "적 헬기 재접근!", "적 공수 강하! 철교 입구를 지켜라!"], { bikes: true, hostage: true, paras: true }),
       dress: "citygen", bossKind: "apc", bossTank: true, bossHp: 120, armorWave: 5, armorTank: true, armorHp: 18,
       city: {
-        seed: 23, mood: "dusk", river: true, tall: 14, tints: [0xd8d0c0, 0xc8c0b0, 0xb8b0a0],
+        seed: 23, mood: "dusk", river: true, sinuiju: true, tall: 14, tints: [0xd8d0c0, 0xc8c0b0, 0xb8b0a0],
         sign: [-12.4, -44, "신의주", "SINUIJU", Math.PI / 2, "#5a4a2a"],
         cars: [["truck", -7.8, -8, Math.PI], ["police", -7.4, 24, Math.PI]],
         banners: [[-12.2, 6, "압록강", "#2a4aa8", 9], [-12.2, 40, "국경 교량", "#c22a2a"]],
-        hills: [[60, 200, 200, 60, 30]],
-        landmarks: [["hanBridge", -180, "arch"], ["taper", -160, 260, 150], ["fire", -12.6, 8.2, -128, 1.0], ["fire", -18, 0.4, -58, 1.4], ["fire", 16, 0.4, -50, 1.2]]
+        hills: [[60, 200, 200, 60, 30], [-230, 240, 180, 70, 26]],
+        landmarks: [["hanBridge", -180, "arch", -75], ["taper", -160, 260, 150], ["fire", -12.6, 8.2, -128, 1.0], ["fire", -18, 0.4, -58, 1.4], ["fire", 16, 0.4, -50, 1.2]]
       },
       introDur: 5.0, introCam: [[-26, 16, -270, 0, 3, -170], [0, 1.68, -236, 0, 1.55, -222]],
       introLines: [{ t: 0.4, text: "신의주. 압록강 철교 앞이다. 다리를 넘으면 백두산이 가깝다." }, { t: 2.4, text: "강변 시가지를 뚫고 철교 끝까지 진격하라!" }],
@@ -7395,7 +7395,7 @@
         "농민 대피 중, 오사 주의!", "적 증원, 감시초소 방면!", "적 헬기 재접근!", "적 공수 강하! 철책선을 지켜라!"], { bikes: true, hostage: true }),
       dress: "citygen", bossKind: "apc", bossTank: true, bossHp: 88, armorWave: 4, armorTank: false, armorHp: 14,
       city: {
-        seed: 22, mood: "morning", low: true, tints: [0xd8e0c0, 0xcad4b0, 0xbcc8a0],
+        seed: 22, mood: "morning", low: true, cheorwon: true, tints: [0xd8e0c0, 0xcad4b0, 0xbcc8a0],
         sign: [12.4, -44, "철원", "CHEORWON", -Math.PI / 2, "#4a6a3a"],
         cars: [["truck", -7.8, -16, 0.1]],
         banners: [[-12.2, -8, "철원 평야", "#4a6a3a", 9], [12.2, 22, "철책선", "#2f4a56"]],
@@ -10767,10 +10767,27 @@
   let paraRig = null;
   function makeParaRig() {
     const g = new T.Group();
-    const cloth = new T.MeshBasicMaterial({ color: 0x5a6446, side: T.DoubleSide });
-    const dome = new T.Mesh(new T.SphereGeometry(2.6, 14, 6, 0, Math.PI * 2, 0, Math.PI / 2), cloth);
+    /* (v68) the canopy reads as cloth, not one flat colour: gores with their
+       seams, three tiers of stitching, a woven grain and the skirt hanging
+       off the rim. It is basic material, so it stays lit as before */
+    const tex = ctex("paraCloth", 256, 128, (gg, w, h) => {
+      const R = rng(1953);
+      for (let i = 0; i < 16; i++) {
+        gg.fillStyle = i % 2 ? "#747d59" : "#69734f"; gg.fillRect(i * 16, 0, 16, h);
+        gg.fillStyle = "rgba(34,38,26,.3)"; gg.fillRect(i * 16, 0, 1.6, h);
+      }
+      [0.08, 0.22, 0.38].forEach((v) => { gg.fillStyle = "rgba(32,36,24,.34)"; gg.fillRect(0, v * h, w, 2); });
+      gg.globalAlpha = 0.1;
+      for (let i = 0; i < 1400; i++) { gg.fillStyle = R() < 0.5 ? "#2a2e20" : "#b6bd9c"; gg.fillRect(R() * w, R() * h, 1.6, 2.6); }
+      gg.globalAlpha = 1;
+    });
+    const cloth = new T.MeshBasicMaterial({ map: tex, color: 0xd6dac4, side: T.DoubleSide });
+    const dome = new T.Mesh(new T.SphereGeometry(2.6, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), cloth);
     dome.position.set(0, 1.55, -4.6);                /* top of the portrait frame, in view */
     g.add(dome);
+    const skirt = new T.Mesh(new T.CylinderGeometry(2.6, 2.72, 0.55, 16, 1, true), cloth);
+    skirt.position.set(0, 1.29, -4.6);
+    g.add(skirt);
     const pts = [];
     for (let i = 0; i < 8; i++) {
       const a = (i / 8) * Math.PI * 2;
@@ -14126,8 +14143,8 @@
     if (cls) el.className = "k-" + cls;
     const roll = cls === "final" ? '<div class="sRoll"><p>' + (ko ? "지금 바로 쏴!" : "SHOOT RIGHT NOW!") + "</p><h1>THE END</h1>" +
       "<ul>" + (ko
-        ? ["강 중위 · 박 병장 · 김 일병", "그리고 끝까지 싸워 준 당신", "", "서울 · 대전 · 대구 · 광주 · 경주 · 부산", "인천 · 한강 · 서울 · 수원", "판문점 · 개성 · 평양 · 흥남 · 백두산"]
-        : ["Lt. Kang · Sgt. Park · Pvt. Kim", "and you, who fought to the end", "", "Seoul · Daejeon · Daegu · Gwangju · Gyeongju · Busan", "Incheon · the Han · Seoul · Suwon", "Panmunjom · Kaesong · Pyongyang · Heungnam · Paektu"]).map((t) => "<li>" + (t || "&nbsp;") + "</li>").join("") +
+        ? ["강 중위 · 박 병장 · 김 일병", "그리고 끝까지 싸워 준 당신", "", "서울 · 대전 · 대구 · 광주 · 경주 · 부산", "인천 · 한강 · 서울 · 수원", "강릉 · 울산 · 포항 · 의정부 · 동두천 · 철원", "판문점 · 개성 · 평양 · 남포 · 흥남 · 원산 · 신의주 · 백두산"]
+        : ["Lt. Kang · Sgt. Park · Pvt. Kim", "and you, who fought to the end", "", "Seoul · Daejeon · Daegu · Gwangju · Gyeongju · Busan", "Incheon · the Han · Seoul · Suwon", "Gangneung · Ulsan · Pohang · Uijeongbu · Dongducheon · Cheorwon", "Panmunjom · Kaesong · Pyongyang · Nampo · Heungnam · Wonsan · Sinuiju · Paektu"]).map((t) => "<li>" + (t || "&nbsp;") + "</li>").join("") +
       "</ul><small>" + (ko ? "탭해서 닫기" : "tap to close") + "</small></div>" : "";
     el.innerHTML = '<div class="sBar t"></div><div class="sBar b"></div>' +
       '<div class="sCard"><p>' + card.top + "</p><h2>" + card.title + "</h2><small>" + (card.sub || "") + "</small></div>" +
@@ -16500,7 +16517,9 @@
      piers that stop bullets and feet, a deck the gunships climb over (air), hoist
      housings and bollards. The channel between the piers stays open. */
   function lmSeaLock(S, x, z) {
-    const conc = cmat(0x9a9890, 0.9), steel = cmat(0x5a6066, 0.55, 0.5), dark = cmat(0x3a4044, 0.6);
+    /* (v68) the gate in real materials: poured concrete on the piers and the
+       deck, riveted steel plate on the lifting gear and the rails */
+    const conc = hanMats().conc, steel = hnMats().panel, dark = cmat(0x3a4044, 0.6);
     [-1, 1].forEach((s) => {
       bx(S, 5, 7, 16, x + s * 10.5, 3.5, z, conc, { wall: 1 });
       bx(S, 2.6, 0.4, 16, x + s * 10.5, 7.2, z, steel);
@@ -17150,6 +17169,168 @@
     void HM;
     VB.flush(S, "hwOut");
   }
+  /* ---------------- (v68) the country road into the new stages ----------------
+     22 (Cheorwon plain) and 23 (Sinuiju) start at z −236, well south of the
+     city ground plane (which only reaches back to z −140), so the player used
+     to drive off the edge of the world for the first 90 m. Each gets a wide
+     skirt under everything plus a tarmac ribbon that follows the avenue's
+     curve from the start point up to the city street, dressed to the
+     stage's own landscape. */
+  /* one flat ribbon along the avenue's centre line: the road surface, a
+     painted line, a shoulder. uv runs with the road in 7 m tiles */
+  function apRibbon(S, z0, z1, off, w, mat, y) {
+    const n = Math.max(2, Math.ceil((z1 - z0) / 3));
+    const pos = [], uv = [], idx = [];
+    for (let i = 0; i <= n; i++) {
+      const z = z0 + (z1 - z0) * i / n, x = cityX(z) + off;
+      pos.push(x - w / 2, y, z, x + w / 2, y, z);
+      uv.push(0, (z - z0) / 7, w / 7, (z - z0) / 7);
+      if (i < n) { const a = i * 2; idx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); }
+    }
+    const g = new T.BufferGeometry();
+    g.setAttribute("position", new T.Float32BufferAttribute(pos, 3));
+    g.setAttribute("uv", new T.Float32BufferAttribute(uv, 2));
+    g.setIndex(idx);
+    g.computeVertexNormals();
+    const me = new T.Mesh(g, mat);
+    me.receiveShadow = true; me.userData.noBlock = 1;
+    S.add(me);
+    return me;
+  }
+  function apRoad(S, z0, z1, opt) {
+    const o = opt || {};
+    const at = asphaltTex("asphaltC", 23, 768).clone(); at.needsUpdate = true; at.wrapS = at.wrapT = T.RepeatWrapping; at.repeat.set(1, 1);
+    const tarmac = new T.MeshStandardMaterial({ map: at, roughness: 0.92, metalness: 0.02, envMapIntensity: 0.1 });
+    const W = o.w || 13;
+    apRibbon(S, z0, z1, 0, W, tarmac, 0.262);
+    /* the shoulder either side, so the tarmac edge never floats over grass */
+    const sh = o.shoulder === "gravel" ? hnMats().gravel : (o.shoulder === "concrete" ? hanMats().conc : null);
+    if (sh) [-1, 1].forEach((s) => apRibbon(S, z0, z1, s * (W / 2 + 2.1), 4.2, sh, 0.248));
+    /* paint: double centre line and a solid edge line, wet on wet asphalt */
+    [-0.18, 0.18].forEach((off) => apRibbon(S, z0, z1, off, 0.13, SOL.paintYellow, 0.272));
+    [-1, 1].forEach((s) => apRibbon(S, z0, z1, s * (W / 2 - 1.1), 0.15, SOL.paintWhite, 0.272));
+  }
+  /* a concrete watchtower / sentry post whose deck top sits exactly at the
+     height the stage's wall gunners were given, so nobody stands in the air */
+  function crPost(S, x, z, top, rot) {
+    const C = hanMats().conc, sheet = hnMats().corr, rail = cmat(0x7a7e80, 0.6, 0.4);
+    const G = new T.Group(); G.position.set(x, 0, z); G.rotation.y = rot || 0; S.add(G);
+    const H = Math.max(2.6, top - 0.32);
+    bx(G, 3.6, H, 3.6, 0, 0.25 + H / 2, 0, C, { wall: 1 });
+    bx(G, 4.1, 0.16, 4.1, 0, 0.25 + H * 0.42, 0, C, { noCast: 1 });      /* a ring course */
+    bx(G, 4.6, 0.32, 4.6, 0, top - 0.16, 0, C);                          /* the platform deck */
+    [-1, 1].forEach((s) => { bx(G, 4.6, 0.1, 0.1, 0, top + 0.95, s * 2.25, rail, { noCast: 1 }); bx(G, 0.1, 0.1, 4.6, s * 2.25, top + 0.95, 0, rail, { noCast: 1 }); });
+    [-1, 1].forEach((s) => [-1, 1].forEach((k) => bx(G, 0.16, 2.4, 0.16, s * 2.1, top + 1.2, k * 2.1, rail, { noCast: 1 })));
+    bx(G, 5.0, 0.16, 5.0, 0, top + 2.45, 0, sheet);                       /* a tin roof */
+    bx(G, 4.6, 0.5, 4.6, 0, top + 2.2, 0, cmat(0x3a3a36, 0.8));
+    /* a ladder and a searchlight */
+    for (let k = 0; k < 6; k++) bx(G, 1.0, 0.07, 0.36, 0, 0.9 + k * 0.9, 1.95, rail, { noCast: 1 });
+    cyl(G, 0.28, 0.34, 0.5, 1.5, top + 0.7, -1.5, cmat(0x4a4e4a, 0.6, 0.3), 8);
+  }
+  /* (v68) 2-6 CHEORWON: the paddy plain south of the DMZ, wire fence, posts */
+  function crApproach(S) {
+    const M = voxMats(), HM = hnMats(), VB = voxBatch(), R = rng(2222);
+    const Z0 = -248, Z1 = -58;
+    /* the plain: dry autumn grass and stubble to the horizon */
+    const gt = HM.ground.clone(); gt.needsUpdate = true; gt.wrapS = gt.wrapT = T.RepeatWrapping; gt.repeat.set(1400 / 11, 1400 / 11);
+    const skirt = new T.Mesh(new T.PlaneGeometry(1400, 1400), new T.MeshStandardMaterial({ map: gt, roughness: 1 }));
+    skirt.rotation.x = -Math.PI / 2; skirt.position.set(0, 0.2, -200); skirt.userData.noBlock = 1; S.add(skirt);
+    apRoad(S, Z0, Z1, { shoulder: "gravel" });
+    /* the paddies: cut rice between mud dikes, a shade apart field by field */
+    const pt = ctex("crPaddy", 256, 256, (g, w, h) => {
+      const r = rng(2237);
+      g.fillStyle = "#8f9155"; g.fillRect(0, 0, w, h);
+      const cols = ["#9aa164", "#a8a466", "#7e8a4c", "#b0a468", "#8a8a52", "#c0b478"];
+      for (let i = 0; i < 700; i++) { g.fillStyle = cols[(r() * cols.length) | 0]; g.fillRect(r() * w, r() * h, 10 + r() * 14, 6 + r() * 10); }
+      for (let y = 0; y < h; y += 16) { g.fillStyle = "rgba(90,84,44,.26)"; g.fillRect(0, y, w, 3); }
+      g.globalAlpha = 0.45;
+      for (let i = 0; i < 40; i++) { g.fillStyle = r() < 0.5 ? "#6e6a3a" : "#c8bc84"; g.fillRect(r() * w, r() * h, 8 + r() * 20, 5 + r() * 8); }
+      g.globalAlpha = 1;
+    });
+    const ptx = pt.clone(); ptx.needsUpdate = true; ptx.wrapS = ptx.wrapT = T.RepeatWrapping; ptx.repeat.set(34, 40);
+    const pm = new T.MeshStandardMaterial({ map: ptx, roughness: 0.97 });
+    [-1, 1].forEach((sd) => {
+      [0, 1].forEach((k) => {
+        const p = new T.Mesh(new T.PlaneGeometry(150, 176), pm);
+        p.rotation.x = -Math.PI / 2; p.position.set(sd * (24 + 76 + k * 152), 0.234, -166); p.receiveShadow = true; p.userData.noBlock = 1; S.add(p);
+      });
+    });
+    /* the dikes that cut the paddies into plots */
+    [-1, 1].forEach((sd) => { for (let k = 0; k < 5; k++) { const x = sd * (24 + 30 + k * 30); VB.cube(M.plain, x, 0.29, -166, 0.8, 0.2, 176, 0x9a8a62); } });
+    for (let z = -250; z < -76; z += 30) [-1, 1].forEach((sd) => VB.cube(M.plain, sd * 100, 0.29, z, 152, 0.2, 0.8, 0x9a8a62));
+    /* the wire fence that runs the line: posts every 3 m, three strands */
+    [-1, 1].forEach((sd) => {
+      const x = sd * 11.6;
+      for (let z = Z0 + 4; z < -80; z += 3) VB.cube(M.plain, x, 1.55, z, 0.1, 2.6, 0.1, 0x8a8e8c);
+      [0.7, 1.5, 2.3].forEach((y) => VB.cube(M.plain, x, y, -165, 0.05, 0.05, 168, 0x6a6e6c));
+    });
+    /* the watch posts whose decks the wall gunners stand on */
+    crPost(S, -19.3, -200, 12.0, 0.2); crPost(S, 19.3, -194, 5.45, -0.2);
+    crPost(S, 19.3, -152, 5.45, 0.1); crPost(S, -19.3, -146, 5.45, -0.15);
+    crPost(S, -15.8, -108, 5.45, 0.15); crPost(S, 15.8, -100, 5.45, -0.1);
+    /* farm hamlets behind the fields, and pines on the far side */
+    const walls = [0xf2efe6, 0xe8e2d4, 0xf6f4ee], roofs = [0x5a5e64, 0x8a4a32, 0x4a5a6a];
+    [[-62, -224], [-74, -166], [58, -206], [70, -142], [-58, -96], [56, -86]].forEach(([cx, cz]) => {
+      const n = 3 + ((R() * 3) | 0);
+      for (let i = 0; i < n; i++) {
+        const x = cx + (R() - 0.5) * 22, z = cz + (R() - 0.5) * 18, w = 5 + R() * 3, h = 2.8;
+        VB.cube(M.plain, x, 0.25 + h / 2, z, w, h, 4.4, walls[(R() * 3) | 0], 0, { cast: true });
+        VB.cube(M.plain, x, 0.25 + h + 0.42, z, w + 0.8, 0.85, 5.2, roofs[(R() * 3) | 0], 0, { cast: true });
+      }
+    });
+    for (let i = 0; i < 90; i++) { const sd = i % 2 ? 1 : -1, x = sd * (36 + R() * 120), z = -260 + R() * 190; voxPine(VB, x, 0.25, z, 5 + R() * 6, i + 221); }
+    /* power line down the east shoulder */
+    for (let z = -240; z < -70; z += 26) { VB.cube(M.plain, 8.6, 4.4, z, 0.28, 8.2, 0.28, 0x5a4632, 0, { cast: true }); VB.cube(M.plain, 8.6, 8.2, z, 2.2, 0.16, 0.16, 0x5a4632); }
+    [-0.7, 0.7].forEach((dx) => bx(S, 0.03, 0.03, 176, 8.6 + dx, 8.35, -155, cmat(0x222222, 0.6), { noCast: 1 }));
+    VB.flush(S, "crPlain");
+  }
+  /* (v68) 3-8 SINUIJU: the riverside road, the Yalu to the west and the
+     railway bridge over it; the far bank's blocks across the water */
+  function snApproach(S) {
+    const M = voxMats(), HM = hnMats(), VB = voxBatch(), R = rng(2323);
+    const Z0 = -248, Z1 = -58;
+    const st = soilTex().clone(); st.needsUpdate = true; st.wrapS = st.wrapT = T.RepeatWrapping; st.repeat.set(1400 / 13, 1400 / 13);
+    const skirt = new T.Mesh(new T.PlaneGeometry(1400, 1400), new T.MeshStandardMaterial({ map: st, roughness: 1 }));
+    skirt.rotation.x = -Math.PI / 2; skirt.position.set(0, 0.2, -200); skirt.userData.noBlock = 1; S.add(skirt);
+    apRoad(S, Z0, Z1, { shoulder: "concrete" });
+    /* 압록강: water from x −125 to −25, the far bank and its town beyond */
+    const wtr = new T.Mesh(new T.PlaneGeometry(101, 170), waterMat(0x23343e, 40, 0.005));
+    wtr.rotation.x = -Math.PI / 2; wtr.position.set(-75, 0.215, -176); wtr.userData.noBlock = 1; S.add(wtr);
+    /* the promenade, its parapet and the stone revetment down to the water */
+    const walk = new T.Mesh(new T.PlaneGeometry(11, 176), hanMats().conc);
+    walk.rotation.x = -Math.PI / 2; walk.position.set(-19.4, 0.244, -166); walk.receiveShadow = true; walk.userData.noBlock = 1; S.add(walk);
+    bx(S, 0.5, 1.0, 176, -13.6, 0.75, -166, hanMats().conc, { wall: 1 });
+    bx(S, 0.62, 0.16, 176, -13.6, 1.3, -166, cmat(0xc8c4ba, 0.9), { noCast: 1 });
+    VB.cube(M.rock, -25.6, 0.5, -166, 3.6, 0.7, 176, 0xa8a49c);
+    for (let z = -240; z < -90; z += 12) { VB.cube(M.rock, -26.6, 0.15, z, 1.2, 0.4, 3.0, 0xbab4aa); }
+    /* steps down to the water every so often */
+    [-210, -152, -104].forEach((z) => { for (let k = 0; k < 3; k++) bx(S, 4, 0.22, 6, -15.5 - k * 0.9, 0.85 - k * 0.24, z, hanMats().conc, { noCast: 1 }); });
+    /* plane trees and lamp standards along the promenade */
+    for (let z = -236; z < -80; z += 17) { VB.cube(M.bark, -18.5, 2.2, z, 0.4, 4.4, 0.4, 0x6a5238, 0, { cast: true }); VB.cube(M.leaf, -18.5, 5.4, z, 4.4, 3.4, 4.4, 0x556a34, 0, { cast: true }); }
+    for (let z = -232; z < -84; z += 26) {
+      cyl(S, 0.11, 0.14, 6.4, -12.2, 3.2, z, cmat(0x4a4e52, 0.5, 0.5), 8);
+      bx(S, 1.5, 0.14, 0.2, -11.6, 6.3, z, cmat(0x4a4e52, 0.5, 0.5), { noCast: 1 });
+      bx(S, 0.5, 0.16, 0.3, -10.95, 6.16, z, cmat(0xfff0c8, 0.3, 0, { emissive: 0xffcf80, emissiveIntensity: 1.3 }), { noCast: 1 });
+    }
+    /* the far bank: a quay wall, Dandong's blocks and their lit windows */
+    bx(S, 6, 2.4, 176, -128, 1.1, -166, hanMats().conc, { wall: 1 });
+    const far = [[-146, -218, 14, 22], [-160, -190, 20, 30], [-140, -154, 12, 18], [-158, -120, 18, 26], [-144, -92, 13, 16], [-166, -244, 22, 26]];
+    far.forEach(([x, z, w, h], i) => {
+      /* (v68) solid blocks in the concrete's own photo, not flat fill */
+      bx(S, w, h, w * 0.8, x, 0.25 + h / 2, z, cmat([0x8a8a86, 0x9a948c, 0x7a7a78, 0xa8a09a][i % 4], 0.88), { wall: 1 });
+      bx(S, w + 0.8, 1.0, w * 0.8 + 0.8, x, 0.25 + h + 0.5, z, cmat(0x5a5a56, 0.9));
+      bx(S, 1.2, 3, 1.2, x, 0.25 + h * 0.5, z + w * 0.4 + 0.1, cmat(0xb04a3a, 0.8));
+    });
+    for (let i = 0; i < 26; i++) {
+      const x = -136 - R() * 30, z = -240 + R() * 150, y = 3 + R() * 18;
+      const o = new T.Mesh(new T.PlaneGeometry(1.1, 1.5), cmat(0xffe6a8, 0.4, 0, { emissive: 0xffd070, emissiveIntensity: 0.9 }));
+      o.position.set(x, y, z); o.rotation.y = Math.PI / 2; o.userData.noBlock = 1; S.add(o);
+    }
+    /* a barge on the water, riding high */
+    bx(S, 6, 1.2, 18, -78, 0.7, -212, cmat(0x3a4a52, 0.8), {});
+    bx(S, 4.4, 1.0, 7, -78, 1.7, -216, cmat(0x8a5a34, 0.85), {});
+    VB.flush(S, "snBank");
+  }
   /* (v64) the Han in more detail: shared materials for the bridges, the
      apartment blocks, wakes and the smoke over the burning city */
   let HANM = null;
@@ -17298,8 +17479,9 @@
   }
   /* a bridge across the river at z: steel arches over the deck, or one with
      its middle span dropped into the water */
-  function lmHanBridge(S, z, kind) {
+  function lmHanBridge(S, z, kind, xo) {
     const HM = hanMats();
+    if (xo) { const G0 = new T.Group(); G0.position.x = xo; S.add(G0); S = G0; }
     const deck = HM.conc, steel = HM.arch, pier = HM.conc, dark = HM.rebar;
     const W = 2 * HAN_BANK + 30, Y = 9.0;
     const span = (x0, x1, y0, y1, broken) => {
@@ -17875,18 +18057,26 @@
     }
     if (ctx.renderer) ctx.renderer.toneMappingExposure = 1.1;
     const z0 = (C.sea ? -70 : CITY_Z0 - 18), z1 = CITY_Z1 + 30;
+    /* (v68) a stage whose road begins south of the city ground (2-4 at z −150)
+       gets the ground and the lane paint carried back to its start line, so the
+       first metres of driving are not over the void. The two country approaches
+       (22, 23) lay their own ground instead. */
+    const zStart = (STAGE.path && STAGE.path.length) ? STAGE.path[0][1] : z0;
+    const own = C.cheorwon || C.sinuiju || C.suwon || C.rails || C.approach || C.sea;
+    const back = own ? 0 : Math.min(56, Math.max(0, z0 - zStart));
+    const zBack = z0 - back;
     /* ground: asphalt, or stone paving for the old capital */
     const gKey = C.paved ? "cityPave" : "asphaltC";
     const gt = C.paved ? bakseokTex("cityBakseok", 31) : asphaltTex("asphaltC", 23, 768);
     const gtx = gt.clone(); gtx.needsUpdate = true; gtx.wrapS = gtx.wrapT = T.RepeatWrapping; gtx.repeat.set(C.paved ? 64 : 40, C.paved ? 64 : 40);
-    const GS = TURNS.length ? 460 : 320;
+    const GS = (TURNS.length ? 460 : 320) + back * 2;
     const ground = new T.Mesh(new T.PlaneGeometry(GS, GS), new T.MeshStandardMaterial({ map: gtx, roughness: 0.86, metalness: 0.02, envMapIntensity: 0.1, color: C.paved ? new T.Color(0xcfc6b4).convertSRGBToLinear() : 0xffffff }));
     ground.rotation.x = -Math.PI / 2;
     /* (v47) a landing beach: the asphalt stops at the waterline instead of
        running out over the sea, so the boats really are on water */
     ground.position.set(C.seaSide ? -150 : 0, 0.24, C.sea ? -70 + GS / 2 : 20);
     if (C.seaSide) { ground.geometry.dispose(); ground.geometry = new T.PlaneGeometry(GS, GS); ground.position.x = -GS / 2 + 12; }
-    if (TURNS.length) gtx.repeat.set(GS / 8, GS / 8);
+    if (TURNS.length || back) gtx.repeat.set(C.paved ? GS / 5 : GS / 8, C.paved ? GS / 5 : GS / 8);
     ground.receiveShadow = true;
     ground.userData.noBlock = 1;
     S.add(ground);
@@ -17894,6 +18084,8 @@
     if (C.approach) { try { kaesongApproach(S); } catch (e) { window.__lmErr = String(e && e.stack || e); } }
     if (C.rails) { try { hnApproach(S); } catch (e) { window.__lmErr = String(e && e.stack || e); } }
     if (C.suwon) { try { suwonApproach(S); } catch (e) { window.__lmErr = String(e && e.stack || e); } }
+    if (C.cheorwon) { try { crApproach(S); } catch (e) { window.__lmErr = String(e && e.stack || e); } }
+    if (C.sinuiju) { try { snApproach(S); } catch (e) { window.__lmErr = String(e && e.stack || e); } }
     /* the water for the seafront cities */
     if (C.seaSide || C.sea) {
       const wt = ctex("seaTex", 256, 256, (g, w, h) => {
@@ -17936,7 +18128,7 @@
         g.setAttribute("position", new T.Float32BufferAttribute(pos, 3)); g.setAttribute("uv", new T.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals();
         const me = new T.Mesh(g, m); me.receiveShadow = true; me.userData.noBlock = 1; me.userData.leg = cityLeg(TURNS, (za + zb) / 2); S.add(me);
       };
-      legSpans(C.sea ? -44 : CITY_Z0 - 12, CITY_Z1 + 20).forEach(([a, b], si, arr) => {
+      legSpans(C.sea ? -44 : Math.min(CITY_Z0 - 12, zBack), CITY_Z1 + 20).forEach(([a, b], si, arr) => {
         stripe(-0.18, 0.13, a, b, SOL.paintYellow); stripe(0.18, 0.13, a, b, SOL.paintYellow);
         [-5, 5].forEach((lx) => { for (let z = a + 2; z + 3.2 < b - 2; z += 7) stripe(lx, 0.16, z, z + 3.2, SOL.paintWhite); });
         /* stop lines where the lanes meet a crossing */
@@ -17951,7 +18143,7 @@
       const m = new T.Mesh(new T.BoxGeometry(w, 0.12, d), repMat(SOL.pave, w / 3.2, d / 3.2));
       m.position.set((x0 + x1) / 2, 0.36, (zz0 + zz1) / 2); m.receiveShadow = true; m.userData.noBlock = 1; S.add(m);
     };
-    const zA = C.sea ? -44 : z0;
+    const zA = C.sea ? -44 : zBack;
     legSpans(zA, 52).forEach(([a, b]) => { walk(-13.8, -10, a, b); if (!seaHere(a)) walk(10, 13.8, a, b); else walk(10, 16, a, TURNS.length ? b : z1); });
     /* ---- the blocks either side, with gaps for side streets ---- */
     /* each city's own facade palette: the shared facades, tinted */
@@ -18143,7 +18335,7 @@
         else if (k === "cranes") lmCranes(S, L[1]);
         else if (k === "subway") lmSubway(S, L[1], L[2], L[3]);
         else if (k === "kaesongGate") lmKaesongGate(S, L[1]);
-        else if (k === "hanBridge") lmHanBridge(S, L[1], L[2]);
+        else if (k === "hanBridge") lmHanBridge(S, L[1], L[2], L[3]);
         else if (k === "hnStation") lmHnStation(S, L[1]);
         else if (k === "guardTower") lmGuardTower(S, L[1], L[2], L[3]);
         else if (k === "kaesongHQ") lmKaesongHQ(S, L[1], L[2]);
