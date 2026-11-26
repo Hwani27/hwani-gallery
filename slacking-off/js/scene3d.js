@@ -1041,7 +1041,7 @@ var Slack3D = (function () {
       w: 512, h: 96, wu: 2.1, hu: 0.39, color: '#ffe08a',
       bg: 'rgba(8,14,22,.82)', stroke: 'rgba(255,210,74,.45)', lw: 6
     });
-    tick.position.set(-1.25, 0.02, -3.15);
+    tick.position.set(-1.32, 3.06, -3.15);
     R.add(tick);
 
     /* 캔들 — 빨강(상승)/파랑(하락) 두 재질을 갈아 끼운다 */
