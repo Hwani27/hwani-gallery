@@ -103,7 +103,8 @@
     { id: "vest", ko: "방탄조끼", en: "Body armour", d: "받는 피해 70%를 60까지 흡수", dEn: "Soaks 70% of damage, 60 pts", p: 120, ic: "🦺" },
     { id: "life", ko: "구급 상자", en: "Medkit", d: "다음 작전 목숨 +1", dEn: "+1 life next mission", p: 150, ic: "🩹" },
     { id: "smg", ko: "기관단총 출격", en: "Start with SMG", d: "기관단총 90발로 시작", dEn: "Start with a 90-round SMG", p: 160, ic: "🔫" },
-    { id: "shotgun", ko: "산탄총 출격", en: "Start with shotgun", d: "산탄총 16발로 시작", dEn: "Start with a 16-shell shotgun", p: 180, ic: "💥" }
+    { id: "shotgun", ko: "산탄총 출격", en: "Start with shotgun", d: "산탄총 16발로 시작", dEn: "Start with a 16-shell shotgun", p: 180, ic: "💥" },
+    { id: "rpg", ko: "RPG 출격", en: "Start with RPG", d: "RPG 로켓 4발로 시작", dEn: "Start with 4 RPG rockets", p: 200, ic: "🚀" }
   ];
   const SKINS = [
     { id: "base", ko: "기본 강철", en: "Steel", p: 0, st: 0, c: ["#4b5563", "#22262c"] },
@@ -143,7 +144,11 @@
     if (D.mode === "practice") return null;
     const L = {};
     ["nades", "mag", "vest", "life"].forEach((k) => { if ((D.inv[k] || 0) > 0) { D.inv[k]--; L[k] = k === "nades" ? 2 : 1; } });
-    if ((D.inv.shotgun || 0) > 0) { D.inv.shotgun--; L.start = "shotgun"; } else if ((D.inv.smg || 0) > 0) { D.inv.smg--; L.start = "smg"; }
+    /* one start weapon a mission, most valuable first, so owning all three
+       never packs two of them and burns a supply for nothing */
+    if ((D.inv.rpg || 0) > 0) { D.inv.rpg--; L.start = "rpg"; }
+    else if ((D.inv.shotgun || 0) > 0) { D.inv.shotgun--; L.start = "shotgun"; }
+    else if ((D.inv.smg || 0) > 0) { D.inv.smg--; L.start = "smg"; }
     save();
     return Object.keys(L).length ? L : null;
   }

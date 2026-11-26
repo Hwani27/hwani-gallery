@@ -612,6 +612,23 @@
     return true;
   }
 
+  /* (v70) the RPG: the tube's deep thump, the motor's rising hiss as the
+     rocket leaves, a metal clank and the tail of the launch down the street */
+  function rpg() {
+    if (muted()) return;
+    const c = ac();
+    const t = c.currentTime;
+    const v = 0.96 + Math.random() * 0.08;
+    thump(c, t, 132 * v, 42, 0.22, 0.9, bus, "sine");
+    thump(c, t, 68 * v, 32, 0.44, 0.52, bus, "triangle");
+    band(c, t, 0.12, "lowpass", 820, 0.8, 0.5, 0.002, 0.09, bus);
+    /* the motor: a hiss that climbs, then thins out behind the rocket */
+    band(c, t + 0.03, 0.62, "highpass", 1500 * v, 0.6, 0.26, 0.012, 0.5, bus, 9000);
+    band(c, t + 0.06, 0.5, "bandpass", 2800, 0.9, 0.1, 0.05, 0.4, bus);
+    ping(c, t + 0.02, 420 * v, 0.07, 0.05, bus);
+    band(c, t + 0.1, 0.8, "lowpass", 700, 0.5, 0.12, 0.03, 0.7, bus, 240);
+  }
+
   function boom() {
     if (muted()) return;
     const c = ac();
@@ -836,6 +853,7 @@
     shot,
     rifle,
     snipe,
+    rpg,
     dry: dryFire,
     glass,
     shotgun,

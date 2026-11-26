@@ -4018,7 +4018,7 @@
       part(g, 0.3, 0.1, 0.02, 0, 0, 0.22, SOL.red);
       part(g, 0.12, 0.05, 0.1, 0, 0.235, 0, SOL.belt);
       part(g, 0.6, 0.04, 0.44, 0, -0.22, 0, SOL.stoneDark);
-    } else if (kind === "smg" || kind === "shotgun" || kind === "sniper" || kind === "grenade") {
+    } else if (kind === "smg" || kind === "shotgun" || kind === "rpg" || kind === "grenade") {
       /* a weapon crate: olive case with a yellow stencil band and the gun (or
          two grenades) strapped on top */
       part(g, 0.66, 0.34, 0.42, 0, 0, 0, SOL.oliveDark);
@@ -4029,11 +4029,18 @@
         part(g, 0.06, 0.06, 0.06, -0.12, 0.44, 0, SOL.steel);
         part(g, 0.06, 0.06, 0.06, 0.12, 0.44, 0, SOL.steel);
       } else {
-        const L = kind === "shotgun" ? 0.78 : kind === "sniper" ? 0.88 : 0.56;
-        part(g, L, 0.08, 0.08, 0, 0.24, 0, SOL.gunmetal || SOL.steel);
-        part(g, 0.08, 0.16, 0.06, kind === "shotgun" ? 0.22 : 0.1, 0.14, 0, kind === "shotgun" ? SOL.wood : SOL.gunmetal || SOL.steel);
+        const L = kind === "shotgun" ? 0.78 : 0.56;
+        if (kind !== "rpg") {
+          part(g, L, 0.08, 0.08, 0, 0.24, 0, SOL.gunmetal || SOL.steel);
+          part(g, 0.08, 0.16, 0.06, kind === "shotgun" ? 0.22 : 0.1, 0.14, 0, kind === "shotgun" ? SOL.wood : SOL.gunmetal || SOL.steel);
+        }
         if (kind === "smg") part(g, 0.06, 0.2, 0.05, -0.04, 0.12, 0, SOL.gunmetal || SOL.steel);
-        if (kind === "sniper") { part(g, 0.2, 0.06, 0.06, 0, 0.31, 0, SOL.steel); part(g, 0.05, 0.05, 0.05, 0.14, 0.31, 0, SOL.lampWarm || SOL.gold); }
+        /* (v70) the rocket crate: the fat tube with a warhead on the nose */
+        if (kind === "rpg") {
+          part(g, 0.17, 0.17, 0.6, 0, 0.26, 0, SOL.olive);
+          part(g, 0.13, 0.13, 0.2, 0.36, 0.26, 0, SOL.oliveDark || SOL.olive);
+          part(g, 0.09, 0.09, 0.12, 0.47, 0.26, 0, SOL.gold);
+        }
       }
     } else if (kind === "ammo") {
       part(g, 0.56, 0.38, 0.36, 0, 0, 0, SOL.oliveDark);
@@ -7111,19 +7118,19 @@
       id: 21, refugees: true, music: "perimeter", label: "STAGE 1-6", clock: 400, path: cityPath(), boss: cityBoss(),
       waves: genWaves(2121, ["GANGNEUNG", "PINE GROVE", "HARBOUR"], [
         "해변 도로 확보! 방파제 뒤로 엄폐하라!", "솔숲 길로 적 오토바이!", "적 헬기 출현! 소나무 아래로 엄폐!",
-        "피난민 대피 중, 오사 주의!", "적 증원, 항구 방면!", "적 헬기 재접근!", "적 공수 강하! 강릉 항을 지켜라!"], { bikes: true, hostage: true }),
+        "피난민 대피 중, 오사 주의!", "적 증원, 항구 방면!", "적 헬기 재접근!", "적 공수 강하! 강릉 항을 지켜라!"], { bikes: true, hostage: true, tight: true }),
       dress: "citygen", bossKind: "apc", bossHp: 90, armorWave: 4, armorTank: false, armorHp: 14,
       city: {
-        seed: 21, mood: "day", seaSide: true, tints: [0xf0ecdc, 0xe4e0cc, 0xd0ccb4],
+        seed: 21, mood: "day", seaSide: true, pine: true, tints: [0xf0ecdc, 0xe4e0cc, 0xd0ccb4],
         sign: [-12.4, -44, "강릉", "GANGNEUNG", Math.PI / 2, "#2a6a6a"],
         cars: [["bus", 7.6, -20, Math.PI, "313"]],
         banners: [[-12.2, -10, "강릉 해변", "#2a7a8a", 9], [12.2, 22, "경포", "#2a4a8a"]],
         hills: [[-70, 200, 220, 70, 36]],
-        landmarks: [["lighthouse", 44, 46, 0x2a7aa8], ["boats", [[34, -40, 0.4, 0x2a5aa8], [48, -10, -0.6, 0xe8b830]]], ["fire", -18, 0.4, -58, 1.4]]
+        landmarks: [["hwPav", -31, 6, 12, 7, true], ["breakwater", 16, 46, 22], ["lighthouse", 46, 30, 0x2a7aa8], ["boats", [[34, -34, 0.4, 0x2a5aa8], [46, -8, -0.6, 0xe8b830], [30, 44, 1.2, 0xc8382a]]], ["fire", -18, 0.4, -58, 1.4]]
       },
-      introDur: 4.4, introCam: [[20, 16, -84, 0, 8, 30], [0.0, 1.68, -62, 0, 1.55, -48]],
+      introDur: 4.4, introCam: [[22, 16, -84, 0, 8, 24], [0.0, 1.68, -56, 0, 1.55, -42]],
       introLines: [{ t: 0.4, text: "동해안을 따라 내려오는 적. 강릉 해변에서 막아라." }, { t: 2.2, text: "솔숲과 항구, 이 바다 길이 우리 방어선이다!" }],
-      bossRadio: "해변 도로에 적 장갑차! 흡기구를 노리고 수류탄을 던져라!"
+      bossRadio: "강릉 항 상공에 적 공격헬기! 기체에 집중 사격!"
     },
     /* (plan, UNVERIFIED) 1-7 ULSAN & POHANG: night steel-mill and shipyard belt on the way
        to Busan. Same citygen/industrial path as 3-3 and 3-5, mood "night", apc boss. */
@@ -7131,7 +7138,7 @@
       id: 17, refugees: true, music: "perimeter", label: "STAGE 1-7", clock: 400, path: cityPath(), boss: cityBoss(),
       waves: genWaves(1717, ["STEEL MILL", "SHIPYARD", "CONTAINERS"], [
         "제철소 정문 확보! 용광로 불빛 아래 엄폐하라!", "야드 골목에 적 오토바이!", "적 헬기 출현! 크레인 그늘로 엄폐!",
-        "야간 작업자 대피 중, 오사 주의!", "적 증원, 컨테이너 야드 방면!", "적 헬기 재접근!", "적 공수 강하! 조선소 방벽을 지켜라!"], { bikes: true, hostage: true }),
+        "야간 작업자 대피 중, 오사 주의!", "적 증원, 컨테이너 야드 방면!", "적 헬기 재접근!", "적 공수 강하! 조선소 방벽을 지켜라!"], { bikes: true, hostage: true, tight: true }),
       dress: "citygen", bossKind: "apc", bossTank: true, bossHp: 100, armorWave: 4, armorTank: true, armorHp: 16,
       city: {
         seed: 17, mood: "night", industrial: true, tints: [0xc4c8cc, 0xb4b8be, 0xa4a8b0],
@@ -7139,9 +7146,9 @@
         cars: [["truck", -7.8, -16, 0.1], ["truck", 7.8, 12, Math.PI]],
         banners: [[-12.2, -8, "제철소", "#c2622a", 9], [12.2, 26, "조선소", "#2a4a8a"]],
         hills: [[-60, 170, 220, 70, 40]],
-        landmarks: [["cranes", [[60, 40, 0.3], [78, 70, 0.3], [96, 100, 0.3]]], ["ship", 110, 90, 0.4, 52, 0.9], ["fire", -18, 0.4, -58, 1.4], ["fire", 16, 0.4, -50, 1.2]]
+        landmarks: [["furnace", -27, 6, 1.15], ["containers", [[-30, -46, 3], [-34, -26, 2], [30, -34, 3], [34, 8, 2], [-30, 34, 2]]], ["cranes", [[60, 40, 0.3], [78, 70, 0.3], [96, 100, 0.3]]], ["ship", 110, 90, 0.4, 52, 0.9], ["fire", -18, 0.4, -58, 1.4], ["fire", 16, 0.4, -50, 1.2]]
       },
-      introDur: 4.4, introCam: [[20, 16, -84, 0, 8, 30], [0.0, 1.68, -62, 0, 1.55, -48]],
+      introDur: 4.4, introCam: [[22, 16, -84, 0, 8, 24], [0.0, 1.68, -56, 0, 1.55, -42]],
       introLines: [{ t: 0.4, text: "밤의 울산 제철소. 적의 중공업 거점을 확보하라." }, { t: 2.2, text: "용광로 불빛이 보인다. 정문부터 밀어라!" }],
       bossRadio: "조선소 야드에 적 주력 전차! 흡기구를 노리고 수류탄을 던져라!"
     },
@@ -7249,18 +7256,18 @@
       boss: cityBoss(),
       waves: genWaves(1818, ["UIJEONGBU", "RIDGE", "DONGDUCHEON"], [
         "의정부 고개 선점! 능선 아래 엄폐하라!", "산길 모퉁이로 적 오토바이!", "적 헬기 출현! 소나무 아래로 엄폐!",
-        "주민 대피 중, 오사 주의!", "적 증원, 동두천 방향!", "적 헬기 재접근!", "적 공수 강하! 고개 정상을 지켜라!"], { bikes: true, hostage: true, heliWaves: [2, 5] }),
+        "주민 대피 중, 오사 주의!", "적 증원, 동두천 방향!", "적 헬기 재접근!", "적 공수 강하! 고개 정상을 지켜라!"], { bikes: true, hostage: true, heliWaves: [2, 5], tight: true }),
       dress: "citygen", bossKind: "apc", bossHp: 80, armorWave: 4, armorTank: false, armorHp: 14,
       city: {
-        seed: 18, mood: "morning", tints: [0xcfd8c8, 0xc0ccb6, 0xb4c0a8], sign: [12.4, -44, "의정부", "UIJEONGBU", -Math.PI / 2, "#2f6a3a"],
+        seed: 18, mood: "morning", pine: true, tints: [0xcfd8c8, 0xc0ccb6, 0xb4c0a8], sign: [12.4, -44, "의정부", "UIJEONGBU", -Math.PI / 2, "#2f6a3a"],
         cars: [["truck", -7.8, -16, 0.1]],
         banners: [[-12.2, -8, "동두천", "#2a6a3a", 9], [12.2, 22, "북부 산악로", "#8a4a2a"]],
         hills: [[-70, 200, 240, 70, 46], [60, 190, 200, 60, 40], [0, 250, 260, 70, 52]],
-        landmarks: [["market", -11.6, -56, -32, 80], ["fire", -16, 0.4, 30, 1.1]]
+        landmarks: [["gate", 0, -26, 0, "의정부 고개", "UIJEONGBU PASS", 0x2f6a3a], ["rocks", [[-22, -14, 1.6], [-26, 2, 2.2], [-21, 20, 1.5], [24, -6, 1.8], [27, 14, 2.0], [22, 30, 1.4]]], ["hedgehogs", [[-9, -30], [9, -28], [-10, 8], [10, 24]]], ["guardTower", -25, 40, Math.PI / 2], ["market", -11.6, -56, -32, 80], ["fire", -16, 0.4, 30, 1.1]]
       },
-      introDur: 4.6, introCam: [[-30, 20, -180, 0, 6, -110], [0, 1.68, -150, 0, 1.55, -136]],
+      introDur: 4.6, introCam: [[-30, 20, -86, 0, 6, -30], [0, 1.68, -56, 0, 1.55, -42]],
       introLines: [{ t: 0.4, text: "서울 수복 뒤, 북쪽 산악 도로. 적의 퇴로를 끊어라." }, { t: 2.4, text: "의정부를 지나 동두천까지, 고개마다 적이 있다!" }],
-      bossRadio: "고개 모퉁이에 적 장갑차! 측면 흡기구를 노리고 수류탄!"
+      bossRadio: "고개 상공에 적 공격헬기! 기체에 집중 사격!"
     },
     /* (v62) 2-5 SUWON HWASEONG: south from Seoul to meet the forces coming
        up from the Nakdong. A jeep run outside the north wall with gunners
@@ -7332,11 +7339,11 @@
         cars: [["truck", -7.8, -8, Math.PI], ["police", -7.4, 24, Math.PI]],
         banners: [[-12.2, 6, "압록강", "#2a4aa8", 9], [-12.2, 40, "국경 교량", "#c22a2a"]],
         hills: [[60, 200, 200, 60, 30], [-230, 240, 180, 70, 26]],
-        landmarks: [["hanBridge", -180, "arch", -75], ["taper", -160, 260, 150], ["fire", -12.6, 8.2, -128, 1.0], ["fire", -18, 0.4, -58, 1.4], ["fire", 16, 0.4, -50, 1.2]]
+        landmarks: [["truss", 56, 46, 0x4a5258], ["gate", 0, -30, 0, "국경 검문소", "BORDER POST", 0x8a2a2a], ["taper", -160, 260, 150], ["fire", -12.6, 8.2, -128, 1.0], ["fire", -18, 0.4, -58, 1.4], ["fire", 16, 0.4, -50, 1.2]]
       },
-      introDur: 5.0, introCam: [[-26, 16, -270, 0, 3, -170], [0, 1.68, -236, 0, 1.55, -222]],
+      introDur: 5.0, introCam: [[-26, 16, -96, 0, 4, -40], [0, 1.68, -56, 0, 1.55, -42]],
       introLines: [{ t: 0.4, text: "신의주. 압록강 철교 앞이다. 다리를 넘으면 백두산이 가깝다." }, { t: 2.4, text: "강변 시가지를 뚫고 철교 끝까지 진격하라!" }],
-      bossRadio: "철교 남단에 적 장갑차! 흡기구를 노리고 수류탄!"
+      bossRadio: "철교 아래 적 주력 전차! 흡기구를 노리고 수류탄을 던져라!"
     },
     5: {
       id: 5, music: "paektu", label: "STAGE 3-9", clock: 400, path: PATH5, waves: WAVES5, boss: BOSS5,
@@ -7364,18 +7371,18 @@
       ],
       waves: genWaves(2020, ["LOCK GATE", "DIKE ROAD", "PIER"], [
         "갑문 앞 둑길 확보! 난간 뒤에 붙어라!", "둑길 위로 적 오토바이!", "적 헬기 출현! 조작실 그늘로 엄폐!",
-        "작업자 대피 중, 오사 주의!", "적 증원, 교각 방면!", "적 헬기 재접근!", "적 공수 강하! 갑문을 지켜라!"], { bikes: true, hostage: true, heliWaves: [1, 4] }),
+        "작업자 대피 중, 오사 주의!", "적 증원, 교각 방면!", "적 헬기 재접근!", "적 공수 강하! 갑문을 지켜라!"], { bikes: true, hostage: true, heliWaves: [1, 4], tight: true }),
       dress: "citygen", bossKind: "heli", bossHp: 52, armorWave: 3, armorTank: false, armorHp: 14,
       city: {
         seed: 20, mood: "dusk", tints: [0xd8d4c8, 0xc8c4b8, 0xb8b4a8], sign: [12.4, -44, "남포", "NAMPO", -Math.PI / 2, "#2a5a7a"],
         cars: [["truck", 7.8, -30, Math.PI]],
         banners: [[-12.2, -10, "서해갑문", "#2a4aa8", 9]],
         hills: [[-120, 210, 200, 60, 26]],
-        landmarks: [["seaLock", 0, -36], ["hedgehogs", [[-6, -24], [6, -22], [-8, -12], [8, -12]]], ["fire", -18, 0.4, -44, 1.2], ["fire", 16, 0.4, -40, 1.1]]
+        landmarks: [["seaLock", 0, -36], ["seaLock", 0, 18], ["hedgehogs", [[-6, -24], [6, -22], [-8, -12], [8, -12]]], ["fire", -18, 0.4, -44, 1.2], ["fire", 16, 0.4, -40, 1.1]]
       },
-      introDur: 4.6, introCam: [[-20, 18, -150, 0, 6, -100], [0, 1.68, -120, 0, 1.55, -106]],
+      introDur: 4.6, introCam: [[-20, 18, -96, 0, 6, -32], [0, 1.68, -56, 0, 1.55, -42]],
       introLines: [{ t: 0.4, text: "평양 직전, 남포 서해갑문. 조수를 막는 둑길이 적의 마지막 통로다." }, { t: 2.4, text: "갑문을 넘어 평양 방면으로 진격하라!" }],
-      bossRadio: "갑문 상공에 적 공격헬기! 기체에 집중 사격!"
+      bossRadio: "갑문을 넘은 적 전차! 흡기구를 노리고 수류탄을 던져라!"
     },
     4: {
       id: 4, music: "pyongyang", label: "STAGE 3-5", clock: 380, path: PATH3, waves: WAVES3, boss: BOSS3,
@@ -7397,21 +7404,21 @@
       boss: cityBoss(),
       waves: genWaves(1919, ["PINE BEACH", "RESORT", "HARBOUR"], [
         "착지 지점 확보! 해송 숲 엄폐!", "리조트 골목에 적 오토바이!", "적 헬기 출현! 방파제 뒤로!",
-        "피난민이 항구로 몰린다, 오사 주의!", "적 증원, 명사십리 방면!", "적 헬기 재접근!", "적 공수 강하! 항만을 지켜라!"], { bikes: true, hostage: true }),
+        "피난민이 항구로 몰린다, 오사 주의!", "적 증원, 명사십리 방면!", "적 헬기 재접근!", "적 공수 강하! 항만을 지켜라!"], { bikes: true, hostage: true, tight: true }),
       dress: "citygen", bossKind: "apc", bossTank: true, bossHp: 90, armorWave: 4, armorTank: true, armorHp: 16,
       city: {
-        seed: 19, mood: "day", sea: true, tints: [0xf4eee0, 0xe8e2d2, 0xd8d0be],
+        seed: 19, mood: "day", sea: true, pine: true, tints: [0xf4eee0, 0xe8e2d2, 0xd8d0be],
         sign: [12.4, -44, "원산 해변", "WONSAN BEACH", -Math.PI / 2, "#2a7a8a"],
         cars: [["police", -7.4, 24, Math.PI]],
         banners: [[12.2, -20, "원산 명사십리", "#2a7a8a", 9], [-12.2, 20, "원산항", "#2a4a8a"]],
         hills: [[-120, 220, 200, 60, 30]],
-        landmarks: [["beach", -70.5, -45], ["ship", -46, -150, 0.25, 52, 1.1], ["cranes", [[-150, -40, -0.2]]], ["fire", -18, 0.4, -58, 1.4]]
+        landmarks: [["beach", -70.5, -45], ["breakwater", 16, 52, -82], ["lighthouse", 52, -100, 0xc8302a], ["boats", [[34, -60, 0.5, 0x2a5aa8], [46, -52, -0.7, 0xe8b830], [28, 26, 1.1, 0xc8382a]]], ["cranes", [[62, 40, 0.3], [82, 66, 0.3]]], ["ship", -80, -160, 0.25, 52, 1.1], ["fire", -18, 0.4, -58, 1.4]]
       },
-      /* the intro ends at the drop height: CAM_Y 1.68 + PARA_H 46, written as a literal
-         because STAGES is built before PARA_H exists */
-      introDur: 5.0, introCam: [[14, 70, -240, 0, 4, -190], [0, 1.68 + 46, -190, 0, 1.55, -176]],
+      /* the drop now starts 54 m out, so the canopy opens on the beach and
+         the first squad is in sight as soon as the feet touch sand */
+      introDur: 5.0, introCam: [[14, 70, -150, 0, 4, -104], [0, 1.68 + 46, -104, 0, 1.55, -90]],
       introLines: [{ t: 0.4, text: "20XX년 9월, 원산 상공 3000m. 낙하 개시!" }, { t: 2.4, text: "해변과 항구의 적을 쏘며 강하하라. 착지 후 시가전!" }],
-      bossRadio: "항만 부두에 적 장갑차! 흡기구를 노리고 수류탄을 던져라!"
+      bossRadio: "항만 부두에 적 지휘관! 엄폐물 사이를 옮겨 다닌다, 머리를 노려라!"
     },
     /* (cheorwon-gangneung) 2-6 CHEORWON PLAIN: open paddy land just south of the DMZ.
        Wide flat ground, wire fence and watchtowers. Built from the 2-5 walls layout (the
@@ -7427,7 +7434,7 @@
       ],
       waves: genWaves(2222, ["PADDY ROAD", "WIRE LINE", "WATCHTOWER"], [
         "논두렁 길 확보! 물웅덩이 뒤에 엄폐하라!", "철책 옆으로 적 오토바이!", "적 헬기 출현! 초소 그늘로 엄폐!",
-        "농민 대피 중, 오사 주의!", "적 증원, 감시초소 방면!", "적 헬기 재접근!", "적 공수 강하! 철책선을 지켜라!"], { bikes: true, hostage: true }),
+        "농민 대피 중, 오사 주의!", "적 증원, 감시초소 방면!", "적 헬기 재접근!", "적 공수 강하! 철책선을 지켜라!"], { bikes: true, hostage: true, tight: true }),
       dress: "citygen", bossKind: "apc", bossTank: true, bossHp: 88, armorWave: 4, armorTank: false, armorHp: 14,
       city: {
         seed: 22, mood: "morning", low: true, cheorwon: true, tints: [0xd8e0c0, 0xcad4b0, 0xbcc8a0],
@@ -7435,11 +7442,11 @@
         cars: [["truck", -7.8, -16, 0.1]],
         banners: [[-12.2, -8, "철원 평야", "#4a6a3a", 9], [12.2, 22, "철책선", "#2f4a56"]],
         hills: [[-120, 260, 200, 60, 40], [120, 260, 200, 60, 40]],
-        landmarks: [["guardTower", -24, 10, Math.PI / 2], ["guardTower", 24, -30, -Math.PI / 2], ["hedgehogs", [[-6, -40], [6, -38]]], ["fire", -17, 0.4, 24, 1.2], ["fire", 16, 0.4, 48, 1.1]]
+        landmarks: [["ruinHall", -30, 2, 0, 26], ["guardTower", -24, 10, Math.PI / 2], ["guardTower", 24, -30, -Math.PI / 2], ["hedgehogs", [[-6, -40], [6, -38], [-7, 12], [7, 14], [-6, 40], [6, 42]]], ["fire", -17, 0.4, 24, 1.2], ["fire", 16, 0.4, 48, 1.1]]
       },
-      introDur: 4.6, introCam: [[-30, 20, -220, 0, 6, -150], [0, 1.68, -190, 0, 1.55, -176]],
+      introDur: 4.6, introCam: [[-30, 20, -96, 0, 6, -32], [0, 1.68, -56, 0, 1.55, -42]],
       introLines: [{ t: 0.4, text: "철원 평야. 넓게 열린 논과 철책, 그리고 감시초소." }, { t: 2.4, text: "초소의 시야를 피해 철책선을 따라 북으로 간다!" }],
-      bossRadio: "들판 가운데 적 장갑차! 흡기구를 노리고 수류탄!"
+      bossRadio: "노동당사 앞에 적 지휘관! 경호원부터 쓰러뜨려라!"
     },
     2: {
       id: 2, music: "dmz", label: "STAGE 3-1", clock: 360, path: PATH2, waves: WAVES2, boss: BOSS2,
@@ -7456,8 +7463,54 @@
      or left then right, at the two side streets (z -26 and 22) */
   (function () {
     const H = Math.PI / 2;
-    const TT = { 7: [[-26, H], [22, -H]], 8: [[-26, -H], [22, H]], 9: [[-26, H], [22, -H]], 10: [[-26, -H], [22, H]], 11: [[-26, -H], [22, H]], 12: [[-26, H], [22, -H]] };
+    const TT = { 7: [[-26, H], [22, -H]], 8: [[-26, -H], [22, H]], 9: [[-26, H], [22, -H]], 10: [[-26, -H], [22, H]], 11: [[-26, -H], [22, H]], 12: [[-26, H], [22, -H]],
+      /* (v70) the late-war stages each bend to their own ground: Ulsan's
+         harbour loop, the Uijeongbu switchbacks, Wonsan bay, the Nampo dike
+         past the gate, Gangneung's coast S, the Cheorwon farm road and the
+         Sinuiju river bend. The angle is the turn at that crossing. */
+      17: [[-28, -0.75], [10, 0.9]],
+      18: [[-34, 0.85], [4, -1.25]],
+      19: [[-24, -0.5], [16, 0.62]],
+      20: [[-10, 0.45], [30, -0.55]],
+      21: [[-6, -0.62], [26, 0.78]],
+      22: [[-28, -0.45], [16, 0.6]],
+      23: [[-18, -0.5], [22, 0.62]] };
+    /* (v70) no walking in to the fight: the late stages start 6 m short of
+       their first zone instead of up the approach road, and their zones sit
+       14 m apart, so a corner leads straight into the next cover and squad */
+    [17, 18, 19, 20, 21, 22, 23].forEach((id) => {
+      const st = STAGES[id];
+      if (!st) return;
+      const z0 = id === 19 ? -104 : -56;
+      const pts = (st.path || []).filter((q) => q[1] > z0 + 0.01);
+      st.path = pts.length && pts[0][1] < z0 + 12 ? pts : [[+cityX(z0).toFixed(2), z0]].concat(pts);
+    });
     Object.keys(TT).forEach((id) => { const st = STAGES[id]; if (st && st.city) { st.city.turns = TT[id]; bendCityStage(st); } });
+    /* (v70) no two late stages share a boss or an arena: a tank in the
+       container canyon, a gunship over the pass, an officer on the quay, a
+       tank on the lock gate, a gunship over the coast, a commander at the
+       party hall, and the last tank under the bridge */
+    const BOSSES = {
+      17: { kind: "apc", tank: true, hp: 100, z: 52 },
+      18: { kind: "heli", hp: 48, z: 44 },
+      19: { kind: "man", hp: 26, z: 50 },
+      20: { kind: "apc", tank: true, hp: 110, z: 48 },
+      21: { kind: "heli", hp: 46, z: 44 },
+      22: { kind: "commander", hp: 36, z: 52 },
+      23: { kind: "apc", tank: true, hp: 130, z: 52 }
+    };
+    Object.keys(BOSSES).forEach((id) => {
+      const st = STAGES[id];
+      if (!st) return;
+      const B = BOSSES[id], T = (st.city && st.city.turns) || [];
+      st.bossKind = B.kind;
+      if (B.tank) st.bossTank = true; else delete st.bossTank;
+      st.bossHp = B.hp;
+      const k = cityLeg(T, B.z);
+      const h = cityTurnXZ(T, k, cityX(B.z), B.z);
+      const l = cityTurnXZ(T, k, cityX(B.z), B.z + 13);
+      st.boss = { hold: h, look: [+l[0].toFixed(2), 2.4, +l[1].toFixed(2)], spots: [[-6.4, 11.4], [-1.2, 10.6], [5.2, 11.0], [1.6, 13.2]], yaw: cityYaw(T, k) };
+    });
   })();
 
   let STAGE = STAGES[1];
@@ -8519,23 +8572,26 @@
     P(sgG, 0.1, 0.24, 0.12, 0, -0.18, 0.06, wood);            /* grip */
     P(sgG, 0.1, 0.14, 0.34, 0, -0.08, 0.3, wood);             /* stock */
     P(sgG, 0.03, 0.04, 0.03, 0, 0.12, -1.13, mk(0xd0d0d0, { metalness: 0.9, roughness: 0.3 })); /* bead */
-    /* (v69) the sniper: long barrel, big scope, bipod and a wooden stock,
+    /* (v70) the RPG: a fat olive launch tube with a conical warhead poking
+       out of the front, a wooden heat shield, a pistol grip and a flip sight,
        in the same box-gun language as the other two */
-    const snG = wg("wSniper");
-    P(snG, 0.11, 0.12, 0.6, 0, 0.03, -0.2, blk);              /* receiver */
-    P(snG, 0.05, 0.05, 1.05, 0, 0.06, -1.0, blk2);            /* long barrel */
-    P(snG, 0.075, 0.075, 0.14, 0, 0.06, -1.6, blk);           /* muzzle brake */
-    P(snG, 0.06, 0.3, 0.09, 0, -0.24, -0.16, blk);            /* magazine */
-    P(snG, 0.1, 0.22, 0.12, 0, -0.17, 0.05, blk);             /* grip */
-    P(snG, 0.1, 0.15, 0.36, 0, -0.07, 0.34, wood);            /* stock */
-    P(snG, 0.08, 0.08, 0.36, 0, 0.19, -0.28, blk2);           /* scope tube */
-    P(snG, 0.1, 0.1, 0.07, 0, 0.19, -0.47, mk(0x0a1014, { emissive: 0x66ccff, emissiveIntensity: 0.5, roughness: 0.2 }));
-    P(snG, 0.09, 0.09, 0.07, 0, 0.19, -0.09, blk);            /* eyepiece */
-    P(snG, 0.03, 0.14, 0.03, 0, 0.12, -0.34, blk);            /* scope rings */
-    P(snG, 0.03, 0.14, 0.03, 0, 0.12, -0.2, blk);
-    [-0.035, 0.035].forEach((bx) => P(snG, 0.022, 0.18, 0.022, bx, -0.12, -0.95, blk2)); /* bipod */
-    P(snG, 0.03, 0.05, 0.16, 0, -0.05, -1.05, blk);
-    const weaponRig = { base, smg: smgG, shotgun: sgG, sniper: snG, pump, codeGun, smgBoxes: smgG.children.slice(), flashZ: { f: f.position.z, h: halo.position.z, s: star.position.z, l: flashLight.position.z } };
+    const rpG = wg("wRpg");
+    const olive = mk(0x50583a, { roughness: 0.62, metalness: 0.25 });
+    const olive2 = mk(0x3c442c, { roughness: 0.55, metalness: 0.3 });
+    P(rpG, 0.15, 0.15, 1.34, 0, 0.02, -0.5, olive);            /* launch tube */
+    P(rpG, 0.2, 0.2, 0.16, 0, 0.02, 0.14, olive2);             /* rear collar */
+    P(rpG, 0.24, 0.24, 0.06, 0, 0.02, 0.24, blk);              /* venturi bell */
+    P(rpG, 0.17, 0.17, 0.2, 0, 0.02, -1.2, olive2);            /* front collar */
+    P(rpG, 0.18, 0.04, 0.34, 0, 0.115, -0.42, wood);           /* wooden heat shield */
+    P(rpG, 0.1, 0.22, 0.12, 0, -0.16, -0.06, blk);             /* pistol grip */
+    P(rpG, 0.09, 0.16, 0.12, 0, -0.13, -0.44, blk);            /* fore grip */
+    P(rpG, 0.05, 0.14, 0.05, 0, 0.11, -0.7, blk2);             /* flip-up sight */
+    P(rpG, 0.05, 0.05, 0.05, 0, 0.16, -0.7, mk(0x222222, { emissive: 0xff3a2a, emissiveIntensity: 0.7 }));
+    /* the rocket in the tube: a green body and a tapered warhead */
+    P(rpG, 0.14, 0.14, 0.26, 0, 0.02, -1.42, mk(0x6a7250, { roughness: 0.5, metalness: 0.35 }));
+    { const nose = new T.Mesh(new T.ConeGeometry(0.095, 0.3, 10), mk(0x8a8f6a, { roughness: 0.4, metalness: 0.45 })); nose.rotation.x = -Math.PI / 2; nose.position.set(0, 0.02, -1.7); rpG.add(nose); }
+    [-0.09, 0.09].forEach((fx) => P(rpG, 0.03, 0.12, 0.14, fx, 0.02, 0.16, blk2)); /* venturi fins */
+    const weaponRig = { base, smg: smgG, shotgun: sgG, rpg: rpG, pump, codeGun, smgBoxes: smgG.children.slice(), flashZ: { f: f.position.z, h: halo.position.z, s: star.position.z, l: flashLight.position.z } };
     /* (v28) the CC0 viewmodels live in their own hosts: empty until the .glb
        arrives, so the box models show in the meantime */
     const pistolHost = new T.Group();
@@ -9256,12 +9312,12 @@
         lane.push({ x: p.x, y: 1.3, z: p.z, kind });
       });
     });
-    /* (v69) every stage carries a marksman's crate somewhere on the lane, so
-       the sniper is reachable without depending on the combo reward */
-    if (!lane.some((s) => s.kind === "sniper") && waves.length) {
+    /* (v70) every stage carries a rocket crate somewhere on the lane, so the
+       RPG is reachable without depending on the combo reward */
+    if (!lane.some((s) => s.kind === "rpg") && waves.length) {
       const w = waves[Math.min(1, waves.length - 1)];
       const q = waveXY(w, 2.6, 6.4);
-      lane.push({ x: q.x, y: 1.3, z: q.z, kind: "sniper" });
+      lane.push({ x: q.x, y: 1.3, z: q.z, kind: "rpg" });
     }
     lane.forEach((spot) => {
       let mesh = null;
@@ -9410,14 +9466,15 @@
 
   /* ---- weapons (v16) ----
      pistol: 20 rounds, reloads forever. Pick-ups: SMG (holds the trigger,
-     45 rounds), pump shotgun (8 shells, a spread of pellets), grenades
+     45 rounds), pump shotgun (8 shells, a spread of pellets), the RPG
+     (v70: four rockets that fly out and blast a whole cluster), grenades
      (G key / the G button: a lobbed blast that clears a cluster). A special
      weapon runs dry back to the pistol; there is no reloading it. */
   const WEAPONS = {
     pistol: { rate: 130, snd: "shot", kick: 1, label: "BULLET" },
     smg: { rate: 82, snd: "smg", kick: 0.55, label: "AR", ammo: 45 },
     shotgun: { rate: 460, snd: "shotgun", kick: 1.6, label: "SHOTGUN", ammo: 8, pellets: 7, spread: 0.075 },
-    sniper: { rate: 760, snd: "snipe", kick: 2.4, label: "SNIPER", ammo: 5 }
+    rpg: { rate: 900, snd: "rpg", kick: 3.0, label: "RPG", ammo: 4 }
   };
   let weapon = "pistol", wAmmo = 0, grenades = 2, holding = false;
   let weaponRig = null;
@@ -9436,15 +9493,15 @@
       weaponRig.smg.visible = weapon === "smg" && !weaponRig.rifleLoaded;
       if (weaponRig.rifleHost) weaponRig.rifleHost.visible = weapon === "smg" && !!weaponRig.rifleLoaded;
       weaponRig.shotgun.visible = weapon === "shotgun";
-      if (weaponRig.sniper) weaponRig.sniper.visible = weapon === "sniper";
-      const dz = weapon === "smg" ? -0.44 : weapon === "shotgun" ? -0.8 : weapon === "sniper" ? -1.58 : 0;
+      if (weaponRig.rpg) weaponRig.rpg.visible = weapon === "rpg";
+      const dz = weapon === "smg" ? -0.44 : weapon === "shotgun" ? -0.8 : weapon === "rpg" ? -1.5 : 0;
       if (flash) flash.position.z = weaponRig.flashZ.f + dz;
       if (flashHalo) flashHalo.position.z = weaponRig.flashZ.h + dz;
       if (flashStar) flashStar.position.z = weaponRig.flashZ.s + dz;
       if (flashLight) flashLight.position.z = weaponRig.flashZ.l + dz;
     }
     window.__weapon = { w: weapon, ammo: wAmmo, nades: grenades };
-    try { setScope(weapon === "sniper"); } catch (e) {}
+    try { setScope(false); } catch (e) {}
     const rbt = document.getElementById("railReload");
     if (rbt) rbt.classList.toggle("noRl", weapon !== "pistol");
   }
@@ -9472,7 +9529,7 @@
     nades.length = 0;
     setWeapon("pistol");
     try { upgradeReset(); } catch (e) { window.__upResetErr = String(e); }
-    if (LOAD && LOAD.start) setWeapon(LOAD.start, LOAD.start === "smg" ? 90 : 16);
+    if (LOAD && LOAD.start) setWeapon(LOAD.start, LOAD.start === "smg" ? 90 : LOAD.start === "rpg" ? 4 : 16);
     combo = 0; bestCombo = 0; shotsFired = 0; shotsHit = 0; hostageHits = 0;
     MS.kills = 0; MS.heads = 0; MS.bikes = 0; MS.nades = 0;
     lastShot = 0; reloading = false; reloadK = 0; recoil = 0; hitStop = 0; shake = 0;
@@ -11618,7 +11675,7 @@
         t0 += now - pausedAt;
         frame._t = now;
         active = true;
-        try { setScope(weapon === "sniper"); } catch (e) {}
+        try { setScope(false); } catch (e) {}
         const nextAct = window.__railPhase;
         try { window.GunSFX && window.GunSFX.bgm(true, nextAct === "boss"); } catch (e) {}
       }
@@ -12420,6 +12477,160 @@
     }
   }
 
+  /* ---- (v70) the RPG ----------------
+     A grenade is lobbed and waits; a rocket leaves the tube fast and flat
+     along the sight line, pulls a smoke trail behind it and bursts where the
+     crosshair was. Everything inside ROCKET_R of the burst takes it: the
+     infantry goes down, drums and crates chain off each other, shells in the
+     air are knocked out, and an APC or a gunship loses a big bite of armour. */
+  const rockets = [];
+  const ROCKET_R = 7.2;
+  let ROCKET_BODY = null, ROCKET_NOSE = null, ROCKET_FIN = null;
+  function rocketMesh() {
+    if (!ROCKET_BODY) {
+      ROCKET_BODY = new T.MeshStandardMaterial({ color: 0x5e6644, roughness: 0.5, metalness: 0.35 });
+      ROCKET_NOSE = new T.MeshStandardMaterial({ color: 0x8a8f6a, roughness: 0.4, metalness: 0.5 });
+      ROCKET_FIN = new T.MeshStandardMaterial({ color: 0x3c442c, roughness: 0.6 });
+    }
+    const g = new T.Group();
+    const body = new T.Mesh(new T.BoxGeometry(0.15, 0.15, 0.6), ROCKET_BODY);
+    g.add(body);
+    const nose = new T.Mesh(new T.ConeGeometry(0.095, 0.26, 8), ROCKET_NOSE);
+    nose.rotation.x = -Math.PI / 2; nose.position.z = -0.42; g.add(nose);
+    [-1, 1].forEach((s) => {
+      const fin = new T.Mesh(new T.BoxGeometry(0.03, 0.2, 0.16), ROCKET_FIN);
+      fin.position.set(s * 0.09, 0, 0.23); g.add(fin);
+    });
+    g.traverse((o) => { o.userData.noBlock = 1; });
+    return g;
+  }
+  function launchRocket(ctx) {
+    const cam = ctx.camera;
+    if (!cam) return;
+    cam.updateMatrixWorld(true);
+    const dir = new T.Vector3(aimN.x, aimN.y, 0.5).unproject(cam).sub(cam.position).normalize();
+    const from = new T.Vector3(0.2, -0.1, -1.3).applyMatrix4(cam.matrixWorld);
+    let dist = 70;
+    try {
+      const ray = new T.Raycaster();
+      ray.setFromCamera(new T.Vector2(aimN.x, aimN.y), cam);
+      ray.far = 70;
+      const target = [];
+      posts.forEach((p) => { if (p.mesh && p.e.alive !== false) target.push(p.mesh); });
+      breakables.forEach((b) => { if (!b.broken && b.mesh && b.mesh.visible) target.push(b.mesh); });
+      if (dress) dress.barrels.forEach((b) => { if (!b.dead && b.mesh) target.push(b.mesh); });
+      occluders().forEach((m) => target.push(m));
+      const hits = ray.intersectObjects(target, true);
+      if (hits.length) dist = Math.max(4, Math.min(70, hits[0].distance));
+    } catch (e) { window.__rocketRayErr = String(e); }
+    /* a rocket fired at the sky still goes off down the street: drop it to the
+       road surface ahead, and never send it further than 46 m */
+    if (dist > 46) dist = 46;
+    if (dir.y < -0.02) {
+      const tg = (0.45 - cam.position.y) / dir.y;
+      if (tg > 3 && tg < dist) dist = tg;
+    }
+    const to = cam.position.clone().addScaledVector(dir, dist);
+    to.y = Math.max(0.35, to.y);
+    const mesh = rocketMesh();
+    mesh.position.copy(from);
+    ctx.scene.add(mesh);
+    rockets.push({ mesh, from: from.clone(), to, dir: dir.clone(), t: 0, dur: Math.max(0.12, dist / 52), puffT: 0 });
+    shake = Math.max(shake, 0.5);
+    window.__rocketShot = { dist: +dist.toFixed(1), dur: +(Math.max(0.12, dist / 52)).toFixed(2) };
+  }
+  function rocketTrail(ctx, r) {
+    if (!ctx) return;
+    try {
+      if (fxRoom(sparks, FX_CAP.sparks)) {
+        const m = new T.Mesh(fxUnitBox(), fxSparkMats()[0]);
+        m.scale.setScalar(0.1);
+        m.userData.fxShared = 1;
+        m.position.copy(r.mesh.position);
+        m.userData.v = new T.Vector3((Math.random() - 0.5) * 1.4, (Math.random() - 0.5) * 1.4 + 0.4, (Math.random() - 0.5) * 1.4);
+        m.userData.life = 0.14 + Math.random() * 0.12;
+        m.userData.burn = 1;
+        ctx.scene.add(m);
+        sparks.push(m);
+      }
+      if (fxRoom(smokes, FX_CAP.smokes)) {
+        const m = new T.Mesh(new T.SphereGeometry(0.13 + Math.random() * 0.1, 6, 5), new T.MeshBasicMaterial({ color: 0x9a958c, transparent: true, opacity: 0.5, depthWrite: false }));
+        m.position.copy(r.mesh.position);
+        m.userData.v = new T.Vector3((Math.random() - 0.5) * 0.35, 0.25 + Math.random() * 0.35, (Math.random() - 0.5) * 0.35);
+        m.userData.life = 0.55 + Math.random() * 0.35;
+        m.userData.smoke = 1;
+        ctx.scene.add(m);
+        smokes.push(m);
+      }
+    } catch (e) { window.__rocketFxErr = String(e); }
+  }
+  function stepRockets(ctx, dt) {
+    for (let i = rockets.length - 1; i >= 0; i--) {
+      const r = rockets[i];
+      r.t += dt;
+      const k = Math.min(1, r.t / r.dur);
+      r.mesh.position.lerpVectors(r.from, r.to, k);
+      r.mesh.lookAt(r.to);
+      r.puffT -= dt;
+      if (r.puffT <= 0) { r.puffT = 0.028; rocketTrail(ctx, r); }
+      if (k >= 1) {
+        const p = r.mesh.position.clone();
+        r.mesh.parent && r.mesh.parent.remove(r.mesh);
+        rockets.splice(i, 1);
+        try { rocketBoom(ctx, p); } catch (e) { window.__rocketBoomErr = String(e && e.stack || e); }
+      }
+    }
+  }
+  function rocketBoom(ctx, p) {
+    window.__rocketBooms = (window.__rocketBooms || 0) + 1;
+    try { boomFlash(ctx, p.x, Math.max(0.6, p.y), p.z, 2.2); } catch (e) {}
+    try { boomAt(ctx, p.x, Math.max(0.4, p.y), p.z); } catch (e) {}
+    try { smokeColumn(ctx, p.x, Math.max(0.2, p.y - 0.5), p.z, 1.7); } catch (e) {}
+    try { voxBreak(ctx.scene, p.x, Math.max(0.4, p.y - 0.4), p.z, [0x6a6a60, 0x8a8a80, 0x4a4a42, 0xff9b1e], 20, 1.3); } catch (e) {}
+    shake = Math.max(shake, 2.4);
+    hitStop = Math.max(hitStop, 0.16);
+    flashScreen(0.5);
+    gun("boom");
+    let any = false;
+    posts.slice().forEach((q) => {
+      if (!q || q.e.alive === false || q.role === "hostage" || !q.mesh) return;
+      let qx = q.x, qy = q.y || 0.3, qz = q.z;
+      if (!isFinite(qx) || !isFinite(qz)) { const c = new T.Vector3(); new T.Box3().setFromObject(q.mesh).getCenter(c); qx = c.x; qy = c.y; qz = c.z; }
+      const d = Math.hypot(qx - p.x, qz - p.z);
+      if (d > ROCKET_R) return;
+      any = true;
+      if (q.air === "apc" || q.air === "heli") {
+        const bb = new T.Box3().setFromObject(q.mesh);
+        const c = new T.Vector3(); bb.getCenter(c);
+        try { airDamage(ctx, q, c, bb, q.air === "apc" ? 18 : 10); } catch (e) { window.__rocketAirErr = String(e); }
+        return;
+      }
+      if (q.role === "boss") {
+        q.e.hp = (q.e.hp || 1) - 6;
+        q.hitFlash = 0.14; q.knock = 0.2;
+        if (q.e.hp <= 0) killPost(ctx, q, 400);
+        return;
+      }
+      q.e.hp = (q.e.hp || 1) - 6;
+      q.hitFlash = 0.12; q.knock = 0.2;
+      if (q.e.hp <= 0) { try { killPost(ctx, q, 260); } catch (e) { window.__rocketKillErr = String(e); } }
+      else if (q.state !== "dead") q.state = "duck";
+    });
+    if (dress) dress.barrels.forEach((o) => {
+      if (o && !o.dead && Math.hypot(o.x - p.x, o.z - p.z) < ROCKET_R * 0.8) setTimeout(() => { try { boomBarrel(ctx, o); } catch (e) {} }, 140);
+    });
+    breakables.forEach((b) => {
+      if (b.broken || !b.mesh || !b.mesh.visible) return;
+      const w = new T.Vector3(); b.mesh.getWorldPosition(w);
+      if (Math.hypot(w.x - p.x, w.z - p.z) < ROCKET_R * 0.85 && w.y < 8) { try { breakIt(ctx, b, w); } catch (e) {} }
+    });
+    bossShots.slice().forEach((s) => {
+      if (!s || s.dead || !s.mesh) return;
+      if (Math.hypot(s.mesh.position.x - p.x, s.mesh.position.z - p.z) < ROCKET_R) { try { killBossShot(ctx, s); } catch (e) {} }
+    });
+    if (any) shotsHit = Math.min(shotsFired, shotsHit + 1);
+  }
+
   /* ---------------- shooting ---------------- */
 
   function fire(ctx) {
@@ -12443,7 +12654,13 @@
     lastShot = now;
     shotsFired++;
     recoil = W.kick;
-    if (weapon === "sniper") { scopeKick = 1; shake = Math.max(shake, 0.55); }
+    if (weapon === "rpg") {
+      shake = Math.max(shake, 0.8);
+      try { launchRocket(ctx); } catch (e) { window.__rocketLaunchErr = String(e && e.stack || e); }
+      if (feverT <= 0 && wAmmo <= 0) setWeapon("pistol");
+      window.__weapon = { w: weapon, ammo: wAmmo, nades: grenades };
+      return;
+    }
     if (flash) { flash.visible = true; flash.scale.setScalar(1); }
     if (flashHalo) { flashHalo.visible = true; flashHalo.scale.setScalar(1); }
     if (flashStar) {
@@ -12663,13 +12880,13 @@
       gun("hit");
       return;
     }
-    if (hit.sort === "smg" || hit.sort === "shotgun" || hit.sort === "sniper" || hit.sort === "grenade") {
+    if (hit.sort === "smg" || hit.sort === "shotgun" || hit.sort === "rpg" || hit.sort === "grenade") {
       const item = hit.extra;
       item.taken = true;
       if (item.mesh) item.mesh.visible = false;
       if (hit.sort === "grenade") { grenades = Math.min(5, grenades + 2); addPts(ctx, 100); }
       else { setWeapon(hit.sort); addPts(ctx, 150); }
-      const lab = hit.sort === "grenade" ? "GRENADE +2" : hit.sort === "smg" ? "AR!" : hit.sort === "sniper" ? "SNIPER!" : "SHOTGUN!";
+      const lab = hit.sort === "grenade" ? "GRENADE +2" : hit.sort === "smg" ? "AR!" : hit.sort === "rpg" ? "RPG!" : "SHOTGUN!";
       hitMark("pickup", window.__lastHitPx.x, window.__lastHitPx.y, false, lab);
       gun("reload");
       window.__weapon = { w: weapon, ammo: wAmmo, nades: grenades };
@@ -12729,7 +12946,6 @@
     let dmg = head ? (p.role === "boss" ? 3 : 2) : 1;
     if (feverT > 0) dmg *= 2;
     window.__lastDmg = { role: p.role, head: head, dmg: dmg, fever: feverT > 0 };    p.e.hp = (p.e.hp || 1) - dmg;
-    if (weapon === "sniper") { try { sniperPierce(ctx, hit); } catch (e) { window.__pierceErr = String(e); } }
     if (p.commander && p.e.hp > 0) bossPhaseCheck(ctx, p);
     if (p.e.hp > 0) {
       // suppressed: he drops back behind cover instead of standing there
@@ -13679,7 +13895,6 @@
     try {
       stepFever(ctx, dt);
       stepBossShots(ctx, dt);
-      if (scopeKick > 0) scopeKick = Math.max(0, scopeKick - dt * 4);
       if (bossCamT > -1.5) bossCamT -= dt;
       if (bossCamT > 0 && bossCamPost && bossCamPost.mesh) {
         const kk = Math.min(1, Math.min((bossCamLen - bossCamT) / 0.5, bossCamT / 0.7));
@@ -13949,7 +14164,7 @@
     recoil = Math.max(0, recoil - 0.08);
     if (reloadK > 0) reloadK = Math.max(0, reloadK - dt / (0.44 * (PERK.reload || 1)));
     if (pistol && pistolBase) {
-      { const want = phase !== "intro" && phase !== "result" && weapon !== "sniper"; if (pistol.visible !== want) pistol.visible = want; }
+      { const want = phase !== "intro" && phase !== "result"; if (pistol.visible !== want) pistol.visible = want; }
       const asp = innerWidth / Math.max(1, innerHeight);
       const tHalf = Math.tan((cam.fov * Math.PI) / 360) * Math.abs(pistolBase.z);
       const halfW = tHalf * asp;
@@ -14119,6 +14334,7 @@
     if (dress && dress.anims && dress.anims.length) { dress.animT += dt; dress.anims.forEach((f) => { try { f(dress.animT); } catch (e) {} }); }
     if (!ended) { try { stepEngines(ctx); } catch (e) {} }
     stepNades(ctx, dt);
+    if (rockets.length) { try { stepRockets(ctx, dt); } catch (e) { window.__rocketStepErr = String(e && e.stack || e); } }
     /* the SMG keeps firing while the trigger is held */
     if (holding && weapon === "smg" && active && !ended && phase !== "intro") fire(ctx);
     for (let i = sparks.length - 1; i >= 0; i--) {
@@ -16319,10 +16535,10 @@
   function genWaves(seed, names, radios, opt) {
     const R = rng(seed);
     const o = opt || {};
-    const zs = [-50, -34, -18, -2, 14, 30, 44];
+    const zs = o.tight ? [-50, -36, -22, -8, 6, 20, 34] : [-50, -34, -18, -2, 14, 30, 44];
     const lats = [-6.6, -4.4, -2.4, 2.4, 4.4, 6.6];
     const covers = ["sandbag", "crate", "barrier", "crates", "sandbag", "bunker", "crate"];
-    const picksK = ["ammo", "supply", "grenade", "smg", "shotgun", "sniper", "ammo", "life"];
+    const picksK = ["ammo", "supply", "grenade", "smg", "shotgun", "rpg", "ammo", "life"];
     return zs.map((z, i) => {
       const x = +cityX(z).toFixed(2);
       const n = 3 + (i > 2 ? 1 : 0) + (i > 4 ? 1 : 0);
@@ -18099,6 +18315,116 @@
     });
   }
   /* small fishing boats on the swell */
+  /* ---- (v70) regional set pieces for the late-war stages ---- */
+
+  /* a steel-mill blast furnace: the squat furnace body, its ringed stacks,
+     the charging gantry and the red glare of the tap hole */
+  function lmFurnace(S, x, z, s) {
+    const k = s || 1;
+    const steel = cmat(0x5a5e62, 0.55, 0.5), rust = cmat(0x6a4a36, 0.85), dark = cmat(0x33383c, 0.7), conc = cmat(0x9a968c, 0.92);
+    bx(S, 18 * k, 1.2, 18 * k, x, 0.9, z, conc, { wall: 1 });
+    [-5.4, 5.4].forEach((dx) => [-5.4, 5.4].forEach((dz) => bx(S, 1.6 * k, 9 * k, 1.6 * k, x + dx * k, 5 * k, z + dz * k, steel, { wall: 1 })));
+    bx(S, 8 * k, 13 * k, 8 * k, x, 13 * k, z, dark, { wall: 1 });
+    [0.32, 0.58, 0.84].forEach((u) => bx(S, 8.4 * k, 0.5, 8.4 * k, x, 7 + u * 11 * k, z, rust));
+    bx(S, 1.8 * k, 0.7, 0.6, x, 5.8 * k, z + 4.15 * k, cmat(0xff8a2a, 0.4, 0, { emissive: 0xff6a10, emissiveIntensity: 1.3 }), { noCast: 1 });
+    [[-4.4, -4.4, 26], [4.6, -4.2, 31], [0.4, 5.4, 22]].forEach(([dx, dz, h]) => {
+      cyl(S, 1.5 * k, 1.8 * k, h * k, x + dx * k, 9 * k + h * k / 2, z + dz * k, cmat(0x8a8f92, 0.7, 0.2), 12, { wall: 1 });
+      [0.34, 0.62].forEach((u) => cyl(S, 1.62 * k, 1.62 * k, 1.1 * k, x + dx * k, 9 * k + h * k * u, z + dz * k, cmat(0xb03a2a, 0.6), 12));
+      bx(S, 0.5, 2.4 * k, 0.5, x + dx * k, 9 * k + h * k + 1.3 * k, z + dz * k, cmat(0x2a2a2a, 0.8), { noCast: 1 });
+    });
+    bx(S, 14 * k, 0.5, 1.2, x - 9 * k, 15.5 * k, z, rust).userData.air = 1;
+    bx(S, 0.7, 7 * k, 0.7, x - 14 * k, 11.6 * k, z, steel);
+  }
+  /* a gate over the road: two towers, a beam and the sign, for a unit gate
+     (Uijeongbu) or a border customs post (Sinuiju) */
+  function lmGate(S, x, z, ry, title, sub, col) {
+    const conc = cmat(0x9d988c, 0.9), dark = cmat(0x4a4a46, 0.75), acc = cmat(col || 0x2a6a3a, 0.6);
+    const G = new T.Group(); G.position.set(x, 0, z); G.rotation.y = ry || 0; S.add(G);
+    [-15.5, 15.5].forEach((dx) => {
+      bx(G, 3.0, 9.4, 3.0, dx, 4.7, 0, conc, { wall: 1 });
+      bx(G, 3.6, 0.5, 3.6, dx, 9.6, 0, dark);
+      bx(G, 0.5, 1.6, 0.5, dx, 10.5, 0, acc);
+    });
+    bx(G, 34.5, 2.0, 1.5, 0, 9.4, 0, conc).userData.air = 1;
+    try {
+      const t = hiSign("gate-" + title, title, sub, "#3a4034", "#f2f4ea", 900, 220);
+      [-1, 1].forEach((s) => {
+        const p = new T.Mesh(new T.PlaneGeometry(13.2, 1.7), new T.MeshStandardMaterial({ map: t, roughness: 0.7 }));
+        p.position.set(0, 9.4, s * 0.8);
+        if (s < 0) p.rotation.y = Math.PI;
+        p.userData.noBlock = 1; G.add(p);
+      });
+    } catch (e) { window.__gateSignErr = String(e); }
+    G.traverse((o) => { if (o.isMesh) o.userData.noBlock = 1; });
+  }
+  /* the party hall of Cheorwon: a long colonnade with the roof and its ends
+     gone, blackened, with rubble at the foot */
+  function lmRuinHall(S, x, z, ry, w) {
+    const W = w || 24, conc = cmat(0x8e8a80, 0.95), scorch = cmat(0x3a3632, 0.95);
+    const G = new T.Group(); G.position.set(x, 0, z); G.rotation.y = ry || 0; S.add(G);
+    bx(G, W + 6, 0.5, 12, 0, 0.55, 0, conc);
+    const n = Math.max(4, Math.round(W / 3.4));
+    for (let i = 0; i < n; i++) {
+      const px = -W / 2 + i * (W / (n - 1));
+      const h = 8.5 + ((i * 7) % 3) * 0.6;
+      cyl(G, 0.55, 0.7, h, px, 0.8 + h / 2, 0, conc, 8, { wall: 1 });
+      bx(G, 1.9, 0.4, 1.9, px, 0.8 + h + 0.2, 0, scorch);
+    }
+    bx(G, W * 0.55, 0.7, 2.2, -W * 0.15, 10.4, 0, scorch, { noCast: 1 });
+    bx(G, 1.2, 3.4, 1.2, W * 0.36, 10.6, 0, scorch, { rz: 0.4 });
+    for (let i = 0; i < 9; i++) bx(G, 1.2 + (i % 3), 0.5 + (i % 2) * 0.4, 1.4, -W / 2 + i * (W / 8), 0.9, 4 + (i % 3), scorch);
+    G.traverse((o) => { if (o.isMesh) o.userData.noCast = 1; });
+  }
+  /* a stone breakwater running out into the surf, with a beacon on its head */
+  function lmBreakwater(S, x0, x1, z) {
+    const stone = cmat(0x8e8a80, 0.93), dark = cmat(0x6e6a62, 0.95);
+    const n = Math.max(2, Math.round(Math.abs(x1 - x0) / 3.2));
+    for (let i = 0; i < n; i++) {
+      const x = x0 + (x1 - x0) * (i / (n - 1));
+      const h = 1.5 - (i / n) * 0.5 + ((i * 3) % 2) * 0.1;
+      bx(S, 4.4, h, 8.5, x, h / 2 + 0.05, z, i % 3 ? stone : dark, { ry: 0.04 * (i % 2 ? 1 : -1) });
+    }
+    cyl(S, 0.2, 0.26, 3.0, x1, 1.4, z, cmat(0xb03a2a, 0.6), 8);
+    cyl(S, 0.5, 0.5, 0.5, x1, 3.0, z, cmat(0xffe9a0, 0.3, 0, { emissive: 0xffd060, emissiveIntensity: 0.9 }), 8);
+  }
+  /* stacked shipping containers: the harbour canyons of Ulsan */
+  function lmContainers(S, list) {
+    const cols = [0xb04a2a, 0x2a5a8a, 0x3a7a4a, 0x8a7a2a, 0x6a6a6a];
+    list.forEach(([x, z, n], i) => {
+      const st = n || 2;
+      for (let k = 0; k < st; k++) bx(S, 12, 2.5, 2.5, x, 1.5 + k * 2.55, z + (k % 2 ? 2.6 : 0), cmat(cols[(i + k) % cols.length], 0.75), { wall: 1 });
+    });
+  }
+  /* boulders beside the mountain road */
+  function lmRocks(S, list) {
+    const rock = cmat(0x8a8a84, 0.95);
+    list.forEach(([x, z, s], i) => {
+      const k = s || 1;
+      bx(S, 3.4 * k, 2.2 * k, 3 * k, x, 1.0 * k, z, rock, { ry: i * 0.4 });
+      bx(S, 2.2 * k, 1.6 * k, 2.4 * k, x + 1.4 * k, 0.8 * k, z + 1.2 * k, rock, { ry: 1.2 });
+    });
+  }
+
+  /* a steel truss bridge over the boulevard: the border rail bridge of
+     Sinuiju, seen from underneath as the squad runs its last stretch */
+  function lmTrussBridge(S, z, span, col) {
+    const W = span || 44, steel = cmat(col || 0x4a5258, 0.6, 0.5), conc = cmat(0x9a968c, 0.9);
+    bx(S, W, 1.0, 7.6, 0, 6.6, z, conc).userData.air = 1;
+    [-3.6, 3.6].forEach((dz) => {
+      bx(S, W, 0.35, 0.4, 0, 7.3, z + dz, steel).userData.air = 1;
+      for (let x = -W / 2; x < W / 2; x += 5.5) {
+        bx(S, 0.35, 4.4, 0.35, x, 9.4, z + dz, steel, { noCast: 1 }).userData.air = 1;
+        bx(S, 0.3, 5.4, 0.3, x + 2.75, 9.2, z + dz, steel, { rz: 0.72, noCast: 1 }).userData.air = 1;
+      }
+      bx(S, W, 0.45, 0.5, 0, 11.6, z + dz, steel).userData.air = 1;
+    });
+    [-1, 1].forEach((s) => {
+      const px = s * (W / 2 - 4);
+      bx(S, 3.6, 7.0, 5.4, px, 3.2, z, conc, { wall: 1 });
+      bx(S, 4.4, 0.6, 6.2, px, 6.6, z, conc);
+    });
+  }
+
   function lmBoats(S, list, anims) {
     const boats = list.map(([x, z, ry, col], i) => {
       const g = new T.Group();
@@ -18334,6 +18660,47 @@
     return ok;
   }
 
+  /* (v70) nothing built may stand on the drive line: sample each built lot
+     and drop it if it reaches into the road, or sits out in the water */
+  function clearPath(S, pts, r, seaSide) {
+    const P = (pts || []).filter((q) => isFinite(q[0]) && isFinite(q[1]));
+    if (P.length < 2) return 0;
+    const seg = [];
+    for (let i = 0; i + 1 < P.length; i++) seg.push([P[i][0], P[i][1], P[i + 1][0], P[i + 1][1]]);
+    const near = (x, z) => {
+      let m = 1e9;
+      for (let i = 0; i < seg.length; i++) {
+        const s = seg[i], dx = s[2] - s[0], dz = s[3] - s[1];
+        const L = dx * dx + dz * dz || 1;
+        let t = ((x - s[0]) * dx + (z - s[1]) * dz) / L;
+        t = t < 0 ? 0 : t > 1 ? 1 : t;
+        const d = Math.hypot(x - (s[0] + dx * t), z - (s[1] + dz * t));
+        if (d < m) m = d;
+      }
+      return m;
+    };
+    const kill = [];
+    S.traverse((o) => {
+      if (!o.userData || !(o.userData.blk || o.userData.keepBend)) return;
+      if (o.userData.fixedLeg) return;
+      let b = null;
+      try { b = new T.Box3().setFromObject(o); } catch (e) { return; }
+      if (!b || b.isEmpty() || !isFinite(b.min.x)) return;
+      const cx = (b.min.x + b.max.x) / 2, cz = (b.min.z + b.max.z) / 2;
+      if (seaSide && cx > 11) { kill.push(o); return; }
+      if (b.max.y < 1.2) return;
+      const nx = Math.min(4, Math.max(1, Math.round((b.max.x - b.min.x) / 4)));
+      const nz = Math.min(4, Math.max(1, Math.round((b.max.z - b.min.z) / 4)));
+      for (let i = 0; i <= nx; i++) for (let k = 0; k <= nz; k++) {
+        const x = b.min.x + (b.max.x - b.min.x) * i / nx, z = b.min.z + (b.max.z - b.min.z) * k / nz;
+        if (near(x, z) < r) { kill.push(o); return; }
+      }
+    });
+    kill.forEach((o) => { if (o.parent) o.parent.remove(o); });
+    window.__clearPath = { dropped: kill.length };
+    return kill.length;
+  }
+
   function dressCity(ctx) {
     makeSol();
     const C = STAGE.city;
@@ -18551,9 +18918,12 @@
              the old street: placed by its centre it stayed on the previous
              leg and stood inside that leg's blocks, two shop fronts on one
              facade with their signs overlapping */
-          fillRun(a, b, [sd], k);
+          /* (v70) a pine-grove stage keeps its inland side past the first
+             bend as forest, not shop fronts: the road then alternates sea
+             and 솔숲 the way the coast road really runs */
+          if (!(C.pine && sd < 0 && k > 0)) fillRun(a, b, [sd], k);
           /* a taller row behind, so the corners do not open onto bare ground */
-          if (!C.hanok) { let z = a - 8; while (z < b + 6) { const len = 12 + R() * 10; if (sd < 0 || !seaHere(z)) block(sd, z, z + len, true, k); z += len + 2; } }
+          if (!C.hanok && !(C.pine && sd < 0 && k > 0)) { let z = a - 8; while (z < b + 6) { const len = 12 + R() * 10; if (sd < 0 || !seaHere(z)) block(sd, z, z + len, true, k); z += len + 2; } }
         }
       });
     }
@@ -18583,6 +18953,24 @@
       });
     }
     VTs.forEach((VT, lg) => { if (VT) VT.flush(S, "cityTrees" + lg).forEach((m) => { m.userData.leg = lg; }); });
+    /* (v70) the pine grove: past the first bend the inland side of a pine
+       stage is a dense stand of Korean red pines (강릉 솔숲, 원산 해송숲,
+       의정부 산길), so the drive alternates between the water and the trees */
+    if (C.pine && TURNS.length) {
+      for (let lg = 1; lg <= TURNS.length; lg++) {
+        const VT = voxBatch();
+        const a = TURNS[lg - 1][0] + 9, b = lg === TURNS.length ? 52 : TURNS[lg][0] - 9;
+        for (let z = a; z < b; z += 3.6) {
+          for (let r = 0; r < 4; r++) {
+            const x = -(15.4 + r * 3.2 + ((z * 13 + r * 41) % 7) * 0.35);
+            const zz = z + ((r * 1.9 + (z * 3) % 5) % 3) - 1.5;
+            if (Math.abs(zz - 24) < 3) continue;
+            voxPine(VT, x, 0.35, zz, 5.0 + (Math.abs(z * 11 + r * 37) % 30) / 10, 700 + lg * 97 + Math.abs((z * 7) | 0) + r * 13);
+          }
+        }
+        VT.flush(S, "cityPines" + lg).forEach((m) => { m.userData.leg = lg; });
+      }
+    }
     /* parked vehicles and clutter on the kerb lanes (never in the middle) */
     (C.cars || []).forEach((c) => {
       if (c[0] === "bus") makeCityBus(S, c[1], c[2], c[3] || 0, c[4]);
@@ -18632,7 +19020,7 @@
       if (TURNS.length && listy[L[0]] && Array.isArray(L[1]) && L[1].length > 1) L[1].forEach((it) => LMS.push([L[0], [it]]));
       else LMS.push(L);
     });
-    const FIXED = { ship: 1, boats: 1, cranes: 1, lighthouse: 1, beach: 1, hedgehogs: 1, seaLock: 1 };
+    const FIXED = { ship: 1, boats: 1, cranes: 1, lighthouse: 1, beach: 1, hedgehogs: 1 };
     LMS.forEach((L) => {
       const G = new T.Group();
       if (FIXED[L[0]] || (L[0] === "suspension" && C.seaSide)) G.userData.fixedLeg = 1;
@@ -18672,6 +19060,13 @@
         else if (k === "hwBongdon") hwBongdon(S, L[1], L[2]);
         else if (k === "hwPav") { bx(S, L[3] + 3, 1.2, L[4] + 3, L[1], 0.85, L[2], hwMats().granite); hwPavilion(S, L[1], 1.45, L[2], L[3], L[4], L[5]); }
         else if (k === "boats") lmBoats(S, L[1], anims);
+        else if (k === "furnace") lmFurnace(S, L[1], L[2], L[3]);
+        else if (k === "gate") lmGate(S, L[1], L[2], L[3], L[4], L[5], L[6]);
+        else if (k === "ruinHall") lmRuinHall(S, L[1], L[2], L[3], L[4]);
+        else if (k === "breakwater") lmBreakwater(S, L[1], L[2], L[3]);
+        else if (k === "containers") lmContainers(S, L[1]);
+        else if (k === "rocks") lmRocks(S, L[1]);
+        else if (k === "truss") lmTrussBridge(S, L[1], L[2], L[3]);
         else if (k === "overpass") {
           /* (v49) the deck counts as air clearance, so a gunship climbs
              over the flyover instead of flying through its slab */
@@ -18718,12 +19113,25 @@
           bx(G, w - 2.2, 0.6, (d - 1.2) * 0.45, cx, 4.0, cz, cmat(0x30343a, 0.7));
           return;
         }
+        /* (v70) on a pine stage the empty lots become more grove instead of
+           more concrete */
+        if (C.pine) {
+          const VB = voxBatch();
+          for (let i = 0; i < 4; i++) voxPine(VB, (x0 + x1) / 2 + (i - 1.5) * 2.6, 0.35, (z0 + z1) / 2 + ((i * 2) % 3 - 1) * 2.4, 5.4 + (i % 3) * 0.7, 900 + i + ((x0 * 7 + z0 * 11) | 0));
+          VB.flush(G, "cityPineFill").forEach((m) => { m.userData.keepBend = 1; });
+          return;
+        }
         makeBlock(G, x0, x1, z0, z1, h, { mat: facs[(R() * 3) | 0], k: (R() * 6) | 0 });
       });
       S.updateMatrixWorld(true);
       const wp = new T.Vector3();
       barrels.forEach((b) => { b.mesh.getWorldPosition(wp); b.x = wp.x; b.z = wp.z; });
       trunks.forEach((t) => { const q = cityTurnXZ(TURNS, cityLeg(TURNS, t[1]), t[0], t[1]); t[0] = q[0]; t[1] = q[1]; });
+      /* (v70) the corners of a shallow turn leave blocks standing in the
+         new leg's road — those angles are not the 90° the drop test was
+         written for. Anything built that comes inside the drive line, or
+         stands out in the water, goes now. */
+      try { clearPath(S, STAGE.path, 13.6, C.seaSide); } catch (e) { window.__clearErr = String(e); }
     }
     /* clouds */
     const clouds = [];
@@ -20178,7 +20586,7 @@
 
   /* ============================================================
      (v69) COMBAT UPGRADES
-       1) supply weapons (AR · shotgun · sniper) and FEVER TIME
+       1) supply weapons (AR · shotgun · RPG) and FEVER TIME
        2) exploding drums everywhere, breakable wooden cover, boss
           weak points and shells that can be shot out of the air
        3) slide/bolt cycle, muzzle light, surface hits, ambient motes
@@ -20194,7 +20602,7 @@
      gold for 6.5 s: no ammo is spent and every round hits twice as hard.
      A head shot during fever tops the timer back up. */
   let feverT = 0, feverN = 0, headStreak = 0, headStreakAt = 0, feverSparkT = 0;
-  let scopeKick = 0;
+  let scopeKick = 0; /* (v70) kept at zero: the scope zoom is gone */
   function feverOn(ctx) {
     if (feverT > 0) { feverT = Math.min(9.5, feverT + 2.2); updFeverDom(); return; }
     feverT = 6.5; feverN++;
@@ -20270,52 +20678,16 @@
     const roll = comboRewards % 3;
     if (combo > 0 && combo >= 20) { try { feverOn(ctx); } catch (e) {} return; }
     if (roll === 2) { grenades = Math.min(5, grenades + 2); say("콤보 보상 · 수류탄 +2", "Combo reward · +2 grenades", 1800); hitMark("pickup", innerWidth / 2, innerHeight * 0.42, false, isKO() ? "수류탄 +2" : "GRENADE +2"); window.__weapon = { w: weapon, ammo: wAmmo, nades: grenades }; return; }
-    const pick = roll === 0 ? "smg" : "sniper";
+    const pick = roll === 0 ? "smg" : "rpg";
     setWeapon(pick);
-    say("콤보 보상 · " + (pick === "smg" ? "돌격소총" : "저격총") + " 지급!", "Combo reward · " + (pick === "smg" ? "ASSAULT RIFLE" : "SNIPER") + "!", 1800);
-    hitMark("pickup", innerWidth / 2, innerHeight * 0.42, false, pick === "smg" ? "AR!" : "SNIPER!");
+    say("콤보 보상 · " + (pick === "smg" ? "돌격소총" : "RPG") + " 지급!", "Combo reward · " + (pick === "smg" ? "ASSAULT RIFLE" : "RPG") + "!", 1800);
+    hitMark("pickup", innerWidth / 2, innerHeight * 0.42, false, pick === "smg" ? "AR!" : "RPG!");
     window.__comboRewards = comboRewards;
   }
 
-  /* ---------------- (1c) the sniper's through-and-through ----------------
-     The round keeps going: up to two more men standing on the same line
-     take 2 each (4 in fever) without a second trigger pull. */
-  function sniperPierce(ctx, first) {
-    if (weapon !== "sniper" || !ctx) return;
-    const cam = ctx.camera;
-    if (!cam) return;
-    const ray = new T.Raycaster();
-    ray.setFromCamera(new T.Vector2(aimN.x, aimN.y), cam);
-    const o = ray.ray.origin, d = ray.ray.direction;
-    let d0 = 2;
-    if (first && first.at) d0 = first.at.distanceTo(o);
-    const list = [];
-    posts.forEach((p) => {
-      if (p === first || p.live === false || p.e.alive === false || p.role === "hostage" || !p.mesh) return;
-      if (p.air) return;
-      const v = new T.Vector3();
-      p.mesh.getWorldPosition(v);
-      v.y += (p.headTop || 1.6) * 0.55;
-      const t = v.clone().sub(o).dot(d);
-      if (t < d0 + 0.7 || t > 60) return;
-      const perp = v.clone().sub(o.clone().addScaledVector(d, t)).length();
-      if (perp > 0.9) return;
-      list.push({ p: p, t: t });
-    });
-    list.sort((a, b) => a.t - b.t);
-    let n = 0;
-    for (let i = 0; i < list.length && n < 2; i++) {
-      const p = list[i].p;
-      n++;
-      const at = o.clone().addScaledVector(d, list[i].t);
-      try { impactBurst(ctx.scene, at, "flesh"); } catch (e) {}
-      p.hitFlash = 0.09; p.knock = 0.18;
-      p.e.hp = (p.e.hp || 1) - (feverT > 0 ? 4 : 2);
-      window.__pierced = (window.__pierced || 0) + 1;
-      if (p.e.hp <= 0) { try { killPost(ctx, p, 200); } catch (e) {} }
-      else if (p.state !== "dead") p.state = "duck";
-    }
-  }
+  /* ---------------- (1c) through-and-through ----------------
+     (v70) gone with the sniper: the RPG's answer to a crowd is its blast,
+     not a round that passes through three men. */
 
   /* ---------------- (2a) drums at every battle line ---------------- */
   function nearDrum(x, z, r) {
@@ -20638,15 +21010,6 @@
     const st = document.createElement("style");
     st.id = "railCss2";
     st.textContent = `
-      #railScope{position:fixed;inset:0;z-index:39;pointer-events:none;display:none}
-      #railScope.on{display:block}
-      #railScope .vig{position:absolute;inset:0;background:radial-gradient(circle at 50% 50%,rgba(0,0,0,0) 30%,rgba(0,0,0,.42) 55%,rgba(0,0,0,.9) 78%)}
-      #railScope .ring{position:absolute;left:50%;top:50%;width:min(74vh,74vw);height:min(74vh,74vw);transform:translate(-50%,-50%);border:2px solid rgba(10,14,8,.9);border-radius:50%;box-shadow:0 0 0 3px rgba(96,112,78,.55),0 0 0 5px rgba(8,10,6,.6),inset 0 0 70px rgba(0,0,0,.55)}
-      #railScope .h{position:absolute;left:50%;top:50%;width:min(74vh,74vw);height:2px;transform:translate(-50%,-50%);background:linear-gradient(90deg,rgba(210,225,190,0) 6%,rgba(210,225,190,.28) 16%,rgba(28,36,22,.95) 46%,#e8f0d8 49.5%,#e8f0d8 50.5%,rgba(28,36,22,.95) 54%,rgba(210,225,190,.28) 84%,rgba(210,225,190,0) 94%)}
-      #railScope .v{position:absolute;left:50%;top:50%;height:min(74vh,74vw);width:2px;transform:translate(-50%,-50%);background:linear-gradient(180deg,rgba(210,225,190,0) 6%,rgba(210,225,190,.28) 16%,rgba(28,36,22,.95) 46%,#e8f0d8 49.5%,#e8f0d8 50.5%,rgba(28,36,22,.95) 54%,rgba(210,225,190,.28) 84%,rgba(210,225,190,0) 94%)}
-      #railScope .dot{position:absolute;left:50%;top:50%;width:6px;height:6px;border-radius:50%;transform:translate(-50%,-50%);background:#e0402a;box-shadow:0 0 8px rgba(255,90,60,1),0 0 0 1px rgba(0,0,0,.8)}
-      #railScope .mil{position:absolute;left:50%;top:calc(50% + 28px);transform:translateX(-50%);color:rgba(226,238,206,.85);text-shadow:0 1px 2px rgba(0,0,0,.9);font:700 10px/1 ui-monospace,monospace;letter-spacing:.14em}
-      #railScope .tag{position:absolute;left:50%;bottom:26%;transform:translateX(-50%);color:#eaf2da;text-shadow:0 1px 3px rgba(0,0,0,.9);font:800 11px/1 ui-monospace,monospace;letter-spacing:.28em;opacity:.9}
       #railFever{position:fixed;left:50%;bottom:max(96px,calc(env(safe-area-inset-bottom) + 96px));transform:translateX(-50%);z-index:45;display:none;width:min(230px,52vw);pointer-events:none;text-align:center;font-family:Pretendard,system-ui,sans-serif}
       #railFever.on{display:block}
       #railFever b{display:block;font:900 13px/1 ui-monospace,monospace;letter-spacing:.32em;color:#ffd979;text-shadow:0 0 12px rgba(255,180,60,.9),0 2px 0 rgba(0,0,0,.6)}
@@ -20664,12 +21027,6 @@
   }
   function upgradeInitDom() {
     upgradeCss();
-    if (!document.getElementById("railScope")) {
-      const s = document.createElement("div");
-      s.id = "railScope";
-      s.innerHTML = '<div class="vig"></div><div class="ring"></div><div class="h"></div><div class="v"></div><div class="dot"></div><div class="mil">×1.8</div><div class="tag">SNIPER</div>';
-      document.body.appendChild(s);
-    }
     if (!document.getElementById("railFever")) {
       const f = document.createElement("div");
       f.id = "railFever";
@@ -20684,19 +21041,19 @@
     }
   }
   function setScope(on) {
+    /* (v70) the scope overlay went out with the sniper rifle */
     const s = document.getElementById("railScope");
-    if (s) s.classList.toggle("on", !!on && phase !== "result");
+    if (s) s.remove();
     const xh = document.getElementById("railX");
-    if (xh) xh.style.opacity = on ? "0" : "";
+    if (xh && xh.style.opacity) xh.style.opacity = "";
   }
   function aimFov() {
     let f = viewFov();
-    if (weapon === "sniper" && phase !== "intro" && phase !== "result") f *= 0.6 + scopeKick * 0.3;
     if (bossCamK > 0.02) f *= 1 - 0.2 * bossCamK;
     return f;
   }
   function upgradeReset() {
-    feverT = 0; headStreak = 0; headStreakAt = 0; scopeKick = 0; bossCamT = 0; bossCamPost = null; bossCamK = 0; comboRewards = 0;
+    feverT = 0; headStreak = 0; headStreakAt = 0; bossCamT = 0; bossCamPost = null; bossCamK = 0; comboRewards = 0;
     document.body.classList.remove("railFever");
     setScope(false);
     const el = document.getElementById("railBossTag");
@@ -20711,6 +21068,15 @@
     get staged() { return staged; },
     get posts() { return posts; },
     get stage() { return stageId; },
+    /* (v70) the layout of the stage now loaded: the bent path, every zone's
+       hold, the boss arena and the path length, for the headless checks */
+    layout: () => ({
+      stage: stageId, pathLen: +(pathLen || 0).toFixed(1),
+      path: (PATH_PTS || []).map((q) => [+q[0].toFixed(1), +q[1].toFixed(1)]),
+      waves: (WAVE_DEFS || []).map((w) => ({ hold: w.hold, time: w.time, picks: (w.picks || []).length, n: (w.members || []).length })),
+      boss: BOSS_DEF, bossKind: STAGE.bossKind, city: STAGE.city ? { turns: STAGE.city.turns || [], pine: !!STAGE.city.pine } : null,
+      cam: window.__railCtx ? [+window.__railCtx.camera.position.x.toFixed(1), +window.__railCtx.camera.position.y.toFixed(2), +window.__railCtx.camera.position.z.toFixed(1)] : null
+    }),
     begin: (ctx, n) => begin(ctx, n),
     beginStage: (ctx, n) => begin(ctx, n),
     /* test hooks: what the air units look like on screen, and a way to clear
@@ -20817,7 +21183,7 @@
       fever: { t: +feverT.toFixed(2), n: feverN },
       shots: bossShots.length, intercepts: window.__intercepts || 0,
       pierced: window.__pierced || 0, weak: window.__weakHits || 0,
-      scope: weapon === "sniper", fov: +(window.__railCtx ? window.__railCtx.camera.fov : 0).toFixed(1)
+      scope: weapon === "rpg", fov: +(window.__railCtx ? window.__railCtx.camera.fov : 0).toFixed(1), weapon: weapon
     }),
     bossFocus: () => ({ on: bossCamT > 0, k: +bossCamK.toFixed(2), tag: (document.getElementById("railBossTag") || {}).className }),
     /* aim exactly at the nearest shell / crate and pull the trigger: the
@@ -20920,7 +21286,7 @@
          nothing at all with one in hand, which read as a dead button */
       if (weapon !== "pistol") {
         const ko = (document.documentElement.lang || "").startsWith("ko");
-        radio(ko ? ({ smg: "돌격소총", shotgun: "샷건", sniper: "저격총" }[weapon] || "특수 화기") + "은 재장전이 없습니다 · 탄을 다 쓰면 권총으로 돌아와요" : "Special weapons don't reload — empty it and you're back on the pistol", 2200);
+        radio(ko ? ({ smg: "돌격소총", shotgun: "샷건", rpg: "RPG" }[weapon] || "특수 화기") + "은 재장전이 없습니다 · 탄을 다 쓰면 권총으로 돌아와요" : "Special weapons don't reload — empty it and you're back on the pistol", 2200);
         window.__reloadHint = (window.__reloadHint || 0) + 1;
         return;
       }

@@ -4,6 +4,15 @@
 > 이 문서 하나로 다른 에이전트(Cursor · Claude Code · Codex 등)가 `main`에서 바로 이어받을 수 있게 쓴 문서다.
 > 코드를 고쳤으면 **같은 커밋에서 이 문서도 같이 갱신**한다.
 
+## v70 변경 요약 (2026-11-27, RPG · 후반 7개 스테이지 개편)
+
+- **저격총(`sniper`) 제거 → RPG(`rpg`)**: 보급소 `RPG 출격`(200P, 로켓 4발), 길 위 로켓 상자(스테이지당 1개 보장), 콤보 보상(`smg`↔`rpg` 교대). 1인칭 발사관(`weaponRig.rpg`), 로켓이 조준점으로 비행(연기 꼬리) 후 **반경 7.2m 스플래시** — 보병 처치, 드럼통·상자 연쇄, 공중 포탄 요격, 장갑차 18·헬기 10 피해. 발사음 `GunSFX.rpg`, 폭발음 `boom`. 스코프 오버레이·`aimFov` 저격 줌·관통(`sniperPierce`) 삭제.
+- **17~23 스테이지 경로 개편**: `city.turns`로 7개 전부 고유 커브(울산 항만 S, 의정부 스위치백, 원산 만, 남포 둑길, 강릉 해안 S, 철원 농로, 신의주 강변). `bendCityStage`가 path·waves·boss·엄폐·드럼·상자를 함께 휘고, `clearPath()`가 커브 안으로 들어온 건물을 제거.
+- **템포**: 후반 7개 스테이지는 `tight` 웨이브(14m 간격) + 경로 시작을 첫 구역 6m 앞으로 당겨 시작 1초 내 첫 교전.
+- **보스 다양화**: 17 전차 / 18 공격헬기 / 19 지휘관 / 20 전차(갑문) / 21 공격헬기 / 22 총사령관(노동당사) / 23 전차(철교). 연속 중복 없음.
+- **지역 오브제**: `lmFurnace`(울산 용광로·굴뚝), `lmGate`(의정부 고개·신의주 국경 검문소 아치), `lmRuinHall`(철원 노동당사), `lmBreakwater`(원산·강릉 방파제+등대), `lmContainers`, `lmRocks`, `lmTrussBridge`(신의주 철교), 소나무 숲(`city.pine`).
+- 검증 훅: `RAIL.layout()`(path·waves·boss·pathLen), `window.__rocketShot`, `window.__rocketBooms`, `window.__clearPath`.
+
 ## v69 변경 요약 (2026-11-26, 4대 업그레이드)
 
 - **(1) 보급 무기 3종 · 피버 타임** — `WEAPONS`에 `sniper` 추가(5발, 관통 2명, 0.6× 화각 스코프), `smg`는 돌격소총(AR)으로 표기. 보급 상자·콤보 보상에서 지급되고, 콤보 8·16마다 `comboReward()`가 무기/수류탄을 준다.
@@ -32,11 +41,11 @@
 | 영어 페이지 | https://hwani27.github.io/hwani-gallery/shoot-right-now/en.html |
 | 갤러리 카드 | `index.html`의 `shoot-right-now/` 카드 → `thumb.png` |
 | 폴더 | `work/hwani-gallery/shoot-right-now/` (완전 독립 빌드) |
-| 현재 버전 | **v69** (4대 업그레이드: 보급 무기·피버 / 파괴물·보스 요격 / 총기·파티클 / 보스 시네마틱) · v68 (물 표현) · v67 (모바일 렉 최적화) · v66 (CC0 실사 텍스처) · v65 (개인정보·광고)
+| 현재 버전 | **v70** (4대 업그레이드: 보급 무기·피버 / 파괴물·보스 요격 / 총기·파티클 / 보스 시네마틱) · v68 (물 표현) · v67 (모바일 렉 최적화) · v66 (CC0 실사 텍스처) · v65 (개인정보·광고)
 | 스테이지 | 13개 (v55 3-3 개성공단 추가; 아래 설명은 v52 기준 12개) (`rail.js` `STAGES` + `profile.js` `STAGES`/`SCEN` 표). 챕터1 남침 1-1~1-6(서울·대전·대구·광주·경주·부산), 챕터2 반격 2-1 인천 상륙·2-2 서울 수복, 챕터3 북진 3-1 DMZ·3-2 판문점·3-3 평양·3-4 압록강·백두산. 타이틀의 장별 탭·퀵 스트립·작전 카드 어디서든 바로 진입 |
 | v9 브랜치 | `feat/myeolgong-v9-seoul-polish` → PR #12 (v10도 같은 브랜치) |
 | v6 커밋 | `3df8b62` — full 1st-person arms/torso, adaptive portrait FOV, barrel tracks the aim point |
-| 캐시 버스터 | **`?v=69`** (index.html·en.html의 post·story·profile·engine·gun-sfx·ads·rail 전부) |
+| 캐시 버스터 | **`?v=70`** (index.html·en.html의 post·story·profile·engine·gun-sfx·ads·rail 전부) |
 
 | 로컬 실행 | `cd work/hwani-gallery && python3 -m http.server 8133` → `http://127.0.0.1:8133/shoot-right-now/index.html` |
 
