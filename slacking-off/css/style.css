@@ -959,3 +959,78 @@ body::before{
 .title-unlock.out{animation:tuOut .45s ease forwards;}
 @keyframes tuIn{0%{opacity:0;transform:translateX(-50%) translateY(-10px) scale(.92);}100%{opacity:1;transform:translateX(-50%) translateY(0) scale(1);}}
 @keyframes tuOut{to{opacity:0;transform:translateX(-50%) translateY(-12px) scale(.96);}}
+
+/* ===== 🏠 메뉴 버튼 (플레이 중 상단 HUD) ===== */
+.menu-btn{
+  display:inline-flex;align-items:center;gap:3px;height:26px;padding:0 8px;
+  border-radius:9px;border:1px solid #40506f;background:linear-gradient(180deg,#26324a,#171f2c);
+  color:#dbe6f5;font-family:inherit;font-size:9.5px;font-weight:900;letter-spacing:-.01em;
+  cursor:pointer;white-space:nowrap;flex:0 0 auto;
+}
+.menu-btn span{font-size:9px;}
+.menu-btn:active{transform:scale(.94);}
+.menu-btn[hidden]{display:none;}
+
+/* ===== 🪙 수요일 코인 단타 HUD ===== */
+.coin-hud{
+  position:absolute;left:6px;right:6px;bottom:6px;z-index:5;
+  display:flex;flex-direction:column;gap:2px;padding:4px 6px;border-radius:9px;
+  background:rgba(6,12,20,.74);border:1px solid rgba(255,210,74,.22);
+  pointer-events:none;
+}
+.coin-hud[hidden]{display:none;}
+.ch-top{display:flex;align-items:baseline;justify-content:space-between;gap:6px;}
+.ch-px{font-size:10px;font-weight:900;color:#fff;font-variant-numeric:tabular-nums;letter-spacing:-.02em;}
+.ch-ret{font-size:10px;font-weight:900;color:#9fb0c6;font-variant-numeric:tabular-nums;}
+.ch-ret.win{color:#ff8f96;}
+.ch-ret.tp{color:#ffd24a;text-shadow:0 0 10px rgba(255,210,74,.6);}
+.ch-ret.lose{color:#6fb6ff;}
+.ch-tip{font-size:8px;font-weight:800;color:#9fb2ca;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+
+/* ===== 🎬 스토리 인트로 / 엔딩 컷신 ===== */
+.overlay.cine-ov{padding:0;overflow:hidden;background:#05070b;}
+.cine{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:flex-end;overflow:hidden;}
+.cine-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center 46%;
+  animation:cineZoom 2.2s ease-out both;filter:saturate(1.05) contrast(1.04);}
+@keyframes cineZoom{from{transform:scale(1.02) translateY(0);}to{transform:scale(1.1) translateY(-1.5%);}}
+.cine-ph{position:absolute;inset:0;display:grid;place-items:center;font-size:56px;background:#0b111c;}
+.cine-vig{position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(180deg,rgba(4,7,12,.55) 0%,transparent 30%,rgba(4,7,12,.2) 55%,rgba(4,7,12,.94) 100%);}
+.cine-day{position:absolute;left:12px;top:12px;font-size:9px;font-weight:900;letter-spacing:.12em;color:#ffd24a;
+  background:rgba(8,12,20,.72);border:1px solid rgba(255,210,74,.4);border-radius:99px;padding:3px 9px;}
+.cine-cap{position:relative;z-index:2;margin:0 14px 58px;padding:11px 13px;border-radius:13px;text-align:left;
+  background:rgba(6,10,16,.82);border:1px solid rgba(255,255,255,.12);box-shadow:0 10px 26px rgba(0,0,0,.5);
+  animation:capIn .34s cubic-bezier(.2,1.3,.4,1) both;}
+@keyframes capIn{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:none;}}
+.cine-cap b{display:block;font-size:10px;font-weight:900;letter-spacing:.02em;margin-bottom:3px;}
+.cine-cap p{margin:0;font-size:12.5px;font-weight:800;line-height:1.45;color:#eef3fa;word-break:keep-all;}
+.cine-skip{position:absolute;right:12px;bottom:14px;z-index:3;
+  font-family:inherit;font-size:10px;font-weight:800;color:#c9d5e6;
+  background:rgba(8,12,20,.8);border:1px solid rgba(255,255,255,.18);border-radius:99px;padding:6px 11px;cursor:pointer;}
+.cine-skip:active{transform:scale(.95);}
+
+/* ===== 타이틀 6일 목록 ===== */
+.day6{gap:3px;}
+.day6 .ov-stage{padding:5px 9px;border-radius:8px;}
+.day6 .ov-stage .d{flex:0 0 34px;font-size:9px;}
+.day6 .ov-stage .n{font-size:9px;}
+.day6 .ov-stage .p{font-size:7.5px;}
+button.ov-stage{width:100%;font-family:inherit;cursor:pointer;color:inherit;appearance:none;-webkit-appearance:none;}
+button.ov-stage:active{background:rgba(255,210,74,.16);}
+.ov-stage.sat{background:rgba(255,92,102,.1);border-color:rgba(255,92,102,.34);}
+.ov-stage.sat .d{color:#ff9aa2;}
+.ov-stage.sat .p{color:#ffb0b6;}
+
+/* 주말 결과 */
+.rw-mul{font-size:9px;font-weight:900;color:#ff9aa2;background:rgba(255,92,102,.14);
+  border:1px solid rgba(255,92,102,.4);border-radius:99px;padding:1px 6px;}
+.sat-bonus{width:100%;font-size:10px;font-weight:900;color:#ffd24a;text-align:center;
+  background:rgba(255,210,74,.1);border:1px solid rgba(255,210,74,.34);border-radius:10px;padding:6px 8px;}
+.ending-sum{display:flex;gap:6px;width:100%;}
+.ending-sum div{flex:1;padding:7px 4px;border-radius:10px;background:rgba(255,255,255,.05);
+  border:1px solid rgba(255,255,255,.09);display:flex;flex-direction:column;gap:1px;}
+.ending-sum b{font-size:12px;font-weight:900;color:#ffd24a;font-variant-numeric:tabular-nums;}
+.ending-sum small{font-size:8px;font-weight:700;color:#8391a6;}
+
+/* 가로로 긴 모니터(데스크톱 프레임)에서는 코인 HUD를 위쪽으로 */
+.coin-hud.wide{top:24px;bottom:auto;left:6px;right:auto;max-width:58%;}

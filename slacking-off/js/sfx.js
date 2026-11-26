@@ -335,6 +335,36 @@ var SFX = (function () {
     tick: function () { tone(1200, 0.03, 'square', 0.03); },
     earn: function () { tone(760, 0.08, 'triangle', 0.05); tone(1140, 0.1, 'triangle', 0.045, 1140, 0.06); },
 
+    /* ---- 숏폼 위로 스와이프 / 코인 단타 ---- */
+    swipe: function () {
+      noise(0.14, 0.055, 700, 3800);
+      tone(340, 0.1, 'triangle', 0.045, 620);
+    },
+    coinBuy: function () {
+      tone(520, 0.07, 'square', 0.05, 700);
+      tone(780, 0.09, 'triangle', 0.04, 900, 0.05);
+    },
+    coinWin: function () {
+      tone(880, 0.09, 'square', 0.07, 1180);
+      tone(1320, 0.12, 'triangle', 0.06, 1560, 0.06);
+      tone(1760, 0.14, 'triangle', 0.05, 1980, 0.13);
+      noise(0.2, 0.06, 2200);
+    },
+    coinLoss: function () {
+      tone(300, 0.16, 'sawtooth', 0.055, 170);
+      noise(0.16, 0.05, 150, 900);
+    },
+    story: function () {
+      tone(392, 0.5, 'sine', 0.05, 392);
+      tone(523, 0.42, 'triangle', 0.032, 523, 0.06);
+      noise(0.3, 0.02, 200, 1400);
+    },
+    ending: function () {
+      [523, 659, 784, 1047, 1319].forEach(function (f, i) { tone(f, 0.7, 'triangle', 0.075, f * 1.002, i * 0.11); });
+      tone(131, 1.1, 'sine', 0.09, 98);
+      noise(0.5, 0.03, 2600);
+    },
+
     /* ---- 3초 변명 찬스 ---- */
     // 발동: 낮은 충격 + 경보 사이렌
     excuseOpen: function () {

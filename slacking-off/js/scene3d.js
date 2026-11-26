@@ -266,6 +266,12 @@ var Slack3D = (function () {
         name: '잼대리', color: '#69d8ff',
         look: { suit: 0x3f7893, shirt: 0xdff4ff, tie: false, hair: 0x4a3524, badge: 0x69d8ff, scale: 0.94 },
         start: { x: 2.05, z: 0.95 }
+      },
+      /* 엔딩 컷신용 주인공(잼인턴) — 평소엔 숨겨 두고 칼퇴 연출에서만 걷는다 */
+      jamintern: {
+        name: '잼인턴', color: '#ffb3c8',
+        look: { suit: 0x3f6fd8, shirt: 0xdfe9ff, tie: false, hair: 0x2a231d, badge: 0x8fd0ff, scale: 0.98 },
+        start: { x: 2.35, z: 1.5 }
       }
     };
     for (var k in defs) {
@@ -285,7 +291,7 @@ var Slack3D = (function () {
           key: key, name: d.name, color: d.color, root: root, ud: root.userData,
           label: lb, mark: mk, walk: 0, moving: false, speed: 0, scan: 0,
           target: { x: d.start.x, z: d.start.z }, facing: 0, faceT: 0,
-          visible: key !== 'jamsajang', mode: 'far'
+          visible: key !== 'jamsajang' && key !== 'jamintern', mode: 'far'
         };
         // 잼대리 치킨(수요일)
         if (key === 'jamdaeri') {
@@ -313,6 +319,7 @@ var Slack3D = (function () {
   OfficeScene.prototype.reset = function () {
     this.zoom = 0; this.zoomTarget = 0; this.shake = 0;
     this.mode = 'idle';
+    this.cineKind = null; this.cineT = 0;
     var c = this.chars;
     for (var k in c) {
       c[k].mark.visible = false;
@@ -322,6 +329,7 @@ var Slack3D = (function () {
       if (k === 'jambujang') { c[k].root.position.set(-0.25, 0, -6.15); c[k].visible = false; }
       if (k === 'jamsajang') { c[k].root.position.set(1.55, 0, -6.35); c[k].visible = false; }
       if (k === 'jamdaeri') { c[k].root.position.set(2.05, 0, 0.95); c[k].visible = true; }
+      if (k === 'jamintern') { c[k].root.position.set(2.35, 0, 1.5); c[k].visible = false; }
       c[k].root.visible = c[k].visible;
       c[k].root.rotation.y = 0;
       c[k].ud.head.rotation.set(0, 0, 0);
@@ -443,12 +451,146 @@ var Slack3D = (function () {
     this.camera.updateProjectionMatrix();
   };
 
+  /* =========================================================
+     컷신 카메라 — 스테이지 인트로(패닝·줌인) / 엔딩(줌아웃·회전)
+     ========================================================= */
+  OfficeScene.prototype.showChar = function (k, v) {
+    var c = this.chars[k];
+    if (!c) return null;
+    c.visible = !!v;
+    c.root.visible = !!v;
+    return c;
+  };
+
+  OfficeScene.prototype.setCine = function (kind, dur) {
+    if (!this.ok) return;
+    this.cineKind = kind;
+    this.cineT = 0;
+    this.cineDur = dur || 1.9;
+    this.zoom = 0; this.zoomTarget = 0; this.shake = 0;
+    var c = this.chars, two = !!(this.bosses && this.bosses.length > 1);
+    var self = this;
+    if (kind === 'intro') {
+      /* 월요일 아침 복도 — 멀리서 부장님이 다가오는 패닝 */
+      this.showChar('jambujang', true);
+      this.showChar('jamdaeri', true);
+      this.showChar('jamsajang', two);
+      this.showChar('jamintern', false);
+      if (c.jambujang) {
+        c.jambujang.root.position.set(-0.35, 0, -5.6);
+        c.jambujang.root.rotation.y = 0;
+        c.jambujang.target = { x: -0.5, z: -1.3 };
+        c.jambujang.moveSpeed = 2.4;
+        c.jambujang.mode = 'cine';
+        c.jambujang.scan = 0;
+        c.jambujang.mark.visible = true;
+      }
+      if (c.jamsajang) {
+        c.jamsajang.root.position.set(1.7, 0, -5.4);
+        c.jamsajang.target = { x: 1.5, z: -1.6 };
+        c.jamsajang.moveSpeed = 2.0;
+        c.jamsajang.mode = 'cine';
+        if (c.jamsajang.mark) c.jamsajang.mark.visible = true;
+      }
+      if (c.jamdaeri) {
+        c.jamdaeri.root.position.set(2.2, 0, 1.1);
+        c.jamdaeri.target = { x: 2.2, z: 1.1 };
+        c.jamdaeri.moveSpeed = 0;
+        if (c.jamdaeri.mark) c.jamdaeri.mark.visible = false;
+      }
+      return;
+    }
+    if (kind === 'end') {
+      /* 금요일/토요일 퇴근 — 카메라가 물러나고 회전, 잼인턴이 문밖으로 */
+      this.showChar('jambujang', true);
+      this.showChar('jamsajang', true);
+      this.showChar('jamdaeri', true);
+      var me = this.showChar('jamintern', true);
+      if (c.jambujang) {
+        c.jambujang.root.position.set(-0.7, 0, -2.2);
+        c.jambujang.target = { x: -0.7, z: -2.2 };
+        c.jambujang.moveSpeed = 0;
+        c.jambujang.mode = 'peek';
+        c.jambujang.scan = 0;
+        c.jambujang.mark.visible = false;
+      }
+      if (c.jamsajang) {
+        c.jamsajang.root.position.set(1.45, 0, -2.6);
+        c.jamsajang.target = { x: 1.45, z: -2.6 };
+        c.jamsajang.moveSpeed = 0;
+        c.jamsajang.mode = 'peek';
+        if (c.jamsajang.mark) c.jamsajang.mark.visible = false;
+      }
+      if (c.jamdaeri) {
+        c.jamdaeri.root.position.set(2.5, 0, -0.5);
+        c.jamdaeri.target = { x: 2.5, z: -0.5 };
+        c.jamdaeri.moveSpeed = 0;
+      }
+      if (me) {
+        me.root.position.set(2.3, 0, 1.7);
+        me.root.rotation.y = 0;
+        me.target = { x: -0.55, z: 3.6 };
+        me.moveSpeed = 1.9;
+        me.mode = 'go';
+      }
+    }
+  };
+
+  OfficeScene.prototype.clearCine = function () {
+    this.cineKind = null; this.cineT = 0;
+    this.zoom = 0;
+    var c = this.chars;
+    if (c.jamintern) { c.jamintern.visible = false; c.jamintern.root.visible = false; }
+    this.setCamera(0);
+  };
+
+  /* 두 번째 상사(잼사장) 합동 감시 표시 */
+  OfficeScene.prototype.markSecond = function (who, on) {
+    if (!this.ok) return;
+    var b = this.chars[who];
+    if (!b) return;
+    b.visible = true;
+    b.root.visible = true;
+    b.mark.visible = !!on;
+    if (on) {
+      b.scan = 1;
+      b.mode = 'warn';
+      b.target = { x: 1.42, z: -1.15 };
+      b.moveSpeed = 3.4;
+    }
+  };
+
+  OfficeScene.prototype.cineCamera = function (k) {
+    k = Math.max(0, Math.min(1, k));
+    var e = k * k * (3 - 2 * k);
+    if (this.cineKind === 'intro') {
+      this.camera.fov = 47 - 6 * e;
+      this.camera.position.set(-1.95 + 2.13 * e, 2.66 - 0.62 * e, 7.25 - 2.55 * e);
+      this.camera.lookAt(new THREE.Vector3(-0.32 + 0.36 * e, 1.2 - 0.16 * e, -2.55 + 0.95 * e));
+      this.camera.updateProjectionMatrix();
+      return;
+    }
+    if (this.cineKind === 'end') {
+      this.camera.fov = 39 + 7 * e;
+      this.camera.position.set(0.55 + 1.7 * e, 1.62 + 1.28 * e, 3.5 + 4.7 * e);
+      this.camera.lookAt(new THREE.Vector3(0.15 - 0.1 * e, 1.05 + 0.16 * e, -0.75));
+      this.camera.position.x += Math.sin(this.t * 5.6) * 0.014;
+      this.camera.position.y += Math.cos(this.t * 4.1) * 0.011;
+      this.camera.updateProjectionMatrix();
+      return;
+    }
+  };
+
   OfficeScene.prototype.update = function (dt) {
     var self = this;
     this.t += dt;
     // 카메라 줌
     this.zoom += (this.zoomTarget - this.zoom) * Math.min(1, dt * 6);
     this.setCamera(this.zoom);
+    if (this.cineKind) {
+      this.cineT = Math.min(this.cineDur, this.cineT + dt);
+      this.cineCamera(this.cineDur > 0 ? this.cineT / this.cineDur : 1);
+    }
     if (this.shake > 0) {
       this.shake = Math.max(0, this.shake - dt * 1.4);
       var s = this.shake * 0.11;
@@ -572,6 +714,54 @@ var Slack3D = (function () {
 
   OfficeScene.prototype.setActive = function (on) { this.active = !!on; };
 
+  /* 컷신 정지화면(고해상도) — 인트로·엔딩 오버레이 배경으로 쓴다 */
+  OfficeScene.prototype.cineShot = function (kind) {
+    if (!this.ok) return '';
+    try {
+      var portrait = (window.innerHeight || 0) >= (window.innerWidth || 0);
+      var cw = portrait ? 780 : 980, ch = portrait ? 975 : 552;
+      this.renderer.setSize(cw, ch, false);
+      this.camera.aspect = cw / ch;
+      this.camera.updateProjectionMatrix();
+      if (kind === 'intro') {
+        this.setCine('intro', 2);
+        this.cineT = 1.0;
+        this.cineCamera(0.52);
+      } else if (kind === 'boss') {
+        this.setCine('end', 2);
+        if (this.chars.jambujang) { this.chars.jambujang.mark.visible = true; this.chars.jambujang.scan = 1; }
+        if (this.chars.jamsajang) { this.chars.jamsajang.mark.visible = true; this.chars.jamsajang.scan = 1; }
+        this.cineT = 0.9;
+        this.cineCamera(0.16);
+      } else {
+        this.setCine('end', 2);
+        var me = this.chars.jamintern;
+        if (me) {
+          me.root.position.set(0.55, 0, 2.35);
+          me.root.rotation.y = 0;
+          me.target = { x: 0.55, z: 2.35 };
+          me.mode = 'go';
+          me.ud.legL.rotation.x = 0.5;
+          me.ud.legR.rotation.x = -0.4;
+          me.ud.armL.rotation.x = -0.35;
+          me.ud.armR.rotation.x = 0.35;
+          me.ud.model.position.y = 0.03;
+        }
+        this.cineT = 2;
+        this.cineCamera(1);
+      }
+      this.renderer.render(this.scene, this.camera);
+      var url = this.canvas.toDataURL('image/png');
+      this.resize();
+      this.camera.aspect = (this.host.clientWidth || 1) / (this.host.clientHeight || 1);
+      this.camera.updateProjectionMatrix();
+      return url;
+    } catch (e) {
+      try { this.resize(); } catch (e2) {}
+      return '';
+    }
+  };
+
   /* =========================================================
      모니터 안 3D 미니게임
      ========================================================= */
@@ -633,6 +823,7 @@ var Slack3D = (function () {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.4));
     this.renderer.setSize(w, h, false);
     this.camera.aspect = w / h;
+    if (this.kind === 'chart') this.camera.fov = this.chartFov();
     this.camera.updateProjectionMatrix();
   };
 
@@ -815,149 +1006,254 @@ var Slack3D = (function () {
     this.burst.spawn(this.player.position.x, s.py + 0.05, 0.12, 0x8fd0ff, 4, { size: 0.05, speed: 1.4, life: 0.35 });
   };
 
-  /* ---------- 수요일: 3D 코인 차트 + 사격 ---------- */
-  MiniScene.prototype.buildChart = function () {
-    this.scene.background = new THREE.Color(0x122c3f);
-    this.scene.fog = new THREE.Fog(0x122c3f, 11, 25);
-    this.camera.fov = 40;
-    this.camera.position.set(0, 2.0, 6.4);
-    this.camera.lookAt(0, 1.35, -0.4);
-    this.camera.updateProjectionMatrix();
-    this.dir.position.set(2, 6, 4);
-
-    var R = this.root;
-    // 바닥 그리드
-    VX.box(R, 12, 8, 0.2, 0x0e2434, 0, 2.4, -4.3, { cast: false, tex: 'metal', tm: 'relief', tr: [14, 9] });
-    for (var gw = 0; gw < 5; gw++) {
-      VX.box(R, 11, 0.02, 0.02, 0x1f6a8a, 0, 0.8 + gw * 0.6, -4.18, { emissive: 0x1f7a9a, emissiveIntensity: 0.3, cast: false });
-    }
-    VX.box(R, 7.4, 0.1, 6.4, 0x102436, 0, -0.05, -0.6, { cast: false, tex: 'concrete', tr: [3, 2.6] });
-    for (var g = 0; g < 9; g++) {
-      VX.box(R, 7.2, 0.015, 0.03, 0x1a4a66, 0, 0.005, -2.6 + g * 0.55, { emissive: 0x1f5a7a, emissiveIntensity: 0.25, cast: false });
-    }
-    for (var gx = 0; gx < 9; gx++) {
-      VX.box(R, 0.03, 0.015, 6.2, 0x1a4a66, -3.2 + gx * 0.8, 0.005, -0.6, { emissive: 0x1f5a7a, emissiveIntensity: 0.18, cast: false });
-    }
-    // 차트 바
-    this.bars = [];
-    for (var b = 0; b < 12; b++) {
-      var h = 0.25 + (b * 0.11) + Math.sin(b * 1.3) * 0.18;
-      var col = b < 4 ? 0x12603f : b < 8 ? 0x188a56 : 0x1fa86a;
-      var bar = VX.box(R, 0.34, 1, 0.34, col, -2.42 + b * 0.44, h / 2, -1.35, { emissive: 0x0a3324, emissiveIntensity: 0.22, rough: 0.78 });
-      bar.scale.y = h;
-      this.bars.push({ m: bar, h: h, x: -2.42 + b * 0.44 });
-    }
-    VX.box(R, 5.8, 0.06, 0.5, 0x1a3a4e, 0, 0.03, -1.35, { cast: false });
-
-    // 코인 타겟
-    this.targets = [];
-    this.targetGeo = new THREE.CylinderGeometry(0.19, 0.19, 0.09, 16);
-    this.targetInnerGeo = new THREE.CylinderGeometry(0.1, 0.1, 0.1, 12);
-    this.targetMat = VX.mat(0xffc222, { metal: 0.3, rough: 0.4, emissive: 0x6b4200, emissiveIntensity: 0.4 });
-    this.targetInnerMat = VX.mat(0xd88f00, { metal: 0.25, rough: 0.5, emissive: 0x4a2a00, emissiveIntensity: 0.3 });
-    for (var t = 0; t < 3; t++) this.spawnTarget(t);
-
-    // 사격 총(화면 오른쪽 아래) + 머즐
-    this.shotFrom = new THREE.Vector3(0, 0.35, 3.3);
-    this.shots = [];
-    this.tracer = VX.box(R, 0.05, 0.05, 1, 0xfff2a0, 0, 0, 0, { emissive: 0xffe27a, emissiveIntensity: 1.2, cast: false });
-    this.tracer.visible = false;
-    this.tracerT = 0;
-    this.state = { hits: 0, targetIdx: 0 };
+  /* ---------- 수요일: 3D 코인 단타 (실시간 캔들 차트 · 매수 → 고점 매도) ---------- */
+  var P_LO = 0.955, P_HI = 1.045, Y_LO = 0.3, Y_HI = 2.8;
+  /* 가격 → 화면 y. 표시 창(this.win)은 매 프레임 데이터에 맞춰 부드럽게 줌한다. */
+  MiniScene.prototype.pY = function (p) {
+    var w = this.win || { lo: 0.99, hi: 1.01 };
+    var k = (p - w.lo) / Math.max(1e-6, w.hi - w.lo);
+    return Y_LO + Math.max(0, Math.min(1, k)) * (Y_HI - Y_LO);
   };
 
-  MiniScene.prototype.spawnTarget = function (i) {
-    var tg = new THREE.Group();
-    var tgo = new THREE.Mesh(this.targetGeo, this.targetMat); tgo.rotation.x = Math.PI / 2; tgo.castShadow = true;
-    var tgi = new THREE.Mesh(this.targetInnerGeo, this.targetInnerMat); tgi.rotation.x = Math.PI / 2;
-    tg.add(tgo); tg.add(tgi);
-    tg.castShadow = true;
-    var x = -1.6 + Math.random() * 3.2;
-    var y = 2.0 + Math.random() * 1.0;
-    tg.position.set(x, y, -0.2);
-    this.root.add(tg);
-    if (!this.targets[i]) {
-      this.targets[i] = { m: tg, x: x, y: y, alive: true, t: 0 };
-    } else {
-      var o = this.targets[i];
-      o.m.visible = true; o.alive = true; o.t = 0;
-      o.x = x; o.y = y; o.m.position.set(x, y, -0.2); o.m.scale.setScalar(1);
+  MiniScene.prototype.chartFov = function () {
+    var a = this.camera.aspect || 1;
+    return a > 1.65 ? 26 : a > 1.3 ? 29 : a > 1.02 ? 34 : 40;
+  };
+
+  MiniScene.prototype.buildChart = function () {
+    this.scene.background = new THREE.Color(0x081a26);
+    this.scene.fog = new THREE.Fog(0x081a26, 13, 28);
+    this.camera.fov = this.chartFov();
+    this.camera.position.set(0, 1.55, 5.12);
+    this.camera.lookAt(0, 1.4, -1.25);
+    this.camera.updateProjectionMatrix();
+    this.dir.position.set(2.5, 6, 4.5);
+
+    var R = this.root;
+    // 차트 배경판 + 가로 가격 그리드
+    VX.box(R, 9.2, 5.8, 0.2, 0x061520, 0, 1.9, -3.5, { cast: false, tex: 'metal', tm: 'relief', tr: [7, 4] });
+    for (var gw = 0; gw < 6; gw++) {
+      VX.box(R, 7.4, 0.014, 0.02, 0x1b5f7e, 0, 0.3 + gw * 0.5, -3.36, { emissive: 0x1f7a9a, emissiveIntensity: 0.3, cast: false });
     }
+    VX.box(R, 7.4, 0.12, 1.5, 0x0a2130, 0, -0.02, -1.6, { cast: false, tex: 'concrete', tr: [3, 1] });
+    VX.box(R, 7.2, 0.03, 0.06, 0xffd24a, 0, 0.09, -2.86, { cast: false, emissive: 0xd9a000, emissiveIntensity: 0.7 });
+    var tick = VX.flatText('BTC/KRW · 1분봉', {
+      w: 512, h: 96, wu: 2.1, hu: 0.39, color: '#ffe08a',
+      bg: 'rgba(8,14,22,.82)', stroke: 'rgba(255,210,74,.45)', lw: 6
+    });
+    tick.position.set(-1.32, 3.06, -3.15);
+    R.add(tick);
+
+    /* 캔들 — 빨강(상승)/파랑(하락) 두 재질을 갈아 끼운다 */
+    this.cUp = VX.mat(0xff5c66, { rough: 0.5, emissive: 0x8a1220, emissiveIntensity: 0.45 });
+    this.cDown = VX.mat(0x3f8ff0, { rough: 0.5, emissive: 0x123a7a, emissiveIntensity: 0.4 });
+    this.candles = [];
+    for (var b = 0; b < 12; b++) {
+      var x = -1.815 + b * 0.33;
+      var body = VX.box(R, 0.25, 1, 0.24, this.cUp, x, 1, -1.35, { cast: false });
+      var wick = VX.box(R, 0.055, 1, 0.055, this.cUp, x, 1, -1.35, { cast: false, emissive: 0x3a0a12, emissiveIntensity: 0.2 });
+      body.receiveShadow = false;
+      this.candles.push({ m: body, w: wick, x: x });
+    }
+    VX.box(R, 6.0, 0.06, 0.42, 0x16465e, 0, 0.03, -1.35, { cast: false });
+
+    /* 익절 존 — 목표 매도 구간 */
+    this.tpZone = VX.box(R, 4.6, 1, 0.1, 0xff5c66, 0, 1.6, -2.9, { cast: false, opacity: 0.2, emissive: 0xff2a3a, emissiveIntensity: 0.5 });
+    this.tpZone.receiveShadow = false;
+    this.tpEdge = VX.box(R, 4.6, 0.04, 0.12, 0xff7a86, 0, 2.3, -2.88, { cast: false, emissive: 0xff5c66, emissiveIntensity: 0.9 });
+    this.tpLabel = VX.label('익절 존', '#ff9aa2', { w: 1.0 });
+    this.tpLabel.position.set(1.66, 2.3, -2.7);
+    R.add(this.tpLabel);
+
+    /* 현재가 라인 + 코인 마커 + 매수 기준선 */
+    this.priceLine = VX.box(R, 4.6, 0.022, 0.34, 0xfff2a0, 0, 1.4, -1.05, { cast: false, opacity: 0.6, emissive: 0xffd24a, emissiveIntensity: 0.9 });
+    this.priceLine.receiveShadow = false;
+    var coin = new THREE.Group();
+    var co = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.07, 18), VX.mat(0xffc222, { metal: 0.3, rough: 0.38, emissive: 0x6b4200, emissiveIntensity: 0.45 }));
+    co.rotation.x = Math.PI / 2;
+    coin.add(co);
+    coin.position.set(1.86, 1.4, -1.15);
+    R.add(coin);
+    this.coinMark = coin;
+    this.entryLine = VX.box(R, 4.6, 0.02, 0.26, 0xffd24a, 0, 1.2, -1.4, { cast: false, opacity: 0.55, emissive: 0xffd24a, emissiveIntensity: 0.7 });
+    this.entryLine.receiveShadow = false;
+    this.entryLine.visible = false;
+
+    this.coin = {
+      price: 1.0, entry: 0, pos: false, hold: 0, v: 0,
+      hist: [], sampleT: 0.24, spikeIn: 1.6, spikeT: 0,
+      last: null, peak: 1.0
+    };
+    for (var i0 = 0; i0 < 12; i0++) this.coin.hist.push({ o: 1.0, c: 1.0 });
+    this.win = { lo: 0.994, hi: 1.006 };
+    this.frozen = false;
+    this.state = { buys: 0, sells: 0, tpHits: 0 };
   };
 
   MiniScene.prototype.updateChart = function (dt) {
-    for (var i = 0; i < this.targets.length; i++) {
-      var o = this.targets[i];
-      if (!o.alive) { o.t += dt; if (o.t > 0.28) this.spawnTarget(i); continue; }
-      o.m.rotation.z += dt * 1.6;
-      o.m.position.y = o.y + Math.sin(this.t * 2.4 + i) * 0.07;
-    }
-    for (var b = 0; b < this.bars.length; b++) {
-      var bar = this.bars[b];
-      var targetH = bar.h;
-      var cur = bar.m.scale.y;
-      // scale.y 기준으로 높이 관리 (지오메트리 높이 1)
-      var want = targetH;
-      if (Math.abs(cur - want) > 0.002) {
-        var nh = cur + (want - cur) * Math.min(1, dt * 7);
-        bar.m.scale.y = nh;
-        bar.m.position.y = nh / 2;
+    var c = this.coin;
+    if (!c) return;
+    if (!this.frozen) {
+      /* 가격 모델: 평균 회귀 + 랜덤 변동 + 주기적 급등(빨간 불기둥) */
+      c.spikeIn -= dt;
+      if (c.spikeT > 0) {
+        c.spikeT -= dt;
+        c.v += (0.42 + Math.random() * 0.4) * dt;
+      } else if (c.spikeIn <= 0) {
+        c.spikeT = 0.4 + Math.random() * 0.3;
+        c.spikeIn = 2.3 + Math.random() * 1.9;
+      }
+      c.v += (Math.random() - 0.5) * 0.85 * dt;
+      c.v += (1.0 - c.price) * 1.7 * dt;
+      c.v *= Math.max(0, 1 - 1.9 * dt);
+      c.price += c.v * dt;
+      if (c.price > P_HI - 0.003) { c.price = P_HI - 0.003; c.v = Math.min(c.v, 0); }
+      if (c.price < P_LO + 0.003) { c.price = P_LO + 0.003; c.v = Math.max(c.v, 0); }
+      if (c.pos) {
+        c.hold += dt;
+        if (c.price > c.peak) c.peak = c.price;
+      }
+      c.sampleT -= dt;
+      if (c.sampleT <= 0) {
+        c.sampleT = 0.34;
+        var prev = c.hist.length ? c.hist[c.hist.length - 1].c : c.price;
+        c.hist.push({ o: prev, c: c.price });
+        while (c.hist.length > 12) c.hist.shift();
       }
     }
-    if (this.tracerT > 0) {
-      this.tracerT -= dt;
-      if (this.tracerT <= 0) { this.tracer.visible = false; }
+
+    /* 표시 창: 캔들이 화면을 채우도록 부드럽게 줌 (익절 존은 최대한만 포함) */
+    var mn = c.price, mx = c.price;
+    var startI = Math.max(0, c.hist.length - 8);
+    for (var q0 = startI; q0 < c.hist.length; q0++) {
+      var h0 = c.hist[q0];
+      if (h0.o < mn) mn = h0.o;
+      if (h0.c < mn) mn = h0.c;
+      if (h0.o > mx) mx = h0.o;
+      if (h0.c > mx) mx = h0.c;
     }
-    // 날아가는 코인탄
-    for (var q = this.shots.length - 1; q >= 0; q--) {
-      var sh = this.shots[q];
-      sh.t += dt * 5.2;
-      if (sh.t >= 1) {
-        this.root.remove(sh.m);
-        this.shots.splice(q, 1);
-        continue;
+    var dataSpan = Math.max(0.0026, mx - mn);
+    if (c.pos) {
+      if (c.entry < mn) mn = c.entry;
+      var cap = mn + Math.max(dataSpan * 2.2, 0.0052);
+      mx = Math.min(Math.max(mx, c.entry * 1.032), cap);
+    }
+    var span = Math.max(0.0026, mx - mn);
+    var mid = (mn + mx) / 2;
+    var pad = span * 0.14;
+    var kz = Math.min(1, dt * 3.0);
+    this.win.lo += ((mid - span / 2 - pad) - this.win.lo) * kz;
+    this.win.hi += ((mid + span / 2 + pad) - this.win.hi) * kz;
+
+    /* 캔들 그리기 (최신 봉이 오른쪽) */
+    var n = c.hist.length;
+    for (var i = 0; i < this.candles.length; i++) {
+      var cd = this.candles[i], hi = i - (12 - n);
+      if (hi < 0) { cd.m.visible = false; cd.w.visible = false; continue; }
+      var s = c.hist[hi];
+      var yo = this.pY(s.o), yc = this.pY(s.c), top = Math.max(yo, yc), bot = Math.min(yo, yc);
+      var h = Math.max(0.045, top - bot);
+      var up = s.c >= s.o;
+      cd.m.visible = true; cd.w.visible = true;
+      cd.m.material = up ? this.cUp : this.cDown;
+      cd.w.material = cd.m.material;
+      cd.m.scale.y = h;
+      cd.m.position.y = (top + bot) / 2;
+      var wh = Math.max(h + 0.1, 0.18);
+      cd.w.scale.y = wh;
+      cd.w.position.y = (top + bot) / 2;
+    }
+
+    /* 현재가 라인 · 코인 마커 */
+    var py = this.pY(c.price);
+    if (this.priceLine) this.priceLine.position.y += (py - this.priceLine.position.y) * Math.min(1, dt * 14);
+    if (this.coinMark) {
+      this.coinMark.position.y += (py - this.coinMark.position.y) * Math.min(1, dt * 14);
+      this.coinMark.rotation.z += dt * (this.frozen ? 0.4 : 1.6);
+    }
+
+    /* 익절 존 · 매수 기준선 */
+    var zLoY, zHiY;
+    if (c.pos) {
+      zLoY = this.pY(c.entry * 1.012); zHiY = this.pY(c.entry * 1.035);
+      if (zLoY > zHiY) { var tt = zLoY; zLoY = zHiY; zHiY = tt; }
+      if (zHiY - zLoY < 0.12) zHiY = zLoY + 0.12;
+      this.entryLine.visible = true;
+      this.entryLine.position.y = this.pY(c.entry);
+    } else {
+      zHiY = Y_HI; zLoY = Y_HI - 0.46;
+      this.entryLine.visible = false;
+    }
+    if (this.tpZone) {
+      this.tpZone.position.y = (zLoY + zHiY) / 2;
+      this.tpZone.scale.y = Math.max(0.05, zHiY - zLoY);
+      this.tpEdge.position.y = zHiY;
+      this.tpLabel.position.y = zHiY;
+      var hot = c.pos && c.price >= c.entry * 1.012;
+      if (this.tpZone.material && this.tpZone.material.emissiveIntensity != null) {
+        this.tpZone.material.emissiveIntensity = hot ? 1.2 : 0.5;
       }
-      sh.m.position.lerpVectors(sh.from, sh.to, sh.t);
-      sh.m.rotation.x += dt * 16;
-      sh.m.rotation.y += dt * 11;
     }
+    this.state.price = c.price;
   };
 
-  MiniScene.prototype.tapChart = function () {
-    if (!this.ok || !this.targets) return;
-    var alive = [];
-    for (var i = 0; i < this.targets.length; i++) if (this.targets[i].alive) alive.push({ o: this.targets[i], i: i });
-    if (!alive.length) return;
-    var pick = alive[Math.floor(Math.random() * alive.length)].o;
-    var from = this.shotFrom.clone();
-    var to = pick.m.position.clone();
-    // 트레이서
-    var mid = from.clone().add(to).multiplyScalar(0.5);
-    var len = from.distanceTo(to);
-    this.tracer.position.copy(mid);
-    this.tracer.scale.set(1, 1, len);
-    this.tracer.lookAt(to);
-    this.tracer.visible = true;
-    this.tracerT = 0.09;
-    // 코인탄 발사체
-    var bullet = new THREE.Group();
-    var bo = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.05, 12), VX.mat(0xffc222, { metal: 0.3, rough: 0.4, emissive: 0x8a5200, emissiveIntensity: 0.6 }));
-    bo.rotation.x = Math.PI / 2;
-    bullet.add(bo);
-    bullet.position.copy(from);
-    this.root.add(bullet);
-    this.shots.push({ m: bullet, from: from, to: to, t: 0 });
-
-    pick.alive = false;
-    pick.m.visible = false;
-    this.burst.spawn(to.x, to.y, to.z, 0xffcf3d, 10, { size: 0.08, speed: 2.6, life: 0.6 });
-    // 차트 상승
-    var bi = Math.max(0, Math.min(this.bars.length - 1, Math.round((to.x + 2.42) / 0.44)));
-    var bar = this.bars[bi];
-    bar.h = Math.min(3.2, bar.h + 0.22);
-    bar.m.material = VX.mat(0x4fc98a, { emissive: 0x1a6b46, emissiveIntensity: 0.3, rough: 0.6 });
-    this.burst.spawn(bar.x, bar.h, -1.35, 0x4fd98b, 4, { size: 0.06, speed: 1.6, life: 0.45 });
+  MiniScene.prototype.coinTap = function () {
+    var c = this.coin;
+    if (!c || !this.ok) return { act: 'none' };
+    var res;
+    if (!c.pos) {
+      c.pos = true; c.entry = c.price; c.hold = 0; c.peak = c.price;
+      this.burst.spawn(1.86, this.pY(c.price), -1.2, 0xffd24a, 9, { size: 0.06, speed: 2.0, life: 0.5 });
+      this.state.buys++;
+      res = { act: 'buy', price: c.price, entry: c.entry, ret: 0 };
+    } else {
+      var ret = c.price / c.entry - 1;
+      var q = ret >= 0.012 ? 'tp' : ret >= 0.002 ? 'up' : ret > -0.002 ? 'flat' : 'loss';
+      if (c.hold < 0.38) q = 'fast';
+      var gained = c.price - c.entry;
+      c.pos = false;
+      var pyy = this.pY(c.price);
+      this.burst.spawn(1.86, pyy, -1.2, q === 'loss' ? 0x3f8ff0 : q === 'tp' ? 0xff3d55 : 0xff9b3d,
+        q === 'tp' ? 20 : 10, { size: q === 'tp' ? 0.1 : 0.07, speed: q === 'tp' ? 3.4 : 2.2, life: 0.6 });
+      if (q === 'tp') this.burst.spawn(0, pyy, -0.8, 0xffd24a, 16, { size: 0.08, speed: 3.0, life: 0.7 });
+      this.state.sells++;
+      if (q === 'tp') this.state.tpHits++;
+      res = { act: 'sell', price: c.price, entry: c.entry, ret: ret, quality: q, hold: c.hold, gained: gained };
+    }
+    c.last = res;
+    return res;
   };
+
+  MiniScene.prototype.coinState = function () {
+    var c = this.coin;
+    if (!c) return null;
+    return {
+      price: c.price, entry: c.pos ? c.entry : 0, pos: c.pos, hold: c.hold,
+      ret: c.pos ? c.price / c.entry - 1 : 0, frozen: !!this.frozen,
+      last: c.last, buys: (this.state && this.state.buys) || 0,
+      sells: (this.state && this.state.sells) || 0, tpHits: (this.state && this.state.tpHits) || 0
+    };
+  };
+
+  /* 테스트·검증용: 가격/포지션을 직접 세팅 */
+  MiniScene.prototype.coinDebug = function (o) {
+    var c = this.coin;
+    if (!c) return null;
+    o = o || {};
+    if (o.price != null) { c.price = o.price; c.v = 0; }
+    if (o.pos != null) {
+      c.pos = !!o.pos;
+      if (c.pos && !c.entry) { c.entry = c.price; c.hold = 0.9; }
+    }
+    if (o.entry != null) c.entry = o.entry;
+    if (o.hold != null) c.hold = o.hold;
+    if (o.freeze != null) this.frozen = !!o.freeze;
+    return this.coinState();
+  };
+
+  MiniScene.prototype.tapChart = function () { return this.coinTap(); };
+  MiniScene.prototype.setFrozen = function (v) { this.frozen = !!v; };
+  MiniScene.prototype.swipeVideo = function () { return this.tapVideo(); };
 
   /* ---------- 금요일: 3D 핫딜 박스 격파 ---------- */
   MiniScene.prototype.buildShop = function () {
@@ -1385,8 +1681,8 @@ var Slack3D = (function () {
     for (var i = 0; i < this.cards.length; i++) {
       var c = this.cards[i];
       if (c.out) {
-        c.g.position.y += dt * 9;
-        c.g.scale.setScalar(Math.max(0.2, c.g.scale.x - dt * 1.2));
+        c.g.position.y += dt * 13;
+        c.g.scale.setScalar(Math.max(0.2, c.g.scale.x - dt * 2.2));
       } else {
         c.g.position.y += (c.targetY - c.g.position.y) * Math.min(1, dt * 10);
         c.g.scale.setScalar(1);
@@ -1475,6 +1771,19 @@ var Slack3D = (function () {
     else if (mini.kind === 'video') mini.tapVideo();
     else mini.tapShop();
   }
+  function swipe() {
+    if (!mini || !mini.ok) return;
+    if (mini.kind === 'video') mini.swipeVideo();
+    else tap();
+  }
+  function coinTap() { return (mini && mini.ok && mini.kind === 'chart') ? mini.coinTap() : { act: 'none' }; }
+  function coinState() { return (mini && mini.ok && mini.kind === 'chart') ? mini.coinState() : null; }
+  function coinDebug(o) { return (mini && mini.ok) ? mini.coinDebug(o) : null; }
+  function setFrozen(v) { if (mini && mini.ok) mini.setFrozen(v); }
+  function cine(kind, dur) { if (office && office.ok) office.setCine(kind, dur); }
+  function cineOff() { if (office && office.ok) office.clearCine(); }
+  function cineShot(kind) { return (office && office.ok) ? office.cineShot(kind) : ''; }
+  function secondMark(who, on) { if (office && office.ok) office.markSecond(who, on); }
   function setMiniActive(on) { if (mini && mini.ok) mini.setActive(on); }
   function setActive(on) { if (office && office.ok) office.active = !!on; }
   function snapshot(pose) { return (office && office.ok) ? office.snapshot(pose) : ''; }
@@ -1490,6 +1799,8 @@ var Slack3D = (function () {
     init: init, setBoss: setBoss, begin: begin, setStage: setStage, caught: caught, reveal: reveal,
     release: release, tap: tap, setMiniActive: setMiniActive, setActive: setActive, snapshot: snapshot,
     status: status,
+    swipe: swipe, coinTap: coinTap, coinState: coinState, coinDebug: coinDebug, setFrozen: setFrozen,
+    cine: cine, cineOff: cineOff, cineShot: cineShot, secondMark: secondMark,
     office: function () { return office; }, mini: function () { return mini; }
   };
 })();

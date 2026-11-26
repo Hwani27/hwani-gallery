@@ -102,7 +102,7 @@ var VIRAL = (function () {
      ② 친구 도발 링크
      ===================================================================== */
   var STAGE_NAMES = ['월요일 · 잼부장 순찰', '화요일 · 잼부장 커피 급복귀', '수요일 · 잼대리 유혹 공작',
-    '목요일 · 잼사장 뒤에서 접근', '금요일 · 부장님 + 사장님 더블 체크'];
+    '목요일 · 잼사장 뒤에서 접근', '금요일 · 부장님 + 사장님 더블 체크', '토요일 · 주말근무 (특근)'];
 
   function parseVS(search) {
     try {
@@ -140,7 +140,8 @@ var VIRAL = (function () {
     { id: 'daily', icon: '📅', name: '일일 챌린저', how: '오늘의 챌린지를 한 번 완주한다', goal: 1, of: 'challenge' },
     { id: 'overtime', icon: '🌙', name: '야근 성수기', how: '야근을 세 번 겪는다', goal: 3, of: 'overtime' },
     { id: 'maxed', icon: '🛠️', name: '장비 수집가', how: '사무실 장비 하나를 Lv.3까지 올린다', goal: 3, of: 'maxlv' },
-    { id: 'legend', icon: '🏆', name: '칼퇴의 전설', how: '월~금 5일 연속 칼퇴로 주말을 맞는다', goal: 1, of: 'ending' }
+    { id: 'legend', icon: '🏆', name: '칼퇴의 전설', how: '월~금 5일 연속 칼퇴로 주말을 맞는다', goal: 1, of: 'ending' },
+    { id: 'weekend', icon: '🌞', name: '주말 특근 생존자', how: '토요일 주말근무(특근)를 칼퇴로 끝낸다', goal: 1, of: 'weekend' }
   ];
   var T_BY_ID = {};
   for (var ti = 0; ti < TITLES.length; ti++) T_BY_ID[TITLES[ti].id] = TITLES[ti];
@@ -148,7 +149,7 @@ var VIRAL = (function () {
   function freshTitles() {
     return {
       v: 1, unlocked: {}, pin: null,
-      stats: { clears: 0, caught: 0, overtime: 0, excuse: 0, combo: 0, challenge: 0, dares: 0, maxlv: 0, ending: 0, bestReact: 99 }
+      stats: { clears: 0, caught: 0, overtime: 0, excuse: 0, combo: 0, challenge: 0, dares: 0, maxlv: 0, ending: 0, weekend: 0, bestReact: 99 }
     };
   }
   function loadTitles() {
@@ -202,6 +203,7 @@ var VIRAL = (function () {
     else if (ev === 'combo') { if (num(v, 0) > s.combo) { s.combo = Math.round(v); changed = true; } }
     else if (ev === 'challenge') { s.challenge = Math.max(1, s.challenge); changed = true; }
     else if (ev === 'ending') { s.ending = 1; changed = true; }
+    else if (ev === 'weekend') { s.weekend = 1; changed = true; }
     else if (ev === 'dare') { s.dares += 1; changed = true; }
     else if (ev === 'maxlv') { s.maxlv = Math.max(s.maxlv, num(v, 0)); changed = true; }
     else if (ev === 'react') {
@@ -538,7 +540,7 @@ var VIRAL = (function () {
     ctx.fillStyle = '#7f90a8'; ctx.font = '700 24px ' + FONT;
     ctx.fillText('hwani27.github.io/hwani-gallery/slacking-off/', W / 2, 1222);
     ctx.fillStyle = '#5f6d82'; ctx.font = '700 20px ' + FONT;
-    ctx.fillText('월~금 5일 생존기 · 18:00 칼퇴 · 지금 도전해 보세요', W / 2, 1260);
+    ctx.fillText('월~토 6일 생존기 · 18:00 칼퇴 · 지금 도전해 보세요', W / 2, 1260);
     ctx.textAlign = 'left';
   }
 

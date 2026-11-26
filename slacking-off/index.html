@@ -9,7 +9,7 @@
 <meta name="format-detection" content="telephone=no">
 <meta name="description" content="18:00 칼퇴까지, 부장님 눈을 피해 딴짓 게이지 100%를 채우는 3D 복셀 눈치 게임.">
 <title>부장님 몰래 딴짓하기 · Slacking Off 3D</title>
-<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/style.css?v=261126">
 </head>
 <body>
 <div class="frame">
@@ -21,6 +21,7 @@
         <span class="brand-t">부장님 몰래 딴짓하기</span>
       </div>
       <div class="top-actions">
+        <button class="menu-btn" id="menuBtn" type="button" aria-label="메뉴(타이틀)로 돌아가기">🏠<span>메뉴</span></button>
         <span class="chip" id="stageChip">월요일</span>
         <button class="sound" id="soundBtn" type="button" aria-label="소리 끄기" aria-pressed="true">🔊</button>
       </div>
@@ -70,6 +71,13 @@
             <div class="mini" id="mini">
               <div class="mini3d-host" id="mini3d"></div>
               <div class="mini-head"><span id="miniLabel">🍪 미니 블록</span><b id="miniScore">0</b></div>
+              <div class="coin-hud" id="coinHud" hidden aria-live="polite">
+                <div class="ch-top">
+                  <span class="ch-px" id="chPrice">₩ 62,480,000</span>
+                  <b class="ch-ret" id="chRet">관망</b>
+                </div>
+                <div class="ch-tip" id="chTip">탭 = 매수(진입)</div>
+              </div>
             </div>
             <div class="floaters" id="floaters" aria-hidden="true"></div>
           </div>
@@ -124,12 +132,12 @@
 <script src="js/three.min.js"></script>
 <script src="js/textures.js"></script>
 <script src="js/voxel.js"></script>
-<script src="js/scene3d.js"></script>
-<script src="js/sfx.js"></script>
+<script src="js/scene3d.js?v=261126"></script>
+<script src="js/sfx.js?v=261126"></script>
 <script src="js/characters.js"></script>
 <script src="js/excuse.js"></script>
 <script src="js/shop.js"></script>
-<script src="js/viral.js"></script>
-<script src="js/game.js"></script>
+<script src="js/viral.js?v=261126"></script>
+<script src="js/game.js?v=261126"></script>
 </body>
 </html>
