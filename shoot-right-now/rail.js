@@ -7052,7 +7052,7 @@
       bossRadio: "적 지휘관이 탑 앞 광장에 숨었다! 머리를 노려라!"
     },
     11: {
-      id: 11, refugees: true, music: "perimeter", label: "STAGE 1-6", clock: 400, path: cityPath(), boss: cityBoss(),
+      id: 11, refugees: true, music: "perimeter", label: "STAGE 1-8", clock: 400, path: cityPath(), boss: cityBoss(),
       waves: genWaves(1111, ["HAEUNDAE", "GWANGALLI", "PERIMETER"], [
         "부산 교두보, 최후 방어선이다! 여기서 물러설 곳은 없다!", "해변 도로로 적 오토바이!", "바다 위로 적 헬기!",
         "피난민 다수, 오사 주의!", "적 증원, 등대 방향!", "적 헬기 재접근!", "적 공수 강하! 이 선을 지켜라, 반격이 온다!"], { bikes: true, hostage: true, paras: true }),
@@ -7068,6 +7068,47 @@
       introDur: 4.4, introCam: [[20, 16, -84, 0, 8, 30], [0.0, 1.68, -62, 0, 1.55, -48]],
       introLines: [{ t: 0.4, text: "낙동강 최후 방어선, 부산." }, { t: 2.2, text: "반격의 그날까지, 이 해안을 반드시 지켜라!" }],
       bossRadio: "적 주력 전차가 해안도로로! 포구를 막고 흡기구를 노려라!"
+    },
+    /* (cheorwon-gangneung) 1-6 GANGNEUNG: the enemy comes down the east coast from the north.
+       Coast town with a pine grove and a harbour, citygen path with seaSide. Id 21 sits after
+       1-5 Gyeongju and before 1-7 Ulsan & Pohang. */
+    21: {
+      id: 21, refugees: true, music: "perimeter", label: "STAGE 1-6", clock: 400, path: cityPath(), boss: cityBoss(),
+      waves: genWaves(2121, ["GANGNEUNG", "PINE GROVE", "HARBOUR"], [
+        "해변 도로 확보! 방파제 뒤로 엄폐하라!", "솔숲 길로 적 오토바이!", "적 헬기 출현! 소나무 아래로 엄폐!",
+        "피난민 대피 중, 오사 주의!", "적 증원, 항구 방면!", "적 헬기 재접근!", "적 공수 강하! 강릉 항을 지켜라!"], { bikes: true, hostage: true }),
+      dress: "citygen", bossKind: "apc", bossHp: 90, armorWave: 4, armorTank: false, armorHp: 14,
+      city: {
+        seed: 21, mood: "day", seaSide: true, tints: [0xf0ecdc, 0xe4e0cc, 0xd0ccb4],
+        sign: [-12.4, -44, "강릉", "GANGNEUNG", Math.PI / 2, "#2a6a6a"],
+        cars: [["bus", 7.6, -20, Math.PI, "313"]],
+        banners: [[-12.2, -10, "강릉 해변", "#2a7a8a", 9], [12.2, 22, "경포", "#2a4a8a"]],
+        hills: [[-70, 200, 220, 70, 36]],
+        landmarks: [["lighthouse", 44, 46, 0x2a7aa8], ["boats", [[34, -40, 0.4, 0x2a5aa8], [48, -10, -0.6, 0xe8b830]]], ["fire", -18, 0.4, -58, 1.4]]
+      },
+      introDur: 4.4, introCam: [[20, 16, -84, 0, 8, 30], [0.0, 1.68, -62, 0, 1.55, -48]],
+      introLines: [{ t: 0.4, text: "동해안을 따라 내려오는 적. 강릉 해변에서 막아라." }, { t: 2.2, text: "솔숲과 항구, 이 바다 길이 우리 방어선이다!" }],
+      bossRadio: "해변 도로에 적 장갑차! 흡기구를 노리고 수류탄을 던져라!"
+    },
+    /* (plan, UNVERIFIED) 1-7 ULSAN & POHANG: night steel-mill and shipyard belt on the way
+       to Busan. Same citygen/industrial path as 3-3 and 3-5, mood "night", apc boss. */
+    17: {
+      id: 17, refugees: true, music: "perimeter", label: "STAGE 1-7", clock: 400, path: cityPath(), boss: cityBoss(),
+      waves: genWaves(1717, ["STEEL MILL", "SHIPYARD", "CONTAINERS"], [
+        "제철소 정문 확보! 용광로 불빛 아래 엄폐하라!", "야드 골목에 적 오토바이!", "적 헬기 출현! 크레인 그늘로 엄폐!",
+        "야간 작업자 대피 중, 오사 주의!", "적 증원, 컨테이너 야드 방면!", "적 헬기 재접근!", "적 공수 강하! 조선소 방벽을 지켜라!"], { bikes: true, hostage: true }),
+      dress: "citygen", bossKind: "apc", bossTank: true, bossHp: 100, armorWave: 4, armorTank: true, armorHp: 16,
+      city: {
+        seed: 17, mood: "night", industrial: true, tints: [0xc4c8cc, 0xb4b8be, 0xa4a8b0],
+        sign: [12.4, -44, "울산 제철", "ULSAN STEEL", -Math.PI / 2, "#c2622a"],
+        cars: [["truck", -7.8, -16, 0.1], ["truck", 7.8, 12, Math.PI]],
+        banners: [[-12.2, -8, "제철소", "#c2622a", 9], [12.2, 26, "조선소", "#2a4a8a"]],
+        hills: [[-60, 170, 220, 70, 40]],
+        landmarks: [["cranes", [[60, 40, 0.3], [78, 70, 0.3], [96, 100, 0.3]]], ["ship", 110, 90, 0.4, 52, 0.9], ["fire", -18, 0.4, -58, 1.4], ["fire", 16, 0.4, -50, 1.2]]
+      },
+      introDur: 4.4, introCam: [[20, 16, -84, 0, 8, 30], [0.0, 1.68, -62, 0, 1.55, -48]],
+      introLines: [{ t: 0.4, text: "밤의 울산 제철소. 적의 중공업 거점을 확보하라." }, { t: 2.2, text: "용광로 불빛이 보인다. 정문부터 밀어라!" }],
+      bossRadio: "조선소 야드에 적 주력 전차! 흡기구를 노리고 수류탄을 던져라!"
     },
     /* ---- CHAPTER 2: 반격 — Incheon, then Seoul again ---- */
     12: {
@@ -7093,14 +7134,14 @@
       introLines: [{ t: 0.4, text: "20XX년 9월 15일, 인천 상륙작전 개시!" }, { t: 2.4, text: "상륙정 전진! 해안의 적을 쓸고 인천을 되찾아라!" }],
       bossRadio: "송도 상공에 적 공격헬기! 기체에 집중 사격!"
     },
-    /* (v60) 3-5 HEUNGNAM: after Pyongyang, Colonel Cha's men fall back up
+    /* (v60) 3-6 HEUNGNAM: after Pyongyang, Colonel Cha's men fall back up
        the east-coast line. The squad rides a flatcar on a parallel track,
        overtakes their troop train, crosses a river on a truss bridge, and
        gets off at Heungnam station for the fight through the plant to the
        port. Tracks at x −7 (their train, same way), 0 (ours), +7 (the
        squad's car), +14 (a train coming the other way). */
     15: {
-      id: 15, music: "pyongyang", label: "STAGE 3-5", clock: 440, train: true,
+      id: 15, music: "pyongyang", label: "STAGE 3-6", clock: 440, train: true,
       path: cityPath([[0, -380], [0, -360], [0, -340], [0, -320], [0, -300], [0, -280], [0, -260], [0, -240], [0, -220], [0, -200], [0, -180], [0, -160], [0, -140], [0, -120], [0, -100], [0, -86], [0, -76], [0, -68]]),
       boss: cityBoss(), chase: "train",
       waves: genWaves(1515, ["HEUNGNAM STN", "FERTILIZER PLANT", "PORT"], [
@@ -7164,12 +7205,34 @@
       introLines: [{ t: 0.4, text: "개성공업지구 탈환 작전. 헬기 강습으로 진입한다!" }, { t: 2.4, text: "정문 앞 착륙 지점까지 지상 사격을 버텨라!" }],
       bossRadio: "관리위원회 건물 앞에 적 경비사령관! 경호원부터 쓰러뜨려라!"
     },
-    /* (v62) 2-4 SUWON HWASEONG: south from Seoul to meet the forces coming
+    /* (plan, UNVERIFIED) 2-4 UIJEONGBU & DONGDUCHEON: after the Seoul retake the squad
+       climbs the northern mountain road to cut the enemy's way out, ridge by ridge
+       down to Dongducheon. Hill-heavy layout (the 2-4 Suwon hills, enlarged). */
+    18: {
+      id: 18, refugees: true, music: "dmz", label: "STAGE 2-4", clock: 400,
+      path: cityPath([[0, -150], [1.4, -140], [2.6, -128], [1.8, -116], [0.4, -104], [-0.8, -92], [-0.4, -80], [0, -72]]),
+      boss: cityBoss(),
+      waves: genWaves(1818, ["UIJEONGBU", "RIDGE", "DONGDUCHEON"], [
+        "의정부 고개 선점! 능선 아래 엄폐하라!", "산길 모퉁이로 적 오토바이!", "적 헬기 출현! 소나무 아래로 엄폐!",
+        "주민 대피 중, 오사 주의!", "적 증원, 동두천 방향!", "적 헬기 재접근!", "적 공수 강하! 고개 정상을 지켜라!"], { bikes: true, hostage: true, heliWaves: [2, 5] }),
+      dress: "citygen", bossKind: "apc", bossHp: 80, armorWave: 4, armorTank: false, armorHp: 14,
+      city: {
+        seed: 18, mood: "morning", tints: [0xcfd8c8, 0xc0ccb6, 0xb4c0a8], sign: [12.4, -44, "의정부", "UIJEONGBU", -Math.PI / 2, "#2f6a3a"],
+        cars: [["truck", -7.8, -16, 0.1]],
+        banners: [[-12.2, -8, "동두천", "#2a6a3a", 9], [12.2, 22, "북부 산악로", "#8a4a2a"]],
+        hills: [[-70, 200, 240, 70, 46], [60, 190, 200, 60, 40], [0, 250, 260, 70, 52]],
+        landmarks: [["market", -11.6, -56, -32, 80], ["fire", -16, 0.4, 30, 1.1]]
+      },
+      introDur: 4.6, introCam: [[-30, 20, -180, 0, 6, -110], [0, 1.68, -150, 0, 1.55, -136]],
+      introLines: [{ t: 0.4, text: "서울 수복 뒤, 북쪽 산악 도로. 적의 퇴로를 끊어라." }, { t: 2.4, text: "의정부를 지나 동두천까지, 고개마다 적이 있다!" }],
+      bossRadio: "고개 모퉁이에 적 장갑차! 측면 흡기구를 노리고 수류탄!"
+    },
+    /* (v62) 2-5 SUWON HWASEONG: south from Seoul to meet the forces coming
        up from the Nakdong. A jeep run outside the north wall with gunners
        behind the parapet, in through Janganmun's half-moon wall, then the
        old town on foot to Paldalmun */
     16: {
-      id: 16, refugees: true, music: "heritage", label: "STAGE 2-4", clock: 420,
+      id: 16, refugees: true, music: "heritage", label: "STAGE 2-5", clock: 420,
       path: cityPath([[0, -236], [1, -222], [2, -206], [2, -190], [1, -174], [0, -158], [-1, -142], [-1.2, -126], [-0.6, -112], [0, -100], [0, -90], [0, -80], [0, -72]]),
       boss: cityBoss(), chase: "jeep",
       walls: [
@@ -7217,8 +7280,31 @@
       ],
       bossRadio: "판문각 상공에 적 공격헬기! 기총 소사를 피해 기체를 집중 사격하라!"
     },
+    /* (cheorwon-gangneung) 3-8 SINUIJU: border city on the Yalu. Rail bridge over the river,
+       riverside streets, the last stretch before Paektu. Id 23 sits after 3-7 Wonsan and before
+       the Yalu & Paektu chase (now 3-9). The bridge reuses the hanBridge arch (Han model). */
+    23: {
+      id: 23, music: "dmz", label: "STAGE 3-8", clock: 420,
+      path: cityPath([[0, -236], [1, -222], [2, -208], [1.5, -194], [0, -180], [-1.5, -166], [-1, -150], [0, -136], [0.5, -120], [0, -100], [0, -84], [0, -72]]),
+      boss: cityBoss(),
+      waves: genWaves(2323, ["YALU BANK", "RIVERSIDE", "BORDER BRIDGE"], [
+        "강변 제방 확보! 콘크리트 뒤에 엄폐하라!", "강변 도로에 적 오토바이!", "적 헬기 출현! 철교 아래로 엄폐!",
+        "주민 대피 중, 오사 주의!", "적 증원, 철교 남단 방면!", "적 헬기 재접근!", "적 공수 강하! 철교 입구를 지켜라!"], { bikes: true, hostage: true, paras: true }),
+      dress: "citygen", bossKind: "apc", bossTank: true, bossHp: 120, armorWave: 5, armorTank: true, armorHp: 18,
+      city: {
+        seed: 23, mood: "dusk", river: true, tall: 14, tints: [0xd8d0c0, 0xc8c0b0, 0xb8b0a0],
+        sign: [-12.4, -44, "신의주", "SINUIJU", Math.PI / 2, "#5a4a2a"],
+        cars: [["truck", -7.8, -8, Math.PI], ["police", -7.4, 24, Math.PI]],
+        banners: [[-12.2, 6, "압록강", "#2a4aa8", 9], [-12.2, 40, "국경 교량", "#c22a2a"]],
+        hills: [[60, 200, 200, 60, 30]],
+        landmarks: [["hanBridge", -180, "arch"], ["taper", -160, 260, 150], ["fire", -12.6, 8.2, -128, 1.0], ["fire", -18, 0.4, -58, 1.4], ["fire", 16, 0.4, -50, 1.2]]
+      },
+      introDur: 5.0, introCam: [[-26, 16, -270, 0, 3, -170], [0, 1.68, -236, 0, 1.55, -222]],
+      introLines: [{ t: 0.4, text: "신의주. 압록강 철교 앞이다. 다리를 넘으면 백두산이 가깝다." }, { t: 2.4, text: "강변 시가지를 뚫고 철교 끝까지 진격하라!" }],
+      bossRadio: "철교 남단에 적 장갑차! 흡기구를 노리고 수류탄!"
+    },
     5: {
-      id: 5, music: "paektu", label: "STAGE 3-6", clock: 400, path: PATH5, waves: WAVES5, boss: BOSS5,
+      id: 5, music: "paektu", label: "STAGE 3-9", clock: 400, path: PATH5, waves: WAVES5, boss: BOSS5,
       dress: "paektu", bossKind: "commander", bossHp: 40, chase: true,
       introDur: 5.2,
       introCam: [[7.0, 9.0, -176.0, 0, 1.0, -128.0], [0, 1.68, -152.0, 0, 1.55, -138.0]],
@@ -7228,8 +7314,36 @@
       ],
       bossRadio: "천지 전망대에 적 총사령관 확인! 경호원을 쓰러뜨리고 사령관을 제압하라!"
     },
+    /* (plan, UNVERIFIED) 3-4 NAMPO SEA LOCK: a lock gate across the dike road just
+       short of Pyongyang. Geometry kept on the land strip (z > -62): the lock is
+       lmSeaLock() at z -36, the gunner walls stand either side of the gate run.
+       No sea layout here (sea:true would put the path over water). */
+    20: {
+      id: 20, refugees: true, music: "landing", label: "STAGE 3-4", clock: 420, chase: "jeep",
+      path: cityPath(),
+      boss: cityBoss(),
+      walls: [
+        { z: -46, msg: "갑문 둑 위에 적! 난간 뒤를 노려라!", men: [[10.4, -48, 5.45], [10.4, -42, 5.45, 1], [-10.4, -44, 5.45]] },
+        { z: -30, msg: "조작실 옥상에 적 기관총!", men: [[-10.4, -32, 5.45, 1], [10.4, -28, 5.45]] },
+        { z: -16, msg: "갑문 문 위 난간에 적! 아래 둑길도 조심!", men: [[-10.4, -18, 7.1], [10.4, -18, 7.1, 1]] }
+      ],
+      waves: genWaves(2020, ["LOCK GATE", "DIKE ROAD", "PIER"], [
+        "갑문 앞 둑길 확보! 난간 뒤에 붙어라!", "둑길 위로 적 오토바이!", "적 헬기 출현! 조작실 그늘로 엄폐!",
+        "작업자 대피 중, 오사 주의!", "적 증원, 교각 방면!", "적 헬기 재접근!", "적 공수 강하! 갑문을 지켜라!"], { bikes: true, hostage: true, heliWaves: [1, 4] }),
+      dress: "citygen", bossKind: "heli", bossHp: 52, armorWave: 3, armorTank: false, armorHp: 14,
+      city: {
+        seed: 20, mood: "dusk", tints: [0xd8d4c8, 0xc8c4b8, 0xb8b4a8], sign: [12.4, -44, "남포", "NAMPO", -Math.PI / 2, "#2a5a7a"],
+        cars: [["truck", 7.8, -30, Math.PI]],
+        banners: [[-12.2, -10, "서해갑문", "#2a4aa8", 9]],
+        hills: [[-120, 210, 200, 60, 26]],
+        landmarks: [["seaLock", 0, -36], ["hedgehogs", [[-6, -24], [6, -22], [-8, -12], [8, -12]]], ["fire", -18, 0.4, -44, 1.2], ["fire", 16, 0.4, -40, 1.1]]
+      },
+      introDur: 4.6, introCam: [[-20, 18, -150, 0, 6, -100], [0, 1.68, -120, 0, 1.55, -106]],
+      introLines: [{ t: 0.4, text: "평양 직전, 남포 서해갑문. 조수를 막는 둑길이 적의 마지막 통로다." }, { t: 2.4, text: "갑문을 넘어 평양 방면으로 진격하라!" }],
+      bossRadio: "갑문 상공에 적 공격헬기! 기체에 집중 사격!"
+    },
     4: {
-      id: 4, music: "pyongyang", label: "STAGE 3-4", clock: 380, path: PATH3, waves: WAVES3, boss: BOSS3,
+      id: 4, music: "pyongyang", label: "STAGE 3-5", clock: 380, path: PATH3, waves: WAVES3, boss: BOSS3,
       dress: "pyongyang", bossKind: "apc", bossTank: true, bossHp: 110,
       introDur: 4.0,
       introCam: [[-8.0, 9.0, -58.0, 0, 6.0, -6.0], [0, 1.68, -44.0, 0, 1.55, -30.0]],
@@ -7238,6 +7352,59 @@
         { t: 2.2, text: "눈보라를 뚫고 평양 시가로 진입하라. 목표는 중앙 광장!" }
       ],
       bossRadio: "광장에 적 주력 전차! 포구를 막고 앞쪽 흡기구를 노려라!"
+    },
+    /* (wonsan) 3-6 WONSAN: dropped from the sky over the pine beach and the
+       resort, the anti-air gunners in the dunes, then the landing and the
+       street fight north to the harbour. Id 19 sits between 3-5 and 3-7. */
+    19: {
+      id: 19, music: "landing", label: "STAGE 3-7", clock: 420, chase: "para",
+      path: cityPath([[0, -190], [0, -176], [0.6, -162], [1.0, -148], [0.6, -134], [0, -120], [-0.4, -110], [0, -100], [0, -90], [0, -80], [0, -68]]),
+      boss: cityBoss(),
+      waves: genWaves(1919, ["PINE BEACH", "RESORT", "HARBOUR"], [
+        "착지 지점 확보! 해송 숲 엄폐!", "리조트 골목에 적 오토바이!", "적 헬기 출현! 방파제 뒤로!",
+        "피난민이 항구로 몰린다, 오사 주의!", "적 증원, 명사십리 방면!", "적 헬기 재접근!", "적 공수 강하! 항만을 지켜라!"], { bikes: true, hostage: true }),
+      dress: "citygen", bossKind: "apc", bossTank: true, bossHp: 90, armorWave: 4, armorTank: true, armorHp: 16,
+      city: {
+        seed: 19, mood: "day", sea: true, tints: [0xf4eee0, 0xe8e2d2, 0xd8d0be],
+        sign: [12.4, -44, "원산 해변", "WONSAN BEACH", -Math.PI / 2, "#2a7a8a"],
+        cars: [["police", -7.4, 24, Math.PI]],
+        banners: [[12.2, -20, "원산 명사십리", "#2a7a8a", 9], [-12.2, 20, "원산항", "#2a4a8a"]],
+        hills: [[-120, 220, 200, 60, 30]],
+        landmarks: [["beach", -70.5, -45], ["ship", -46, -150, 0.25, 52, 1.1], ["cranes", [[-150, -40, -0.2]]], ["fire", -18, 0.4, -58, 1.4]]
+      },
+      /* the intro ends at the drop height: CAM_Y 1.68 + PARA_H 46, written as a literal
+         because STAGES is built before PARA_H exists */
+      introDur: 5.0, introCam: [[14, 70, -240, 0, 4, -190], [0, 1.68 + 46, -190, 0, 1.55, -176]],
+      introLines: [{ t: 0.4, text: "20XX년 9월, 원산 상공 3000m. 낙하 개시!" }, { t: 2.4, text: "해변과 항구의 적을 쏘며 강하하라. 착지 후 시가전!" }],
+      bossRadio: "항만 부두에 적 장갑차! 흡기구를 노리고 수류탄을 던져라!"
+    },
+    /* (cheorwon-gangneung) 2-6 CHEORWON PLAIN: open paddy land just south of the DMZ.
+       Wide flat ground, wire fence and watchtowers. Built from the 2-5 walls layout (the
+       watchtowers reuse the wall gunner slots). Id 22 sits after 2-5 and before 3-1. */
+    22: {
+      id: 22, refugees: true, music: "dmz", label: "STAGE 2-6", clock: 420,
+      path: cityPath([[0, -236], [0.6, -222], [1, -208], [0.4, -194], [-0.4, -180], [0, -166], [0.6, -150], [0, -136], [0, -120], [0, -100], [0, -80], [0, -72]]),
+      boss: cityBoss(),
+      walls: [
+        { z: -196, msg: "감시초소 위에 적! 철책 너머를 노려라!", men: [[-19.3, -200, 12.0, 1], [19.3, -194, 5.45]] },
+        { z: -150, msg: "논두렁 뒤 초소에 적 저격병!", men: [[19.3, -152, 5.45, 1], [-19.3, -146, 5.45]] },
+        { z: -104, msg: "철책 옆 참호에 적 기관총!", men: [[-15.8, -108, 5.45, 1], [15.8, -100, 5.45]] }
+      ],
+      waves: genWaves(2222, ["PADDY ROAD", "WIRE LINE", "WATCHTOWER"], [
+        "논두렁 길 확보! 물웅덩이 뒤에 엄폐하라!", "철책 옆으로 적 오토바이!", "적 헬기 출현! 초소 그늘로 엄폐!",
+        "농민 대피 중, 오사 주의!", "적 증원, 감시초소 방면!", "적 헬기 재접근!", "적 공수 강하! 철책선을 지켜라!"], { bikes: true, hostage: true }),
+      dress: "citygen", bossKind: "apc", bossTank: true, bossHp: 88, armorWave: 4, armorTank: false, armorHp: 14,
+      city: {
+        seed: 22, mood: "morning", low: true, tints: [0xd8e0c0, 0xcad4b0, 0xbcc8a0],
+        sign: [12.4, -44, "철원", "CHEORWON", -Math.PI / 2, "#4a6a3a"],
+        cars: [["truck", -7.8, -16, 0.1]],
+        banners: [[-12.2, -8, "철원 평야", "#4a6a3a", 9], [12.2, 22, "철책선", "#2f4a56"]],
+        hills: [[-120, 260, 200, 60, 40], [120, 260, 200, 60, 40]],
+        landmarks: [["guardTower", -24, 10, Math.PI / 2], ["guardTower", 24, -30, -Math.PI / 2], ["hedgehogs", [[-6, -40], [6, -38]]], ["fire", -17, 0.4, 24, 1.2], ["fire", 16, 0.4, 48, 1.1]]
+      },
+      introDur: 4.6, introCam: [[-30, 20, -220, 0, 6, -150], [0, 1.68, -190, 0, 1.55, -176]],
+      introLines: [{ t: 0.4, text: "철원 평야. 넓게 열린 논과 철책, 그리고 감시초소." }, { t: 2.4, text: "초소의 시야를 피해 철책선을 따라 북으로 간다!" }],
+      bossRadio: "들판 가운데 적 장갑차! 흡기구를 노리고 수류탄!"
     },
     2: {
       id: 2, music: "dmz", label: "STAGE 3-1", clock: 360, path: PATH2, waves: WAVES2, boss: BOSS2,
@@ -7659,7 +7826,7 @@
     /* the vehicle is only under you until the first stop (jeep) or the
        beach (landing craft); after that it is a man on foot again */
     let vehU = -1;
-    if (STAGE.chase && STAGE.chase !== "heli" && STAGE.chase !== "train") {
+    if (STAGE.chase && STAGE.chase !== "heli" && STAGE.chase !== "train" && STAGE.chase !== "para") {
       vehU = holdUs && holdUs.length ? holdUs[0] : 0;
       if (STAGE.chase === "boat") { vehU = 1; const zEnd = STAGE.raft ? -76 : -69; for (let i = 0; i <= 200; i++) if (curve.getPointAt(i / 200).z > zEnd) { vehU = i / 200; break; } }
     }
@@ -9068,6 +9235,7 @@
     });
     posts.length = 0;
     if (chase) chase.fx.forEach((m) => m.parent && m.parent.remove(m));
+    if (paraRig) paraRig.visible = false;
     chase = null;
     if (jeepRig) jeepRig.visible = false;
     if (boatRig) boatRig.visible = false;
@@ -10574,7 +10742,7 @@
   /* (v55) the assault helicopter's height over the rail: 14 m out over the
      paddies, settling over the last 44 m to the landing at the first stop */
   /* camera height over the rail while riding: the helicopter's, or the flatcar's deck */
-  function chaseAlt(u) { return chase && chase.heli ? heliAlt(u) : chase && chase.train ? 1.2 : 0; }
+  function chaseAlt(u) { return chase && chase.para ? paraAlt(u) : chase && chase.heli ? heliAlt(u) : chase && chase.train ? 1.2 : 0; }
   const HELI_ALT = 14;
   function heliAlt(u) {
     if (STAGE.chase !== "heli" || !waves || !waves[0]) return 0;
@@ -10585,8 +10753,89 @@
   window.__heliAlt = () => (chase && chase.heli ? +heliAlt(pathU).toFixed(2) : 0);
   window.__allyRidesAt = () => allyRides.map((r) => [+r.g.position.x.toFixed(1), +r.g.position.z.toFixed(1), r.stop]);
 
+  /* (wonsan) 3-6 WONSAN: the squad drops from the sky over the resort coast.
+     Altitude eases from PARA_H down to the ground over the last PARA_DROP
+     metres before the first zone (smoothstep, the same shape as heliAlt). */
+  const PARA_H = 46, PARA_DROP = 58;
+  function paraAlt(u) {
+    if (!chase || !chase.para || !waves || !waves[0]) return 0;
+    const d = (waves[0].u - u) * pathLen;            /* metres still to the first zone */
+    const k = Math.max(0, Math.min(1, (d - 2) / PARA_DROP));
+    return PARA_H * k * k * (3 - 2 * k);
+  }
+  /* the canopy overhead and its lines: one dome + one LineSegments = 2 draw calls */
+  let paraRig = null;
+  function makeParaRig() {
+    const g = new T.Group();
+    const cloth = new T.MeshBasicMaterial({ color: 0x5a6446, side: T.DoubleSide });
+    const dome = new T.Mesh(new T.SphereGeometry(2.6, 14, 6, 0, Math.PI * 2, 0, Math.PI / 2), cloth);
+    dome.position.set(0, 1.55, -4.6);                /* top of the portrait frame, in view */
+    g.add(dome);
+    const pts = [];
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2;
+      pts.push(new T.Vector3(Math.cos(a) * 2.5, 1.55, -4.6 + Math.sin(a) * 1.0));
+      pts.push(new T.Vector3(0, -0.6, -1.4));         /* harness, just above the lens */
+    }
+    g.add(new T.LineSegments(new T.BufferGeometry().setFromPoints(pts), new T.LineBasicMaterial({ color: 0xd8d4c6 })));
+    g.visible = false;
+    return g;
+  }
+  /* AA gunners in the dunes and the resort lanes: they fire up at the canopy
+     from 40-54 m out; shootRay reaches 90 m while chase.para (see below) */
+  function spawnParaGround(ctx, side, k) {
+    const ahead = 40 + Math.random() * 14;
+    const u = Math.min(1, pathU + ahead / pathLen), pt = pathAt(u);
+    const L = side * (6 + Math.random() * 6);
+    const p = makePost({ yaw: 0, hold: { x: pt.x, z: pt.z - 2 } }, { role: k % 3 === 2 ? "tough" : "weak", lat: 0, dep: 2, cover: "rail" }, 70 + k);
+    p.run = null; p.live = true; p.state = "chase"; p.expose = 1; p.coverTop = undefined;
+    p.chase = { ahead: ahead, lat: L, ph: Math.random() * 6, speed: 0, ground: true, armMax: 44, armMin: 8 };
+    p.aimMax = 1.9 * (DIFF.aim || 1); p.aim = p.aimMax;
+    chase.riders.push(p);
+    return p;
+  }
+  /* one trooper from the same sky, dropping 26-32 m ahead of us, a dozen metres up.
+     makeParaPost pushes him into posts; stepParaPosts flies him down while we move. */
+  function spawnParaWave(ctx, k) {
+    const cam = ctx.camera.position;
+    const w = { hold: { x: cam.x, z: cam.z }, yaw: 0, halfTan: 9 };
+    const lat = (k % 2 ? 1 : -1) * (2 + Math.random() * 4);
+    try {
+      const q = makeParaPost(w, { air: "para", role: "para", lat: lat, dep: 26 + Math.random() * 6, y: 12 + Math.random() * 2, land: [lat * 0.8, 14 + Math.random() * 4] }, 150 + k);
+      q.live = true; q.state = "drop"; q.burstN = 0; q.aim = (q.aimMax || 2.4) * (0.8 + Math.random() * 0.4);
+    } catch (err) { window.__paraErr = String(err && err.stack || err); }
+  }
+  /* move phase does not run stepPost, so the falling troopers are stepped here */
+  function stepParaPosts(ctx, dt) {
+    posts.forEach((p) => { if (p.air === "para" && p.live !== false && p.e.alive !== false) stepPara(p, ctx, dt); });
+  }
+  /* touchdown: dust round the feet, a hard jolt, the radio */
+  function landingFx(ctx) {
+    const cam = ctx.camera.position;
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2;
+      smokeAt(ctx, cam.x + Math.cos(a) * 2.2, 0.4, cam.z + Math.sin(a) * 2.2, 0xcfc3a0);
+    }
+    shake = Math.max(shake, 1.4);
+    gun("boom");
+    radio("착지! 해송 숲 엄폐 후 시가지로 진입하라!", 3400);
+    window.__paraDrop = (window.__paraDrop || 0) + 1;
+  }
   function startChase(ctx) {
     const boat = STAGE.chase === "boat";
+    if (STAGE.chase === "para") {
+      /* (wonsan) already in the air: no vehicle, only the canopy over the lens */
+      allyRides.forEach((r) => r.g.parent && r.g.parent.remove(r.g));
+      allyRides.length = 0;
+      if (!paraRig) { paraRig = makeParaRig(); ctx.camera.add(paraRig); }
+      paraRig.visible = true;
+      [jeepRig, boatRig, heliRig, raftRig, trainRig].forEach((r) => { if (r) r.visible = false; });
+      chase = { t: 0, i: 0, plan: [1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23], riders: [], para: true, fx: [], sink: [], splashT: 9 };
+      if (dress && dress.ally) dress.ally.visible = false;
+      radio("상공 3000m! 낙하 개시, 해변의 적을 쏘며 강하하라!", 3400);
+      bark("chasePara", 4200);
+      return;
+    }
     if (STAGE.chase === "train") {
       if (!trainRig) { trainRig = makeTrainRig(); ctx.camera.add(trainRig); }
       trainRig.visible = true;
@@ -10786,6 +11035,7 @@
     while (chase.i < chase.plan.length && chase.t >= chase.plan[chase.i]) {
       const k = chase.i++;
       const side = k % 2 ? 1 : -1;
+      if (chase.para) { spawnParaGround(ctx, side, k); spawnParaWave(ctx, k); if (k % 3 === 1) spawnParaGround(ctx, -side, k + 20); continue; }
       if (chase.heli) {
         /* (v57) a squad each time, both sides, and armour twice on the run in */
         spawnChaser(ctx, side, k); spawnChaser(ctx, -side, k + 20);
@@ -10799,6 +11049,7 @@
     }
     const cam = ctx.camera;
     if (chase.train) stepEnemyTrains(ctx, dt);
+    if (chase.para) stepParaPosts(ctx, dt);
     if (chase.bridges) chase.bridges.forEach((B) => {
       /* (v58) a section on each bridge deck, firing down at the boats */
       if (B.done || cam.position.z < B.z - 44) return;
@@ -10896,6 +11147,13 @@
         if (p.mesh && p.mesh.parent) p.mesh.parent.remove(p.mesh);
       }
     });
+    if (chase.para && paraRig) {
+      /* the canopy sways under the chute, more when it is still high */
+      const t = chase.t, a = paraAlt(pathU);
+      paraRig.rotation.z = Math.sin(t * 0.9) * 0.05 * (0.4 + a / PARA_H);
+      paraRig.rotation.x = Math.sin(t * 0.7) * 0.02;
+      paraRig.position.x = Math.sin(t * 0.6) * 0.12;
+    }
     if (chase.heli && heliRig) {
       const t = chase.t;
       heliRig.position.y = Math.sin(t * 1.4) * 0.05;
@@ -10964,11 +11222,13 @@
     if (jeepRig) jeepRig.visible = false;
     if (boatRig) boatRig.visible = false;
     if (heliRig) heliRig.visible = false;
+    if (paraRig) paraRig.visible = false;
     if (raftRig) raftRig.visible = false;
     if (trainRig) trainRig.visible = false;
     if (dress && dress.ally) dress.ally.visible = true;
     if (STAGE.chase === "train") radio("흥남역 도착! 하차, 역 광장을 확보하라!", 3200);
     else if (STAGE.raft) radio("도하 성공! 호안 계단으로 올라가 교두보를 확보하라!", 3200);
+    else if (STAGE.chase === "para") landingFx(ctx);
     else if (STAGE.chase === "heli") radio("착륙! 전원 하기, 개성공단 정문을 확보하라!", 3200);
     else if (STAGE.walls) radio("장안문 돌파! 하차, 행궁 방면으로 진격하라!", 3200);
     else if (wasBoat) radio("램프 개방! 상륙, 상륙! 해안 교두보를 확보하라!", 3200);
@@ -11482,10 +11742,10 @@
     try { shot = window.MG && window.MG.snap ? window.MG.snap(1280) : null; } catch (e) {}
     const ko = (document.documentElement.lang || "").startsWith("ko");
     /* (v21) the campaign runs in war order, not in id order */
-    const ORD = [6, 7, 8, 9, 10, 11, 12, 14, 1, 16, 2, 3, 13, 4, 15, 5];
+    const ORD = [6, 7, 8, 9, 10, 21, 17, 11, 12, 14, 1, 18, 16, 22, 2, 3, 13, 20, 4, 15, 19, 23, 5];
     const NM = { 1: ["서울 수복", "RETAKE SEOUL"], 2: ["DMZ·판문점", "DMZ & PANMUNJOM"], 3: ["평화의 집", "PEACE HOUSE"], 4: ["평양 진입", "INTO PYONGYANG"], 5: ["압록강·백두산", "YALU & PAEKTU"],
       6: ["서울 함락", "FALL OF SEOUL"], 7: ["대전", "DAEJEON"], 8: ["대구", "DAEGU"], 9: ["광주", "GWANGJU"], 10: ["경주", "GYEONGJU"], 11: ["부산", "BUSAN"], 12: ["인천 상륙작전", "INCHEON LANDING"],
-      13: ["개성공단", "KAESONG"], 14: ["한강 도하", "HAN RIVER CROSSING"], 15: ["흥남", "HEUNGNAM"], 16: ["수원 화성", "SUWON HWASEONG"] };
+      13: ["개성공단", "KAESONG"], 14: ["한강 도하", "HAN RIVER CROSSING"], 15: ["흥남", "HEUNGNAM"], 16: ["수원 화성", "SUWON HWASEONG"], 17: ["울산·포항", "ULSAN & POHANG"], 19: ["원산", "WONSAN"], 18: ["의정부·동두천", "UIJEONGBU & DONGDUCHEON"], 20: ["남포 서해갑문", "NAMPO SEA LOCK"], 21: ["강릉", "GANGNEUNG"], 22: ["철원 평야", "CHEORWON PLAIN"], 23: ["신의주", "SINUIJU"] };
     const oi = ORD.indexOf(stageId);
     const nId = oi >= 0 && oi < ORD.length - 1 ? ORD[oi + 1] : 0;
     const nx = cleared && nId ? [nId, "다음 작전 · " + NM[nId][0], "NEXT · " + NM[nId][1]] : null;
@@ -11495,7 +11755,7 @@
     const adB = (!cleared && canOfferReviveAd()) ? "<button class=ad data-act=adrev type=button>🎬 <b>" + (ko ? "광고 보고 이어하기" : "WATCH AD TO CONTINUE") + "</b></button>" : "";
     const head = cleared
       ? ({ 6: ko ? "철수 성공 · 시민 대피 완료" : "WITHDRAWAL COMPLETE", 7: ko ? "지연전 성공 · 대전" : "DAEJEON HELD", 8: ko ? "방어 성공 · 대구" : "DAEGU HELD", 9: ko ? "방어 성공 · 광주" : "GWANGJU HELD",
-          10: ko ? "방어 성공 · 경주" : "GYEONGJU HELD", 11: ko ? "최후 방어선 사수 · 부산" : "THE PERIMETER HOLDS", 12: ko ? "상륙 성공 · 인천 탈환" : "INCHEON RETAKEN", 13: ko ? "개성공단 탈환 · 관리위원회 확보" : "KAESONG RETAKEN", 14: ko ? "한강 도하 성공 · 용산 진입" : "THE HAN IS CROSSED", 15: ko ? "흥남 확보 · 부두 장악" : "HEUNGNAM SECURED", 16: ko ? "수원 화성 탈환 · 남북 연결" : "HWASEONG RETAKEN · LINK-UP" }[stageId]) || (stageId === 2 ? (ko ? "작전 성공 · JSA 확보" : "MISSION CLEAR · JSA SECURED") : stageId === 3 ? (ko ? "작전 성공 · 판문각 확보" : "MISSION CLEAR · PANMUNGAK SECURED") : stageId === 4 ? (ko ? "작전 성공 · 평양 광장 확보" : "MISSION CLEAR · SQUARE SECURED") : stageId === 5 ? (ko ? "최종 작전 성공 · 총사령관 제압" : "FINAL MISSION · LEADER DOWN")  : (ko ? "서울 수복 · 숭례문 탈환" : "SEOUL RETAKEN"))
+          10: ko ? "방어 성공 · 경주" : "GYEONGJU HELD", 17: ko ? "제철소 확보 · 울산·포항" : "ULSAN & POHANG SECURED", 19: ko ? "해변 확보 · 원산" : "WONSAN SECURED", 18: ko ? "산악 도로 확보 · 의정부" : "THE MOUNTAIN ROAD HELD", 20: ko ? "서해갑문 확보 · 남포" : "NAMPO LOCK HELD", 21: ko ? "해안 확보 · 강릉" : "GANGNEUNG SECURED", 22: ko ? "평야 확보 · 철원" : "CHEORWON PLAIN SECURED", 23: ko ? "국경 확보 · 신의주" : "SINUIJU SECURED", 11: ko ? "최후 방어선 사수 · 부산" : "THE PERIMETER HOLDS", 12: ko ? "상륙 성공 · 인천 탈환" : "INCHEON RETAKEN", 13: ko ? "개성공단 탈환 · 관리위원회 확보" : "KAESONG RETAKEN", 14: ko ? "한강 도하 성공 · 용산 진입" : "THE HAN IS CROSSED", 15: ko ? "흥남 확보 · 부두 장악" : "HEUNGNAM SECURED", 16: ko ? "수원 화성 탈환 · 남북 연결" : "HWASEONG RETAKEN · LINK-UP" }[stageId]) || (stageId === 2 ? (ko ? "작전 성공 · JSA 확보" : "MISSION CLEAR · JSA SECURED") : stageId === 3 ? (ko ? "작전 성공 · 판문각 확보" : "MISSION CLEAR · PANMUNGAK SECURED") : stageId === 4 ? (ko ? "작전 성공 · 평양 광장 확보" : "MISSION CLEAR · SQUARE SECURED") : stageId === 5 ? (ko ? "최종 작전 성공 · 총사령관 제압" : "FINAL MISSION · LEADER DOWN")  : (ko ? "서울 수복 · 숭례문 탈환" : "SEOUL RETAKEN"))
       : (ko ? "작전 실패" : "MISSION FAILED");
     const box = document.createElement("div");
     box.id = "railResult";
@@ -12116,7 +12376,7 @@
     ctx.scene.updateMatrixWorld(true);
     const ray = new T.Raycaster();
     ray.setFromCamera(new T.Vector2(aimN.x, aimN.y), ctx.camera);
-    ray.far = 34;
+    ray.far = (chase && chase.para) ? 90 : 34;
     const owned = [];
     const addOwned = (mesh, extra, sort) => { if (mesh) owned.push({ mesh, extra, sort }); };
     /* every man who could be on screen, whether he is peeking or ducked; his
@@ -13327,7 +13587,7 @@
         const so = steerStep(p, tx, tz, dt, pathU);
         const alt = chaseAlt(pathU);
         cam.position.set(p.x + tz * so, CAM_Y + alt, p.z - tx * so);
-        if (chase && !chase.heli && !chase.train) vehSmash(ctx, cam.position.x, cam.position.z, tx, tz);
+        if (chase && !chase.heli && !chase.train && !chase.para) vehSmash(ctx, cam.position.x, cam.position.z, tx, tz);
         const ahead = pathAt(pathU + (7 + alt * 1.3) / pathLen);
         const zone = phase === "toBoss" ? { x: BOSS_DEF.look[0], y: BOSS_DEF.look[1], z: BOSS_DEF.look[2] }
                                         : (waves[waveI] ? waves[waveI].look : null);
@@ -13411,7 +13671,7 @@
     const sway = Math.sin(nowMs / 2400) * 0.0016;
     cam.position.x += sx + kickV.x;
     cam.position.z += sz + kickV.z;
-    if (phase !== "intro") cam.position.y = CAM_Y + sy + Math.sin(nowMs / 1700) * 0.006 + (chase ? Math.sin(nowMs / 90) * 0.012 : 0) + (chase && chase.heli ? heliAlt(pathU) + Math.sin(nowMs / 700) * 0.12 : chase && chase.train ? 1.2 + Math.sin(nowMs / 140) * 0.015 : 0);
+    if (phase !== "intro") cam.position.y = CAM_Y + sy + Math.sin(nowMs / 1700) * 0.006 + (chase ? Math.sin(nowMs / 90) * 0.012 : 0) + (chase && chase.para ? paraAlt(pathU) : 0) + (chase && chase.heli ? heliAlt(pathU) + Math.sin(nowMs / 700) * 0.12 : chase && chase.train ? 1.2 + Math.sin(nowMs / 140) * 0.015 : 0);
     cam.lookAt(lookSmooth.x, lookSmooth.y + sway, lookSmooth.z);
     if (roll) cam.rotateZ(roll);
     cam.near = 0.06;
@@ -13568,7 +13828,7 @@
         if (p.live === false || p.e.alive === false || p.expose <= 0.42 || !p.mesh) return;
         tmpV.set(p.mesh.position.x, p.y + 0.95, p.mesh.position.z).sub(aimRay.ray.origin);
         const along = tmpV.dot(aimRay.ray.direction);
-        if (along < 2.5 || along > 34) return;
+        if (along < 2.5 || along > (chase && chase.para ? 90 : 34)) return;
         const perp = tmpV.addScaledVector(aimRay.ray.direction, -along).length();
         if (perp < 0.95 && along < aimD) aimD = along;
       });
@@ -14013,6 +14273,7 @@
     chaseBoat: [["kim", "우욱… 해안까지 얼마나 남았죠…", "Urgh… how far to the beach…"]],
     chaseTrain: [["park", "옆 열차 화차 문 열린다! 안에서 쏜다!", "Box-car doors opening! They'll fire from inside!"], ["kim", "기차 위에서 싸우는 건 영화에서만 봤는데요!", "I've only seen fights on a train in movies!"]],
     chaseRaft: [["kim", "저 수영 못 하는 거 아시죠…?! 엔진 최대로 갑니다!", "You know I can't swim…! Full throttle!"], ["park", "고개 숙여! 다리 위에서 쏜다!", "Heads down! They're firing off the bridge!"]],
+    chasePara: [["park", "낙하산 펼쳐! 줄을 당기며 조준하라!", "Chutes out! Hold your aim!"], ["kim", "바다가… 가까워집니다!", "The sea is coming up fast!"]],
     chaseHeli: [["park", "도어건 쏜다! 지상 사격 조심해!", "Door gun's hot! Watch the ground fire!"], ["kim", "저, 저 아래 전부 적입니다!", "Th-that's all enemy down there!"]]
   };
   let barkT = 0, barkHide = 0, barkHurt = false;
@@ -16235,6 +16496,22 @@
     bx(S, 5.6, 1.2, 2.8, x, 1.9 + h * 0.86, z, st);
     bx(S, 3.4, 0.8, 2.8, x, 1.9 + h * 0.6, z, st);
   }
+  /* (plan, UNVERIFIED) the Nampo sea lock: a concrete gate across the dike with two
+     piers that stop bullets and feet, a deck the gunships climb over (air), hoist
+     housings and bollards. The channel between the piers stays open. */
+  function lmSeaLock(S, x, z) {
+    const conc = cmat(0x9a9890, 0.9), steel = cmat(0x5a6066, 0.55, 0.5), dark = cmat(0x3a4044, 0.6);
+    [-1, 1].forEach((s) => {
+      bx(S, 5, 7, 16, x + s * 10.5, 3.5, z, conc, { wall: 1 });
+      bx(S, 2.6, 0.4, 16, x + s * 10.5, 7.2, z, steel);
+      bx(S, 3, 3, 3, x + s * 10.5, 8.7, z - 4, dark);
+      cyl(S, 0.5, 0.5, 2.4, x + s * 10.5, 8.6, z + 4, steel, 8);
+    });
+    bx(S, 26, 0.8, 6, x, 8.2, z, conc).userData.air = 1;
+    bx(S, 26, 0.9, 0.3, x, 9.2, z + 2.9, steel).userData.air = 1;
+    bx(S, 26, 0.9, 0.3, x, 9.2, z - 2.9, steel).userData.air = 1;
+    for (let k = -6; k <= 6; k += 3) cyl(S, 0.3, 0.3, 1.0, x + k * 1.4, 0.8, z - 10, steel, 6);
+  }
   function lmHedgehog(S, x, z) {
     const m = cmat(0x5a4a3e, 0.6, 0.5);
     [[0, 0.62], [Math.PI / 2, 0.62], [0, -0.62]].forEach(([ry, rz], i) => {
@@ -17834,7 +18111,7 @@
       if (TURNS.length && listy[L[0]] && Array.isArray(L[1]) && L[1].length > 1) L[1].forEach((it) => LMS.push([L[0], [it]]));
       else LMS.push(L);
     });
-    const FIXED = { ship: 1, boats: 1, cranes: 1, lighthouse: 1, beach: 1, hedgehogs: 1 };
+    const FIXED = { ship: 1, boats: 1, cranes: 1, lighthouse: 1, beach: 1, hedgehogs: 1, seaLock: 1 };
     LMS.forEach((L) => {
       const G = new T.Group();
       if (FIXED[L[0]] || (L[0] === "suspension" && C.seaSide)) G.userData.fixedLeg = 1;
@@ -17855,6 +18132,7 @@
         else if (k === "twin") lmTwinPillar(S, L[1], L[2], L[3]);
         else if (k === "ship") lmShip(S, L[1], L[2], L[3], L[4], L[5]);
         else if (k === "hedgehogs") L[1].forEach((p) => lmHedgehog(S, p[0], p[1]));
+        else if (k === "seaLock") lmSeaLock(S, L[1], L[2]);
         else if (k === "fire") addFire(S, fires, L[1], L[2], L[3], L[4] || 1);
         else if (k === "skyline") voxSkyline(S, L[1]);
         else if (k === "monorail") lmMonorail(S, L[1], L[2], L[3]);

@@ -38,17 +38,24 @@
     { id: 8, lab: "1-3", ch: 1, ko: "대구", en: "DAEGU", sub: "낙동강 방어선", subEn: "NAKDONG LINE", boss: "장갑차", bossEn: "APC", c: "#6a3a5a" },
     { id: 9, lab: "1-4", ch: 1, ko: "광주", en: "GWANGJU", sub: "금남로 · 무등산", subEn: "GEUMNAM-RO", boss: "공격헬기", bossEn: "GUNSHIP", c: "#4a5a2a" },
     { id: 10, lab: "1-5", ch: 1, ko: "경주", en: "GYEONGJU", sub: "천년고도 · 석탑", subEn: "OLD CAPITAL", boss: "적 지휘관", bossEn: "COMMANDER", c: "#7a5a2a" },
-    { id: 11, lab: "1-6", ch: 1, ko: "부산", en: "BUSAN", sub: "최후 방어선", subEn: "LAST PERIMETER", boss: "주력 전차", bossEn: "MAIN TANK", c: "#2a4a7a" },
+    { id: 21, lab: "1-6", ch: 1, ko: "강릉", en: "GANGNEUNG", sub: "동해안 해변 · 솔숲 · 항구", subEn: "EAST COAST · PINE GROVE · HARBOUR", boss: "장갑차", bossEn: "APC", c: "#2a6a6a" },
+    { id: 17, lab: "1-7", ch: 1, ko: "울산·포항", en: "ULSAN & POHANG", sub: "제철소 · 조선소 · 야간", subEn: "STEEL MILL · SHIPYARD · NIGHT", boss: "주력 전차", bossEn: "MAIN TANK", c: "#5a3a2a" },
+    { id: 11, lab: "1-8", ch: 1, ko: "부산", en: "BUSAN", sub: "최후 방어선", subEn: "LAST PERIMETER", boss: "주력 전차", bossEn: "MAIN TANK", c: "#2a4a7a" },
     { id: 12, lab: "2-1", ch: 2, ko: "인천 상륙작전", en: "INCHEON LANDING", sub: "20XX.9.15 · 상륙정", subEn: "20XX.9.15 · LANDING", boss: "공격헬기", bossEn: "GUNSHIP", c: "#2a5a8a" },
     { id: 14, lab: "2-2", ch: 2, ko: "한강 도하", en: "HAN RIVER CROSSING", sub: "고무보트 · 끊어진 다리", subEn: "RUBBER BOATS · BROKEN BRIDGE", boss: "전차", bossEn: "TANK", c: "#2a5a7a" },
     { id: 1, lab: "2-3", ch: 2, ko: "서울 수복", en: "RETAKE SEOUL", sub: "숭례문 탈환", subEn: "SUNGNYEMUN", boss: "적 지휘관", bossEn: "COMMANDER", c: "#4c5c2d" },
-    { id: 16, lab: "2-4", ch: 2, ko: "수원 화성", en: "SUWON HWASEONG", sub: "지프 돌파 · 장안문 · 팔달문", subEn: "JEEP RUN · JANGANMUN · PALDALMUN", boss: "전차", bossEn: "TANK", c: "#7a4a2a" },
+    { id: 18, lab: "2-4", ch: 2, ko: "의정부·동두천", en: "UIJEONGBU & DONGDUCHEON", sub: "산악 도로 · 고개 시가전", subEn: "MOUNTAIN ROAD · RIDGE FIGHT", boss: "장갑차", bossEn: "APC", c: "#4a5a3a" },
+    { id: 16, lab: "2-5", ch: 2, ko: "수원 화성", en: "SUWON HWASEONG", sub: "지프 돌파 · 장안문 · 팔달문", subEn: "JEEP RUN · JANGANMUN · PALDALMUN", boss: "전차", bossEn: "TANK", c: "#7a4a2a" },
+    { id: 22, lab: "2-6", ch: 2, ko: "철원 평야", en: "CHEORWON PLAIN", sub: "논 · 철책 · 감시초소", subEn: "PADDIES · WIRE · WATCHTOWERS", boss: "장갑차", bossEn: "APC", c: "#4a6a3a" },
     { id: 2, lab: "3-1", ch: 3, ko: "DMZ · 판문점", en: "DMZ & PANMUNJOM", sub: "GOP · JSA", subEn: "GOP · JSA", boss: "장갑차", bossEn: "APC", c: "#2f4a56" },
     { id: 3, lab: "3-2", ch: 3, ko: "평화의 집", en: "PEACE HOUSE", sub: "PANMUNJOM · MDL", subEn: "PANMUNJOM · MDL", boss: "공격헬기", bossEn: "GUNSHIP", c: "#3d4f6a" },
     { id: 13, lab: "3-3", ch: 3, ko: "개성공단", en: "KAESONG", sub: "헬기 강습 · 공업지구", subEn: "AIR ASSAULT · INDUSTRIAL ZONE", boss: "경비사령관", bossEn: "GARRISON CMDR", c: "#3a5a7a" },
-    { id: 4, lab: "3-4", ch: 3, ko: "평양 진입", en: "INTO PYONGYANG", sub: "PYONGYANG · SQUARE", subEn: "PYONGYANG · SQUARE", boss: "주력 전차", bossEn: "MAIN TANK", c: "#5a3a34" },
-    { id: 15, lab: "3-5", ch: 3, ko: "흥남", en: "HEUNGNAM", sub: "열차 추격 · 비료공장 · 부두", subEn: "TRAIN CHASE · PLANT · PORT", boss: "공격헬기", bossEn: "GUNSHIP", c: "#5a3a3a" },
-    { id: 5, lab: "3-6", ch: 3, ko: "압록강 · 백두산", en: "YALU & PAEKTU", sub: "CHASE · CHEONJI", subEn: "CHASE · CHEONJI", boss: "총사령관", bossEn: "SUPREME LEADER", c: "#2c4b5e" }
+    { id: 20, lab: "3-4", ch: 3, ko: "남포 서해갑문", en: "NAMPO SEA LOCK", sub: "갑문 둑길 · 서해", subEn: "LOCK DIKE · WEST SEA", boss: "공격헬기", bossEn: "GUNSHIP", c: "#2a5a7a" },
+    { id: 4, lab: "3-5", ch: 3, ko: "평양 진입", en: "INTO PYONGYANG", sub: "PYONGYANG · SQUARE", subEn: "PYONGYANG · SQUARE", boss: "주력 전차", bossEn: "MAIN TANK", c: "#5a3a34" },
+    { id: 15, lab: "3-6", ch: 3, ko: "흥남", en: "HEUNGNAM", sub: "열차 추격 · 비료공장 · 부두", subEn: "TRAIN CHASE · PLANT · PORT", boss: "공격헬기", bossEn: "GUNSHIP", c: "#5a3a3a" },
+    { id: 19, lab: "3-7", ch: 3, ko: "원산", en: "WONSAN", sub: "낙하 강하 · 명사십리 · 항만", subEn: "PARA DROP · SANDBAR BEACH · PORT", boss: "장갑차", bossEn: "APC", c: "#2a5a5a" },
+    { id: 23, lab: "3-8", ch: 3, ko: "신의주", en: "SINUIJU", sub: "압록강 철교 · 강변 시가전", subEn: "YALU BRIDGE · RIVERSIDE STREETS", boss: "장갑차", bossEn: "APC", c: "#5a4a2a" },
+    { id: 5, lab: "3-9", ch: 3, ko: "압록강 · 백두산", en: "YALU & PAEKTU", sub: "CHASE · CHEONJI", subEn: "CHASE · CHEONJI", boss: "총사령관", bossEn: "SUPREME LEADER", c: "#2c4b5e" }
   ];
   const CHAPTERS = { 1: ["CHAPTER 1 · 남침", "CHAPTER 1 · INVASION"], 2: ["CHAPTER 2 · 반격", "CHAPTER 2 · COUNTERSTRIKE"], 3: ["CHAPTER 3 · 북진", "CHAPTER 3 · NORTHWARD"] };
   /* (v52) what each battlefield looks like at a glance: a badge in the quick
@@ -62,6 +69,7 @@
     10: { ic: "🏯", ko: ["유산 시가지", "지휘관"], en: ["HERITAGE", "COMMANDER"] },
     11: { ic: "🌊", ko: ["야간 해안 방어", "주력 전차"], en: ["NIGHT COAST", "MAIN TANK"] },
     12: { ic: "🚢", ko: ["상륙정 · 해안", "헬기"], en: ["LANDING", "GUNSHIP"] },
+    17: { ic: "🏭", ko: ["야간 제철소", "주력 전차"], en: ["NIGHT MILL", "MAIN TANK"] },
     14: { ic: "🛶", ko: ["고무보트 도하", "다리 위 적"], en: ["RIVER CROSSING", "BRIDGE GUNNERS"] },
     1: { ic: "🏙", ko: ["서울 도심", "지휘관"], en: ["CITY", "COMMANDER"] },
     16: { ic: "🚙", ko: ["성곽 지프 돌파", "성벽 위 적"], en: ["FORTRESS JEEP RUN", "WALL GUNNERS"] },
@@ -70,7 +78,13 @@
     13: { ic: "🚁", ko: ["헬기 강습", "공업지구"], en: ["AIR ASSAULT", "INDUSTRIAL"] },
     4: { ic: "❄", ko: ["설원 시가지", "전차"], en: ["SNOW CITY", "TANK"] },
     15: { ic: "🚂", ko: ["열차 추격", "옆 선로 적 열차"], en: ["TRAIN CHASE", "ENEMY TRAINS"] },
-    5: { ic: "🏔", ko: ["압록강 · 천지", "추격"], en: ["YALU · CHEONJI", "CHASE"] }
+    19: { ic: "🪂", ko: ["낙하 강하 · 해변", "장갑차"], en: ["PARA DROP · BEACH", "ARMOUR"] },
+    5: { ic: "🏔", ko: ["압록강 · 천지", "추격"], en: ["YALU · CHEONJI", "CHASE"] },
+    18: { ic: "⛰", ko: ["산악 도로 시가전", "장갑차"], en: ["MOUNTAIN ROAD", "APC"] },
+    20: { ic: "⚓", ko: ["서해갑문 둑길", "공격헬기"], en: ["SEA-LOCK DIKE", "GUNSHIP"] },
+    21: { ic: "🏖", ko: ["해안 · 솔숲", "장갑차"], en: ["COAST · PINES", "APC"] },
+    22: { ic: "🌾", ko: ["논 · 철책 평야", "장갑차"], en: ["PADDIES · WIRE", "APC"] },
+    23: { ic: "🌉", ko: ["압록강 철교", "장갑차"], en: ["YALU BRIDGE", "APC"] }
   };
 
   function blank() { return { xp: 0, best: {}, diff: "normal", mode: "op", plays: 0, clears: 0, pts: 0, inv: {}, skins: ["base"], skin: "base", att: { n: 0, last: "" }, chest: { pending: 0, day: "", earned: 0 }, seen: "", uni: "u-army", unis: ["u-army"] }; }
@@ -436,6 +450,12 @@
     const i = STAGES.findIndex((x) => x.id === id);
     if (i <= 0) return true;
     const pv = D.best[STAGES[i - 1].id];
+    if (id === 11 && D.best[10] && D.best[10].stars > 0) return true; /* 울산·포항(17)을 앞에 끼운 뒤에도 기존 진행 유지 */
+    if (id === 16 && D.best[1] && D.best[1].stars > 0) return true; /* 의정부(18)를 끼운 뒤에도 기존 진행 유지 */
+    if (id === 4 && D.best[13] && D.best[13].stars > 0) return true; /* 남포(20)를 끼운 뒤에도 기존 진행 유지 */
+    if (id === 17 && D.best[10] && D.best[10].stars > 0) return true; /* 강릉(21)을 끼운 뒤에도 기존 진행 유지 */
+    if (id === 2 && D.best[16] && D.best[16].stars > 0) return true; /* 철원(22)을 끼운 뒤에도 기존 진행 유지 */
+    if (id === 5 && D.best[19] && D.best[19].stars > 0) return true; /* 신의주(23)를 끼운 뒤에도 기존 진행 유지 */
     return !!(pv && pv.stars > 0) || !!(D.best[id] && D.best[id].stars > 0);
   }
   function toast(t, ms) {
