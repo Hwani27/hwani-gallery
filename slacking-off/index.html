@@ -9,7 +9,7 @@
 <meta name="format-detection" content="telephone=no">
 <meta name="description" content="18:00 칼퇴까지, 부장님 눈을 피해 딴짓 게이지 100%를 채우는 3D 복셀 눈치 게임.">
 <title>부장님 몰래 딴짓하기 · Slacking Off 3D</title>
-<link rel="stylesheet" href="css/style.css?v=261126">
+<link rel="stylesheet" href="css/style.css?v=261127">
 </head>
 <body>
 <div class="frame">
@@ -80,6 +80,17 @@
               </div>
             </div>
             <div class="floaters" id="floaters" aria-hidden="true"></div>
+            <div class="mission" id="mission" hidden aria-live="polite">
+              <b class="m-ic" id="mIc">⬆</b>
+              <span class="m-tx"><b id="mTitle">위로 스와이프</b><small id="mSub">다음 숏폼</small></span>
+            </div>
+            <div class="timing" id="timing" hidden aria-hidden="true">
+              <i class="t-track"></i>
+              <i class="t-zone"></i>
+              <i class="t-perfect"></i>
+              <i class="t-mark" id="tMark"></i>
+              <span class="t-lbl" id="tLbl">황금 존에 맞춰 탭!</span>
+            </div>
           </div>
           <div class="view excel-view" id="excelView" hidden>
             <div class="xl-top">
@@ -95,6 +106,10 @@
         </div>
       </div>
       <p class="hint" id="hint">모니터를 연타하면 딴짓 게이지가 올라가요</p>
+      <div class="trade-row" id="tradeRow" hidden>
+        <button class="trade buy on" id="buyBtn" type="button"><span class="tr-ic">📈</span><span class="tr-tx"><b>매수</b><small>진입</small></span></button>
+        <button class="trade sell" id="sellBtn" type="button"><span class="tr-ic">📉</span><span class="tr-tx"><b>매도</b><small>익절</small></span></button>
+      </div>
     </section>
 
     <section class="gauge-panel">
@@ -126,18 +141,33 @@
 
     <div class="toast" id="toast" hidden></div>
     <div class="overlay" id="overlay" hidden></div>
+
+    <!-- 실시간 3D 시네마틱 컷신 (OfficeScene 캔버스를 옮겨와 연출) -->
+    <div class="cine3d" id="cine3d" hidden>
+      <div class="cine3d-host" id="cine3dHost"></div>
+      <div class="cine3d-vig"></div>
+      <i class="cine-bar top"></i>
+      <i class="cine-bar bot"></i>
+      <span class="cine-day" id="cineDay">월요일 · 17:05</span>
+      <div class="cine3d-bub" id="cineBub" hidden>
+        <b id="cineBubWho">잼부장</b>
+        <p id="cineBubText">…</p>
+      </div>
+      <span class="cine3d-hint">화면을 탭하면 건너뛰기</span>
+      <button class="cine-skip" id="cineSkip3d" type="button">건너뛰기 ›</button>
+    </div>
   </div>
 </div>
 
 <script src="js/three.min.js"></script>
 <script src="js/textures.js"></script>
 <script src="js/voxel.js"></script>
-<script src="js/scene3d.js?v=261126"></script>
-<script src="js/sfx.js?v=261126"></script>
+<script src="js/scene3d.js?v=261127"></script>
+<script src="js/sfx.js?v=261127"></script>
 <script src="js/characters.js"></script>
 <script src="js/excuse.js"></script>
 <script src="js/shop.js"></script>
-<script src="js/viral.js?v=261126"></script>
-<script src="js/game.js?v=261126"></script>
+<script src="js/viral.js?v=261127"></script>
+<script src="js/game.js?v=261127"></script>
 </body>
 </html>
