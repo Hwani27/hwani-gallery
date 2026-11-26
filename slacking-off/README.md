@@ -19,6 +19,41 @@
 - **뒤에서 소리 없이 접근(목)**: 스텔스 접근. 발소리·경고 배너·붉은 비네트·REC 표시가 **한 박자 늦게** 뜬다(경고 시간의 42%는 아무 신호도 없다). 늦게 알아채면 발각.
 - **더블 체크 + 의심도(금)**: 경고가 1초 남짓이고, 일만 오래 하면 의심도가 차서 기습 점검이 날아온다.
 
+## ① 사원증 / 시말서 성적표 이미지 공유 (Canvas PNG)
+- 결과 화면(발각·야근·칼퇴·엔딩)의 `[📸 성적표 공유]` 버튼 → 1080×1350 PNG 카드를 2D Canvas 로 그려 **미리보기 모달**을 띄운다.
+- **칼퇴 성공** = `칼퇴 인증서`(금장 테두리·증명사진·사원증 패널·칼퇴 도장), **발각·야근** = `시말서`(종이 서식·결재란·사유·빨간 도장) 테마.
+- 카드에 **직급 · 점수 · 클리어 요일/상태 · 대표 칭호 · 날짜 · 주소**(`hwani27.github.io/hwani-gallery/slacking-off/`)를 넣는다.
+- 모달 버튼: `[💾 이미지 저장]`(download) · `[📤 공유]`(`navigator.share` 파일 공유, 미지원/실패 시 저장으로 폴백) · `[🥊 이 점수로 도발 링크 복사]`. 이름 입력은 `localStorage['slackOff.playerName.v1']` 에 저장된다.
+
+## ② 친구 도발 링크 (`?vs=닉네임&score=점수`)
+- 타이틀의 `[🥊 친구 도발]` 버튼에서 내 이름/직급과 목표 점수를 정해 `https://hwani27.github.io/hwani-gallery/slacking-off/?vs=정환대리&score=300` 링크를 만든다(`navigator.clipboard` → `execCommand` 폴백).
+- 링크로 들어오면 **타이틀 상단**과 **플레이 상단**에 `🔥 [이름] 님의 도발 · 목표 [점수]점` 배너와 `현재점수 / 목표` 진행이 뜬다.
+- 플레이 중 목표를 처음 넘는 순간 `🔥 도발 격파 +N` 배지 + 토스트, 결과 화면에는 도발 승패 줄이 붙는다. 도발 격파 1회 = 칭호 `🥊 도발 격파자`.
+
+## ③ 오늘의 '같은 부장님' 일일 챌린지 (날짜 시드)
+- 타이틀 `[📅 오늘의 챌린지]` → 오늘 요일의 스테이지를 **날짜 시드(Mulberry32)** 로 고정해 플레이한다.
+- 시드는 `YYYY-MM-DD` 해시라서, 같은 날 접속한 모든 유저가 **같은 순찰·접근·페인트·커피 급복귀·스텔스** 패턴을 겪는다(상사 타이밍 난수는 플레이어 입력과 분리된 전용 스트림 `BR()` 을 쓴다).
+- 토·일은 금요일(더블 체크) 스테이지가 오늘의 챌린지가 되고, 오늘의 목표 점수도 시드에서 정해진다(1,200~1,700).
+- 오늘 최고 기록·도전 횟수는 `localStorage['slackOff.daily.v1']` 에 날짜별로 저장된다(최근 14일).
+
+## ④ 칭호 도감 (localStorage)
+- 타이틀 `[🎖️ 칭호 도감]` → 10종 칭호 목록. 조건 달성 시 자동 해금 + `🎖️ 칭호 해금` 배지/토스트, 눌러서 **대표 칭호**를 고르면 성적표 카드에 찍힌다.
+
+  | 칭호 | 조건 |
+  | --- | --- |
+  | 🥷 신입 루팡 | 첫 칼퇴 성공 |
+  | ⚡ 0.1초 컷 눈치왕 | 경고가 뜨고 0.2초 안에 「일하는 척!」 |
+  | 🗣️ 임기응변 마스터 | 3초 변명 성공 3회 |
+  | 📄 시말서 콜렉터 | 발각 5회 |
+  | 🔥 콤보 장인 | 한 판 콤보 30 |
+  | 🥊 도발 격파자 | 친구 도발 목표 돌파 |
+  | 📅 일일 챌린저 | 오늘의 챌린지 클리어 |
+  | 🌙 야근 성수기 | 야근 3회 |
+  | 🛠️ 장비 수집가 | 장비 Lv.3 달성 |
+  | 🏆 칼퇴의 전설 | 월~금 5일 연속 칼퇴 |
+
+- 해금 상태·통계는 `localStorage['slackOff.titles.v1']` 에 저장된다.
+
 ## 🚨 3초 변명 찬스
 - 스테이지당 1회, **첫 발각**은 바로 게임오버가 아니라 3.0초 변명 타임으로 넘어간다.
 - 방금 찍힌 상사 3D 호통 컷 + 대사 + 카운트다운 바 + 변명 3개(정답 1 + 오답 2, 매번 섞임).
@@ -57,6 +92,7 @@
 - `voxel.js` — 복셀 박스·사람(머리/눈/안경/정장·넥타이/팔다리 피벗)·이름표·파편 빌더
 - `scene3d.js` — `OfficeScene`(사무실·잼부장/잼사장/잼대리 걷기·감시·발각 줌인·스텔스 뒤접근) + `MiniScene`(점프·메신저·차트·숏폼·쇼핑 5종 3D 미니게임) + `Slack3D` 루프
 - `shop.js` — ② 승진·코인·장비 상점·localStorage 저장
+- `viral.js` — ① 성적표 Canvas PNG · ② 도발 링크 · ③ 오늘의 챌린지(날짜 시드) · ④ 칭호 도감
 - `excuse.js` — 3초 변명 찬스: 모드·상사별 변명 풀, 3개 셔플, 3.0초 타이머, 성공/실패 컷
 - `game.js` — 게임 로직·상사 상태 머신(페인트/커피 급복귀/스텔스/의심도), 시각 연출은 3D 씬에 위임
 - `sfx.js` — Web Audio 효과음 + 프로시저럴 BGM(평온 105BPM ↔ 긴장 148BPM, 위장 시 로패스 덕킹, 탭 숨김 시 일시정지)
@@ -86,4 +122,5 @@ Poly Haven CC0 텍스처 9세트를 512px WebP(diffuse/normal/roughness)로 경�
 ## 테스트 훅
 `window.__SLACK` — state / tap / hold / release / warn / check / setGauge / stage / start / go /
 skipTemptIn / takeTempt / setLeft / three / catch / excuse / pickExcuse / audio /
-shop / openShop / closeShop / buy / coins / shopReset / reward / claim / coffee / stealth / rush / reveal / boss / tick
+shop / openShop / closeShop / buy / coins / shopReset / reward / claim / coffee / stealth / rush / reveal / boss / tick /
+viral / dailyInfo / daily / startDaily / events / openTitles / openDare / closeModal / card / note / setScore / vsBreak / pin / pause / resume

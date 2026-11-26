@@ -802,3 +802,160 @@ body::before{
 .shop-max{flex:0 0 auto;min-width:64px;text-align:center;font-size:10px;font-weight:900;color:#6fe0a0;}
 .shop-note{margin:0;font-size:8.5px;font-weight:700;color:#6d7c92;text-align:center;line-height:1.4;}
 .shop-close{height:42px;}
+
+/* ===== 🔥 바이럴 · 경쟁 4종 (viral.js) ===== */
+/* 타이틀 3버튼 (오늘의 챌린지 · 칭호 도감 · 친구 도발) */
+.viral-row{display:flex;gap:6px;width:100%;}
+.vchip{
+  flex:1 1 0;min-width:0;display:flex;align-items:center;gap:5px;height:40px;padding:0 8px;
+  border-radius:11px;cursor:pointer;font-family:inherit;text-align:left;
+  background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.1);color:#dbe5f3;
+  transition:transform .08s,background .12s,border-color .12s;
+}
+.vchip:active{transform:scale(.975);background:rgba(255,210,74,.12);border-color:rgba(255,210,74,.35);}
+.vchip .vic{font-size:15px;line-height:1;flex:0 0 auto;}
+.vchip .vtx{display:flex;flex-direction:column;gap:0;min-width:0;}
+.vchip .vtx b{font-size:9.5px;font-weight:900;color:#eef3fa;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:-.02em;}
+.vchip .vtx small{font-size:7px;font-weight:700;color:#8ea0b8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+
+/* 도발 배너 (타이틀) */
+.vs-banner{
+  display:flex;align-items:center;justify-content:center;gap:7px;width:100%;padding:6px 10px;border-radius:11px;
+  background:linear-gradient(90deg,rgba(255,92,102,.18),rgba(255,210,74,.1));border:1px solid rgba(255,120,110,.45);
+  font-size:9.5px;font-weight:800;color:#ffd9c0;white-space:nowrap;overflow:hidden;
+}
+.vs-banner b{color:#ff9aa1;font-size:10px;font-weight:900;}
+.vs-banner span{color:#ffe08a;font-weight:900;flex:0 0 auto;}
+
+/* 도발 배너 (플레이 상단) */
+.vs-strip{
+  flex:0 0 auto;display:flex;align-items:center;gap:6px;height:21px;padding:0 12px;
+  background:linear-gradient(90deg,#3a1218,#241017);border-bottom:1px solid #4a222a;
+  font-size:8.5px;font-weight:800;color:#ffccd0;white-space:nowrap;overflow:hidden;
+}
+.vs-strip b{color:#ff9aa1;font-size:8.5px;}
+.vs-strip .vs-prog{margin-left:auto;color:#ffd24a;font-variant-numeric:tabular-nums;font-size:8.5px;}
+.vs-strip.hit{background:linear-gradient(90deg,#2c3d1e,#1b2513);border-bottom-color:#4c6d31;}
+.vs-strip.hit .vs-prog{color:#8bf0b8;}
+
+/* 도발 격파 배지 */
+.vs-win{
+  position:absolute;left:50%;top:112px;transform:translateX(-50%);z-index:62;pointer-events:none;
+  padding:8px 14px;border-radius:999px;font-size:12px;font-weight:900;color:#141005;white-space:nowrap;
+  background:linear-gradient(180deg,#ffe27a,#ffb92e);box-shadow:0 12px 28px rgba(255,185,46,.45);
+  animation:vsWinIn .34s cubic-bezier(.2,1.5,.4,1) both;
+}
+.vs-win.out{animation:vsWinOut .45s ease forwards;}
+@keyframes vsWinIn{0%{opacity:0;transform:translateX(-50%) scale(.6);}70%{transform:translateX(-50%) scale(1.06);}100%{opacity:1;transform:translateX(-50%) scale(1);}}
+@keyframes vsWinOut{to{opacity:0;transform:translateX(-50%) translateY(-16px) scale(.94);}}
+
+/* 결과 화면 도발 승패 */
+.vs-result{
+  width:100%;display:flex;align-items:center;justify-content:center;gap:5px;padding:7px 10px;border-radius:11px;
+  font-size:10px;font-weight:900;line-height:1.35;text-align:center;word-break:keep-all;
+}
+.vs-result.win{background:rgba(255,210,74,.1);border:1px solid rgba(255,210,74,.42);color:#ffe08a;}
+.vs-result.lose{background:rgba(255,92,102,.08);border:1px solid rgba(255,92,102,.3);color:#ffb3b8;}
+
+/* 성적표 공유 버튼 */
+.cta.ghost.report-btn{background:rgba(255,210,74,.1);border-color:rgba(255,210,74,.38);color:#ffe08a;height:46px;font-size:12.5px;}
+
+/* 오늘의 챌린지 오버레이 */
+.daily-box{width:100%;display:flex;flex-direction:column;gap:6px;padding:10px;border-radius:13px;
+  background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);}
+.daily-box .dbr{display:flex;align-items:baseline;gap:6px;font-size:9.5px;font-weight:800;color:#8ea0b8;}
+.daily-box .dbr b{margin-left:auto;font-size:11px;font-weight:900;color:#ffd24a;font-variant-numeric:tabular-nums;}
+.daily-box .dseed{font-size:8px;font-weight:700;color:#5f6d82;word-break:break-all;}
+
+/* ===== 모달 셸 ===== */
+.vmodal{
+  position:absolute;inset:0;z-index:72;display:flex;align-items:center;justify-content:center;
+  padding:10px;background:rgba(3,5,9,.88);backdrop-filter:blur(5px);
+  opacity:0;transition:opacity .16s ease;overflow:auto;
+}
+.vmodal[hidden]{display:none !important;}
+.vmodal.on{opacity:1;}
+.vm-sheet{
+  width:100%;max-width:400px;max-height:calc(100% - 4px);overflow:auto;
+  display:flex;flex-direction:column;gap:8px;padding:13px 13px 14px;
+  background:linear-gradient(180deg,#1c2532,#101722);border:1px solid #33415a;border-radius:18px;
+  box-shadow:0 24px 60px rgba(0,0,0,.7);animation:vmIn .2s cubic-bezier(.2,1.2,.4,1) both;
+}
+@keyframes vmIn{from{opacity:0;transform:translateY(12px) scale(.98);}to{opacity:1;transform:none;}}
+.vm-head{display:flex;align-items:center;gap:7px;}
+.vm-head b{font-size:14px;font-weight:900;color:#fff;letter-spacing:-.02em;}
+.vm-count{
+  margin-left:auto;font-size:10px;font-weight:900;color:#ffd24a;font-variant-numeric:tabular-nums;
+  background:rgba(255,210,74,.12);border:1px solid rgba(255,210,74,.32);border-radius:99px;padding:2px 8px;
+}
+.vm-x{
+  margin-left:auto;flex:0 0 auto;width:26px;height:26px;border-radius:9px;border:1px solid #3a4a63;
+  background:#1b2431;color:#cdd8e8;font-size:12px;line-height:1;cursor:pointer;font-family:inherit;
+}
+.vm-x:active{transform:scale(.94);}
+.vm-count + .vm-x{margin-left:0;}
+.vm-shot{border-radius:12px;overflow:hidden;border:1px solid rgba(255,210,74,.28);background:#080b11;
+  display:flex;align-items:center;justify-content:center;flex:0 0 auto;}
+.vm-shot img{width:auto;height:auto;max-width:100%;max-height:52vh;object-fit:contain;display:block;}
+.vm-field{display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:11px;
+  background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);flex:0 0 auto;}
+.vm-field span{flex:0 0 auto;font-size:9px;font-weight:800;color:#8ea0b8;}
+.vm-field input{
+  flex:1;min-width:0;background:transparent;border:0;outline:none;text-align:right;
+  color:#fff;font-family:inherit;font-size:12.5px;font-weight:900;
+  -webkit-user-select:text;user-select:text;
+}
+.vm-btns{display:flex;gap:7px;flex:0 0 auto;}
+.vm-btn{
+  flex:1 1 0;min-width:0;height:42px;border-radius:12px;border:1px solid #43557a;cursor:pointer;
+  background:linear-gradient(180deg,#2a3a56,#1b2637);color:#eaf1ff;font-family:inherit;
+  font-size:11.5px;font-weight:900;letter-spacing:-.01em;white-space:nowrap;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.08);
+}
+.vm-btn:active{transform:scale(.985);background:linear-gradient(180deg,#31435f,#1e2a3c);}
+.vm-btn.wide{flex:0 0 auto;width:100%;}
+.vm-msg{margin:0;min-height:12px;font-size:9px;font-weight:800;line-height:1.35;text-align:center;
+  color:#6fe0a0;opacity:0;transition:opacity .15s;word-break:break-all;}
+.vm-msg.on{opacity:1;}
+.vm-msg.bad{color:#ff9aa1;}
+.vm-note{margin:0;font-size:8.5px;font-weight:700;line-height:1.45;color:#7f90a8;text-align:center;word-break:keep-all;}
+.vm-note b{color:#ffe08a;}
+
+/* 칭호 도감 */
+.tt-list{display:flex;flex-direction:column;gap:5px;}
+.tt-row{
+  display:flex;align-items:center;gap:8px;padding:6px 9px;border-radius:10px;cursor:pointer;
+  font-family:inherit;text-align:left;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.07);
+  color:#cdd8e8;transition:background .12s,border-color .12s;
+}
+.tt-row[disabled]{opacity:.62;cursor:default;}
+.tt-row.on{background:rgba(255,210,74,.06);border-color:rgba(255,210,74,.26);}
+.tt-row.pin{background:rgba(255,210,74,.1);border-color:rgba(255,210,74,.62);box-shadow:0 0 0 1px rgba(255,210,74,.2);}
+.tt-row:not([disabled]):active{transform:scale(.99);}
+.tt-ic{flex:0 0 auto;font-size:17px;line-height:1;}
+.tt-tx{display:flex;flex-direction:column;gap:0;min-width:0;flex:1;}
+.tt-tx b{font-size:10.5px;font-weight:900;color:#eef3fa;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.tt-tx small{font-size:7.5px;font-weight:700;color:#8ea0b8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.tt-st{flex:0 0 auto;font-size:8.5px;font-weight:900;color:#7f90a8;font-variant-numeric:tabular-nums;}
+.tt-row.on .tt-st{color:#ffd24a;}
+
+/* 도발 링크 모달 */
+.dv-preview{
+  font-size:8.5px;font-weight:700;line-height:1.45;color:#9fb0c6;word-break:break-all;
+  background:rgba(0,0,0,.34);border:1px dashed rgba(255,255,255,.16);border-radius:9px;padding:7px 9px;
+  -webkit-user-select:text;user-select:text;
+}
+
+/* 칭호 해금 배지 */
+.title-unlock{
+  position:absolute;left:50%;top:74px;transform:translateX(-50%);z-index:68;pointer-events:none;
+  display:flex;align-items:center;gap:7px;padding:7px 12px;border-radius:12px;white-space:nowrap;
+  background:linear-gradient(160deg,#243049,#151c28);border:1px solid rgba(255,210,74,.55);
+  box-shadow:0 14px 34px rgba(0,0,0,.6),0 0 0 1px rgba(255,210,74,.15);
+  animation:tuIn .3s cubic-bezier(.2,1.5,.4,1) both;
+}
+.title-unlock span{font-size:8.5px;font-weight:900;letter-spacing:.06em;color:#ffd24a;}
+.title-unlock b{font-size:11.5px;font-weight:900;color:#eef3fa;}
+.title-unlock.out{animation:tuOut .45s ease forwards;}
+@keyframes tuIn{0%{opacity:0;transform:translateX(-50%) translateY(-10px) scale(.92);}100%{opacity:1;transform:translateX(-50%) translateY(0) scale(1);}}
+@keyframes tuOut{to{opacity:0;transform:translateX(-50%) translateY(-12px) scale(.96);}}
