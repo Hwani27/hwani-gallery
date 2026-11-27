@@ -9421,10 +9421,11 @@
     });
     posts.length = 0;
     if (chase) chase.fx.forEach((m) => m.parent && m.parent.remove(m));
-    if (paraRig) paraRig.visible = false;
+    /* (fix) put away every vehicle the camera carries, not only the three this
+       list used to name: the raft, the heli and the train stayed on the lens
+       into the next, dry stage */
+    hideAllRigs();
     chase = null;
-    if (jeepRig) jeepRig.visible = false;
-    if (boatRig) boatRig.visible = false;
     debris.forEach((m) => m.parent && m.parent.remove(m));
     debris.length = 0;
     WATER.length = 0;
@@ -11227,15 +11228,22 @@
     radio("착지! 해송 숲 엄폐 후 시가지로 진입하라!", 3400);
     window.__paraDrop = (window.__paraDrop || 0) + 1;
   }
+  /* (fix) one switch for every vehicle rig hung on the camera. clearStage and
+     each chase branch call it first, so no rig survives into a stage that does
+     not ride it */
+  function hideAllRigs() {
+    [paraRig, jeepRig, boatRig, heliRig, raftRig, trainRig].forEach((r) => { if (r) r.visible = false; });
+  }
   function startChase(ctx) {
     const boat = STAGE.chase === "boat";
+    /* whatever the last stage left behind goes, before this one shows its own */
+    hideAllRigs();
     if (STAGE.chase === "para") {
       /* (wonsan) already in the air: no vehicle, only the canopy over the lens */
       allyRides.forEach((r) => r.g.parent && r.g.parent.remove(r.g));
       allyRides.length = 0;
       if (!paraRig) { paraRig = makeParaRig(); ctx.camera.add(paraRig); }
       paraRig.visible = true;
-      [jeepRig, boatRig, heliRig, raftRig, trainRig].forEach((r) => { if (r) r.visible = false; });
       chase = { t: 0, i: 0, plan: [1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23], riders: [], para: true, fx: [], sink: [], splashT: 9 };
       if (dress && dress.ally) dress.ally.visible = false;
       radio("상공 3000m! 낙하 개시, 해변의 적을 쏘며 강하하라!", 3400);
@@ -11245,7 +11253,6 @@
     if (STAGE.chase === "train") {
       if (!trainRig) { trainRig = makeTrainRig(); ctx.camera.add(trainRig); }
       trainRig.visible = true;
-      [jeepRig, boatRig, heliRig, raftRig].forEach((r) => { if (r) r.visible = false; });
       chase = { t: 0, i: 0, plan: [], riders: [], train: true, fx: [], sink: [], splashT: 9, trains: [], sched: [[0, "A"], [19, "B"], [32, "C"]] };
       if (dress && dress.ally) dress.ally.visible = false;
       try { addAllyRides(ctx, "train"); } catch (e) { window.__allyRideErr = String(e); }
@@ -11256,8 +11263,6 @@
     if (STAGE.chase === "heli") {
       if (!heliRig) { heliRig = makeHeliRig(); ctx.camera.add(heliRig); }
       heliRig.visible = true;
-      if (jeepRig) jeepRig.visible = false;
-      if (boatRig) boatRig.visible = false;
       if (KCH.ready && !heliRig.userData.crew) {
         heliRig.userData.crew = 1;
         const pk = seatSquad(heliRig, "park", 1.6, -1.3, -0.7, "stand"); if (pk) { pk.rotation.y = Math.PI - 1.2; if (pk.userData.rifle) pk.userData.rifle.visible = false; }
@@ -11273,8 +11278,6 @@
     if (boat && STAGE.raft) {
       if (!raftRig) { raftRig = makeRaftRig(); ctx.camera.add(raftRig); }
       raftRig.visible = true;
-      if (boatRig) boatRig.visible = false;
-      if (jeepRig) jeepRig.visible = false;
       if (KCH.ready && !raftRig.userData.crew) {
         raftRig.userData.crew = 1;
         /* Kim and Park ride in Kang's boat just ahead: seated in this one they
@@ -11283,11 +11286,9 @@
     } else if (boat) {
       if (!boatRig) { boatRig = makeBoatRig(); ctx.camera.add(boatRig); }
       boatRig.visible = true;
-      if (jeepRig) jeepRig.visible = false;
     } else {
       if (!jeepRig) { jeepRig = makeJeepRig(); ctx.camera.add(jeepRig); }
       jeepRig.visible = true;
-      if (boatRig) boatRig.visible = false;
       if (!jeepRig.userData.kim && KCH.ready) { const d = jeepRig.userData.driverSlot; jeepRig.userData.kim = seatSquad(jeepRig, "kim", d.x, d.y, d.z, "drive"); }
     }
     if (boat && !STAGE.raft && boatRig && !boatRig.userData.kim && KCH.ready) boatRig.userData.kim = seatSquad(boatRig, "kim", -1.0, -1.5, -3.15, "stand");
@@ -11625,12 +11626,7 @@
       if (STAGE.walls) r.park = { x: 8.6, z: r.g.position.z + 3 };
     });
     chase = null;
-    if (jeepRig) jeepRig.visible = false;
-    if (boatRig) boatRig.visible = false;
-    if (heliRig) heliRig.visible = false;
-    if (paraRig) paraRig.visible = false;
-    if (raftRig) raftRig.visible = false;
-    if (trainRig) trainRig.visible = false;
+    hideAllRigs();
     if (dress && dress.ally) dress.ally.visible = true;
     if (STAGE.chase === "train") radio("흥남역 도착! 하차, 역 광장을 확보하라!", 3200);
     else if (STAGE.raft) radio("도하 성공! 호안 계단으로 올라가 교두보를 확보하라!", 3200);
@@ -11641,6 +11637,13 @@
     else radio(down >= 6 ? "추격대 전멸! 하차, 압록강 초소로 진입한다!" : "하차! 압록강 국경 초소로 진입한다!", 3000);
   }
   window.__chase = () => (chase ? { t: +chase.t.toFixed(1), riders: chase.riders.length, alive: chase.riders.filter((p) => p.live !== false && p.e.alive !== false).length } : null);
+  /* (fix) verification hook: which vehicle rigs the camera is carrying */
+  window.__rigs = () => ({
+    para: !!paraRig && paraRig.visible, jeep: !!jeepRig && jeepRig.visible,
+    boat: !!boatRig && boatRig.visible, heli: !!heliRig && heliRig.visible,
+    raft: !!raftRig && raftRig.visible, train: !!trainRig && trainRig.visible,
+    any: [paraRig, jeepRig, boatRig, heliRig, raftRig, trainRig].some((r) => !!r && r.visible)
+  });
 
   /* (v20) the brag card: a still of the battlefield with the result laid
      over it, 1080×1350 (fits every feed), shared through the system sheet
