@@ -179,7 +179,13 @@
   }
 
   const scene = new T.Scene();
-  const camera = new T.PerspectiveCamera(58, 1, 0.06, 320);
+  /* (fix) depth range: a 0.06 m near plane against a 320 m far plane left only
+     ~1 cm of depth resolution out at the far blocks, which is under the 2-4 cm
+     of air the facade panels, balcony slabs and block numbers are laid with —
+     every one of them fought for the same pixel on the far side of the street.
+     The scope never comes closer than the rifle at 0.4 m, so 0.12 m near is
+     free: 2x the depth precision everywhere, 4x at 200 m. */
+  const camera = new T.PerspectiveCamera(58, 1, 0.12, 320);
   camera.rotation.order = "YXZ";
   camera.position.set(8, 1.7, 4.1);
   camera.lookAt(15, 1.35, 1.1);
@@ -278,9 +284,25 @@
       /* a low winter sun from the right-front: long building shadows rake
          across the road instead of a flat noon wash */
       const sun = window.__mgSun || SUN;
-      key.position.set(camera.position.x + sun[0], sun[1], camera.position.z + sun[2]);
+      /* (fix) shadow stability: the sun rides with the camera, so a light that
+         slid by a fraction of a shadow texel every frame made every lit wall,
+         rooftop and street crawl and shimmer as the rail moved. The tracked
+         point is snapped to whole texels along the light's own axes, so the
+         texel grid stands still over the world and only moves when the camera
+         has really travelled a texel. */
+      const st = SHADOWS[shadowLevel] || SHADOWS.high;
+      const tx = (2 * st.span[0]) / st.map, ty = (st.span[1] - st.span[2]) / st.map;
+      _sdir.set(sun[0], sun[1], sun[2] - 10).normalize();
+      _sright.crossVectors(_sdir, _SUP).normalize();
+      _sup.crossVectors(_sright, _sdir).normalize();
+      const cxp = camera.position.x, czp = camera.position.z;
+      const ta = cxp * _sright.x + czp * _sright.z;
+      const tb = cxp * _sup.x + czp * _sup.z;
+      const da = (Math.round(ta / tx) * tx - ta), db = (Math.round(tb / ty) * ty - tb);
+      const ox = _sright.x * da + _sup.x * db, oz = _sright.z * da + _sup.z * db;
+      key.position.set(cxp + ox + sun[0], sun[1], czp + oz + sun[2]);
       { const L = Math.hypot(sun[0], sun[1], sun[2]) || 1; window.__mgSunDir = { x: sun[0] / L, y: sun[1] / L, z: sun[2] / L }; }
-      key.target.position.set(camera.position.x, 0, camera.position.z + 10);
+      key.target.position.set(cxp + ox, 0, czp + oz + 10);
       key.target.updateMatrixWorld();
       rim.position.set(camera.position.x - 6, 10, camera.position.z - 26);
     }
@@ -314,6 +336,7 @@
     tick._t = nowT;
   }
   let arAcc = 0, arN = 0;
+  const _sdir = new T.Vector3(), _sright = new T.Vector3(), _sup = new T.Vector3(), _SUP = new T.Vector3(0, 1, 0);
 
   function resize() {
     const w = Math.max(1, window.innerWidth || 1);
