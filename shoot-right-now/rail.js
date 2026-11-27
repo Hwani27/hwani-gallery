@@ -728,7 +728,7 @@
     t.wrapS = t.wrapT = T.RepeatWrapping;
     t.magFilter = T.LinearFilter;
     t.minFilter = T.LinearMipMapLinearFilter;
-    t.anisotropy = Math.max(1, Math.min(8, MAXANISO));
+    t.anisotropy = Math.max(1, Math.min(16, MAXANISO));
     t.needsUpdate = true;
     return (NMAP[key] = t);
   }
@@ -891,7 +891,7 @@
           t.minFilter = T.LinearMipMapLinearFilter;
           t.magFilter = T.LinearFilter;
           t.generateMipmaps = true;
-          t.anisotropy = Math.max(1, Math.min(8, MAXANISO));
+          t.anisotropy = Math.max(1, Math.min(16, MAXANISO));
           t.needsUpdate = true;
           if (kinds[kind][1]) phSRGB(t); else phData(t);
           put[kind] = t;
@@ -930,7 +930,7 @@
     t.needsUpdate = true;
     t.wrapS = t.wrapT = T.RepeatWrapping;
     t.repeat.set(qx, qy);
-    t.anisotropy = Math.max(1, Math.min(8, MAXANISO));
+    t.anisotropy = Math.max(1, Math.min(16, MAXANISO));
     PH.cache[ck] = t;
     PH.cacheN++;
     return t;
@@ -1041,7 +1041,7 @@
     t.minFilter = T.LinearMipMapLinearFilter;
     t.generateMipmaps = true;
     t.wrapS = t.wrapT = T.RepeatWrapping;
-    t.anisotropy = Math.max(1, Math.min(8, MAXANISO));
+    t.anisotropy = Math.max(1, Math.min(16, MAXANISO));
     t.needsUpdate = true;
     t.__key = key;
     cv.__key = key;
@@ -1062,7 +1062,7 @@
   /* Textures painted before the renderer exists only see the default limit,
      so once the GPU answer is known every cached texture is re-stamped. */
   function applyAniso() {
-    const a = Math.max(1, Math.min(8, MAXANISO));
+    const a = Math.max(1, Math.min(16, MAXANISO));
     Object.keys(MT).forEach((k) => {
       const t = MT[k];
       if (t && t.isTexture) { t.anisotropy = a; t.needsUpdate = true; }
@@ -1194,7 +1194,7 @@
     t.magFilter = T.LinearFilter;
     t.minFilter = T.LinearMipMapLinearFilter;
     t.generateMipmaps = true;
-    t.anisotropy = Math.max(1, Math.min(8, MAXANISO));
+    t.anisotropy = Math.max(1, Math.min(16, MAXANISO));
     t.needsUpdate = true;
     MT[k] = t;
     TXCV[k] = cv;
@@ -1225,7 +1225,7 @@
     t.magFilter = T.LinearFilter;
     t.minFilter = T.LinearMipMapLinearFilter;
     t.generateMipmaps = true;
-    t.anisotropy = Math.max(1, Math.min(8, MAXANISO));
+    t.anisotropy = Math.max(1, Math.min(16, MAXANISO));
     t.needsUpdate = true;
     MT[k] = t;
     TXCV[k] = cv;
@@ -2431,6 +2431,63 @@
       }
     }, { size: 128, base: "#dcdcdc" });
     return t;
+  }
+
+  /* (fix) a glass curtain wall in tile form: one floor of wall per tile — the
+     spandrel band under the glass, a mullion between every bay, sky held in
+     the panes, the odd lit office, the diagonal glare of a low sun. The
+     towers that used to be a single flat colour (Yeouido's gold one, the blue
+     glass blocks) read as painted boxes; with this they read as towers from
+     the far bank to arm's length. `gold` moves the whole palette warm. */
+  function curtainTex(key, o) {
+    const P = o || {};
+    const bays = P.bays || 4, floors = P.floors || 2;
+    const glass0 = P.glass0 || "#7fa6c8", glass1 = P.glass1 || "#2c4a68";
+    const frame = P.frame || "#9aa4ac", spandrel = P.spandrel || "#8f99a2";
+    const lit = P.lit || "#ffe9b8", litLow = P.litLow || "#c8a860";
+    return ctex(key, 256, 256, (g, w, h) => {
+      const R = rng(P.seed || 21);
+      const bw = w / bays, fh = h / floors;
+      g.fillStyle = frame; g.fillRect(0, 0, w, h);
+      for (let f = 0; f < floors; f++) for (let b = 0; b < bays; b++) {
+        const x = b * bw, y = f * fh;
+        g.fillStyle = spandrel; g.fillRect(x + 3, y + fh * 0.75, bw - 6, fh * 0.2);
+        const on = R() < (P.litChance == null ? 0.13 : P.litChance);
+        const lg = g.createLinearGradient(x, y, x + bw * 0.4, y + fh * 0.7);
+        if (on) { lg.addColorStop(0, lit); lg.addColorStop(1, litLow); }
+        else { lg.addColorStop(0, glass0); lg.addColorStop(0.55, shade(glass0, 0.86)); lg.addColorStop(1, glass1); }
+        g.fillStyle = lg; g.fillRect(x + 3, y + 3, bw - 6, fh * 0.71);
+        g.save(); g.beginPath(); g.rect(x + 3, y + 3, bw - 6, fh * 0.71); g.clip();
+        g.globalAlpha = on ? 0.16 : 0.36; g.fillStyle = "#eef7ff";
+        g.beginPath(); g.moveTo(x, y + fh * 0.1); g.lineTo(x + bw * 0.5, y); g.lineTo(x + bw * 0.78, y); g.lineTo(x, y + fh * 0.4); g.closePath(); g.fill();
+        g.globalAlpha = 1; g.restore();
+        g.fillStyle = shade(frame, 0.6); g.fillRect(x + bw * 0.5 - 1, y + 3, 2, fh * 0.71);
+        g.fillStyle = "rgba(255,255,255,.33)"; g.fillRect(x + 3, y + 3, bw - 6, 2);
+      }
+      for (let b = 0; b <= bays; b++) {
+        g.fillStyle = shade(frame, 0.74); g.fillRect(b * bw - 1, 0, 3, h);
+        g.fillStyle = "rgba(255,255,255,.2)"; g.fillRect(b * bw - 1, 0, 1, h);
+      }
+      g.fillStyle = "rgba(0,0,0,.24)"; for (let f = 0; f <= floors; f++) g.fillRect(0, f * fh - 1, w, 2);
+    }, { smooth: true });
+  }
+  let CURTAINS = null;
+  function curtainMat(kind) {
+    CURTAINS = CURTAINS || {};
+    if (CURTAINS[kind]) return CURTAINS[kind];
+    let t, m;
+    if (kind === "gold") {
+      t = curtainTex("curtainGold", { glass0: "#f2d68c", glass1: "#8a6a22", frame: "#b89a52", spandrel: "#c9a961", lit: "#fff2cc", litLow: "#d0a850", litChance: 0.1, seed: 77 });
+      m = new T.MeshStandardMaterial({ map: t, roughness: 0.17, metalness: 0.72, envMapIntensity: 1.15 });
+    } else if (kind === "stone") {
+      t = curtainTex("curtainStone", { glass0: "#b8c6d0", glass1: "#4a5a68", frame: "#cfd2ce", spandrel: "#b4b6b0", litChance: 0.08, seed: 41 });
+      m = new T.MeshStandardMaterial({ map: t, roughness: 0.5, metalness: 0.18, envMapIntensity: 0.5 });
+    } else {
+      t = curtainTex("curtainBlue", { glass0: "#9ec4dd", glass1: "#2a4a66", frame: "#a8b4bc", spandrel: "#8e9aa4", seed: 31 });
+      m = new T.MeshStandardMaterial({ map: t, roughness: 0.15, metalness: 0.58, envMapIntensity: 0.9 });
+    }
+    CURTAINS[kind] = m;
+    return m;
   }
 
   /* shopfront glazing: dark interior, warm strip lights, poster tape */
@@ -4509,7 +4566,7 @@
     for (let i = 0; i < n; i++) {
       const w = Math.min(3.4, (len - 1.4) / n - 0.4);
       const sm = new T.Mesh(new T.PlaneGeometry(w, w * 0.275), signMat(k + i));
-      sm.position.set((i - (n - 1) / 2) * (w + 0.5), 3.5, 0.2);
+      sm.position.set((i - (n - 1) / 2) * (w + 0.5), 3.5, 0.24);
       g.add(sm);
       breakables.push({ mesh: sm, kind: "sign", pts: 100, broken: false });
     }
@@ -4544,7 +4601,7 @@
     ac.castShadow = true;
     g.add(ac);
     const vsign = new T.Mesh(new T.PlaneGeometry(0.62, 1.9), signMat(k + 2));
-    vsign.position.set(len * 0.42, 5.2, 0.2);
+    vsign.position.set(len * 0.42, 5.2, 0.24);
     g.add(vsign);
     breakables.push({ mesh: vsign, kind: "sign", pts: 100, broken: false });
     g.position.set(x, y, z);
@@ -7347,7 +7404,10 @@
     },
     5: {
       id: 5, music: "paektu", label: "STAGE 3-9", clock: 400, path: PATH5, waves: WAVES5, boss: BOSS5,
-      dress: "paektu", bossKind: "commander", bossHp: 40, chase: true,
+      /* (fix) the last boss was the easiest man in the game (40 hp against a
+         tank's 120): Colonel Cha on the crater rim now takes 120, and he gets
+         a third bodyguard, so the last stand plays like the last stand. */
+      dress: "paektu", bossKind: "commander", bossHp: 120, chase: true,
       introDur: 5.2,
       introCam: [[7.0, 9.0, -176.0, 0, 1.0, -128.0], [0, 1.68, -152.0, 0, 1.55, -138.0]],
       introLines: [
@@ -7425,7 +7485,11 @@
        watchtowers reuse the wall gunner slots). Id 22 sits after 2-5 and before 3-1. */
     22: {
       id: 22, refugees: true, music: "dmz", label: "STAGE 2-6", clock: 420,
-      path: cityPath([[0, -236], [0.6, -222], [1, -208], [0.4, -194], [-0.4, -180], [0, -166], [0.6, -150], [0, -136], [0, -120], [0, -100], [0, -80], [0, -72]]),
+      /* (fix) 2-6 is the plain, so it plays the whole way across it: the rail
+         starts out on the farm road at the south end of the paddies and runs
+         north to the party hall, instead of being cut off 6 m before the
+         first zone and dropped into a city street that was never there. */
+      path: cityPath([[0, -232], [0.6, -220], [1, -206], [0.4, -192], [-0.4, -178], [0, -164], [0.6, -150], [0, -136], [0, -118], [0, -100], [0, -84], [0, -76]]),
       boss: cityBoss(),
       walls: [
         { z: -196, msg: "감시초소 위에 적! 철책 너머를 노려라!", men: [[-19.3, -200, 12.0, 1], [19.3, -194, 5.45]] },
@@ -7437,14 +7501,18 @@
         "농민 대피 중, 오사 주의!", "적 증원, 감시초소 방면!", "적 헬기 재접근!", "적 공수 강하! 철책선을 지켜라!"], { bikes: true, hostage: true, tight: true }),
       dress: "citygen", bossKind: "apc", bossTank: true, bossHp: 88, armorWave: 4, armorTank: false, armorHp: 14,
       city: {
-        seed: 22, mood: "morning", low: true, cheorwon: true, tints: [0xd8e0c0, 0xcad4b0, 0xbcc8a0],
-        sign: [12.4, -44, "철원", "CHEORWON", -Math.PI / 2, "#4a6a3a"],
-        cars: [["truck", -7.8, -16, 0.1]],
+        seed: 22, mood: "morning", low: true, cheorwon: true, rural: true, tints: [0xd8e0c0, 0xcad4b0, 0xbcc8a0],
+        sign: [-12.4, -196, "철원", "CHEORWON", Math.PI / 2, "#4a6a3a"],
+        cars: [["truck", -7.8, -166, 0.1]],
         banners: [[-12.2, -8, "철원 평야", "#4a6a3a", 9], [12.2, 22, "철책선", "#2f4a56"]],
-        hills: [[-120, 260, 200, 60, 40], [120, 260, 200, 60, 40]],
-        landmarks: [["ruinHall", -30, 2, 0, 26], ["guardTower", -24, 10, Math.PI / 2], ["guardTower", 24, -30, -Math.PI / 2], ["hedgehogs", [[-6, -40], [6, -38], [-7, 12], [7, 14], [-6, 40], [6, 42]]], ["fire", -17, 0.4, 24, 1.2], ["fire", 16, 0.4, 48, 1.1]]
+        hills: [[-150, 280, 210, 70, 44], [150, 280, 210, 70, 38]],
+        landmarks: [["ruinHall", -26, 76, Math.PI, 34], ["guardTower", -24, -34, Math.PI / 2], ["guardTower", 24, 12, -Math.PI / 2], ["hedgehogs", [[-6, 4], [6, 6], [-7, 34], [7, 36], [-6, -20], [6, -18]]], ["fire", -17, 0.4, 26, 1.2], ["fire", 16, 0.4, 46, 1.1]]
       },
-      introDur: 4.6, introCam: [[-30, 20, -96, 0, 6, -32], [0, 1.68, -56, 0, 1.55, -42]],
+      /* (fix) the opening shot used to sit 20 m up over the rooftops of a city
+         block at (-30, -96) and dive through it onto the road. Now it hangs
+         low over the farm road at the south end of the plain, the paddies on
+         both sides, and settles onto the rail at eye height. */
+      introDur: 4.6, introCam: [[0, 11.5, -268, 0, 2.4, -212], [0, 1.68, -232, 0, 1.55, -208]],
       introLines: [{ t: 0.4, text: "철원 평야. 넓게 열린 논과 철책, 그리고 감시초소." }, { t: 2.4, text: "초소의 시야를 피해 철책선을 따라 북으로 간다!" }],
       bossRadio: "노동당사 앞에 적 지휘관! 경호원부터 쓰러뜨려라!"
     },
@@ -7473,12 +7541,16 @@
       19: [[-24, -0.5], [16, 0.62]],
       20: [[-10, 0.45], [30, -0.55]],
       21: [[-6, -0.62], [26, 0.78]],
-      22: [[-28, -0.45], [16, 0.6]],
+      /* (fix) 22 is the open plain: its farm road runs straight across it, and
+         the paddies, dikes and wire are all laid along that one line, so it no
+         longer takes a turn that only a city grid had. */
       23: [[-18, -0.5], [22, 0.62]] };
     /* (v70) no walking in to the fight: the late stages start 6 m short of
        their first zone instead of up the approach road, and their zones sit
-       14 m apart, so a corner leads straight into the next cover and squad */
-    [17, 18, 19, 20, 21, 22, 23].forEach((id) => {
+       14 m apart, so a corner leads straight into the next cover and squad.
+       (fix) 22 (Cheorwon) and 23 (Sinuiju) keep their approach: the plain and
+       the riverside road are the stage, not a walk-in to a city block. */
+    [17, 18, 19, 20, 21].forEach((id) => {
       const st = STAGES[id];
       if (!st) return;
       const z0 = id === 19 ? -104 : -56;
@@ -8313,7 +8385,7 @@
         const t = tex.clone();
         t.wrapS = t.wrapT = T.RepeatWrapping;
         t.repeat.set(rx || 1, ry || 1);
-        t.anisotropy = Math.max(1, Math.min(8, MAXANISO));
+        t.anisotropy = Math.max(1, Math.min(16, MAXANISO));
         t.needsUpdate = true;
         m.map = t;
       }
@@ -8342,7 +8414,7 @@
         // 2.4x vertically; repeating it keeps the checkering square
         c2.wrapS = c2.wrapT = T.RepeatWrapping;
         c2.repeat.set(1, 2.2);
-        c2.anisotropy = Math.max(1, Math.min(8, MAXANISO));
+        c2.anisotropy = Math.max(1, Math.min(16, MAXANISO));
         c2.needsUpdate = true;
         return c2;
       })()
@@ -8427,7 +8499,7 @@
       const t = tex.clone();
       t.wrapS = t.wrapT = T.RepeatWrapping;
       t.repeat.set(Math.max(1, Math.round(w / 0.2)), Math.max(1, Math.round(len / 0.2)));
-      t.anisotropy = Math.max(1, Math.min(8, MAXANISO));
+      t.anisotropy = Math.max(1, Math.min(16, MAXANISO));
       t.needsUpdate = true;
       const m = new T.MeshStandardMaterial({
         color: tint || 0xffffff, map: t, roughness: 0.92, metalness: 0.02, envMapIntensity: 0.18,
@@ -8856,7 +8928,7 @@
     if (ctx.renderer) ctx.renderer.toneMappingExposure = 1.12;
     try {
       const caps = ctx.renderer && ctx.renderer.capabilities;
-      if (caps && caps.getMaxAnisotropy) MAXANISO = Math.min(8, caps.getMaxAnisotropy() || 4);
+      if (caps && caps.getMaxAnisotropy) MAXANISO = Math.min(16, caps.getMaxAnisotropy() || 4);
       applyAniso();
     } catch (e) {}
 
@@ -9771,7 +9843,7 @@
     // pick the GPU's anisotropic limit before any texture is painted
     try {
       const caps = ctx.renderer && ctx.renderer.capabilities;
-      if (caps && caps.getMaxAnisotropy) MAXANISO = Math.min(8, caps.getMaxAnisotropy() || 4);
+      if (caps && caps.getMaxAnisotropy) MAXANISO = Math.min(16, caps.getMaxAnisotropy() || 4);
       applyAniso();
     } catch (e) {}
     if (!booted) boot(ctx);
@@ -9800,6 +9872,16 @@
     try { declutter(); } catch (err) { window.__declutterErr = String(err && err.stack || err); }
     /* (v69) drums on every battle line, and motes that belong to the mood */
     try { addBattleProps(ctx); } catch (err) { window.__drumErr = String(err && err.stack || err); }
+    /* (fix) nothing tall may stand in the camera's own corridor: props planted
+       on the rail are slid aside, the wall boxes are rebuilt from where they
+       now stand, and an opening fly-through that crossed a building is raised
+       over it. See collectProps/clearRailCorridor/sanitizeIntro. */
+    try {
+      collectProps(ctx);
+      clearRailCorridor(ctx);
+      rebuildWallBoxes();
+      sanitizeIntro(ctx);
+    } catch (err) { window.__clearErr = String(err && err.stack || err); }
     try { addMoodMotes(ctx); } catch (err) { window.__moteErr = String(err && err.stack || err); }
     /* (v67) the shadow pass only draws what can be read, before the first
        frame of the stage */
@@ -9832,7 +9914,7 @@
     try { prewarmFx(ctx); } catch (err) {}
     try { stageWave(waves[0]); } catch (err) { window.__stageErr = String(err && err.stack || err); }
     const cam = ctx.camera;
-    cam.near = 0.06; cam.fov = viewFov(); cam.far = 320;
+    cam.near = 0.12; cam.fov = viewFov(); cam.far = 320;
     introT = 0;
     introT0 = performance.now();
     introLineI = 0;
@@ -10103,6 +10185,40 @@
     }
   }
 
+  /* (fix) slide any staged man who stands outside the frame back into it */
+  function frameWaveInView(ctx) {
+    if (!ctx || !ctx.camera) return 0;
+    const cam = ctx.camera;
+    cam.updateMatrixWorld(true);
+    if (!cam.projectionMatrix || !cam.aspect) return 0;
+    let moved = 0;
+    const v = new T.Vector3(), right = new T.Vector3(), fwd = new T.Vector3();
+    right.set(1, 0, 0).applyQuaternion(cam.quaternion); right.y = 0;
+    fwd.set(0, 0, -1).applyQuaternion(cam.quaternion); fwd.y = 0;
+    if (right.lengthSq() < 1e-4 || fwd.lengthSq() < 1e-4) return 0;
+    right.normalize(); fwd.normalize();
+    (posts || []).forEach((p) => {
+      if (!p || p.live === false || !p.mesh || !p.e || p.e.alive === false) return;
+      if (p.air === "heli" || p.air === "para" || p.role === "hostage") return;
+      if (p.carrier || p.car) return;
+      v.set(p.x, (p.y || 0.3) + 1.1, p.z).project(cam);
+      if (v.z > 1) return;                         /* behind the eye: leave him */
+      if (Math.abs(v.x) <= 0.86) return;
+      const depth = Math.max(2, (p.x - cam.position.x) * fwd.x + (p.z - cam.position.z) * fwd.z);
+      const halfW = depth * Math.tan(cam.fov * Math.PI / 360) * Math.max(0.3, cam.aspect) * 0.8;
+      const lat = (p.x - cam.position.x) * right.x + (p.z - cam.position.z) * right.z;
+      const wantLat = Math.max(-halfW, Math.min(halfW, lat));
+      const d = wantLat - lat;
+      if (Math.abs(d) < 0.05) return;
+      const nx = p.x + right.x * d, nz = p.z + right.z * d;
+      const free = wallBoxes.length ? pushOutOfWalls(nx, nz, 0.4, { x: right.x, z: right.z }) : { x: nx, z: nz };
+      p.x = free.x; p.z = free.z;
+      if (p.mesh) { p.mesh.position.x = p.x; p.mesh.position.z = p.z; }
+      moved++;
+    });
+    return moved;
+  }
+
   function startWave(w) {
     stageWave(w);
     phase = "fight";
@@ -10114,6 +10230,12 @@
     curLook = { x: w.look.x, y: w.look.y, z: w.look.z };
     pathU = w.u;
     vehB = null;
+    /* (fix) nobody spawns outside the frame: a man the player cannot see is a
+       man he cannot shoot, and a wave that will not clear stops the mission
+       (Wonsan's first squad stood off the left edge of a portrait screen).
+       Each staged man is projected through the live camera and slid along its
+       own right axis until he stands inside the frame. */
+    try { window.__framedN = frameWaveInView(window.__railCtx); } catch (e) { window.__frameWaveErr = String(e); }
     w.staged.forEach((p) => {
       if (!p || !p.bikeMesh || !p.run || !p.run.from || p.chase) return;
       const f = clearRunFrom(p.run.from, p.run.dest, 0.55);
@@ -10338,8 +10460,8 @@
       post.moveT = post.air === "apc" ? 3.2 : undefined;
     }
     if (STAGE.bossKind === "commander" && post) {
-      /* two bodyguards step out in front of him */
-      [-2.8, 2.8].forEach((lat, k) => {
+      /* two bodyguards step out in front of him (three for the last stand) */
+      (stageId === 5 ? [-4.2, 0, 4.2] : [-2.8, 2.8]).forEach((lat, k) => {
         try {
           const g = makePost({ yaw: bossYaw, hold: bossHold }, { role: "tough", lat: lat, dep: 8.6 + k * 0.6 }, 40 + k);
           g.live = true; g.state = "hidden"; g.stateT = 0.5 + k * 0.6; g.guard = true;
@@ -10437,6 +10559,141 @@
       if (!moved) break;
     }
     return { x, z };
+  }
+
+  /* ---- (fix) nothing may stand in the rail's own line ---------------------
+     A border post, a covered barrier or a shed planted across the road
+     swallows the camera, and the player sees the inside of a box instead of
+     the street. Two guards, both evidence based: at build time every prop tall
+     enough to cover the eye that stands within a metre of the path is slid
+     clear of the corridor, and every frame the camera is pushed out of
+     anything it still ends up inside. */
+  let PROPBOX = [];
+  function _underCamera(o, cam) {
+    for (let p = o; p; p = p.parent) if (p === cam) return true;
+    return false;
+  }
+  function _hostUnder(o, root) {
+    let top = o;
+    for (let p = o.parent; p && p !== root; p = p.parent) top = p;
+    return top;
+  }
+  function collectProps(ctx) {
+    PROPBOX = [];
+    if (!ctx || !ctx.scene) return PROPBOX;
+    try { ctx.scene.updateMatrixWorld(true); } catch (e) {}
+    ctx.scene.traverse((o) => {
+      if (!o.isMesh || !o.geometry) return;
+      if (o.userData && (o.userData.noBlock || o.userData.__railMoved)) return;
+      if (_underCamera(o, ctx.camera)) return;
+      let bb = null;
+      try { bb = new T.Box3().setFromObject(o); } catch (e) { return; }
+      if (!isFinite(bb.min.x) || !isFinite(bb.max.y)) return;
+      const sx = bb.max.x - bb.min.x, sy = bb.max.y - bb.min.y, sz = bb.max.z - bb.min.z;
+      if (sx * sy * sz < 0.5) return;
+      if (sy < 1.2) return;                       /* low cover: the eye floats over it */
+      if (sx > 64 || sz > 64) return;             /* sky dome, ground sheet, backdrops */
+      PROPBOX.push({ o, bb, sx, sy, sz, host: _hostUnder(o, ctx.scene) });
+    });
+    window.__propBoxes = PROPBOX.length;
+    return PROPBOX;
+  }
+  /* slide the props standing in the camera's corridor out of it */
+  function clearRailCorridor(ctx, path) {
+    const rep = { moved: 0, list: [] };
+    const pts = path || PATH_PTS || [];
+    if (!PROPBOX.length || !pts.length) return rep;
+    const R = 1.15;
+    PROPBOX.forEach((C) => {
+      /* the eye is at 1.68 m: only what really stands at eye height hides it */
+      if (C.bb.max.y < 1.95 || C.bb.min.y > 1.5) return;
+      if (C.sx > 26 || C.sz > 26) return;         /* a city block stays; the guard handles it */
+      let need = 0, side = 0;
+      for (let i = 0; i < pts.length; i++) {
+        const px = pts[i][0], pz = pts[i][1];
+        if (pz < C.bb.min.z - 2 || pz > C.bb.max.z + 2) continue;
+        const cx = Math.max(C.bb.min.x, Math.min(C.bb.max.x, px));
+        const cz = Math.max(C.bb.min.z, Math.min(C.bb.max.z, pz));
+        if (Math.hypot(px - cx, pz - cz) >= R) continue;
+        const cxm = (C.bb.min.x + C.bb.max.x) * 0.5;
+        const s = cxm >= px ? 1 : -1;
+        const d = (s > 0 ? (C.bb.max.x - px) : (px - C.bb.min.x)) + R + 0.2;
+        if (d > need) { need = d; side = s; }
+      }
+      if (!(need > 0) || !side || !C.host) return;
+      try {
+        C.host.position.x += side * need;
+        C.host.updateMatrixWorld(true);
+        C.bb.translate(new T.Vector3(side * need, 0, 0));
+        rep.moved++;
+        if (rep.list.length < 10) rep.list.push([+(C.host.position.x || 0).toFixed(1), +(C.bb.min.z).toFixed(0), +need.toFixed(1)]);
+      } catch (e) {}
+    });
+    window.__railClear = rep;
+    return rep;
+  }
+  /* the runtime guard: push the camera out of whatever it is inside */
+  function keepCamClear(cam) {
+    if (!PROPBOX || !PROPBOX.length || !cam) return;
+    const r = 0.5, p = cam.position;
+    for (let pass = 0; pass < 2; pass++) {
+      let moved = false;
+      for (let i = 0; i < PROPBOX.length; i++) {
+        const bb = PROPBOX[i].bb;
+        if (p.y < bb.min.y - 0.15 || p.y > bb.max.y + 0.15) continue;
+        if (p.x < bb.min.x - r || p.x > bb.max.x + r || p.z < bb.min.z - r || p.z > bb.max.z + r) continue;
+        const dxl = p.x - (bb.min.x - r), dxr = (bb.max.x + r) - p.x;
+        const dzl = p.z - (bb.min.z - r), dzr = (bb.max.z + r) - p.z;
+        const m = Math.min(dxl, dxr, dzl, dzr);
+        if (m === dxl) p.x = bb.min.x - r - 0.03;
+        else if (m === dxr) p.x = bb.max.x + r + 0.03;
+        else if (m === dzl) p.z = bb.min.z - r - 0.03;
+        else p.z = bb.max.z + r + 0.03;
+        moved = true;
+        window.__camPushed = (window.__camPushed || 0) + 1;
+      }
+      if (!moved) break;
+    }
+  }
+  /* the opening fly-through must never cross a building: if a keyframe or the
+     line between them lands inside geometry, the shot is raised over the
+     roofline and pulled back over the road */
+  function sanitizeIntro(ctx) {
+    const st = STAGE;
+    if (!st || !st.introCam || st.introCam.length < 2 || !PROPBOX.length) return null;
+    const A = st.introCam[0].slice(), B = st.introCam[1].slice();
+    const inside = (x, y, z, pad) => {
+      const q = pad == null ? 0.5 : pad;
+      for (let i = 0; i < PROPBOX.length; i++) {
+        const bb = PROPBOX[i].bb;
+        if (x > bb.min.x - q && x < bb.max.x + q && z > bb.min.z - q && z < bb.max.z + q && y > bb.min.y - q && y < bb.max.y + q) return bb;
+      }
+      return null;
+    };
+    const lineHit = () => {
+      for (let k = 0; k <= 32; k++) {
+        const t = k / 32, e = t * t * (3 - 2 * t);
+        const x = A[0] + (B[0] - A[0]) * e, y = A[1] + (B[1] - A[1]) * e, z = A[2] + (B[2] - A[2]) * e;
+        if (inside(x, y, z, 0.45)) return true;
+      }
+      return false;
+    };
+    let changed = false;
+    [A, B].forEach((P) => {
+      for (let k = 0; k < 8; k++) {
+        const bb = inside(P[0], P[1], P[2], 0.6);
+        if (!bb) break;
+        P[0] = +cityX(P[2]).toFixed(2);        /* back over the road */
+        P[1] = +(bb.max.y + 1.6).toFixed(2);   /* and over that roofline */
+        changed = true;
+      }
+    });
+    for (let k = 0; k < 12 && lineHit(); k++) { A[1] += 3; changed = true; }
+    if (changed) {
+      st.introCam = [A, B];
+      window.__introFix = { stage: stageId, from: [st.introCam[0], st.introCam[1]] };
+    }
+    return changed ? st.introCam : null;
   }
 
   /* is a point inside any wall box? (verification hook) */
@@ -13931,6 +14188,8 @@
           cam.position.x += Math.sin(ts * 0.21) * 1.6;
           cam.position.y += Math.sin(ts * 0.13) * 0.5;
         }
+        /* (fix) the drift must not drift the camera into a shed or a tower */
+        keepCamClear(cam);
         if (!STORY.skipRadio) (STAGE.introLines || []).forEach((ln, li) => {
           if (li >= introLineI && introT >= ln.t) { radio(ln.text, 4400); introLineI = li + 1; }
         });
@@ -13993,8 +14252,8 @@
               if (_seenV.z > 1) return;
               hi = Math.max(hi, _seenV.x); lo = Math.min(lo, _seenV.x);
             });
-            if (hi > 0.8 && lo > -0.8) want = Math.min(1, hi - 0.8) * 9;
-            else if (lo < -0.8 && hi < 0.8) want = -Math.min(1, -0.8 - lo) * 9;
+            if (hi > 0.8 && lo > -0.8) want = Math.min(1, hi - 0.8) * 14;
+            else if (lo < -0.8 && hi < 0.8) want = -Math.min(1, -0.8 - lo) * 14;
           }
           frameOff += (want - frameOff) * Math.min(1, dt * 1.6);
           if (Math.abs(frameOff) > 0.01) {
@@ -14043,9 +14302,13 @@
     cam.position.x += sx + kickV.x;
     cam.position.z += sz + kickV.z;
     if (phase !== "intro") cam.position.y = CAM_Y + sy + Math.sin(nowMs / 1700) * 0.006 + (chase ? Math.sin(nowMs / 90) * 0.012 : 0) + (chase && chase.para ? paraAlt(pathU) : 0) + (chase && chase.heli ? heliAlt(pathU) + Math.sin(nowMs / 700) * 0.12 : chase && chase.train ? 1.2 + Math.sin(nowMs / 140) * 0.015 : 0);
+    /* (fix) the rail never lets the eye sit inside a wall: shake, kick, side
+       step and the combat lean can all push it a hand's width into a shed,
+       and one frame of that is a screen full of wall */
+    keepCamClear(cam);
     cam.lookAt(lookSmooth.x, lookSmooth.y + sway, lookSmooth.z);
     if (roll) cam.rotateZ(roll);
-    cam.near = 0.06;
+    cam.near = 0.12;
     cam.fov = aimFov();
     cam.updateProjectionMatrix();
     cam.updateMatrixWorld(true);
@@ -14898,14 +15161,14 @@
     const t = tex.clone();
     t.wrapS = t.wrapT = T.RepeatWrapping;
     t.repeat.set(rx || 1, ry || 1);
-    t.anisotropy = Math.max(1, Math.min(8, MAXANISO));
+    t.anisotropy = Math.max(1, Math.min(16, MAXANISO));
     t.needsUpdate = true;
     const m = new T.MeshPhongMaterial({ map: t, shininess: opt.shine == null ? 4 : opt.shine, specular: new T.Color(opt.spec == null ? 0x191914 : opt.spec) });
     if (opt.bump) {
       const bt = opt.bump.clone();
       bt.wrapS = bt.wrapT = T.RepeatWrapping;
       bt.repeat.set(rx || 1, ry || 1);
-      bt.anisotropy = Math.max(1, Math.min(8, MAXANISO));
+      bt.anisotropy = Math.max(1, Math.min(16, MAXANISO));
       bt.needsUpdate = true;
       m.bumpMap = bt;
       m.bumpScale = opt.bumpScale == null ? 0.1 : opt.bumpScale;
@@ -16691,7 +16954,7 @@
   }
   /* a tower on a hill or a plaza: shaft, observation pod, antenna */
   function lmTower(S, x, z, h, style) {
-    const white = cmat(0xeceae4, 0.5, 0.1), grey = cmat(0xa8adb2, 0.5, 0.4), glass = cmat(0x5a8ab0, 0.12, 0.6);
+    const white = cmat(0xeceae4, 0.5, 0.1), grey = cmat(0xa8adb2, 0.5, 0.4), glass = curtainMat("blue");
     const base = style === "hill" ? 0 : 0.3;
     if (style === "hanbit") {
       for (let k = 0; k < 3; k++) {
@@ -16838,19 +17101,23 @@
   }
   /* glass towers with a lit crown */
   function lmGlassTowers(S, list) {
-    const mats = [cmat(0x5d8cb4, 0.12, 0.65), cmat(0x7aa6c8, 0.15, 0.6), cmat(0x4a7a9c, 0.1, 0.7)];
+    /* (fix) these were three flat blue boxes with white rings painted on. They
+       now carry a real curtain wall: glass panes, mullions and a spandrel per
+       floor, so the office blocks read as glass instead of paint. */
+    const mats = [curtainMat("blue"), curtainMat("stone"), curtainMat("blue")];
     list.forEach(([x, z, w, d, h, k]) => {
-      const t = bx(S, w, h, d, x, 0.3 + h / 2, z, mats[(k || 0) % 3]);
-      for (let y = 3.2; y < h; y += 3.2) bx(S, w + 0.08, 0.12, d + 0.08, x, 0.3 + y, z, cmat(0xd8e2ea, 0.5, 0.3), { noCast: true });
+      const mat = mats[(k || 0) % 3];
+      const m = new T.Mesh(worldUV(new T.BoxGeometry(w, h, d), 6.5), mat);
+      m.position.set(x, 0.3 + h / 2, z); m.castShadow = true; m.receiveShadow = true;
+      S.add(m); m.userData.noBlock = 1;
       bx(S, w * 0.6, 1.6, d * 0.6, x, 0.3 + h + 0.8, z, cmat(0xc8ccd0, 0.6));
-      t.userData.noBlock = 1;
     });
   }
   /* a tapering four-sided tower with the top cut on a slant */
   function lmTaperTower(S, x, z, h) {
-    const g = new T.CylinderGeometry(3.2, 9.0, h, 4, 1);
+    const g = worldUV(new T.CylinderGeometry(3.2, 9.0, h, 4, 1), 6.5);
     g.rotateY(Math.PI / 4);
-    const m = new T.Mesh(g, cmat(0x6f9ac0, 0.08, 0.7));
+    const m = new T.Mesh(g, curtainMat("blue"));
     m.position.set(x, 0.3 + h / 2, z);
     S.add(m);
     for (let y = 4; y < h; y += 4) {
@@ -17054,7 +17321,7 @@
     nm.wrapS = nm.wrapT = T.RepeatWrapping;
     /* (v69) anisotropic filtering on the wave maps: at 1 the grazing view down
        a long sea blurred one axis only and the chop read as a comb */
-    nm.anisotropy = Math.max(1, Math.min(8, MAXANISO));
+    nm.anisotropy = Math.max(1, Math.min(16, MAXANISO));
     nm.repeat.set(R0, R0);
     const m = new T.MeshStandardMaterial({
       color: new T.Color(col).convertSRGBToLinear(),
@@ -17074,7 +17341,7 @@
     m.userData.wu = u;
     if (!WU.nB.value) {
       WU.nB.value = waveNormal2(); WU.tone.value = waterToneTex(); WU.spark.value = waterSparkTex();
-      [WU.nB.value, WU.tone.value, WU.spark.value].forEach((t) => { t.anisotropy = Math.max(1, Math.min(8, MAXANISO)); });
+      [WU.nB.value, WU.tone.value, WU.spark.value].forEach((t) => { t.anisotropy = Math.max(1, Math.min(16, MAXANISO)); });
     }
     m.onBeforeCompile = (sh) => {
       sh.uniforms.tWaterB = WU.nB;
@@ -17753,14 +18020,19 @@
     for (let k = 0; k < 6; k++) bx(G, 1.0, 0.07, 0.36, 0, 0.9 + k * 0.9, 1.95, rail, { noCast: 1 });
     cyl(G, 0.28, 0.34, 0.5, 1.5, top + 0.7, -1.5, cmat(0x4a4e4a, 0.6, 0.3), 8);
   }
-  /* (v68) 2-6 CHEORWON: the paddy plain south of the DMZ, wire fence, posts */
+  /* (v68) 2-6 CHEORWON: the paddy plain south of the DMZ, wire fence, posts.
+     (fix) the stage is played from the south end of the plain to the party
+     hall, so the fields, the dikes, the wire and the power line now run the
+     whole length of the road (z −248 to +78) instead of stopping 60 m in and
+     handing over to a city street. */
   function crApproach(S) {
     const M = voxMats(), HM = hnMats(), VB = voxBatch(), R = rng(2222);
-    const Z0 = -248, Z1 = -58;
+    const Z0 = -284, Z1 = 96;
     /* the plain: dry autumn grass and stubble to the horizon */
     const gt = HM.ground.clone(); gt.needsUpdate = true; gt.wrapS = gt.wrapT = T.RepeatWrapping; gt.repeat.set(1400 / 11, 1400 / 11);
     const skirt = new T.Mesh(new T.PlaneGeometry(1400, 1400), new T.MeshStandardMaterial({ map: gt, roughness: 1 }));
-    skirt.rotation.x = -Math.PI / 2; skirt.position.set(0, 0.2, -200); skirt.userData.noBlock = 1; S.add(skirt);
+    skirt.rotation.x = -Math.PI / 2; skirt.position.set(0, 0.2, -90); skirt.userData.noBlock = 1; S.add(skirt);
+    /* the farm road: tarmac in the middle, gravel shoulders either side */
     apRoad(S, Z0, Z1, { shoulder: "gravel" });
     /* the paddies: cut rice between mud dikes, a shade apart field by field */
     const pt = ctex("crPaddy", 256, 256, (g, w, h) => {
@@ -17775,39 +18047,61 @@
     });
     const ptx = pt.clone(); ptx.needsUpdate = true; ptx.wrapS = ptx.wrapT = T.RepeatWrapping; ptx.repeat.set(34, 40);
     const pm = new T.MeshStandardMaterial({ map: ptx, roughness: 0.97 });
+    /* three field bands down each side: -254..-78, -78..94, and a far strip */
     [-1, 1].forEach((sd) => {
-      [0, 1].forEach((k) => {
-        const p = new T.Mesh(new T.PlaneGeometry(150, 176), pm);
-        p.rotation.x = -Math.PI / 2; p.position.set(sd * (24 + 76 + k * 152), 0.234, -166); p.receiveShadow = true; p.userData.noBlock = 1; S.add(p);
+      [[-166, 176], [8, 172]].forEach(([cz, len]) => {
+        [0, 1].forEach((k) => {
+          const p = new T.Mesh(new T.PlaneGeometry(150, len), pm);
+          p.rotation.x = -Math.PI / 2; p.position.set(sd * (24 + 76 + k * 152), 0.234, cz); p.receiveShadow = true; p.userData.noBlock = 1; S.add(p);
+        });
       });
     });
     /* the dikes that cut the paddies into plots */
-    [-1, 1].forEach((sd) => { for (let k = 0; k < 5; k++) { const x = sd * (24 + 30 + k * 30); VB.cube(M.plain, x, 0.29, -166, 0.8, 0.2, 176, 0x9a8a62); } });
-    for (let z = -250; z < -76; z += 30) [-1, 1].forEach((sd) => VB.cube(M.plain, sd * 100, 0.29, z, 152, 0.2, 0.8, 0x9a8a62));
+    [-1, 1].forEach((sd) => {
+      for (let k = 0; k < 5; k++) {
+        const x = sd * (24 + 30 + k * 30);
+        VB.cube(M.plain, x, 0.29, -166, 0.8, 0.2, 176, 0x9a8a62);
+        VB.cube(M.plain, x, 0.29, 8, 0.8, 0.2, 172, 0x9a8a62);
+      }
+    });
+    for (let z = -250; z < 92; z += 30) [-1, 1].forEach((sd) => VB.cube(M.plain, sd * 100, 0.29, z, 152, 0.2, 0.8, 0x9a8a62));
     /* the wire fence that runs the line: posts every 3 m, three strands */
     [-1, 1].forEach((sd) => {
       const x = sd * 11.6;
-      for (let z = Z0 + 4; z < -80; z += 3) VB.cube(M.plain, x, 1.55, z, 0.1, 2.6, 0.1, 0x8a8e8c);
-      [0.7, 1.5, 2.3].forEach((y) => VB.cube(M.plain, x, y, -165, 0.05, 0.05, 168, 0x6a6e6c));
+      for (let z = Z0 + 4; z < 70; z += 3) VB.cube(M.plain, x, 1.55, z, 0.1, 2.6, 0.1, 0x8a8e8c);
+      [0.7, 1.5, 2.3].forEach((y) => { VB.cube(M.plain, x, y, -165, 0.05, 0.05, 168, 0x6a6e6c); VB.cube(M.plain, x, y, 8, 0.05, 0.05, 160, 0x6a6e6c); });
     });
     /* the watch posts whose decks the wall gunners stand on */
     crPost(S, -19.3, -200, 12.0, 0.2); crPost(S, 19.3, -194, 5.45, -0.2);
     crPost(S, 19.3, -152, 5.45, 0.1); crPost(S, -19.3, -146, 5.45, -0.15);
     crPost(S, -15.8, -108, 5.45, 0.15); crPost(S, 15.8, -100, 5.45, -0.1);
-    /* farm hamlets behind the fields, and pines on the far side */
+    /* farm hamlets behind the fields — a cluster of low houses with tiled or
+       rusted roofs — and pines on the far side */
     const walls = [0xf2efe6, 0xe8e2d4, 0xf6f4ee], roofs = [0x5a5e64, 0x8a4a32, 0x4a5a6a];
-    [[-62, -224], [-74, -166], [58, -206], [70, -142], [-58, -96], [56, -86]].forEach(([cx, cz]) => {
+    [[-62, -224], [-74, -166], [58, -206], [70, -142], [-58, -96], [56, -86], [-64, -18], [62, 22], [-58, 58], [58, 66]].forEach(([cx, cz]) => {
       const n = 3 + ((R() * 3) | 0);
       for (let i = 0; i < n; i++) {
         const x = cx + (R() - 0.5) * 22, z = cz + (R() - 0.5) * 18, w = 5 + R() * 3, h = 2.8;
         VB.cube(M.plain, x, 0.25 + h / 2, z, w, h, 4.4, walls[(R() * 3) | 0], 0, { cast: true });
         VB.cube(M.plain, x, 0.25 + h + 0.42, z, w + 0.8, 0.85, 5.2, roofs[(R() * 3) | 0], 0, { cast: true });
+        /* a yard wall, so a hamlet reads as a farm and not as three boxes */
+        VB.cube(M.plain, x + w * 0.5 + 1.1, 0.85, z + 2.4, 0.3, 1.2, 5.0, 0xb8b2a2);
       }
     });
-    for (let i = 0; i < 90; i++) { const sd = i % 2 ? 1 : -1, x = sd * (36 + R() * 120), z = -260 + R() * 190; voxPine(VB, x, 0.25, z, 5 + R() * 6, i + 221); }
+    /* a farmhouse right by the road at the north end: the boss arena reads as
+       a farmyard, which is what the party hall stood in */
+    [[-21, 30], [21, -12]].forEach(([hx, hz]) => {
+      VB.cube(M.plain, hx, 1.55, hz, 7, 2.9, 5.4, 0xe8e2d4, 0, { cast: true });
+      VB.cube(M.plain, hx, 3.35, hz, 7.9, 0.9, 6.3, 0x8a4a32, 0, { cast: true });
+      VB.cube(M.plain, hx + 4.4, 0.8, hz + 3.2, 0.28, 1.1, 6.0, 0xb8b2a2);
+    });
+    for (let i = 0; i < 120; i++) { const sd = i % 2 ? 1 : -1, x = sd * (36 + R() * 130), z = -260 + R() * 340; voxPine(VB, x, 0.25, z, 5 + R() * 6, i + 221); }
     /* power line down the east shoulder */
-    for (let z = -240; z < -70; z += 26) { VB.cube(M.plain, 8.6, 4.4, z, 0.28, 8.2, 0.28, 0x5a4632, 0, { cast: true }); VB.cube(M.plain, 8.6, 8.2, z, 2.2, 0.16, 0.16, 0x5a4632); }
-    [-0.7, 0.7].forEach((dx) => bx(S, 0.03, 0.03, 176, 8.6 + dx, 8.35, -155, cmat(0x222222, 0.6), { noCast: 1 }));
+    for (let z = -240; z < 70; z += 26) { VB.cube(M.plain, 8.6, 4.4, z, 0.28, 8.2, 0.28, 0x5a4632, 0, { cast: true }); VB.cube(M.plain, 8.6, 8.2, z, 2.2, 0.16, 0.16, 0x5a4632); }
+    [-0.7, 0.7].forEach((dx) => {
+      bx(S, 0.03, 0.03, 168, 8.6 + dx, 8.35, -155, cmat(0x222222, 0.6), { noCast: 1 });
+      bx(S, 0.03, 0.03, 158, 8.6 + dx, 8.35, 8, cmat(0x222222, 0.6), { noCast: 1 });
+    });
     VB.flush(S, "crPlain");
   }
   /* (v68) 3-8 SINUIJU: the riverside road, the Yalu to the west and the
@@ -17984,20 +18278,39 @@
           ab.position.set(x, hh / 2 + 0.3, z); ab.castShadow = row === 0; ab.receiveShadow = true; ab.userData.noBlock = 1; S.add(ab);
           bx(S, w + 0.4, 1.0, 20.4, x, hh + 0.8, z, cmat(0xd8d4cc, 0.85), { noCast: 1 }).userData.noBlock = 1;
           bx(S, 3, 3, 4, x, hh + 2.6, z + 5, cmat(0xc8c4bc, 0.85), { noCast: 1 }).userData.noBlock = 1;
-          const endW = new T.Mesh(new T.PlaneGeometry(w - 0.4, hh - 2), cmat(0xe8e4dc, 0.85)); endW.position.set(x, hh / 2 + 0.3, z - 10.02); endW.rotation.y = Math.PI; endW.userData.noBlock = 1; S.add(endW);
+          /* (fix) the shut end wall and the block number were laid 2 cm and
+             4 cm in front of the slab: less air than the depth buffer can
+             resolve 120 m away, so the whole end of every block flickered.
+             14 cm of stand-off and a polygon offset keep them still. */
+          const endW = new T.Mesh(new T.PlaneGeometry(w - 0.4, hh - 2), cmat(0xe8e4dc, 0.85)); endW.position.set(x, hh / 2 + 0.3, z - 10.14); endW.rotation.y = Math.PI; endW.userData.noBlock = 1; S.add(endW);
           const no = (sd < 0 ? 100 : 200) + row * 10 + ((z - Z0) / 30 | 0) + 1;
-          const nm = new T.Mesh(new T.PlaneGeometry(6, 2.4), new T.MeshStandardMaterial({ map: hiSign("hanNo" + no, no + "동", "", "#e8e4dc", ["#2a5aa8", "#3a7a4a", "#b84a3a"][row], 512, 200), roughness: 0.8 }));
-          nm.position.set(x, hh - 3.2, z - 10.04); nm.rotation.y = Math.PI; nm.userData.noBlock = 1; S.add(nm);
+          const nm = new T.Mesh(new T.PlaneGeometry(6, 2.4), new T.MeshStandardMaterial({ map: hiSign("hanNo" + no, no + "동", "", "#e8e4dc", ["#2a5aa8", "#3a7a4a", "#b84a3a"][row], 512, 200), roughness: 0.8, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
+          nm.position.set(x, hh - 3.2, z - 10.26); nm.rotation.y = Math.PI; nm.userData.noBlock = 1; S.add(nm);
         }
       }
     });
     /* Yeouido's gold tower on the south bank, and a couple of glass towers */
     {
-      const gold = cmat(0xd8b25a, 0.14, 0.75);
-      const tw = new T.Mesh(new T.BoxGeometry(18, 1, 26), gold);
+      /* (fix) the gold tower was one flat gold box: same colour on every face,
+         no glass, no floor lines, so from the far bank it read as a painted
+         slab. Now a gold curtain wall with a podium, four stepped shafts and a
+         lit crown, the mullions holding up at any distance. */
+      const gold = curtainMat("gold");
       const g = new T.Group();
-      for (let k = 0; k < 6; k++) { const m = new T.Mesh(new T.BoxGeometry(18 - k * 1.6, 22, 26 - k * 2.2), gold); m.position.set(0, 11 + k * 20, 0); m.castShadow = true; g.add(m); }
-      g.position.set(-64, 0, -196); g.traverse((o) => { o.userData.noBlock = 1; }); S.add(g); void tw;
+      const add = (w, h, d, y) => {
+        const m = new T.Mesh(worldUV(new T.BoxGeometry(w, h, d), 6.5), gold);
+        m.position.set(0, y, 0); m.castShadow = true; m.receiveShadow = true;
+        g.add(m); return m;
+      };
+      add(24, 9, 32, 4.5);                       /* podium */
+      for (let k = 0; k < 6; k++) add(18 - k * 1.6, 22, 26 - k * 2.2, 11 + k * 20);
+      /* the crown: a smaller glass box on the roof and its mast */
+      add(7.2, 5.2, 9.4, 126.6);
+      const mast = new T.Mesh(new T.CylinderGeometry(0.22, 0.42, 9, 8), cmat(0xb8bcc0, 0.4, 0.7));
+      mast.position.set(0, 133.6, 0); g.add(mast);
+      const red = new T.Mesh(new T.SphereGeometry(0.42, 8, 6), new T.MeshStandardMaterial({ color: 0xff3b30, emissive: 0xff2010, emissiveIntensity: 1.4, roughness: 0.5 }));
+      red.position.set(0, 138.2, 0); g.add(red);
+      g.position.set(-64, 0, -196); g.traverse((o) => { o.userData.noBlock = 1; }); S.add(g);
     }
     VB.flush(S, "hanBanks");
     /* (v64) Seoul is still burning on the north bank */
@@ -18746,6 +19059,12 @@
        (22, 23) lay their own ground instead. */
     const zStart = (STAGE.path && STAGE.path.length) ? STAGE.path[0][1] : z0;
     const own = C.cheorwon || C.sinuiju || C.suwon || C.rails || C.approach || C.sea;
+    /* (fix) 2-6 CHEORWON is farmland, not a city: no asphalt ground, no lane
+       paint, no kerbs, no shop blocks, no street lamps, no rooftop clutter —
+       its own plain (crApproach) lays the farm road, the paddies, the dikes,
+       the wire and the hamlets instead. Everything else still runs, so the
+       sky, the hills, the fog and the landmarks stay. */
+    const RURAL = !!(C.rural || C.cheorwon);
     const back = own ? 0 : Math.min(56, Math.max(0, z0 - zStart));
     const zBack = z0 - back;
     /* ground: asphalt, or stone paving for the old capital */
@@ -18762,6 +19081,7 @@
     if (TURNS.length || back) gtx.repeat.set(C.paved ? GS / 5 : GS / 8, C.paved ? GS / 5 : GS / 8);
     ground.receiveShadow = true;
     ground.userData.noBlock = 1;
+    if (RURAL) ground.visible = false;              /* the plain lays its own grass and road */
     S.add(ground);
     void gKey;
     if (C.approach) { try { kaesongApproach(S); } catch (e) { window.__lmErr = String(e && e.stack || e); } }
@@ -18809,7 +19129,7 @@
     const keep = new Set(S.children);
     /* road paint and kerbs */
     const paint = (x, z, w, d, m) => { const p = new T.Mesh(new T.PlaneGeometry(w, d), m); p.rotation.x = -Math.PI / 2; p.position.set(x, 0.312, z); p.userData.noBlock = 1; S.add(p); };
-    if (!C.paved) {
+    if (!C.paved && !RURAL) {
       /* (v45) lines are ribbons laid along the avenue's curve, so they run
          unbroken instead of stepping sideways every few metres */
       const stripe = (off, w, za, zb, m) => {
@@ -18840,7 +19160,7 @@
       m.position.set((x0 + x1) / 2, 0.36, (zz0 + zz1) / 2); m.receiveShadow = true; m.userData.noBlock = 1; S.add(m);
     };
     const zA = C.sea ? -44 : zBack;
-    legSpans(zA, 52).forEach(([a, b]) => { walk(-13.8, -10, a, b); if (!seaHere(a)) walk(10, 13.8, a, b); else walk(10, 16, a, TURNS.length ? b : z1); });
+    if (!RURAL) legSpans(zA, 52).forEach(([a, b]) => { walk(-13.8, -10, a, b); if (!seaHere(a)) walk(10, 13.8, a, b); else walk(10, 16, a, TURNS.length ? b : z1); });
     /* ---- the blocks either side, with gaps for side streets ---- */
     /* each city's own facade palette: the shared facades, tinted */
     const facs = [SOL.facA, SOL.facB, SOL.facC].map((m, i) => {
@@ -18885,7 +19205,7 @@
     /* the blocks stop at z 50: the boss fight looks out over an open plaza
        with the city's landmarks behind it */
     const runs = [[zA + 2, -30], [-22, 18], [26, 50]];
-    {
+    if (!RURAL) {
       const sS = seaHere(60);
       const pw = sS ? 71 : 110;
       const pz = new T.Mesh(new T.BoxGeometry(pw, 0.1, 90), repMat(SOL.pave, pw / 3.2, 90 / 3.2));
@@ -18904,7 +19224,7 @@
         z += len + 0.6;
       }
     };
-    if (!TURNS.length) runs.forEach(([a, b]) => fillRun(a, b, [-1, 1]));
+    if (!TURNS.length) { if (!RURAL) runs.forEach(([a, b]) => fillRun(a, b, [-1, 1])); }
     else {
       /* (v26) each leg's blocks stop short of the corner on the inside of
          a turn; on the outside the next leg's blocks start back across the
@@ -18935,13 +19255,13 @@
       bx(S, 0.6, 3, zr - zA, 16.2, -1.0, (zA + zr) / 2, cmat(0x9a968c, 0.9));
     }
     /* ---- street furniture ---- */
-    for (let z = zA + 6; z < z1 - 4; z += 14) {
+    for (let z = zA + 6; !RURAL && z < z1 - 4; z += 14) {
       if (!nearTurn(z, 14)) makeStreetLamp(S, -10.6, z, Math.PI / 2);
       if (!seaHere(z + 7) && !nearTurn(z + 7, 14)) makeStreetLamp(S, 10.6, z + 7, -Math.PI / 2);
     }
     const VTs = [];
     const trunks = [];
-    for (let z = zA + 3; z < z1 - 4; z += 11) {
+    for (let z = zA + 3; !RURAL && z < z1 - 4; z += 11) {
       [-11.6, 11.6].forEach((x, k) => {
         const zz = z + k * 5.5;
         if (seaHere(zz) && x > 0) return;
@@ -18980,13 +19300,14 @@
     /* (v46) burnt-out shells on the pavements, projecting shop signs and kerb
        litter: the same dressing the first stage got, so every city reads as a
        street that was fought over rather than a clean set */
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < 3 && !RURAL; i++) {
       const z = zA + 14 + i * ((50 - zA) / 3);
       const side = i % 2 ? 1 : -1;
       if (side > 0 && seaHere(z)) continue;
       try { makeWreckCar(S, side * (11.4 + R() * 0.5), z, side > 0 ? Math.PI * 0.98 : 0.02, { paint: i % 2 }); } catch (e) { window.__wreckErr = String(e); }
     }
     [[-14.06, 0, -5, 0], [14.06, Math.PI, -15, 2], [14.06, Math.PI, 13, 5], [-14.06, 0, 21, 7]].forEach(([sx, ry, bz, k]) => {
+      if (RURAL) return;
       if (nearTurn(bz, 13) || (sx > 0 && seaHere(bz))) return;
       /* (v47) hang it only on a wall that is really there, and not across a
          banner or a lamp: a fixed z could land in a gap between two blocks
@@ -18997,7 +19318,7 @@
     });
     /* an instanced batch cannot turn with the avenue, so the litter only goes
        down where the street runs straight */
-    if (!TURNS.length) {
+    if (!TURNS.length && !RURAL) {
       try { dressClutter(S, (C.seed || 7) * 13 + 1, { z0: zA + 2, z1: 46, n: 90, piles: 4, cases: 20 }); } catch (e) { window.__clutterErr = String(e); }
     }
     const barrels = [];
@@ -21079,6 +21400,31 @@
     }),
     begin: (ctx, n) => begin(ctx, n),
     beginStage: (ctx, n) => begin(ctx, n),
+    /* (fix) verification hooks: the opening camera of the stage as it will
+       really fly (after sanitizeIntro), and how crowded the rail corridor was */
+    intro: () => (STAGE && STAGE.introCam ? STAGE.introCam.map((q) => q.slice()) : null),
+    /* (fix) verification hook: run the wave-framing pass by hand and say how
+       many men it had to slide into the frame */
+    frameWave: () => frameWaveInView(window.__railCtx),
+    screenOf: (i) => {
+      const p = (posts || [])[i], ctx = window.__railCtx;
+      if (!p || !ctx) return null;
+      const v = new T.Vector3(p.x, (p.y || 0.3) + 1.1, p.z).project(ctx.camera);
+      return [+v.x.toFixed(2), +v.y.toFixed(2), +v.z.toFixed(2), !!p.live, p.air || p.role];
+    },
+    stageWaveList: () => (posts || []).length,
+    clear: () => ({ moved: window.__railClear || null, props: PROPBOX.length, walls: wallBoxes.length, intro: window.__introFix || null, framed: window.__framedN }),
+    /* (fix) is this point inside a prop the camera could be buried in? */
+    hitAt: (x, y, z, pad) => {
+      const q = pad == null ? 0.4 : pad;
+      const out = [];
+      for (let i = 0; i < PROPBOX.length; i++) {
+        const b = PROPBOX[i].bb;
+        if (x > b.min.x - q && x < b.max.x + q && z > b.min.z - q && z < b.max.z + q && y > b.min.y - q && y < b.max.y + q)
+          out.push([+b.min.x.toFixed(1), +b.max.x.toFixed(1), +b.min.y.toFixed(1), +b.max.y.toFixed(1), +b.min.z.toFixed(1), +b.max.z.toFixed(1)]);
+      }
+      return out;
+    },
     /* test hooks: what the air units look like on screen, and a way to clear
        the current wave so the later zones can be reached in a headless run */
     air: () => (window.__railCtx ? airReport(window.__railCtx) : []),
