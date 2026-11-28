@@ -1,2 +1,0 @@
-import{ad as i}from"./App-y5NFyMLE.js";async function n(e,r){let a="";try{a=await i.createLink({path:r?`intoss://byeoljaguk?open=${r}`:"intoss://byeoljaguk"})}catch{a=""}const t=a?`${e}
-${a}`:e;try{return await i.sendMessage({message:t}),"toss"}catch{}try{if(navigator.share)return await navigator.share({text:t}),"native"}catch{}try{return await navigator.clipboard.writeText(t),"copied"}catch{return"failed"}}export{n as s};
