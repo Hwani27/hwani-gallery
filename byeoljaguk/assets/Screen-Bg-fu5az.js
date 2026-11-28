@@ -1,0 +1,1 @@
+import{j as e,S as a,ae as c}from"./App-KeCn1nC-.js";function l({children:r,banner:s,lumi:n}){return e.jsxs("div",{className:"screen",children:[n?e.jsx(a,{topic:n}):null,e.jsx("div",{className:"screen-body",children:r}),s?e.jsx(c,{placement:s}):null]})}export{l as S};
